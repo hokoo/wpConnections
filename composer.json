@@ -5,7 +5,8 @@
   "license": "GPL-2.0+",
   "minimum-stability": "dev",
   "require": {
-    "scribu/scb-framework": "dev-master"
+    "scribu/scb-framework": "dev-master",
+    "ramsey/collection": "*"
   },
   "require-dev": {
     "johnpbloch/wordpress-core": "5.0.13"
