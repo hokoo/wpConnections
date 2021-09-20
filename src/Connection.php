@@ -16,6 +16,11 @@ class Connection {
 	private $title = '';
 
 	/**
+	 * @var string
+	 */
+	private $relation = '';
+
+	/**
 	 * @var int
 	 */
 	private $from;

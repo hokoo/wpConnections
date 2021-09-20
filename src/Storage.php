@@ -41,11 +41,12 @@ class Storage {
 
 	private function install() {
 		scb_install_table( $this->get_connections_table(), "
-			ID      bigint(20)    unsigned NOT NULL auto_increment,
-			from    bigint(20)    unsigned NOT NULL,
-			to      bigint(20)    unsigned NOT NULL,
-			order   bigint(20)    unsigned NOT NULL,
-			title   varchar(63)   unsigned NOT NULL,
+			ID          bigint(20)      unsigned NOT NULL auto_increment,
+			relation    varchar(255)    unsigned NOT NULL,
+			from        bigint(20)      unsigned NOT NULL,
+			to          bigint(20)      unsigned NOT NULL,
+			order       bigint(20)      unsigned NOT NULL,
+			title       varchar(63)     unsigned NOT NULL,
 			
 			PRIMARY KEY (ID),
 			KEY from (from),
