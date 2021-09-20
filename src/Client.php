@@ -24,6 +24,9 @@ class Client {
 		$this->storage = new Storage( $this );
 		$this->relations = new RelationCollection();
 
+		add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
+		add_action( 'deleted_user', [ $this->storage, 'deleteByObjectID' ] );
+
 		do_action( 'p2p_client_inited', $this );
 	}
 

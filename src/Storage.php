@@ -36,9 +36,6 @@ class Storage {
 
 		scb_register_table( $this->get_connections_table() );
 		scb_register_table( $this->get_meta_table() );
-
-		add_action( 'deleted_post', [ $this, 'deleted_object' ] );
-		add_action( 'deleted_user', [ $this, 'deleted_object' ] );
 	}
 
 	private function install() {
@@ -69,6 +66,8 @@ class Storage {
 	}
 
 	/**
+	 * Deletes connections by set of connection IDs
+	 *
 	 * @throws ConnectionWrongData
 	 *
 	 * @return int Rows number affected
@@ -76,6 +75,46 @@ class Storage {
 	public function deleteConnections( $connectionIDs ): int {
 		global $wpdb;
 
+		$connectionIDs = $this->prepareIDs( $connectionIDs );
+
+		// MySQL Query
+		$db = $wpdb->prefix . $this->connections_table;
+		$in = implode( ',', $connectionIDs );
+		$query = "DELETE FROM {$db} WHERE `ID` IN {$in}";
+
+		$wpdb->query( esc_sql( $query ) );
+
+		return $wpdb->rows_affected;
+	}
+
+	/**
+	 * Deletes connections by set of object IDs
+	 *
+	 * @throws ConnectionWrongData
+	 *
+	 * @return int Rows number affected
+	 */
+	public function deleteByObjectID( $objectIDs ): int {
+		global $wpdb;
+
+		$objectIDs = $this->prepareIDs( $objectIDs );
+
+		// MySQL Query
+		$db = $wpdb->prefix . $this->connections_table;
+		$in = implode( ',', $objectIDs );
+		$query = "DELETE FROM {$db} WHERE `from` IN {$in} OR `to` IN {$in}";
+
+		$wpdb->query( esc_sql( $query ) );
+
+		return $wpdb->rows_affected;
+	}
+
+	/**
+	 * @throws ConnectionWrongData
+	 *
+	 * @return int Rows number affected
+	 */
+	protected function prepareIDs( $connectionIDs ): int {
 		$connectionIDs = is_numeric( $connectionIDs ) ? [ $connectionIDs ] : $connectionIDs;
 		$e = new ConnectionWrongData( 'Integer or array of integer expected.' );
 
@@ -90,14 +129,7 @@ class Storage {
 			throw $e;
 		}
 
-		// MySQL Query
-		$db = $wpdb->prefix . $this->connections_table;
-		$in = implode( ',', $connectionIDs );
-		$query = "DELETE FROM {$db} WHERE `ID` IN {$in}";
-
-		$wpdb->query( esc_sql( $query ) );
-
-		return $wpdb->rows_affected;
+		return $connectionIDs;
 	}
 
 	public function findConnections( Query\Connection $params ): ConnectionCollection {
