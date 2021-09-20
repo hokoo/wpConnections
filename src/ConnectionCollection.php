@@ -13,9 +13,10 @@ class ConnectionCollection extends Collection {
 	private function fromArray( array $items ): array {
 
 		$connections = [];
+		$type = $this->getType();
 
 		foreach ( $items as $item ) {
-			if ( $item instanceof Connection ) {
+			if ( $item instanceof $type ) {
 				$connections []= $item;
 				continue;
 			}

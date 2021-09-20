@@ -31,9 +31,16 @@ class Factory {
 		return $relation;
 	}
 
-	public static function createConnect( array $data ): Connection {
+	/**
+	 * @throws Exceptions\ConnectionWrongData
+	 */
+	public static function createConnection( Query\Connection $connectionQuery, Relation $relation ): Connection {
+		$connectionID = $relation->getClient()->getStorage()->createConnection( $connectionQuery );
+		$connection = new Connection();
+		$connection
+			->loadFromQuery( $connectionQuery )
+			->set( 'id', $connectionID );
 
-
-		return new Connection();
+		return $connection;
 	}
 }

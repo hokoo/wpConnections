@@ -95,4 +95,28 @@ class Storage {
 
 		return new ConnectionCollection( $query_result );
 	}
+
+	/**
+	 * @throws Exceptions\ConnectionWrongData
+	 *
+	 * @return int Connection ID
+	 */
+	public function createConnection( Query\Connection $connectionQuery ): int {
+		global $wpdb;
+
+		$data = [
+			'from'      => $connectionQuery->get('from'),
+			'to'        => $connectionQuery->get('to'),
+			'order'     => $connectionQuery->get('order'),
+			'relation'  => $connectionQuery->get('relation'),
+		];
+
+		$result = $wpdb->insert( $this->connections_table, $data, ['%d','%d','%d','%s'] );
+
+		if ( false === $result ) {
+			throw new Exceptions\ConnectionWrongData( 'Database refused inserting new connection.' );
+		}
+
+		return $wpdb->insert_id;
+	}
 }

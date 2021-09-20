@@ -21,4 +21,16 @@ class Connection extends Abstracts\Connection {
 	 * Loads existing instance from DB
 	 */
 	public function load(){}
+
+	public function loadFromQuery( Query\Connection $connectionQuery ): Connection {
+		$this->id = $connectionQuery->id;
+		$this->title = $connectionQuery->title;
+		$this->relation = $connectionQuery->relation;
+		$this->from = $connectionQuery->from;
+		$this->to = $connectionQuery->to;
+		$this->meta = $connectionQuery->meta;
+		$this->order = $connectionQuery->order;
+
+		return $this;
+	}
 }
