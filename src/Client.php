@@ -40,6 +40,17 @@ class Client {
 	}
 
 	/**
+	 * Sugar for $this->getRelations()->get()
+	 *
+	 * @param string $name Relation name.
+	 *
+	 * @return Relation
+	 */
+	public function getRelation( string $name ): Relation {
+		return $this->relations->get( $name );
+	}
+
+	/**
 	 * @throws Exceptions\RelationWrongData
 	 * @throws Exceptions\MissingParameters
 	 */
