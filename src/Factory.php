@@ -2,15 +2,13 @@
 
 namespace iTRON\wpConnections;
 
-use Exception;
-
 class Factory {
 	/**
 	 * @throws Exceptions\MissingParameters
 	 */
 	public static function createRelation( Query\Relation $relationQuery ): Relation {
 		if ( empty( $relationQuery->get( 'name' ) ) ) {
-			$e = new Exceptions\MissingParameters('Missing required fields');
+			$e = new Exceptions\MissingParameters();
 			$e->setParam( 'name' );
 
 			throw $e;
