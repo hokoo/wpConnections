@@ -1,18 +1,9 @@
 <?php
 
-namespace iTRON\wpConnections;
+namespace iTRON\wpConnections\Query;
 
-class RelationTypeParam {
-
-	/**
-	 * @var int
-	 */
-	public $from = 0;
-
-	/**
-	 * @var int
-	 */
-	public $to = 0;
+class Connection extends \iTRON\wpConnections\Abstracts\Connection {
+	use \iTRON\wpConnections\GSInterface;
 
 	/**
 	 * @var int

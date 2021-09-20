@@ -2,53 +2,14 @@
 
 namespace iTRON\wpConnections;
 
-class Connection {
+class Connection extends Abstracts\Connection {
 	use ClientInterface;
-
-	/**
-	 * @var int
-	 */
-	private $id;
-
-	/**
-	 * @var string
-	 */
-	private $title = '';
-
-	/**
-	 * @var string
-	 */
-	private $relation = '';
-
-	/**
-	 * @var int
-	 */
-	private $from;
-
-	/**
-	 * @var int
-	 */
-	private $to;
-
-	/**
-	 * @var array
-	 */
-	private $meta;
-
-	/**
-	 * @var int
-	 */
-	private $order;
+	use GSInterface;
 
 	public function __construct( int $id = 0 ){
 		if ( empty ( $id ) ) return;
 
 		$this->load();
-	}
-
-	public function set( string $field, $value ): self {
-		$this->$field = $value;
-		return $this;
 	}
 
 	/**

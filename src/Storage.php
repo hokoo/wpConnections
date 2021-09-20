@@ -68,21 +68,21 @@ class Storage {
 
 	public function deleted_object() {}
 
-	public function findConnections( RelationTypeParam $params ): ConnectionCollection {
+	public function findConnections( Query\Connection $params ): ConnectionCollection {
 		global $wpdb;
 
 		$where = '';
 
 		if ( $params->exists_from() ) {
-			$where .= " `from` = {$params->from} AND";
+			$where .= " `from` = {$params->get( 'from' )} AND";
 		}
 
 		if ( $params->exists_to() ) {
-			$where .= " `to` = {$params->to} AND";
+			$where .= " `to` = {$params->get( 'to' )} AND";
 		}
 
 		if ( $params->exists_both() ) {
-			$where = " ( `from` = {$params->from} OR `to` = {$params->to} ) AND";
+			$where = " ( `from` = {$params->get( 'from' )} OR `to` = {$params->get( 'to' )} ) AND";
 		};
 
 		$where .= ' 1=1';
