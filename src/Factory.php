@@ -12,7 +12,7 @@ class Factory {
 	public static function createRelation( $data ): Relation {
 		$data = is_object( $data ) ? ( array ) $data : $data;
 		if ( ! is_array( $data ) ) {
-			throw new Exceptions\RelationWrongData( 'Can not create Relation object based on the data passed in.' );
+			throw new Exceptions\RelationWrongData( 'Can not create Connection object based on the data passed in.' );
 		}
 
 		if ( empty( $data['name'] ) ) {
@@ -37,5 +37,11 @@ class Factory {
 		}
 
 		return $relation;
+	}
+
+	public static function createConnect( array $data ): Connection {
+
+
+		return new Connection();
 	}
 }
