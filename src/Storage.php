@@ -2,6 +2,8 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+
 class Storage {
 	use ClientInterface;
 
@@ -66,7 +68,37 @@ class Storage {
 		" );
 	}
 
-	public function deleted_object() {}
+	/**
+	 * @throws ConnectionWrongData
+	 *
+	 * @return int Rows number affected
+	 */
+	public function deleteConnections( $connectionIDs ): int {
+		global $wpdb;
+
+		$connectionIDs = is_numeric( $connectionIDs ) ? [ $connectionIDs ] : $connectionIDs;
+		$e = new ConnectionWrongData( 'Integer or array of integer expected.' );
+
+		if ( ! is_array( $connectionIDs ) ) {
+			throw $e;
+		}
+
+		// Filter out non-numeric array items
+		$connectionIDs = array_filter( $connectionIDs, function ( $item ) { return is_numeric( $item ); } );
+
+		if ( empty( $connectionIDs ) ) {
+			throw $e;
+		}
+
+		// MySQL Query
+		$db = $wpdb->prefix . $this->connections_table;
+		$in = implode( ',', $connectionIDs );
+		$query = "DELETE FROM {$db} WHERE `ID` IN {$in}";
+
+		$wpdb->query( esc_sql( $query ) );
+
+		return $wpdb->rows_affected;
+	}
 
 	public function findConnections( Query\Connection $params ): ConnectionCollection {
 		global $wpdb;
