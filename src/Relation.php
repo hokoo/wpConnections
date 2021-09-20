@@ -11,12 +11,12 @@ class Relation extends Abstracts\Relation {
 	/**
 	 * Creates new connect
 	 */
-	public function connect(){}
+	public function createConnection(){}
 
 	/**
 	 * Detaches connection
 	 */
-	public function detach(){}
+	public function detachConnection(){}
 
 	/**
 	 * @param Query\Connection $params

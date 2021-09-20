@@ -42,7 +42,7 @@ class Client {
 	/**
 	 * Sugar for $this->getRelations()->get()
 	 *
-	 * @param string $name Relation name.
+	 * @param string $name Connection name.
 	 *
 	 * @return Relation
 	 */
@@ -51,11 +51,13 @@ class Client {
 	}
 
 	/**
-	 * @throws Exceptions\RelationWrongData
 	 * @throws Exceptions\MissingParameters
+	 *
+	 * @return Relation New relation
 	 */
-	public function createRelation( array $data ): self {
-		$this->relations->add( Factory::createRelation( $data ) );
-		return $this;
+	public function createRelation( Query\Relation $relationQuery ): Relation {
+		$relation = Factory::createRelation( $relationQuery );
+		$this->relations->add( $relation );
+		return $relation;
 	}
 }
