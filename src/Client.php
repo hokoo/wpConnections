@@ -21,13 +21,21 @@ class Client {
 	}
 
 	private function init() {
-		$this->storage = new Storage( $this );
-		$this->relations = new RelationCollection();
+		$this->storageInit();
+		$this->relationCollectionInit();
 
 		add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
 		add_action( 'deleted_user', [ $this->storage, 'deleteByObjectID' ] );
 
 		do_action( 'p2p_client_inited', $this );
+	}
+
+	protected function storageInit(){
+		$this->storage = new Storage( $this );
+	}
+
+	protected function relationCollectionInit(){
+		$this->relations = new RelationCollection();
 	}
 
 	function getName(): string {
