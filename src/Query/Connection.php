@@ -16,6 +16,10 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection {
 		$this->both = $both;
 	}
 
+	public function exists_relation(): bool {
+		return ! empty( $this->relation );
+	}
+
 	public function exists_from(): bool {
 		return $this->from > 0;
 	}

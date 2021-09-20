@@ -73,6 +73,10 @@ class Storage {
 
 		$where = '';
 
+		if ( $params->exists_relation() ) {
+			$where .= " `relation` = {$params->get( 'relation' )} AND";
+		}
+
 		if ( $params->exists_from() ) {
 			$where .= " `from` = {$params->get( 'from' )} AND";
 		}

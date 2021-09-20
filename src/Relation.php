@@ -43,14 +43,20 @@ class Relation extends Abstracts\Relation {
 		$input  = $cardinality[1];
 
 		if ( '1' === $output ) {
-			$check_output = $this->findConnections( new Query\Connection( $connectionQuery->get( 'from' ) ) );
+			$query = new Query\Connection( $connectionQuery->get( 'from' ) );
+			$query->set( 'relation', $this->name );
+
+			$check_output = $this->findConnections( $query );
 			if ( ! $check_output->isEmpty() ) {
 				throw new Exceptions\ConnectionWrongData( 'Cardinality violation.' );
 			}
 		}
 
 		if ( '1' === $input ) {
-			$check_input = $this->findConnections( new Query\Connection( null, $connectionQuery->get( 'to' ) ) );
+			$query = new Query\Connection( null, $connectionQuery->get( 'to' ) );
+			$query->set( 'relation', $this->name );
+
+			$check_input = $this->findConnections( $query );
 			if ( ! $check_input->isEmpty() ) {
 				throw new Exceptions\ConnectionWrongData( 'Cardinality violation.' );
 			}
@@ -67,11 +73,11 @@ class Relation extends Abstracts\Relation {
 	public function detachConnection(){}
 
 	/**
-	 * @param Query\Connection $params
+	 * @param Query\Connection $connectionQuery
 	 *
 	 * @return ConnectionCollection
 	 */
-	public function findConnections( Query\Connection $params ): ConnectionCollection {
-		return $this->getClient()->getStorage()->findConnections( $params );
+	public function findConnections( Query\Connection $connectionQuery ): ConnectionCollection {
+		return $this->getClient()->getStorage()->findConnections( $connectionQuery );
 	}
 }
