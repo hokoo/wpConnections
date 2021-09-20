@@ -6,18 +6,20 @@ use Exception;
 
 class Factory {
 	/**
-	 * @throws Exception
-	 *
-	 * @todo Create custom Exceptions
+	 * @throws Exceptions\RelationWrongData
+	 * @throws Exceptions\MissingParameters
 	 */
 	public static function createRelation( $data ): Relation {
 		$data = is_object( $data ) ? ( array ) $data : $data;
 		if ( ! is_array( $data ) ) {
-			throw new Exception( 'Can not create Relation object' );
+			throw new Exceptions\RelationWrongData( 'Can not create Relation object based on the data passed in.' );
 		}
 
 		if ( empty( $data['name'] ) ) {
-			throw new Exception('Missing required fields');
+			$e = new Exceptions\MissingParameters('Missing required fields');
+			$e->setParam( 'name' );
+
+			throw $e;
 		}
 
 		$default = [

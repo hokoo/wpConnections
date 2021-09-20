@@ -40,7 +40,8 @@ class Client {
 	}
 
 	/**
-	 * @throws \Exception
+	 * @throws Exceptions\RelationWrongData
+	 * @throws Exceptions\MissingParameters
 	 */
 	public function createRelation( array $data ): self {
 		$this->relations->add( Factory::createRelation( $data ) );
