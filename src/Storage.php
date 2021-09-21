@@ -4,7 +4,7 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 
-class Storage {
+class Storage extends Abstracts\Storage {
 	use ClientInterface;
 
 	private $connections_table = 'post_connections_';

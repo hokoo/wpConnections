@@ -6,7 +6,7 @@ class Client {
 	private $name;
 
 	/**
-	 * @var Storage
+	 * @var Abstracts\Storage
 	 */
 	private $storage;
 
