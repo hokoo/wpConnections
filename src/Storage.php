@@ -72,7 +72,7 @@ class Storage extends Abstracts\Storage {
 	 *
 	 * @return int Rows number affected
 	 */
-	public function deleteConnections( $connectionIDs ): int {
+	public function deleteSpecificConnections( $connectionIDs ): int {
 		global $wpdb;
 
 		$connectionIDs = $this->prepareIDs( $connectionIDs );
@@ -88,21 +88,62 @@ class Storage extends Abstracts\Storage {
 	}
 
 	/**
-	 * Deletes connections by set of object IDs
+	 * Deletes connections by object ID(s).
 	 *
 	 * @throws ConnectionWrongData
 	 *
 	 * @return int Rows number affected
 	 */
-	public function deleteByObjectID( $objectIDs ): int {
+	public function deleteByObjectID( $objectIDs, bool $onlyFrom = false, bool $onlyTo = false ): int {
 		global $wpdb;
 
-		$objectIDs = $this->prepareIDs( $objectIDs );
+		// Only one of direction restricts may be set true.
+		if ( $onlyFrom && $onlyTo ) {
+			return 0;
+		}
+
+		$in = implode( ',', $this->prepareIDs( $objectIDs ) );
+
+		$where = [];
+
+		if ( ! $onlyFrom ) {
+			$where []= "`to` IN {$in}";
+		}
+
+		if ( ! $onlyTo ) {
+			$where []= "`from` IN {$in}";
+		}
+
+		$where_str = implode( ' OR ', $where );
+
+		$db = $wpdb->prefix . $this->connections_table;
+		$query = "DELETE FROM {$db} WHERE {$where_str}";
+
+		$wpdb->query( esc_sql( $query ) );
+
+		return $wpdb->rows_affected;
+	}
+
+	/**
+	 * Deletes exactly specified connections.
+	 * Able to erase multiple connections (e.g. if duplicatable is set true)
+	 *
+	 * @param int $from     `from` object
+	 * @param int $to       `to` object
+	 *
+	 * @return int          Rows number affected.
+	 */
+	public function deleteDirectedConnections( int $from = 0, int $to = 0 ): int {
+		global $wpdb;
+
+		// Only exactly specified connections may be deleted.
+		if ( empty( $from ) || empty( $to ) ) {
+			return 0;
+		}
 
 		// MySQL Query
 		$db = $wpdb->prefix . $this->connections_table;
-		$in = implode( ',', $objectIDs );
-		$query = "DELETE FROM {$db} WHERE `from` IN {$in} OR `to` IN {$in}";
+		$query = "DELETE FROM {$db} WHERE `from` = {$from} AND `to` = {$to}";
 
 		$wpdb->query( esc_sql( $query ) );
 
@@ -112,9 +153,11 @@ class Storage extends Abstracts\Storage {
 	/**
 	 * @throws ConnectionWrongData
 	 *
-	 * @return int Rows number affected
+	 * @param int|int[] $connectionIDs
+	 *
+	 * @return int|int[]
 	 */
-	protected function prepareIDs( $connectionIDs ): int {
+	protected function prepareIDs( $connectionIDs ) {
 		$connectionIDs = is_numeric( $connectionIDs ) ? [ $connectionIDs ] : $connectionIDs;
 		$e = new ConnectionWrongData( 'Integer or array of integer expected.' );
 

@@ -2,6 +2,8 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+
 class Relation extends Abstracts\Relation {
 	use ClientInterface;
 	use GSInterface;
@@ -68,9 +70,48 @@ class Relation extends Abstracts\Relation {
 	}
 
 	/**
-	 * Detaches connection
+	 * Detaches connection.
+	 * Able to detach multiple connections if $connectionQuery->id are not set.
+	 *
+	 * @return int Connections number detached.
 	 */
-	public function detachConnection(){}
+	public function detachConnections( Query\Connection $connectionQuery ): int {
+
+		try {
+			// Detach specific connection.
+			if ( ! empty( $connectionQuery->get( 'id' ) ) ) {
+				return $this->getClient()->getStorage()->deleteSpecificConnections( $connectionQuery->get( 'id' ) );
+			}
+
+			// Detach any connection with $connectionQuery->both as object ID.
+			if ( ! empty( $connectionQuery->get( 'both' ) ) ) {
+				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'both' ) );
+			}
+
+			// Detach directed connection(s).
+			if ( ! empty( $connectionQuery->get( 'from' ) ) && ! empty( $connectionQuery->get( 'to' ) ) ) {
+				return $this->getClient()->getStorage()->deleteDirectedConnections( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
+			}
+
+			// Detach directed connection(s).
+			if ( ! empty( $connectionQuery->get( 'from' ) ) ) {
+				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'from' ), true );
+			}
+
+			// Detach directed connection(s).
+			if ( ! empty( $connectionQuery->get( 'to' ) ) ) {
+				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'to' ), false, true );
+			}
+
+		} catch ( ConnectionWrongData $e ) {
+
+			// There are no ideas what went wrong.
+			return 0;
+		}
+
+		// Seems, we have received empty query.
+		return 0;
+	}
 
 	/**
 	 * @param Query\Connection $connectionQuery
