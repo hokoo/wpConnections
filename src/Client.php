@@ -27,7 +27,8 @@ class Client {
 		add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
 		add_action( 'deleted_user', [ $this->storage, 'deleteByObjectID' ] );
 
-		do_action( 'wpconnections_client_inited', $this );
+		do_action( 'wpConnections/client/inited', $this );
+		do_action( "wpConnections/client/{$this->getName()}/inited", $this );
 	}
 
 	protected function storageInit(){
