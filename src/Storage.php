@@ -12,7 +12,7 @@ class Storage extends Abstracts\Storage {
 	private $meta_table = 'post_connections_meta_';
 
 	/**
-	 * @param Client $client P2P Client
+	 * @param Client $client wpConnections Client
 	 */
 	public function __construct( Client $client ) {
 		$this->client     = $client;
