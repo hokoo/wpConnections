@@ -67,6 +67,7 @@ class Client {
 	 * @return Relation New relation
 	 */
 	public function createRelation( Query\Relation $relationQuery ): Relation {
+		$relationQuery->set( 'client', $this );
 		$relation = Factory::createRelation( $relationQuery );
 		$this->relations->add( $relation );
 		return $relation;
