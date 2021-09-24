@@ -175,33 +175,41 @@ class Storage extends Abstracts\Storage {
 		return $connectionIDs;
 	}
 
+	/**
+	 * Search connections
+	 *
+	 * @param Query\Connection $params
+	 *
+	 * @return ConnectionCollection
+	 */
 	public function findConnections( Query\Connection $params ): ConnectionCollection {
 		global $wpdb;
 
-		$where = '';
+		$where = [];
 
 		if ( $params->exists_relation() ) {
-			$where .= " `relation` = {$params->get( 'relation' )} AND";
+			$where []= "`relation` = {$params->get( 'relation' )}";
 		}
 
 		if ( $params->exists_from() ) {
-			$where .= " `from` = {$params->get( 'from' )} AND";
+			$where []= "`from` = {$params->get( 'from' )}";
 		}
 
 		if ( $params->exists_to() ) {
-			$where .= " `to` = {$params->get( 'to' )} AND";
+			$where []= "`to` = {$params->get( 'to' )}";
 		}
 
 		if ( $params->exists_both() ) {
-			$where = " ( `from` = {$params->get( 'from' )} OR `to` = {$params->get( 'to' )} ) AND";
+			$where []= "( `from` = {$params->get( 'from' )} OR `to` = {$params->get( 'to' )} )";
 		};
 
-		$where .= ' 1=1';
+		if ( empty( $where ) ) {
+			return new ConnectionCollection();
+		}
 
+		$where_str = implode( ' AND ', $where );
 		$db = $wpdb->prefix . $this->connections_table;
-
-		$query = "SELECT * FROM {$db} WHERE {$where}";
-
+		$query = "SELECT * FROM {$db} WHERE {$where_str}";
 		$query_result = $wpdb->get_results( $query );
 
 		return new ConnectionCollection( $query_result );
