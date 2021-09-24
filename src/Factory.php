@@ -21,7 +21,7 @@ class Factory {
 			'closurable'    => false,
 		];
 
-		$args = wp_parse_args( $default, $relationQuery );
+		$args = wp_parse_args( $relationQuery, $default );
 
 		$relation = new Relation();
 		foreach ( $args as $field => $value ) {
