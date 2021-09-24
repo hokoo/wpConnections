@@ -66,6 +66,9 @@ class Relation extends Abstracts\Relation {
 
 		// Create connection
 		$connectionQuery->set( 'relation', $this->name );
+
+		do_action( 'wpConnections/relation/creating', $connectionQuery );
+
 		return Factory::createConnection( $connectionQuery, $this );
 	}
 
