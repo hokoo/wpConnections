@@ -34,8 +34,6 @@ class Storage extends Abstracts\Storage {
 	private function init() {
 		scb_register_table( $this->get_connections_table() );
 		scb_register_table( $this->get_meta_table() );
-
-		$this->install();
 	}
 
 	private function install() {
@@ -44,8 +42,8 @@ class Storage extends Abstracts\Storage {
 			`relation`  varchar(255)    NOT NULL,
 			`from`      bigint(20)      unsigned NOT NULL,
 			`to`        bigint(20)      unsigned NOT NULL,
-			`order`     bigint(20)      unsigned NOT NULL,
-			`title`     varchar(63)     NOT NULL,
+			`order`     bigint(20)      unsigned NULL default '0',
+			`title`     varchar(63)     NULL default '',
 
 			PRIMARY KEY (`ID`),
 			INDEX `from` (`from`),
@@ -228,12 +226,23 @@ class Storage extends Abstracts\Storage {
 			'to'        => $connectionQuery->get('to'),
 			'order'     => $connectionQuery->get('order'),
 			'relation'  => $connectionQuery->get('relation'),
+			'title'     => $connectionQuery->get('title'),
 		];
 
-		$result = $wpdb->insert( $this->connections_table, $data, ['%d','%d','%d','%s'] );
+		$attempt = 0;
+		do {
+			$result = $wpdb->insert( $wpdb->prefix . $this->connections_table, $data );
+
+			if ( false === $result && 0 === $attempt ) {
+				// Try to create tables
+				$this->install();
+			}
+
+			$attempt++;
+		} while ( false === $result && 1 >= $attempt );
 
 		if ( false === $result ) {
-			throw new Exceptions\ConnectionWrongData( 'Database refused inserting new connection.' );
+			throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection with the words: [{$wpdb->last_error}]" );
 		}
 
 		return $wpdb->insert_id;
