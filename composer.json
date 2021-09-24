@@ -9,7 +9,8 @@
     "ramsey/collection": "*"
   },
   "require-dev": {
-    "johnpbloch/wordpress-core": "5.0.13"
+    "johnpbloch/wordpress-core": "5.0.13",
+    "symfony/var-dumper": "5.4.x-dev"
   },
   "autoload": {
     "psr-4": {
