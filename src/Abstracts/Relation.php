@@ -7,7 +7,7 @@ class Relation {
 	/**
 	 * @var string
 	 */
-	protected $name = '';
+	public $name = '';
 
 	/**
 	 * @var string
