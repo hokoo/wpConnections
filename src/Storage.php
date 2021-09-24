@@ -32,36 +32,36 @@ class Storage extends Abstracts\Storage {
 	}
 
 	private function init() {
-		$this->install();
-
 		scb_register_table( $this->get_connections_table() );
 		scb_register_table( $this->get_meta_table() );
+
+		$this->install();
 	}
 
 	private function install() {
 		scb_install_table( $this->get_connections_table(), "
-			ID          bigint(20)      unsigned NOT NULL auto_increment,
-			relation    varchar(255)    unsigned NOT NULL,
-			from        bigint(20)      unsigned NOT NULL,
-			to          bigint(20)      unsigned NOT NULL,
-			order       bigint(20)      unsigned NOT NULL,
-			title       varchar(63)     unsigned NOT NULL,
-			
-			PRIMARY KEY (ID),
-			KEY from (from),
-			KEY to (to),
-			KEY order (order),
+			`ID`        bigint(20)      unsigned NOT NULL auto_increment,
+			`relation`  varchar(255)    NOT NULL,
+			`from`      bigint(20)      unsigned NOT NULL,
+			`to`        bigint(20)      unsigned NOT NULL,
+			`order`     bigint(20)      unsigned NOT NULL,
+			`title`     varchar(63)     NOT NULL,
+
+			PRIMARY KEY (`ID`),
+			INDEX `from` (`from`),
+			INDEX `to` (`to`),
+			INDEX `order` (`order`)
 		" );
 
 		scb_install_table( $this->get_meta_table(), "
-			ID              bigint(20)      unsigned NOT NULL auto_increment,
-			connection_id   bigint(20)      unsigned NOT NULL default '0',
-			key             varchar(255)    default NULL,
-			value           longtext,
+			`ID`              bigint(20)      unsigned NOT NULL auto_increment,
+			`connection_id`   bigint(20)      unsigned NOT NULL default '0',
+			`key`             varchar(255)    NOT NULL,
+			`value`           longtext        NOT NULL,
 			
-			PRIMARY KEY  (ID),
-			KEY connection_id (connection_id),
-			KEY key (key)
+			PRIMARY KEY (`ID`),
+			INDEX `connection_id` (`connection_id`),
+			INDEX `key` (`key`)
 		" );
 	}
 
