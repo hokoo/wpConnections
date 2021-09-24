@@ -128,12 +128,12 @@ class Storage extends Abstracts\Storage {
 	 * Deletes exactly specified connections.
 	 * Able to erase multiple connections (e.g. if duplicatable is set true)
 	 *
-	 * @param int $from     `from` object
-	 * @param int $to       `to` object
+	 * @param int|null $from    `from` object
+	 * @param int|null $to      `to` object
 	 *
-	 * @return int          Rows number affected.
+	 * @return int              Rows number affected.
 	 */
-	public function deleteDirectedConnections( int $from = 0, int $to = 0 ): int {
+	public function deleteDirectedConnections( int $from = null, int $to = null ): int {
 		global $wpdb;
 
 		// Only exactly specified connections may be deleted.
