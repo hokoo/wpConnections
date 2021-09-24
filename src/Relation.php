@@ -64,6 +64,8 @@ class Relation extends Abstracts\Relation {
 			}
 		}
 
+		// @TODO Duplicatable check
+
 		// Create connection
 		$connectionQuery->set( 'relation', $this->name );
 
