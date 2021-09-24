@@ -93,12 +93,12 @@ class Relation extends Abstracts\Relation {
 				return $this->getClient()->getStorage()->deleteDirectedConnections( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
 			}
 
-			// Detach directed connection(s).
+			// Detach `from` directed connections.
 			if ( ! empty( $connectionQuery->get( 'from' ) ) ) {
 				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'from' ), true );
 			}
 
-			// Detach directed connection(s).
+			// Detach `to` directed connections.
 			if ( ! empty( $connectionQuery->get( 'to' ) ) ) {
 				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'to' ), false, true );
 			}
