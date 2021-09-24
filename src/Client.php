@@ -42,7 +42,7 @@ class Client {
 		return $this->name;
 	}
 
-	function getStorage(): Storage {
+	function getStorage(): \iTRON\wpConnections\Abstracts\Storage {
 		return $this->storage;
 	}
 
