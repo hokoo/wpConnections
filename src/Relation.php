@@ -64,7 +64,14 @@ class Relation extends Abstracts\Relation {
 			}
 		}
 
-		// @TODO Duplicatable check
+		// Duplicatable check
+		$query = new \iTRON\wpConnections\Query\Connection( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
+		$query->set( 'relation', $this->name );
+
+		$check_duplicatable = $this->findConnections( $query );
+		if ( ! $check_duplicatable->isEmpty() ) {
+			throw new Exceptions\ConnectionWrongData( 'Duplicatable violation.' );
+		}
 
 		// Create connection
 		$connectionQuery->set( 'relation', $this->name );
