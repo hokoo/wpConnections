@@ -186,7 +186,7 @@ class Storage extends Abstracts\Storage {
 		$where = [];
 
 		if ( $params->exists_relation() ) {
-			$where []= "`relation` = {$params->get( 'relation' )}";
+			$where []= "`relation` = '{$params->get( 'relation' )}'";
 		}
 
 		if ( $params->exists_from() ) {
