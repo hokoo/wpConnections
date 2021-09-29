@@ -245,6 +245,8 @@ class Storage extends Abstracts\Storage {
 			throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection with the words: [{$wpdb->last_error}]" );
 		}
 
+		// @TODO Meta data insert
+
 		return $wpdb->insert_id;
 	}
 }
