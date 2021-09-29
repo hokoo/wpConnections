@@ -7,16 +7,14 @@ use Ramsey\Collection\Collection;
 class ConnectionCollection extends Collection {
 	function __construct( array $data = [] ) {
 		$collectionType = __NAMESPACE__ . '\Connection';
-		parent::__construct( $collectionType, $this->fromArray( $data ) );
+		parent::__construct( $collectionType, $this->fromArray( $data, $collectionType ) );
 	}
 
-	private function fromArray( array $items ): array {
+	private function fromArray( array $items, string $collectionType = '' ): array {
 
 		$connections = [];
-		$type = $this->getType();
-
 		foreach ( $items as $item ) {
-			if ( $item instanceof $type ) {
+			if ( $item instanceof $collectionType ) {
 				$connections []= $item;
 				continue;
 			}
