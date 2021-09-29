@@ -3,9 +3,12 @@
 namespace iTRON\wpConnections\Abstracts;
 
 use iTRON\wpConnections\ConnectionCollection;
+use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 
 abstract class Storage {
 	/**
+	 * @throws ConnectionWrongData
+	 *
 	 * @return int Connection ID
 	 */
 	abstract public function createConnection( \iTRON\wpConnections\Query\Connection $connectionQuery ): int;
