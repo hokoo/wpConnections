@@ -52,14 +52,14 @@ class Storage extends Abstracts\Storage {
 		" );
 
 		scb_install_table( $this->get_meta_table(), "
-			`ID`              bigint(20)      unsigned NOT NULL auto_increment,
+			`meta_id`         bigint(20)      unsigned NOT NULL auto_increment,
 			`connection_id`   bigint(20)      unsigned NOT NULL default '0',
-			`key`             varchar(255)    NOT NULL,
-			`value`           longtext        NOT NULL,
+			`meta_key`        varchar(255)    NOT NULL,
+			`meta_value`      longtext        NOT NULL,
 			
-			PRIMARY KEY (`ID`),
+			PRIMARY KEY (`meta_id`),
 			INDEX `connection_id` (`connection_id`),
-			INDEX `key` (`key`)
+			INDEX `key` (`meta_key`)
 		" );
 	}
 
@@ -247,19 +247,19 @@ class Storage extends Abstracts\Storage {
 		$where = [];
 
 		if ( $params->exists_relation() ) {
-			$where []= "`relation` = '{$params->get( 'relation' )}'";
+			$where []= "c.relation = '{$params->get( 'relation' )}'";
 		}
 
 		if ( $params->exists_from() ) {
-			$where []= "`from` = {$params->get( 'from' )}";
+			$where []= "c.from = {$params->get( 'from' )}";
 		}
 
 		if ( $params->exists_to() ) {
-			$where []= "`to` = {$params->get( 'to' )}";
+			$where []= "c.to = {$params->get( 'to' )}";
 		}
 
 		if ( $params->exists_both() ) {
-			$where []= "( `from` = {$params->get( 'from' )} OR `to` = {$params->get( 'to' )} )";
+			$where []= "( c.from = {$params->get( 'from' )} OR c.to = {$params->get( 'to' )} )";
 		};
 
 		if ( empty( $where ) ) {
@@ -267,12 +267,32 @@ class Storage extends Abstracts\Storage {
 		}
 
 		$where_str = implode( ' AND ', $where );
-		$db = $wpdb->prefix . $this->connections_table;
-		// @TODO meta query
-		$query = "SELECT * FROM {$db} WHERE {$where_str}";
+		$db = $wpdb->prefix . $this->get_connections_table();
+		$db_meta = $wpdb->prefix . $this->get_meta_table();
+		$query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
 		$query_result = $wpdb->get_results( $query );
 
-		return new ConnectionCollection( $query_result );
+		// Meta prepare
+		$data = [];
+		foreach ( $query_result as $connection ) {
+			$item = $data[ $connection->ID ] ?? ( array ) $connection;
+			$meta = $item[ 'meta' ] ?? [];
+
+			if ( is_numeric( $connection->meta_id ) ) {
+				$meta[ $connection->meta_id ] = [
+					'meta_id'       => $connection->meta_id,
+					'connection_id' => $connection->connection_id,
+					'meta_key'      => $connection->meta_key,
+					'meta_value'    => $connection->meta_value,
+				];
+			}
+
+			$item[ 'meta' ] = $meta;
+
+			$data[ $connection->ID ] = $item;
+		}
+
+		return new ConnectionCollection( $data );
 	}
 
 	/**
@@ -293,7 +313,7 @@ class Storage extends Abstracts\Storage {
 
 		$attempt = 0;
 		do {
-			$result = $wpdb->insert( $wpdb->prefix . $this->connections_table, $data );
+			$result = $wpdb->insert( $wpdb->prefix . $this->get_connections_table(), $data );
 
 			if ( false === $result && 0 === $attempt ) {
 				// Try to create tables
@@ -307,8 +327,25 @@ class Storage extends Abstracts\Storage {
 			throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection with the words: [{$wpdb->last_error}]" );
 		}
 
-		// @TODO Meta data insert
+		$connection_id = $wpdb->insert_id;
 
-		return $wpdb->insert_id;
+		// Meta data insert
+		$meta = $connectionQuery->get( 'meta' );
+		if ( is_array( $meta ) ) {
+			foreach ( $meta as $item ) {
+				if ( ! isset( $item['meta_key'] ) ) continue;
+
+				$item['connection_id'] = $item['connection_id'] ?? $connection_id;
+				$item['meta_value'] = $item['meta_value'] ?? '';
+
+				$result = $wpdb->insert( $wpdb->prefix . $this->get_meta_table(), $item );
+
+				if ( false === $result ) {
+					throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection meta data with the words: [{$wpdb->last_error}]" );
+				}
+			}
+		}
+
+		return $connection_id;
 	}
 }

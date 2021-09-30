@@ -19,6 +19,8 @@ class ConnectionCollection extends Collection {
 				continue;
 			}
 
+			$item = ( object ) $item;
+
 			if ( ! isset( $item->ID ) ) continue;
 			if ( ! isset( $item->from ) ) continue;
 			if ( ! isset( $item->to ) ) continue;
@@ -30,12 +32,13 @@ class ConnectionCollection extends Collection {
 				->set( 'from', $item->from )
 				->set( 'to', $item->to )
 				->set( 'order', $item->order )
-				->set( 'title', $item->title ?? '' );
+				->set( 'title', $item->title ?? '' )
+				->set( 'client', $item->client ?? null )
+				->set( 'meta', $item->meta ?? [] );
 
 			$connections []= $connection;
 		}
 
 		return $connections;
 	}
-
 }

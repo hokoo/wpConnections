@@ -31,6 +31,11 @@ class Connection {
 
 	/**
 	 * @var array
+	 *      'meta_id'           int         Meta ID, autoincrement.
+	 *      'connection_id'     int         Connection ID related with.
+	 *      'meta_key'          string
+	 *      'meta_value'        string
+	 *
 	 */
 	protected $meta;
 
