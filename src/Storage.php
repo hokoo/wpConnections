@@ -173,6 +173,9 @@ class Storage extends Abstracts\Storage {
 	public function deleteDirectedConnections( int $from = null, int $to = null, string $relation = '' ): int {
 		global $wpdb;
 
+		do_action( 'wpConnections/storage/deleteDirectedConnections', $this->getClient(), $from, $to, $relation );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deleteDirectedConnections", $from, $to, $relation );
+
 		// Only exactly specified connections may be deleted.
 		if ( empty( $from ) || empty( $to ) ) {
 			return 0;
@@ -199,6 +202,9 @@ class Storage extends Abstracts\Storage {
 		// @TODO Transaction
 		$wpdb->query( esc_sql( $query_meta ) );
 		$wpdb->query( esc_sql( $query ) );
+
+		do_action( 'wpConnections/storage/deletedDirectedConnections', $this->getClient(), $ids );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deletedDirectedConnections", $ids );
 
 		return $wpdb->rows_affected;
 	}
