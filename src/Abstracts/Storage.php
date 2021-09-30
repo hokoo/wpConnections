@@ -39,10 +39,11 @@ abstract class Storage {
 	 *
 	 * @param int|null $from    `from` object
 	 * @param int|null $to      `to` object
+	 * @param string $relation  Relation name. Default all relations
 	 *
 	 * @return int              Rows number affected.
 	 */
-	abstract public function deleteDirectedConnections( int $from = null, int $to = null ): int;
+	abstract public function deleteDirectedConnections( int $from = null, int $to = null, string $relation = '' ): int;
 
 	abstract public function findConnections( \iTRON\wpConnections\Query\Connection $params ): ConnectionCollection;
 }

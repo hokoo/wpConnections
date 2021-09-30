@@ -102,7 +102,7 @@ class Relation extends Abstracts\Relation {
 
 			// Detach directed connection(s).
 			if ( ! empty( $connectionQuery->get( 'from' ) ) && ! empty( $connectionQuery->get( 'to' ) ) ) {
-				return $this->getClient()->getStorage()->deleteDirectedConnections( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
+				return $this->getClient()->getStorage()->deleteDirectedConnections( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ), $this->name );
 			}
 
 			// Detach `from` directed connections.
