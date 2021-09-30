@@ -100,6 +100,9 @@ class Storage extends Abstracts\Storage {
 	public function deleteByObjectID( $objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false ): int {
 		global $wpdb;
 
+		do_action( 'wpConnections/storage/deleteByObjectID', $this->getClient(), $objectIDs, $relation, $onlyFrom, $onlyTo );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deleteByObjectID", $objectIDs, $relation, $onlyFrom, $onlyTo );
+
 		// Only one of direction restricts may be set true.
 		if ( $onlyFrom && $onlyTo ) {
 			return 0;
@@ -139,6 +142,9 @@ class Storage extends Abstracts\Storage {
 		// @TODO Transaction
 		$wpdb->query( esc_sql( $query_meta ) );
 		$wpdb->query( esc_sql( $query ) );
+
+		do_action( 'wpConnections/storage/deletedByObjectID', $this->getClient(), $ids );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deletedByObjectID", $ids );
 
 		return $wpdb->rows_affected;
 	}
