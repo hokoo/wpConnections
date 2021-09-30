@@ -73,14 +73,25 @@ class Storage extends Abstracts\Storage {
 	public function deleteSpecificConnections( $connectionIDs ): int {
 		global $wpdb;
 
+		do_action( 'wpConnections/storage/deleteSpecificConnections', $this->getClient(), $connectionIDs );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deleteSpecificConnections", $connectionIDs );
+
 		$connectionIDs = $this->prepareIDs( $connectionIDs );
 
 		// MySQL Query
-		$db = $wpdb->prefix . $this->connections_table;
+		$db = $wpdb->prefix . $this->get_connections_table();
+		$db_meta = $wpdb->prefix . $this->get_meta_table();
 		$in = implode( ',', $connectionIDs );
-		$query = "DELETE FROM {$db} WHERE `ID` IN {$in}";
 
+		$query = "DELETE FROM {$db} WHERE `ID` IN {$in}";
+		$query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN {$in}";
+
+		// @TODO Transaction
+		$wpdb->query( esc_sql( $query_meta ) );
 		$wpdb->query( esc_sql( $query ) );
+
+		do_action( 'wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs );
 
 		return $wpdb->rows_affected;
 	}
@@ -197,9 +208,9 @@ class Storage extends Abstracts\Storage {
 	 *
 	 * @param int|int[] $connectionIDs
 	 *
-	 * @return int|int[]
+	 * @return int[]
 	 */
-	protected function prepareIDs( $connectionIDs ) {
+	protected function prepareIDs( $connectionIDs ) : array {
 		$connectionIDs = is_numeric( $connectionIDs ) ? [ $connectionIDs ] : $connectionIDs;
 		$e = new ConnectionWrongData( 'Integer or array of integer expected.' );
 
