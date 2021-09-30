@@ -288,6 +288,7 @@ class Storage extends Abstracts\Storage {
 			}
 
 			$item[ 'meta' ] = $meta;
+			$item[ 'client' ] = $this->getClient();
 
 			$data[ $connection->ID ] = $item;
 		}
