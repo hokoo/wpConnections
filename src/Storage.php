@@ -88,11 +88,16 @@ class Storage extends Abstracts\Storage {
 	/**
 	 * Deletes connections by object ID(s).
 	 *
+	 * @param $objectIDs        int|int[]   Object ID(s) to delete connections with.
+	 * @param $relation         string      Relation name. Default all relations
+	 * @param $onlyFrom         bool        Affect connections with coinciding `from` id
+	 * @param $onlyTo           bool        Affect connections with coinciding `to` id
+	 *
 	 * @throws ConnectionWrongData
 	 *
-	 * @return int Rows number affected
+	 * @return                  int         Rows number affected
 	 */
-	public function deleteByObjectID( $objectIDs, bool $onlyFrom = false, bool $onlyTo = false ): int {
+	public function deleteByObjectID( $objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false ): int {
 		global $wpdb;
 
 		// Only one of direction restricts may be set true.
@@ -114,9 +119,25 @@ class Storage extends Abstracts\Storage {
 
 		$where_str = implode( ' OR ', $where );
 
-		$db = $wpdb->prefix . $this->connections_table;
-		$query = "DELETE FROM {$db} WHERE {$where_str}";
+		$relation_query = empty( $relation ) ? '1=1' : "`relation` LIKE '{$relation}'";
+		$db = $wpdb->prefix . $this->get_connections_table();
+		$db_meta = $wpdb->prefix . $this->get_meta_table();
 
+		// Get ID's
+		$query_ids = "SELECT `ID` FROM {$db} WHERE {$relation_query} AND ({$where_str})";
+		$result_ids = $wpdb->get_results( $query_ids );
+		$ids = ( is_array( $result_ids ) && ! empty( $result_ids ) ) ? array_column( $result_ids, 'ID' ) : [];
+
+		// Nothing found.
+		if ( empty( $ids ) ) return 0;
+
+		// Delete
+		$in = implode( ',', $ids );
+		$query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})";
+		$query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
+
+		// @TODO Transaction
+		$wpdb->query( esc_sql( $query_meta ) );
 		$wpdb->query( esc_sql( $query ) );
 
 		return $wpdb->rows_affected;

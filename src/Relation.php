@@ -97,7 +97,7 @@ class Relation extends Abstracts\Relation {
 
 			// Detach any connection with $connectionQuery->both as object ID.
 			if ( ! empty( $connectionQuery->get( 'both' ) ) ) {
-				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'both' ) );
+				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'both' ), $this->name );
 			}
 
 			// Detach directed connection(s).
@@ -107,12 +107,12 @@ class Relation extends Abstracts\Relation {
 
 			// Detach `from` directed connections.
 			if ( ! empty( $connectionQuery->get( 'from' ) ) ) {
-				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'from' ), true );
+				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'from' ), $this->name, true );
 			}
 
 			// Detach `to` directed connections.
 			if ( ! empty( $connectionQuery->get( 'to' ) ) ) {
-				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'to' ), false, true );
+				return $this->getClient()->getStorage()->deleteByObjectID( $connectionQuery->get( 'to' ), $this->name, false, true );
 			}
 
 		} catch ( ConnectionWrongData $e ) {

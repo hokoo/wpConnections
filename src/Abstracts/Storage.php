@@ -26,12 +26,13 @@ abstract class Storage {
 	 * Deletes connections by object ID(s).
 	 *
 	 * @param $objectIDs        int|int[]   Object ID(s) to delete connections with.
+	 * @param $relation         string      Relation name. Default all relations
 	 * @param $onlyFrom         bool        Affect connections with coinciding `from` id
 	 * @param $onlyTo           bool        Affect connections with coinciding `to` id
 	 *
 	 * @return                  int         Rows number affected
 	 */
-	abstract public function deleteByObjectID( $objectIDs, bool $onlyFrom = false, bool $onlyTo = false ): int;
+	abstract public function deleteByObjectID( $objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false ): int;
 
 	/**
 	 * Deletes specifically directed connections.
