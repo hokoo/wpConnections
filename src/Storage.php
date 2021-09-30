@@ -224,6 +224,7 @@ class Storage extends Abstracts\Storage {
 
 		$where_str = implode( ' AND ', $where );
 		$db = $wpdb->prefix . $this->connections_table;
+		// @TODO meta query
 		$query = "SELECT * FROM {$db} WHERE {$where_str}";
 		$query_result = $wpdb->get_results( $query );
 
