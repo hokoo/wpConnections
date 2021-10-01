@@ -131,6 +131,10 @@ class Relation extends Abstracts\Relation {
 	 * @return ConnectionCollection
 	 */
 	public function findConnections( Query\Connection $connectionQuery ): ConnectionCollection {
+		if ( ! $connectionQuery->exists_relation() ) {
+			$connectionQuery->set( 'relation', $this->name );
+		}
+
 		return $this->getClient()->getStorage()->findConnections( $connectionQuery );
 	}
 }
