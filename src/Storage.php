@@ -259,7 +259,7 @@ class Storage extends Abstracts\Storage {
 		}
 
 		if ( $params->exists_both() ) {
-			$where []= "( c.from = {$params->get( 'from' )} OR c.to = {$params->get( 'to' )} )";
+			$where []= "( c.from = {$params->get( 'both' )} OR c.to = {$params->get( 'both' )} )";
 		};
 
 		if ( empty( $where ) ) {
