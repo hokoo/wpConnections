@@ -246,21 +246,26 @@ class Storage extends Abstracts\Storage {
 
 		$where = [];
 
-		if ( $params->exists_relation() ) {
-			$where []= "c.relation = '{$params->get( 'relation' )}'";
-		}
+		if ( $id = $params->get( 'id' ) ) {
+			$where []= "c.ID = {$id}";
+		} else {
 
-		if ( $params->exists_from() ) {
-			$where []= "c.from = {$params->get( 'from' )}";
-		}
+			if ( $params->exists_relation() ) {
+				$where [] = "c.relation = '{$params->get( 'relation' )}'";
+			}
 
-		if ( $params->exists_to() ) {
-			$where []= "c.to = {$params->get( 'to' )}";
-		}
+			if ( $params->exists_from() ) {
+				$where [] = "c.from = {$params->get( 'from' )}";
+			}
 
-		if ( $params->exists_both() ) {
-			$where []= "( c.from = {$params->get( 'both' )} OR c.to = {$params->get( 'both' )} )";
-		};
+			if ( $params->exists_to() ) {
+				$where [] = "c.to = {$params->get( 'to' )}";
+			}
+
+			if ( $params->exists_both() ) {
+				$where [] = "( c.from = {$params->get( 'both' )} OR c.to = {$params->get( 'both' )} )";
+			}
+		}
 
 		if ( empty( $where ) ) {
 			return new ConnectionCollection();
