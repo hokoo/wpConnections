@@ -130,7 +130,8 @@ class Relation extends Abstracts\Relation {
 	 *
 	 * @return ConnectionCollection
 	 */
-	public function findConnections( Query\Connection $connectionQuery ): ConnectionCollection {
+	public function findConnections( Query\Connection $connectionQuery = null ): ConnectionCollection {
+		$connectionQuery = $connectionQuery ?? new \iTRON\wpConnections\Query\Connection();
 		$connectionQuery->set( 'relation', $this->name );
 
 		return $this->getClient()->getStorage()->findConnections( $connectionQuery );
