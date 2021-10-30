@@ -11,4 +11,12 @@ trait GSInterface {
 	public function get( string $field ) {
 		return $this->{$field} ?? null;
 	}
+
+	public function __get( $field ) {
+		if ( isset( $this->$field ) ) {
+			return $this->$field;
+		}
+
+		return null;
+	}
 }
