@@ -55,7 +55,7 @@ class Relation extends Abstracts\Relation {
 		}
 
 		if ( '1' === $input ) {
-			$query = new Query\Connection( null, $connectionQuery->get( 'to' ) );
+			$query = new Query\Connection( 0, $connectionQuery->get( 'to' ) );
 			$query->set( 'relation', $this->name );
 
 			$check_input = $this->findConnections( $query );
