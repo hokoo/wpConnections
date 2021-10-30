@@ -275,7 +275,7 @@ class Storage extends Abstracts\Storage {
 		$db = $wpdb->prefix . $this->get_connections_table();
 		$db_meta = $wpdb->prefix . $this->get_meta_table();
 		$query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
-		$query_result = $wpdb->get_results( $query );
+		$query_result = $wpdb->get_results( $query, OBJECT_K );
 
 		// Meta prepare
 		$data = [];
