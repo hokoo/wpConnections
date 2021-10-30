@@ -312,7 +312,7 @@ class Storage extends Abstracts\Storage {
 		$data = [
 			'from'      => $connectionQuery->get('from'),
 			'to'        => $connectionQuery->get('to'),
-			'order'     => $connectionQuery->get('order'),
+			'order'     => $connectionQuery->get('order') ?? 0,
 			'relation'  => $connectionQuery->get('relation'),
 			'title'     => $connectionQuery->get('title'),
 		];
