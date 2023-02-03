@@ -10,6 +10,13 @@ class ConnectionCollection extends Collection {
 		parent::__construct( $collectionType, $this->fromArray( $data, $collectionType ) );
 	}
 
+    /**
+     * @TODO
+     *
+     * Returns WP_Post[] based on 'from' or 'to' direction type.
+     */
+    public function getPosts( string $direction ) {}
+
 	private function fromArray( array $items, string $collectionType = '' ): array {
 
 		$connections = [];

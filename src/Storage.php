@@ -3,6 +3,7 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Helpers\Database;
 
 class Storage extends Abstracts\Storage {
 	use ClientInterface;
@@ -32,12 +33,12 @@ class Storage extends Abstracts\Storage {
 	}
 
 	private function init() {
-		scb_register_table( $this->get_connections_table() );
-		scb_register_table( $this->get_meta_table() );
+		Database::register_table( $this->get_connections_table() );
+        Database::register_table( $this->get_meta_table() );
 	}
 
 	private function install() {
-		scb_install_table( $this->get_connections_table(), "
+        Database::install_table( $this->get_connections_table(), "
 			`ID`        bigint(20)      unsigned NOT NULL auto_increment,
 			`relation`  varchar(255)    NOT NULL,
 			`from`      bigint(20)      unsigned NOT NULL,
@@ -51,7 +52,7 @@ class Storage extends Abstracts\Storage {
 			INDEX `order` (`order`)
 		" );
 
-		scb_install_table( $this->get_meta_table(), "
+        Database::install_table( $this->get_meta_table(), "
 			`meta_id`         bigint(20)      unsigned NOT NULL auto_increment,
 			`connection_id`   bigint(20)      unsigned NOT NULL default '0',
 			`meta_key`        varchar(255)    NOT NULL,
