@@ -43,17 +43,17 @@ class ClientRestApi{
             '/' . $this->base . '/' . $this->getClient()->getName() .
             '/relation/' . '(?P<relation>[\w-]+)',
             [
-                'args'   => [
-                    'relation' => [
-                        'description' => __( 'Unique name for the relation.' ),
-                        'type'        => 'string',
-                        'required'    => true,
-                    ],
-                ],
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [ $this, 'getRestRelationData' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
+                    'args'   => [
+                        'relation' => [
+                            'description' => __( 'Unique name for the relation.' ),
+                            'type'        => 'string',
+                            'required'    => true,
+                        ],
+                    ],
                 ],
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
@@ -100,7 +100,7 @@ class ClientRestApi{
                         'required'    => true,
                     ],
                     'connectionID' => [
-                        'description' => __( 'Unique name for the connection.' ),
+                        'description' => __( 'Connection ID to be removed.' ),
                         'type'        => 'integer',
                         'required'    => true,
                     ],
