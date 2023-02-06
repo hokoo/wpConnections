@@ -11,6 +11,8 @@ class Relation extends Abstracts\Relation {
 	public function __construct(){}
 
 	/**
+     * @TODO Apply transactions.
+     *
 	 * Creates new connect
 	 *
 	 * @param Query\Connection $connectionQuery
