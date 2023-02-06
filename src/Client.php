@@ -2,6 +2,8 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Exceptions\RelationNotFound;
+
 class Client {
 	private $name;
 
@@ -23,6 +25,7 @@ class Client {
 	private function init() {
 		$this->storageInit();
 		$this->relationCollectionInit();
+        $this->registerRestApi();
 
 		add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
 
@@ -50,13 +53,14 @@ class Client {
 		return $this->relations;
 	}
 
-	/**
-	 * Sugar for $this->getRelations()->get()
-	 *
-	 * @param string $name Connection name.
-	 *
-	 * @return Relation
-	 */
+    /**
+     * Sugar for $this->getRelations()->get()
+     *
+     * @param string $name Connection name.
+     *
+     * @return Relation
+     * @throws RelationNotFound
+     */
 	public function getRelation( string $name ): Relation {
 		return $this->relations->get( $name );
 	}
@@ -72,4 +76,15 @@ class Client {
 		$this->relations->add( $relation );
 		return $relation;
 	}
+
+    private function registerRestApi() {
+        $class = ClientRestApi::class;
+        $class = apply_filters( 'wpConnections/client/restApi', $class, $this );
+        $class = apply_filters( 'wpConnections/client/restApi/' . $this->getName(), $class, $this );
+
+        // Class should be ClientRestApi's descendant or itself.
+        /** @var ClientRestApi $restapi */
+        $restapi = new $class( $this );
+        $restapi->init();
+    }
 }
