@@ -14,34 +14,34 @@ class Relation {
 	 *
 	 * 'from', 'to', 'both'
 	 */
-	protected $type;
+	public $type;
 
 	/**
 	 * @var string
 	 *
 	 * '1-1', '1-m', 'm-m', 'm-1'
 	 */
-	protected $cardinality;
+    public $cardinality;
 
 	/**
 	 * Ability to make identical connections
 	 * @var bool
 	 */
-	protected $duplicatable;
+    public $duplicatable;
 
 	/**
 	 * Ability to make self-connections
 	 * @var bool
 	 */
-	protected $closurable;
+    public $closurable;
 
 	/**
 	 * @var string
 	 */
-	protected $from;
+    public $from;
 
 	/**
 	 * @var string
 	 */
-	protected $to;
+    public $to;
 }
