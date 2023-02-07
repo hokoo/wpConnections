@@ -49,4 +49,18 @@ class ConnectionCollection extends Collection {
 
 		return $connections;
 	}
+
+    /**
+     * @return Connection
+     */
+    public function first() : Connection {
+        return parent::first();
+    }
+
+    /**
+     * @return Connection
+     */
+    public function last() : Connection {
+        return parent::last();
+    }
 }
