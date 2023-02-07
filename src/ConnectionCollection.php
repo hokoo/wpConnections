@@ -41,6 +41,7 @@ class ConnectionCollection extends Collection {
 				->set( 'order', $item->order )
 				->set( 'title', $item->title ?? '' )
 				->set( 'client', $item->client ?? null )
+                ->set( 'relation', $item->relation ?? null )
 				->set( 'meta', $item->meta ?? [] );
 
 			$connections []= $connection;
