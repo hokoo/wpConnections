@@ -7,7 +7,7 @@ class Connection {
     /**
      * @var int
      */
-    protected $id;
+    public $id;
 
     /**
      * @var string
@@ -17,7 +17,7 @@ class Connection {
     /**
      * @var string
      */
-    protected $relation = '';
+    public $relation = '';
 
     /**
      * @var int
