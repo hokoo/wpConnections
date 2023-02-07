@@ -2,6 +2,7 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
 use iTRON\wpConnections\RestResponse\CollectionItem;
@@ -26,8 +27,126 @@ class ClientRestApi{
         add_action( 'rest_api_init', [ $this, 'registerRestRoutes' ], 10 );
     }
 
+    public function getRestClientData( WP_REST_Request $request ) {
+        $relations = [];
+        foreach ( $this->getClient()->getRelations()->toArray() as $relationItem ) {
+            /** @var Relation $relationItem */
+            $relation = $this->ensureRestResponseCollectionItem( $relationItem );
+            $relation->add_link( 'self', $this->getRestRelationUrl( $relationItem->get( 'name' ) ) );
+            $relations []= $relation;
+        }
+
+        $result = rest_ensure_response( $relations );
+        return $result;
+    }
+
+    function getRestRelationData( WP_REST_Request $request ) {
+        try {
+            $response = [];
+            foreach ( $this->getClient()->getRelation( $request->get_param('relation') )->findConnections()->toArray() as $connectionItem ) {
+                /** @var Connection $connectionItem */
+                $response []= $this->getRestConnectionItem( $connectionItem );
+            }
+        } catch ( Exception $e ) {
+            return rest_ensure_response( $this->getError( $e ) );
+        }
+
+        return rest_ensure_response( $response );
+    }
+
+    public function getRestConnectionData( WP_REST_Request $request ) {
+        $q = new Query\Connection();
+        $q->set( 'id', $request->get_param( 'connectionID' ) );
+        try {
+            $connection = $this->getClient()->getRelation( $request->get_param('relation' ) )->findConnections( $q )->first();
+        } catch ( Exception $e ) {
+            return rest_ensure_response( $this->getError( $e ) );
+        } catch ( OutOfBoundsException $e ) {
+            return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
+        }
+
+        return rest_ensure_response( $connection );
+    }
+
+    /**
+     * @TODO
+     *
+     * @param WP_REST_Request $request
+     * @return bool
+     */
+    public function checkPermissions( WP_REST_Request $request ): bool{
+        return true;
+    }
+
+    public function deleteConnection( WP_REST_Request $request ) {
+        $q = new \iTRON\wpConnections\Query\Connection();
+        try {
+            $rows = $this->getClient()->getRelation( $request->get_param('relation') )->detachConnections( $q->set('id', $request->get_param('connectionID') ) );
+        } catch ( Exception $e ) {
+            return rest_ensure_response( $this->getError( $e ) );
+        }
+
+        if ( 0 === (int) $rows ) {
+            return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
+        }
+
+        return rest_ensure_response( self::SUCCESS );
+    }
+
+    public function createConnection( WP_REST_Request $request ) {
+        $q = new Query\Connection();
+        $q->set( 'from', $request->get_param('from') )
+            ->set( 'to', $request->get_param('to') )
+            ->set( 'order', $request->get_param('order') )
+            ->set( 'meta', $request->get_param('meta') );
+
+        try {
+            return rest_ensure_response( $this->getClient()->getRelation( $request->get_param('relation') )->createConnection( $q ) );
+        } catch ( Exception $e ) {
+            return rest_ensure_response( $this->getError( $e ) );
+        }
+    }
+
+    protected function getRestConnectionItem( Connection $connection ): CollectionItem {
+        $response = $this->ensureRestResponseCollectionItem( $connection );
+        $response->add_link( 'self', $this->getRestConnectionUrl( $connection->get( 'relation' ), $connection->get( 'id' ) ) );
+        return $response;
+    }
+
+    protected function ensureRestResponseCollectionItem( $data ): CollectionItem {
+        if ( $data instanceof CollectionItem ) {
+            return $data;
+        }
+
+        return new CollectionItem( $data );
+    }
+
+    protected function getError( \Exception $exception ): WP_Error{
+        return new WP_Error( $exception->getCode(), $exception->getMessage() );
+    }
+
+    protected function getRestBaseUrl(): string {
+        return rest_url( $this->namespace . '/' . $this->base );
+    }
+
+    protected function getRestClientUrl(): string {
+        return $this->getRestBaseUrl() . '/' . $this->getClient()->getName();
+    }
+
+    protected function getRestRelationUrl( string $relationName ): string {
+        return $this->getRestClientUrl() . '/relation/' . $relationName;
+    }
+
+    protected function getRestConnectionUrl( string $relationName, $connectionID ): string {
+        return $this->getRestRelationUrl( $relationName ) . '/' . $connectionID;
+    }
+
+    /**
+     * @throws ClientRegisterFail
+     */
     public function registerRestRoutes() {
-        register_rest_route(
+        $result = [];
+        $result []= register_rest_route(
             $this->namespace,
             '/' . $this->base . '/' . $this->getClient()->getName(),
             [
@@ -38,53 +157,10 @@ class ClientRestApi{
                     'callback'            => [ $this, 'getRestClientData' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                 ],
-                [
-                    'methods'             => WP_REST_Server::CREATABLE,
-                    'description'         => 'Create relation towards the client.',
-                    'callback'            => [ $this, 'createRelation' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args' => [
-                        'relation'  => [
-                            'description' => __( 'Unique name for the relation to be created.' ),
-                            'type'        => 'string',
-                            'required'    => true,
-                        ],
-                        'from'  => [
-                            'description' => __( 'Name CPT\'s that is considered as FROM.' ),
-                            'type'        => 'string',
-                            'required'    => true,
-                        ],
-                        'to'  => [
-                            'description' => __( 'Name CPT\'s that is considered as TO.' ),
-                            'type'        => 'string',
-                            'required'    => true,
-                        ],
-                        'type'  => [
-                            'description' => __( 'The type of the relation. Might be `from`, `to`, `both`.' ),
-                            'type'        => 'string',
-                            'required'    => false,
-                        ],
-                        'cardinality'  => [
-                            'description' => __( 'The cardinality of the relation. Might be `1-1`, `1-m`, `m-m`, `m-1`.' ),
-                            'type'        => 'string',
-                            'required'    => false,
-                        ],
-                        'duplicatable'  => [
-                            'description' => __( 'Ability of creating the same connections of the relation.' ),
-                            'type'        => 'boolean',
-                            'required'    => false,
-                        ],
-                        'closurable'  => [
-                            'description' => __( 'Ability to make self-connections.' ),
-                            'type'        => 'boolean',
-                            'required'    => false,
-                        ],
-                    ]
-                ],
             ]
         );
 
-        register_rest_route(
+        $result []= register_rest_route(
             $this->namespace,
             '/' . $this->base . '/' . $this->getClient()->getName() .
             '/relation/' . '(?P<relation>[\w-]+)',
@@ -133,7 +209,7 @@ class ClientRestApi{
             ]
         );
 
-        register_rest_route(
+        $result []= register_rest_route(
             $this->namespace,
             '/' . $this->base . '/' . $this->getClient()->getName() .
             '/relation/' . '(?P<relation>[\w-]+)' .
@@ -172,125 +248,9 @@ class ClientRestApi{
                 ],
             ]
         );
-    }
 
-    public function getRestClientData( WP_REST_Request $request ) {
-        $relations = [];
-        foreach ( $this->getClient()->getRelations()->toArray() as $relationItem ) {
-            /** @var Relation $relationItem */
-            $relation = $this->ensureRestResponseCollectionItem( $relationItem );
-            $relation->add_link( 'self', $this->getRestRelationUrl( $relationItem->get( 'name' ) ) );
-            $relations []= $relation;
+        if ( in_array( false, $result, true ) ) {
+            throw new ClientRegisterFail( 'An error has occurred during REST API Routes registering.' );
         }
-
-        $result = rest_ensure_response( $relations );
-        return $result;
-    }
-
-    function getRestRelationData( WP_REST_Request $request ) {
-        try {
-            $response = [];
-            foreach ( $this->getClient()->getRelation( $request['relation'] )->findConnections()->toArray() as $connectionItem ) {
-                /** @var Connection $connectionItem */
-                $response []= $this->getRestConnectionItem( $connectionItem );
-            }
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
-        }
-
-        return rest_ensure_response( $response );
-    }
-
-    public function getRestConnectionData( WP_REST_Request $request ) {
-        $q = new Query\Connection();
-        $q->set( 'id', $request->get_param( 'id' ) );
-        try {
-            $connection = $this->getClient()->getRelation( $request['relation'] )->findConnections( $q )->first();
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
-        } catch ( OutOfBoundsException $e ) {
-            return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
-        }
-
-        return rest_ensure_response( $connection );
-    }
-
-    /**
-     * @TODO
-     *
-     * @param WP_REST_Request $request
-     * @return bool
-     */
-    public function checkPermissions( WP_REST_Request $request ): bool{
-        return true;
-    }
-
-    public function deleteConnection( WP_REST_Request $request ) {
-        $q = new \iTRON\wpConnections\Query\Connection();
-        try {
-            $rows = $this->getClient()->getRelation( $request['relation'] )->detachConnections( $q->set('id', $request['connectionID'] ) );
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
-        }
-
-        if ( 0 === (int) $rows ) {
-            return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
-        }
-
-        return rest_ensure_response( self::SUCCESS );
-    }
-
-    public function createRelation( WP_REST_Request $request ) {
-
-    }
-
-    public function createConnection( WP_REST_Request $request ) {
-        $q = new Query\Connection();
-        $q->set( 'from', $request['from'] )
-            ->set( 'to', $request['to'] )
-            ->set( 'order', $request['order'] )
-            ->set( 'meta', $request['meta'] );
-
-        try {
-            $connection = $this->getClient()->getRelation( $request['relation'] )->createConnection( $q );
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
-        }
-
-        return rest_ensure_response( $connection );
-    }
-
-    protected function getRestConnectionItem( Connection $connection ): CollectionItem {
-        $response = $this->ensureRestResponseCollectionItem( $connection );
-        $response->add_link( 'self', $this->getRestConnectionUrl( $connection->get( 'relation' ), $connection->get( 'id' ) ) );
-        return $response;
-    }
-
-    protected function ensureRestResponseCollectionItem($data ): CollectionItem {
-        if ( $data instanceof CollectionItem ) {
-            return $data;
-        }
-
-        return new CollectionItem( $data );
-    }
-
-    protected function getError( \Exception $exception ): WP_Error{
-        return new WP_Error( $exception->getCode(), $exception->getMessage() );
-    }
-
-    protected function getRestBaseUrl(): string {
-        return rest_url( $this->namespace . '/' . $this->base );
-    }
-
-    protected function getRestClientUrl(): string {
-        return $this->getRestBaseUrl() . '/' . $this->getClient()->getName();
-    }
-
-    protected function getRestRelationUrl( string $relationName ): string {
-        return $this->getRestClientUrl() . '/relation/' . $relationName;
-    }
-
-    protected function getRestConnectionUrl( string $relationName, $connectionID ): string {
-        return $this->getRestRelationUrl( $relationName ) . '/' . $connectionID;
     }
 }
