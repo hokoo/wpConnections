@@ -69,13 +69,11 @@ class ClientRestApi{
     }
 
     /**
-     * @TODO
-     *
      * @param WP_REST_Request $request
      * @return bool
      */
-    public function checkPermissions( WP_REST_Request $request ): bool{
-        return true;
+    public function checkPermissions( WP_REST_Request $request ): bool {
+        return current_user_can( $this->getClient()->capability );
     }
 
     public function deleteConnection( WP_REST_Request $request ) {

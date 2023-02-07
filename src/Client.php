@@ -19,6 +19,13 @@ class Client {
 	 */
 	private $relations;
 
+    /**
+     * @var string
+     *
+     * WP user capability id that is required for performing actions with client.
+     */
+    public $capability = 'manage_options';
+
 	public function __construct( $name ) {
 		$this->name = sanitize_title( $name );
 		$this->init();
