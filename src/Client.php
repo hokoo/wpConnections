@@ -3,6 +3,8 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\RelationNotFound;
+use iTRON\wpConnections\Exceptions\RelationWrongData;
+use iTRON\wpConnections\Exceptions\MissingParameters;
 
 class Client {
 	private $name;
@@ -22,30 +24,11 @@ class Client {
 		$this->init();
 	}
 
-	private function init() {
-		$this->storageInit();
-		$this->relationCollectionInit();
-        $this->registerRestApi();
-
-		add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
-
-		do_action( 'wpConnections/client/inited', $this );
-		do_action( "wpConnections/client/{$this->getName()}/inited", $this );
-	}
-
-	protected function storageInit(){
-		$this->storage = new Storage( $this );
-	}
-
-	protected function relationCollectionInit(){
-		$this->relations = new RelationCollection();
-	}
-
-	function getName(): string {
+    public function getName(): string {
 		return $this->name;
 	}
 
-	function getStorage(): \iTRON\wpConnections\Abstracts\Storage {
+    public function getStorage(): Storage {
 		return $this->storage;
 	}
 
@@ -66,16 +49,28 @@ class Client {
 	}
 
 	/**
-	 * @throws Exceptions\MissingParameters
+	 * @return Relation Registers new relation.
 	 *
-	 * @return Relation New relation
-	 */
+     * @throws RelationWrongData
+     * @throws MissingParameters
+     */
 	public function registerRelation( Query\Relation $relationQuery ): Relation {
 		$relationQuery->set( 'client', $this );
 		$relation = Factory::createRelation( $relationQuery );
 		$this->relations->add( $relation );
 		return $relation;
 	}
+
+    private function init() {
+        $this->storage = new Storage( $this );
+        $this->relations = new RelationCollection();
+        $this->registerRestApi();
+
+        add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
+
+        do_action( 'wpConnections/client/inited', $this );
+        do_action( "wpConnections/client/{$this->getName()}/inited", $this );
+    }
 
     private function registerRestApi() {
         $class = ClientRestApi::class;

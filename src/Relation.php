@@ -67,7 +67,7 @@ class Relation extends Abstracts\Relation {
 		}
 
 		// Duplicatable check
-		$query = new \iTRON\wpConnections\Query\Connection( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
+		$query = new Query\Connection( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
 		$query->set( 'relation', $this->name );
 
 		$check_duplicatable = $this->findConnections( $query );
