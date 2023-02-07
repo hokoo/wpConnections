@@ -2,19 +2,48 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Exceptions\MissingParameters;
+use iTRON\wpConnections\Exceptions\RelationWrongData;
+
 class Factory {
 	/**
 	 * @throws Exceptions\MissingParameters
-	 */
+	 * @throws Exceptions\RelationWrongData
+     */
 	public static function createRelation( Query\Relation $relationQuery ): Relation {
-		if ( empty( $relationQuery->get( 'name' ) ) ) {
-			$e = new Exceptions\MissingParameters();
-			$e->setParam( 'name' );
+        $missingParameters = new MissingParameters();
 
-			throw $e;
+		if ( empty( $relationQuery->get( 'name' ) ) ) {
+            $missingParameters->setParam( 'name' );
 		}
 
-		$default = [
+		if ( empty( $relationQuery->get( 'from' ) ) ) {
+            $missingParameters->setParam( 'from' );
+		}
+
+		if ( empty( $relationQuery->get( 'name' ) ) ) {
+            $missingParameters->setParam( 'name' );
+		}
+
+        if ( $missingParameters->getParams() ) {
+            throw $missingParameters;
+        }
+
+        $relationWrongData = new RelationWrongData( 'Relation has been already created. ' );
+
+        try {
+            $exists = $relationQuery->client->getRelation( $relationQuery->name );
+        } catch ( Exceptions\RelationNotFound $notFound ) {
+            // That's ok, relation name is free.
+        }
+
+        if ( isset( $exists ) && $exists instanceof Relation ) {
+            $relationWrongData->setParam( $relationQuery->name );
+            throw $relationWrongData;
+        }
+
+        $default = [
 			'type'          => 'both',
 			'cardinality'   => 'm-m',
 			'duplicatable'  => false,
@@ -32,7 +61,7 @@ class Factory {
 	}
 
 	/**
-	 * @throws Exceptions\ConnectionWrongData
+	 * @throws ConnectionWrongData
 	 */
 	public static function createConnection( Query\Connection $connectionQuery, Relation $relation ): Connection {
 		$connectionID = $relation->getClient()->getStorage()->createConnection( $connectionQuery );
