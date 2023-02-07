@@ -84,8 +84,8 @@ class Storage extends Abstracts\Storage {
 		$db_meta = $wpdb->prefix . $this->get_meta_table();
 		$in = implode( ',', $connectionIDs );
 
-		$query = "DELETE FROM {$db} WHERE `ID` IN {$in}";
-		$query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN {$in}";
+		$query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
+		$query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})";
 
 		// @TODO Transaction
 		$wpdb->query( esc_sql( $query_meta ) );
@@ -125,11 +125,11 @@ class Storage extends Abstracts\Storage {
 		$where = [];
 
 		if ( ! $onlyFrom ) {
-			$where []= "`to` IN {$in}";
+			$where []= "`to` IN ({$in})";
 		}
 
 		if ( ! $onlyTo ) {
-			$where []= "`from` IN {$in}";
+			$where []= "`from` IN ({$in})";
 		}
 
 		$where_str = implode( ' OR ', $where );

@@ -11,6 +11,8 @@ class Relation extends Abstracts\Relation {
 	public function __construct(){}
 
 	/**
+     * @TODO Apply transactions.
+     *
 	 * Creates new connect
 	 *
 	 * @param Query\Connection $connectionQuery
@@ -65,7 +67,7 @@ class Relation extends Abstracts\Relation {
 		}
 
 		// Duplicatable check
-		$query = new \iTRON\wpConnections\Query\Connection( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
+		$query = new Query\Connection( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
 		$query->set( 'relation', $this->name );
 
 		$check_duplicatable = $this->findConnections( $query );
@@ -125,15 +127,29 @@ class Relation extends Abstracts\Relation {
 		return 0;
 	}
 
-	/**
-	 * @param Query\Connection $connectionQuery
-	 *
-	 * @return ConnectionCollection
-	 */
+    /**
+     * @param Query\Connection|null $connectionQuery
+     *
+     * @return ConnectionCollection
+     */
 	public function findConnections( Query\Connection $connectionQuery = null ): ConnectionCollection {
-		$connectionQuery = $connectionQuery ?? new \iTRON\wpConnections\Query\Connection();
+		$connectionQuery = $connectionQuery ?? new Query\Connection();
 		$connectionQuery->set( 'relation', $this->name );
 
-		return $this->getClient()->getStorage()->findConnections( $connectionQuery );
+		$collection = $this->getClient()->getStorage()->findConnections( $connectionQuery );
+
+        /**
+         * Processing the case if specific connection is queried.
+         * Since a Storage does not care about addition parameters when ID is specified,
+         * we have to ensure that the connection we've just obtained is consistent to the entire query.
+         * Particularly, we should check Relation field.
+         */
+        if ( ! is_null( $connectionQuery->id ) && ! is_null( $connectionQuery->relation ) && ! $collection->isEmpty() ) {
+            if ( $connectionQuery->relation !== $collection->first()->relation ) {
+                return new ConnectionCollection();
+            }
+        }
+
+        return $collection;
 	}
 }
