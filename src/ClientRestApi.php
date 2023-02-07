@@ -32,8 +32,52 @@ class ClientRestApi{
                 'args'   => [],
                 [
                     'methods'             => WP_REST_Server::READABLE,
+                    'description'         => 'Get the client relations.',
                     'callback'            => [ $this, 'getRestClientData' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
+                ],
+                [
+                    'methods'             => WP_REST_Server::CREATABLE,
+                    'description'         => 'Create relation towards the client.',
+                    'callback'            => [ $this, 'createRelation' ],
+                    'permission_callback' => [ $this, 'checkPermissions' ],
+                    'args' => [
+                        'relation'  => [
+                            'description' => __( 'Unique name for the relation.' ),
+                            'type'        => 'string',
+                            'required'    => true,
+                        ],
+                        'from'  => [
+                            'description' => __( 'Name CPT\'s that is considered as FROM.' ),
+                            'type'        => 'string',
+                            'required'    => true,
+                        ],
+                        'to'  => [
+                            'description' => __( 'Name CPT\'s that is considered as TO.' ),
+                            'type'        => 'string',
+                            'required'    => true,
+                        ],
+                        'type'  => [
+                            'description' => __( 'The type of the relation. Might be `from`, `to`, `both`.' ),
+                            'type'        => 'string',
+                            'required'    => false,
+                        ],
+                        'cardinality'  => [
+                            'description' => __( 'The cardinality of the relation. Might be `1-1`, `1-m`, `m-m`, `m-1`.' ),
+                            'type'        => 'string',
+                            'required'    => false,
+                        ],
+                        'duplicatable'  => [
+                            'description' => __( 'Ability of creating the same connections of the relation.' ),
+                            'type'        => 'boolean',
+                            'required'    => false,
+                        ],
+                        'closurable'  => [
+                            'description' => __( 'Ability to make self-connections.' ),
+                            'type'        => 'boolean',
+                            'required'    => false,
+                        ],
+                    ]
                 ],
             ]
         );
@@ -151,6 +195,10 @@ class ClientRestApi{
         }
 
         return rest_ensure_response( self::SUCCESS );
+    }
+    
+    public function createRelation( WP_REST_Request $request ) {
+        
     }
 
     public function createConnection( WP_REST_Request $request ) {
