@@ -3,12 +3,10 @@
 namespace iTRON\wpConnections\Query;
 
 use iTRON\wpConnections\Client;
+use iTRON\wpConnections\GSInterface;
 
 class Relation extends \iTRON\wpConnections\Abstracts\Relation {
-	use \iTRON\wpConnections\GSInterface;
+	use GSInterface;
 
-	/**
-	 * @var Client
-	 */
-	public $client;
+	public Client $client;
 }

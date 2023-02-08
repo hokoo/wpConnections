@@ -2,13 +2,12 @@
 
 namespace iTRON\wpConnections\Query;
 
-class Connection extends \iTRON\wpConnections\Abstracts\Connection {
-	use \iTRON\wpConnections\GSInterface;
+use iTRON\wpConnections\GSInterface;
 
-	/**
-	 * @var int
-	 */
-	public $both = 0;
+class Connection extends \iTRON\wpConnections\Abstracts\Connection {
+	use GSInterface;
+
+	public int $both = 0;
 
 	public function __construct( int $from = 0, int $to = 0, int $both = 0 ){
 		$this->from = $from;

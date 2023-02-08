@@ -4,30 +4,12 @@ namespace iTRON\wpConnections\Abstracts;
 
 class Connection {
 
-    /**
-     * @var int
-     */
-    public $id;
-
-    /**
-     * @var string
-     */
-    protected $title = '';
-
-    /**
-     * @var string
-     */
-    public $relation = '';
-
-    /**
-     * @var int
-     */
-    public $from;
-
-    /**
-     * @var int
-     */
-    public $to;
+    public int $id = 0;
+    protected string $title = '';
+    public string $relation = '';
+    public int $from;
+    public int $to;
+    public int $order;
 
     /**
      * @var array
@@ -37,10 +19,5 @@ class Connection {
      *      'meta_value'        string
      *
      */
-    public $meta;
-
-    /**
-     * @var int
-     */
-    public $order;
+    public array $meta;
 }
