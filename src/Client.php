@@ -7,24 +7,14 @@ use iTRON\wpConnections\Exceptions\RelationWrongData;
 use iTRON\wpConnections\Exceptions\MissingParameters;
 
 class Client {
-	private $name;
-
-	/**
-	 * @var Abstracts\Storage
-	 */
-	private $storage;
-
-	/**
-	 * @var RelationCollection
-	 */
-	private $relations;
+	private string $name;
+	private Abstracts\Storage $storage;
+	private RelationCollection $relations;
 
     /**
-     * @var string
-     *
      * WP user capability id that is required for performing actions with client.
      */
-    public $capability = 'manage_options';
+    public string $capability = 'manage_options';
 
 	public function __construct( $name ) {
 		$this->name = sanitize_title( $name );
@@ -35,7 +25,7 @@ class Client {
 		return $this->name;
 	}
 
-    public function getStorage(): Storage {
+    public function getStorage(): Abstracts\Storage {
 		return $this->storage;
 	}
 

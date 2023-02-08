@@ -14,10 +14,8 @@ use WP_REST_Server;
 class ClientRestApi{
     use ClientInterface;
 
-    const SUCCESS = [ 'result' => 'success' ];
-
-    public $namespace = 'wp-connections/v1';
-    public $base = 'client';
+    public string $namespace = 'wp-connections/v1';
+    public string $base = 'client';
 
     public function __construct( Client $client ) {
         $this->setClient( $client );
@@ -36,8 +34,7 @@ class ClientRestApi{
             $relations []= $relation;
         }
 
-        $result = rest_ensure_response( $relations );
-        return $result;
+        return rest_ensure_response( $relations );
     }
 
     function getRestRelationData( WP_REST_Request $request ) {
@@ -88,7 +85,7 @@ class ClientRestApi{
             return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
         }
 
-        return rest_ensure_response( self::SUCCESS );
+        return rest_ensure_response( [ 'deleted'  => true ] );
     }
 
     public function createConnection( WP_REST_Request $request ) {

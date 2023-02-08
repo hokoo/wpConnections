@@ -16,9 +16,7 @@ class RelationCollection extends Collection {
     /**
      * @param string $name
      *
-     * @return mixed
-     *
-     * @throws OutOfBoundsException
+     * @return Relation
      * @throws RelationNotFound
      */
 	public function get( string $name ): Relation {

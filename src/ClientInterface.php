@@ -3,10 +3,7 @@
 namespace iTRON\wpConnections;
 
 trait ClientInterface{
-	/**
-	 * @var Client
-	 */
-	private $client;
+	private Client $client;
 
 	function getClient(): Client {
 		return $this->client;

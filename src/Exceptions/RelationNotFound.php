@@ -5,7 +5,7 @@ namespace iTRON\wpConnections\Exceptions;
 use Throwable;
 class RelationNotFound extends Exception {
 
-    public $relation = '';
+    public string $relation = '';
 
     public function __construct( \Throwable $previous = null ) {
         parent::__construct( 'Relation not found: ', 1, $previous );

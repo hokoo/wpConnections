@@ -8,9 +8,8 @@ use iTRON\wpConnections\Helpers\Database;
 class Storage extends Abstracts\Storage {
 	use ClientInterface;
 
-	private $connections_table = 'post_connections_';
-
-	private $meta_table = 'post_connections_meta_';
+	private string $connections_table = 'post_connections_';
+	private string $meta_table = 'post_connections_meta_';
 
 	/**
 	 * @param Client $client wpConnections Client

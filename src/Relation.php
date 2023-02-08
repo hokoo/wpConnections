@@ -144,7 +144,7 @@ class Relation extends Abstracts\Relation {
          * we have to ensure that the connection we've just obtained is consistent to the entire query.
          * Particularly, we should check Relation field.
          */
-        if ( ! is_null( $connectionQuery->id ) && ! is_null( $connectionQuery->relation ) && ! $collection->isEmpty() ) {
+        if ( ! empty( $connectionQuery->id ) && ! empty( $connectionQuery->relation ) && ! $collection->isEmpty() ) {
             if ( $connectionQuery->relation !== $collection->first()->relation ) {
                 return new ConnectionCollection();
             }
