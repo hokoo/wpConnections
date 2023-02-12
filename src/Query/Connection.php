@@ -9,7 +9,8 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection {
 
 	public int $both = 0;
 
-	public function __construct( int $from = 0, int $to = 0, int $both = 0 ){
+	public function __construct( int $from = 0, int $to = 0, int $both = 0 ) {
+        parent::__construct();
 		$this->from = $from;
 		$this->to = $to;
 		$this->both = $both;
