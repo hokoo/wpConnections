@@ -33,4 +33,22 @@ class MetaCollection extends Collection {
 
 		return $result;
 	}
+
+	/**
+	 * Receives array of metadata in WordPress way.
+	 *
+	 * @return void
+	 */
+	public function fromArray( array $data ) {
+		if ( empty( $data ) ) {
+			return;
+		}
+
+		foreach ( $data as $key => $value ) {
+			$value = is_array( $value ) ? $value : [ $value ];
+			foreach ( $value as $term ) {
+				$this->add( new Meta( $key, $term ) );
+			}
+		}
+	}
 }

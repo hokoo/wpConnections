@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 
 class MetaCollectionTest extends TestCase {
 
-	public function test_toArray() {
+	public function testToArray() {
 		$mc = new MetaCollection();
 		$mc->add( new Meta( 'key1', 'value1' ) );
 		$mc->add( new Meta( 'key1', 'value2' ) );
@@ -22,5 +22,23 @@ class MetaCollectionTest extends TestCase {
 		];
 
 		self::assertEquals( $result, $mc->toArray() );
+	}
+
+	public function testFromArray() {
+		$mc = new MetaCollection();
+		$dataArray = [
+			'key1' => [ 'value1', 'value2' ],
+			'key2' => [ 'value2' ],
+			'key3' => [ 'value3' ],
+		];
+		$mc->fromArray( $dataArray );
+
+		$mcExpected = new MetaCollection();
+		$mcExpected->add( new Meta( 'key1', 'value1' ) );
+		$mcExpected->add( new Meta( 'key1', 'value2' ) );
+		$mcExpected->add( new Meta( 'key2', 'value2' ) );
+		$mcExpected->add( new Meta( 'key3', 'value3' ) );
+
+		self::assertEquals( $mc, $mcExpected );
 	}
 }
