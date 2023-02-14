@@ -336,15 +336,16 @@ class Storage extends Abstracts\Storage {
 		$connection_id = $wpdb->insert_id;
 
 		// Meta data insert
-		$meta = $connectionQuery->get( 'meta' );
-		if ( is_array( $meta ) ) {
-			foreach ( $meta as $item ) {
-				if ( ! isset( $item['meta_key'] ) ) continue;
+		if ( ! $connectionQuery->meta->isEmpty() ) {
+			foreach ( $connectionQuery->meta->getIterator() as $meta ) {
+				/** @var Meta $meta */
+				$data = [
+					'connection_id' => $connection_id,
+					'meta_key'      => $meta->get_key(),
+					'meta_value'    => $meta->get_value(),
+				];
 
-				$item['connection_id'] = $item['connection_id'] ?? $connection_id;
-				$item['meta_value'] = $item['meta_value'] ?? '';
-
-				$result = $wpdb->insert( $wpdb->prefix . $this->get_meta_table(), $item );
+				$result = $wpdb->insert( $wpdb->prefix . $this->get_meta_table(), $data );
 
 				if ( false === $result ) {
 					throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection meta data with the words: [{$wpdb->last_error}]" );
