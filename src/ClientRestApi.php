@@ -2,6 +2,7 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
@@ -27,7 +28,7 @@ class ClientRestApi{
 
     public function getRestClientData( WP_REST_Request $request ) {
         $relations = [];
-        foreach ( $this->getClient()->getRelations()->toArray() as $relationItem ) {
+        foreach ( $this->getClient()->getRelations()->getIterator() as $relationItem ) {
             /** @var Relation $relationItem */
             $relation = $this->ensureRestResponseCollectionItem( $relationItem );
             $relation->add_link( 'self', $this->getRestRelationUrl( $relationItem->get( 'name' ) ) );
@@ -40,7 +41,7 @@ class ClientRestApi{
     function getRestRelationData( WP_REST_Request $request ) {
         try {
             $response = [];
-            foreach ( $this->getClient()->getRelation( $request->get_param('relation') )->findConnections()->toArray() as $connectionItem ) {
+            foreach ( $this->getClient()->getRelation( $request->get_param('relation') )->findConnections()->getIterator() as $connectionItem ) {
                 /** @var Connection $connectionItem */
                 $response []= $this->getRestConnectionItem( $connectionItem );
             }
@@ -55,14 +56,14 @@ class ClientRestApi{
         $q = new Query\Connection();
         $q->set( 'id', $request->get_param( 'connectionID' ) );
         try {
-            $connection = $this->getClient()->getRelation( $request->get_param('relation' ) )->findConnections( $q )->first();
+            return $this->ensureRestResponse(
+                $this->getClient()->getRelation( $request->get_param('relation' ) )->findConnections( $q )->first()
+            );
         } catch ( Exception $e ) {
             return rest_ensure_response( $this->getError( $e ) );
         } catch ( OutOfBoundsException $e ) {
             return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
         }
-
-        return rest_ensure_response( $connection );
     }
 
     /**
@@ -90,13 +91,14 @@ class ClientRestApi{
 
     public function createConnection( WP_REST_Request $request ) {
         $q = new Query\Connection();
-        $q->set( 'from', $request->get_param('from') )
+        $q
+            ->set( 'from', $request->get_param('from') )
             ->set( 'to', $request->get_param('to') )
             ->set( 'order', $request->get_param('order') )
-            ->set( 'meta', $request->get_param('meta') );
+            ->meta->fromArray( (array) $request->get_param('meta') );
 
         try {
-            return rest_ensure_response( $this->getClient()->getRelation( $request->get_param('relation') )->createConnection( $q ) );
+            return $this->ensureRestResponse( $this->getClient()->getRelation( $request->get_param('relation') )->createConnection( $q ) );
         } catch ( Exception $e ) {
             return rest_ensure_response( $this->getError( $e ) );
         }
@@ -108,12 +110,16 @@ class ClientRestApi{
         return $response;
     }
 
-    protected function ensureRestResponseCollectionItem( $data ): CollectionItem {
+    protected function ensureRestResponseCollectionItem( IArrayConvertable $data ): CollectionItem {
         if ( $data instanceof CollectionItem ) {
             return $data;
         }
 
         return new CollectionItem( $data );
+    }
+
+    protected function ensureRestResponse( IArrayConvertable $data ) {
+        return rest_ensure_response( $data->toArray() );
     }
 
     protected function getError( \Exception $exception ): WP_Error{
