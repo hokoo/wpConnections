@@ -275,7 +275,7 @@ class Storage extends Abstracts\Storage {
 		$db = $wpdb->prefix . $this->get_connections_table();
 		$db_meta = $wpdb->prefix . $this->get_meta_table();
 		$query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
-		$query_result = $wpdb->get_results( $query, OBJECT_K );
+		$query_result = $wpdb->get_results( $query );
 
 		// Meta prepare
 		$data = [];
@@ -284,12 +284,11 @@ class Storage extends Abstracts\Storage {
 			$meta = $item[ 'meta' ] ?? [];
 
 			if ( is_numeric( $connection->meta_id ) ) {
-				$meta[ $connection->meta_id ] = [
-					'meta_id'       => $connection->meta_id,
-					'connection_id' => $connection->connection_id,
-					'meta_key'      => $connection->meta_key,
-					'meta_value'    => $connection->meta_value,
-				];
+				if ( empty( $meta[ $connection->meta_key ] ) ) {
+					$meta[ $connection->meta_key ] = [];
+				}
+
+				$meta[ $connection->meta_key ] []= $connection->meta_value;
 			}
 
 			$item[ 'meta' ] = $meta;
