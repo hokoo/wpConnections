@@ -2,9 +2,10 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use Ramsey\Collection\Collection;
 
-class MetaCollection extends Collection {
+class MetaCollection extends Collection implements IArrayConvertable {
     function __construct( array $data = [] ) {
         $collectionType = Meta::class;
         parent::__construct( $collectionType, $data );

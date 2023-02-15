@@ -2,7 +2,7 @@
 
 namespace iTRON\wpConnections\Abstracts;
 
-abstract class Meta {
+abstract class Meta implements IArrayConvertable {
 	public string $key;
 	public $value;
 
@@ -40,4 +40,11 @@ abstract class Meta {
 	public function set_key( string $key ): void {
 		$this->key = $key;
 	}
+
+    public function toArray(): array {
+        return [
+            'key'   => $this->get_key(),
+            'value' => $this->get_value(),
+        ];
+    }
 }
