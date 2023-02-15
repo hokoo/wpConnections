@@ -45,6 +45,22 @@ class MetaCollection extends Collection {
 		}
 
 		foreach ( $data as $key => $value ) {
+            /**
+             * Process meta element that is kind of
+             * [
+             *  'key'   => 'foo',
+             *  'value' => 'bar'
+             *  ]
+             */
+            if ( is_numeric( $key ) && is_array( $value ) && isset( $value['key'] ) ) {
+                $this->add( new Meta( $value['key'], $value['value'] ?? '' ) );
+                continue;
+            }
+
+            /**
+             * Process meta element that is kind of
+             * 'key1' => ['value1','value2']
+             */
 			$value = is_array( $value ) ? $value : [ $value ];
 			foreach ( $value as $term ) {
 				$this->add( new Meta( $key, $term ) );
