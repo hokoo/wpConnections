@@ -9,11 +9,16 @@
   },
   "require-dev": {
     "johnpbloch/wordpress-core": "5.0.13",
-    "symfony/var-dumper": "5.4.x-dev"
+    "symfony/var-dumper": "5.4.x-dev",
+    "phpunit/phpunit": "9.6.x-dev"
   },
   "autoload": {
     "psr-4": {
+      "iTRON\\wpConnections\\Tests\\": "tests/",
       "iTRON\\wpConnections\\" : "src"
     }
+  },
+  "scripts": {
+    "phpunit": "phpunit"
   }
 }

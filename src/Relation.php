@@ -70,10 +70,12 @@ class Relation extends Abstracts\Relation {
 		$query = new Query\Connection( $connectionQuery->get( 'from' ), $connectionQuery->get( 'to' ) );
 		$query->set( 'relation', $this->name );
 
-		$check_duplicatable = $this->findConnections( $query );
-		if ( ! $check_duplicatable->isEmpty() ) {
-			throw new Exceptions\ConnectionWrongData( 'Duplicatable violation.' );
-		}
+        if ( ! $this->duplicatable ) {
+            $check_duplicatable = $this->findConnections($query);
+            if (!$check_duplicatable->isEmpty()) {
+                throw new Exceptions\ConnectionWrongData('Duplicatable violation.');
+            }
+        }
 
 		// Create connection
 		$connectionQuery->set( 'relation', $this->name );

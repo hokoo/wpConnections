@@ -2,7 +2,9 @@
 
 namespace iTRON\wpConnections\Abstracts;
 
-class Connection {
+use iTRON\wpConnections\MetaCollection;
+
+class Connection implements IArrayConvertable {
 
     public int $id = 0;
     protected string $title = '';
@@ -10,14 +12,21 @@ class Connection {
     public int $from;
     public int $to;
     public int $order;
+    public MetaCollection $meta;
 
-    /**
-     * @var array
-     *      'meta_id'           int         Meta ID, autoincrement.
-     *      'connection_id'     int         Connection ID related with.
-     *      'meta_key'          string
-     *      'meta_value'        string
-     *
-     */
-    public array $meta;
+    public function __construct() {
+        $this->meta = new MetaCollection();
+    }
+
+    public function toArray(): array {
+        return [
+            'id'        => $this->id,
+            'title'     => $this->title,
+            'relation'  => $this->relation,
+            'from'      => $this->from,
+            'to'        => $this->to,
+            'order'     => $this->order,
+            'meta'      => $this->meta->toArray(),
+        ];
+    }
 }

@@ -2,11 +2,14 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Abstracts\ArrayConvertableCollectionTrait;
+use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use Ramsey\Collection\Collection;
 use Ramsey\Collection\Exception\OutOfBoundsException;
 
-class RelationCollection extends Collection {
+class RelationCollection extends Collection implements IArrayConvertable {
+    use ArrayConvertableCollectionTrait;
 
 	function __construct( array $data = [] ) {
 		$collectionType = __NAMESPACE__ . '\Relation';
