@@ -2,7 +2,7 @@
 
 namespace iTRON\wpConnections\Abstracts;
 
-class Relation {
+class Relation implements IArrayConvertable {
 
 	public string $name = '';
     public string $from;
@@ -27,4 +27,16 @@ class Relation {
 	 * Ability to make self-connections
 	 */
     public bool $closurable;
+
+    public function toArray(): array {
+        return [
+            'name'          => $this->name,
+            'from'          => $this->from,
+            'to'            => $this->to,
+            'type'          => $this->type,
+            'cardinality'   => $this->cardinality,
+            'duplicatable'  => $this->duplicatable,
+            'closurable'    => $this->closurable,
+        ];
+    }
 }

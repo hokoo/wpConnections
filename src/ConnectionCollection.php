@@ -2,9 +2,13 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Abstracts\ArrayConvertableCollectionTrait;
+use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use Ramsey\Collection\Collection;
 
-class ConnectionCollection extends Collection {
+class ConnectionCollection extends Collection implements IArrayConvertable {
+    use ArrayConvertableCollectionTrait;
+
 	function __construct( array $data = [] ) {
 		$collectionType = __NAMESPACE__ . '\Connection';
 		parent::__construct( $collectionType, $this->fromArray( $data, $collectionType ) );
@@ -41,8 +45,11 @@ class ConnectionCollection extends Collection {
 				->set( 'order', $item->order )
 				->set( 'title', $item->title ?? '' )
 				->set( 'client', $item->client ?? null )
-                ->set( 'relation', $item->relation ?? null )
-				->set( 'meta', $item->meta ?? [] );
+                ->set( 'relation', $item->relation ?? null );
+
+			if ( ! empty( $item->meta ) && is_array( $item->meta ) ) {
+				$connection->meta->fromArray( $item->meta );
+			}
 
 			$connections []= $connection;
 		}

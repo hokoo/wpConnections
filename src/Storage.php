@@ -275,7 +275,7 @@ class Storage extends Abstracts\Storage {
 		$db = $wpdb->prefix . $this->get_connections_table();
 		$db_meta = $wpdb->prefix . $this->get_meta_table();
 		$query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
-		$query_result = $wpdb->get_results( $query, OBJECT_K );
+		$query_result = $wpdb->get_results( $query );
 
 		// Meta prepare
 		$data = [];
@@ -284,12 +284,11 @@ class Storage extends Abstracts\Storage {
 			$meta = $item[ 'meta' ] ?? [];
 
 			if ( is_numeric( $connection->meta_id ) ) {
-				$meta[ $connection->meta_id ] = [
-					'meta_id'       => $connection->meta_id,
-					'connection_id' => $connection->connection_id,
-					'meta_key'      => $connection->meta_key,
-					'meta_value'    => $connection->meta_value,
-				];
+				if ( empty( $meta[ $connection->meta_key ] ) ) {
+					$meta[ $connection->meta_key ] = [];
+				}
+
+				$meta[ $connection->meta_key ] []= $connection->meta_value;
 			}
 
 			$item[ 'meta' ] = $meta;
@@ -336,15 +335,16 @@ class Storage extends Abstracts\Storage {
 		$connection_id = $wpdb->insert_id;
 
 		// Meta data insert
-		$meta = $connectionQuery->get( 'meta' );
-		if ( is_array( $meta ) ) {
-			foreach ( $meta as $item ) {
-				if ( ! isset( $item['meta_key'] ) ) continue;
+		if ( ! $connectionQuery->meta->isEmpty() ) {
+			foreach ( $connectionQuery->meta->getIterator() as $meta ) {
+				/** @var Meta $meta */
+				$data = [
+					'connection_id' => $connection_id,
+					'meta_key'      => $meta->get_key(),
+					'meta_value'    => $meta->get_value(),
+				];
 
-				$item['connection_id'] = $item['connection_id'] ?? $connection_id;
-				$item['meta_value'] = $item['meta_value'] ?? '';
-
-				$result = $wpdb->insert( $wpdb->prefix . $this->get_meta_table(), $item );
+				$result = $wpdb->insert( $wpdb->prefix . $this->get_meta_table(), $data );
 
 				if ( false === $result ) {
 					throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection meta data with the words: [{$wpdb->last_error}]" );
