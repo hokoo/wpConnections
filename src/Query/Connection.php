@@ -2,10 +2,12 @@
 
 namespace iTRON\wpConnections\Query;
 
+use iTRON\wpConnections\Abstracts\IQuery;
 use iTRON\wpConnections\GSInterface;
+use iTRON\wpConnections\IQueryTrait;
 
-class Connection extends \iTRON\wpConnections\Abstracts\Connection {
-	use GSInterface;
+class Connection extends \iTRON\wpConnections\Abstracts\Connection implements IQuery {
+	use GSInterface, IQueryTrait;
 
 	public int $both = 0;
 
@@ -31,4 +33,8 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection {
 	public function exists_both(): bool {
 		return $this->both > 0;
 	}
+
+    protected function getMetaCollection(): MetaCollection {
+        return new MetaCollection();
+    }
 }

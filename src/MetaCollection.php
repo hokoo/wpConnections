@@ -6,10 +6,21 @@ use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use Ramsey\Collection\Collection;
 
 class MetaCollection extends Collection implements IArrayConvertable {
+
+    public string $collectionType = Meta::class;
+
     function __construct( array $data = [] ) {
-        $collectionType = Meta::class;
-        parent::__construct( $collectionType, $data );
+        parent::__construct( $this->collectionType, $data );
     }
+
+	public function __clone() {
+		$cloned = [];
+		foreach ( $this->getIterator() as $meta ) {
+			$cloned []= clone $meta;
+		}
+
+		$this->data = $cloned;
+	}
 
 	/**
 	 * Returns array of metadata in WordPress way.
@@ -25,11 +36,11 @@ class MetaCollection extends Collection implements IArrayConvertable {
 		$result = [];
 		foreach ( $origin as $index => $value ) {
 			/** @var Meta $value */
-			if ( ! isset( $result[ $value->get_key() ] ) ) {
-				$result[ $value->get_key() ] = [];
+			if ( ! isset( $result[ $value->getKey() ] ) ) {
+				$result[ $value->getKey() ] = [];
 			}
 
-			$result[ $value->get_key() ] []= $value->get_value();
+			$result[ $value->getKey() ] []= $value->getValue();
 		}
 
 		return $result;
@@ -54,7 +65,7 @@ class MetaCollection extends Collection implements IArrayConvertable {
              *  ]
              */
             if ( is_numeric( $key ) && is_array( $value ) && isset( $value['key'] ) ) {
-                $this->add( new Meta( $value['key'], $value['value'] ?? '' ) );
+                $this->add( new $this->collectionType( $value['key'], $value['value'] ?? '' ) );
                 continue;
             }
 
@@ -64,7 +75,7 @@ class MetaCollection extends Collection implements IArrayConvertable {
              */
 			$value = is_array( $value ) ? $value : [ $value ];
 			foreach ( $value as $term ) {
-				$this->add( new Meta( $key, $term ) );
+				$this->add( new $this->collectionType( $key, $term ) );
 			}
 		}
 	}

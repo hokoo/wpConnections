@@ -12,10 +12,11 @@ class Connection implements IArrayConvertable {
     public int $from;
     public int $to;
     public int $order;
+
     public MetaCollection $meta;
 
     public function __construct() {
-        $this->meta = new MetaCollection();
+        $this->meta = static::getMetaCollection();
     }
 
     public function toArray(): array {
@@ -28,5 +29,9 @@ class Connection implements IArrayConvertable {
             'order'     => $this->order,
             'meta'      => $this->meta->toArray(),
         ];
+    }
+
+    protected function getMetaCollection(): MetaCollection {
+        return new MetaCollection();
     }
 }

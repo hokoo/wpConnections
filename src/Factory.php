@@ -64,12 +64,7 @@ class Factory {
 	 * @throws ConnectionWrongData
 	 */
 	public static function createConnection( Query\Connection $connectionQuery, Relation $relation ): Connection {
-		$connectionID = $relation->getClient()->getStorage()->createConnection( $connectionQuery );
-		$connection = new Connection();
-		$connection
-			->loadFromQuery( $connectionQuery )
-			->set( 'id', $connectionID );
-
-		return $connection;
+		$relation->getClient()->getStorage()->createConnection( $connectionQuery );
+        return new Connection( $connectionQuery );
 	}
 }

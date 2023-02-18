@@ -85,6 +85,56 @@ class Relation extends Abstracts\Relation {
 		return Factory::createConnection( $connectionQuery, $this );
 	}
 
+    /**
+     * @throws ConnectionWrongData
+     */
+    public function updateConnection( Query\Connection $connectionQuery ): bool {
+        $connectionQuery->set( 'relation', $this->name );
+        return $this->getClient()->getStorage()->updateConnection( $connectionQuery );
+    }
+
+	/**
+	 * @throws ConnectionWrongData
+	 */
+	public function updateConnectionMeta( Query\Connection $connectionQuery ): bool {
+		$connectionQuery->set( 'relation', $this->name );
+		$objectID = $connectionQuery->get( 'id' );
+
+		/** @var Query\MetaCollection $metaQuery */
+		$metaQuery = $connectionQuery->get('meta');
+
+		if ( ! $metaQuery->isUpdate() ) {
+			// Remove all meta fields first if false === isUpdate.
+			$this->getClient()->getStorage()->removeConnectionMeta( $objectID, new Query\MetaCollection() );
+		} else {
+			// Check the array items for false === $isUpdate fields in order to remove older values.
+			$toRemove = $metaQuery->where('isUpdate', false);
+			if ( ! $toRemove->isEmpty() ) {
+				foreach ( $toRemove->getIterator() as $meta ) {
+					/** @var Meta $meta */
+					$meta->setValue(null);
+				}
+				$this->getClient()->getStorage()->removeConnectionMeta($objectID, $toRemove);
+			}
+		}
+
+		// Finally, insert new meta fields.
+		if ( ! $metaQuery->isEmpty() ) {
+			$this->getClient()->getStorage()->addConnectionMeta( $objectID, $metaQuery );
+		}
+
+		return true;
+	}
+
+	/**
+	 * @throws ConnectionWrongData
+	 */
+	public function removeConnectionMeta( Query\Connection $connectionQuery ): bool {
+		$this->getClient()->getStorage()->removeConnectionMeta( $connectionQuery->get( 'id' ), $connectionQuery->get('meta') );
+
+		return true;
+	}
+
 	/**
 	 * Detaches connection.
 	 * Able to detach multiple connections if $connectionQuery->id are not set.

@@ -4,14 +4,11 @@ namespace iTRON\wpConnections;
 
 class Connection extends Abstracts\Connection {
 	use ClientInterface;
-	use GSInterface;
 
-	public function __construct( int $id = 0 ){
+	public function __construct( Query\Connection $connectionQuery ){
         parent::__construct();
 
-		if ( empty ( $id ) ) return;
-
-		$this->load();
+		$this->loadFromQuery( $connectionQuery );
 	}
 
     public function __clone() {
@@ -28,14 +25,14 @@ class Connection extends Abstracts\Connection {
 	 */
 	public function load(){}
 
-	public function loadFromQuery( Query\Connection $connectionQuery ): Connection {
-		$this->id = $connectionQuery->id;
-		$this->title = $connectionQuery->title;
-		$this->relation = $connectionQuery->relation;
-		$this->from = $connectionQuery->from;
-		$this->to = $connectionQuery->to;
-		$this->meta = clone $connectionQuery->meta;
-		$this->order = $connectionQuery->order;
+	protected function loadFromQuery( Query\Connection $connectionQuery ): Connection {
+		$this->id = $connectionQuery->get( 'id' );
+		$this->title = $connectionQuery->get( 'title' );
+		$this->relation = $connectionQuery->get( 'relation' );
+		$this->from = $connectionQuery->get( 'from' );
+		$this->to = $connectionQuery->get( 'to' );
+		$this->meta = clone $connectionQuery->get( 'meta' );
+		$this->order = $connectionQuery->get( 'order' );
 
 		return $this;
 	}
