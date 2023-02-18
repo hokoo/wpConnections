@@ -50,7 +50,8 @@ class Storage extends Abstracts\Storage {
 			PRIMARY KEY (`ID`),
 			INDEX `from` (`from`),
 			INDEX `to` (`to`),
-			INDEX `order` (`order`)
+			INDEX `order` (`order`),
+			INDEX `relation` (`relation`)
 		" );
 
         Database::install_table( $this->get_meta_table(), "
