@@ -5,7 +5,8 @@
   "license": "GPL-2.0+",
   "minimum-stability": "dev",
   "require": {
-    "ramsey/collection": "*"
+    "ramsey/collection": "*",
+    "psr/log": "^1.1"
   },
   "require-dev": {
     "johnpbloch/wordpress-core": "5.0.13",

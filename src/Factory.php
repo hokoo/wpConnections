@@ -4,6 +4,7 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Abstracts\Storage;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use Psr\Log\LoggerInterface;
 use TypeError;
 
 class Factory {
@@ -19,7 +20,7 @@ class Factory {
 		try {
 			return new $storageClass( $client );
 		} catch ( TypeError $e ) {
-			throw new ClientRegisterFail( 'A storage class does not inherit Abstract\Storage. See filter hooks [wpConnections/factory/getStorage/class]' );
+			throw new ClientRegisterFail( 'A storage class does not inherit iTRON\wpConnections\Abstract\Storage. See filter hooks [wpConnections/factory/getStorage/class]' );
 		}
 	}
 
@@ -35,7 +36,23 @@ class Factory {
 		try {
 			return new $restApiClass( $client );
 		} catch ( TypeError $e ) {
-			throw new ClientRegisterFail( 'A REST API class does not inherit ClientRestApi. See filter hooks [wpConnections/factory/getStorage/class]' );
+			throw new ClientRegisterFail( 'A REST API class does not inherit iTRON\wpConnections\ClientRestApi. See filter hooks [wpConnections/factory/getStorage/class]' );
+		}
+	}
+
+	/**
+	 * @throws ClientRegisterFail
+	 */
+	public static function getLogger( Client $client ): LoggerInterface {
+		$loggerClass = apply_filters( 'wpConnections/factory/getLogger/class', Logger::class, $client );
+		if ( ! class_exists( $loggerClass ) ) {
+			throw new ClientRegisterFail( 'A Logger class does not exist. See filter hooks [wpConnections/factory/getLogger/class]' );
+		}
+
+		try {
+			return new $loggerClass( $client );
+		} catch ( TypeError $e ) {
+			throw new ClientRegisterFail( 'A Logger class does not implement Psr\Log\LoggerInterface. See filter hooks [wpConnections/factory/getLogger/class]' );
 		}
 	}
 }

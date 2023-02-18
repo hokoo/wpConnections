@@ -6,11 +6,13 @@ use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use iTRON\wpConnections\Exceptions\RelationWrongData;
 use iTRON\wpConnections\Exceptions\MissingParameters;
+use Psr\Log\LoggerInterface;
 
 class Client {
 	private string $name;
 	private Abstracts\Storage $storage;
 	private RelationCollection $relations;
+	private LoggerInterface $logger;
 
     /**
      * WP user capability id that is required for performing actions with client.
@@ -107,13 +109,23 @@ class Client {
 		return $relation;
 	}
 
+	public function getLogger(): LoggerInterface {
+		return $this->logger;
+	}
+
 	/**
 	 * @throws ClientRegisterFail
 	 */
 	private function init() {
         $this->storage = Factory::getStorage( $this );
+		$this->logger = Factory::getLogger( $this );
 		$restapi = Factory::getRestApi( $this );
 		$restapi->init();
+
+		$settings = new Settings();
+		$settings->setLogger( $this->getLogger() );
+		$settings->init();
+
         $this->relations = new RelationCollection();
 
         add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );

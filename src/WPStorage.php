@@ -92,8 +92,8 @@ class WPStorage extends Abstracts\Storage {
 		$wpdb->query( esc_sql( $query_meta ) );
 		$wpdb->query( esc_sql( $query ) );
 
-		do_action( 'wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs );
-		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs );
+		do_action( 'wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $wpdb->rows_affected );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $wpdb->rows_affected );
 
 		return $wpdb->rows_affected;
 	}
@@ -279,6 +279,8 @@ class WPStorage extends Abstracts\Storage {
 		$db_meta = $wpdb->prefix . $this->get_meta_table();
 		$query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
 		$query_result = $wpdb->get_results( $query );
+
+		do_action( 'wpConnections/storage/findConnections/dbQuery', $query, $query_result );
 
 		// Meta prepare
 		$data = [];
