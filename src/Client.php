@@ -2,6 +2,7 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use iTRON\wpConnections\Exceptions\RelationWrongData;
 use iTRON\wpConnections\Exceptions\MissingParameters;
@@ -16,6 +17,9 @@ class Client {
      */
     public string $capability = 'manage_options';
 
+	/**
+	 * @throws ClientRegisterFail
+	 */
 	public function __construct( $name ) {
 		$this->name = sanitize_title( $name );
 		$this->init();
@@ -53,30 +57,68 @@ class Client {
      */
 	public function registerRelation( Query\Relation $relationQuery ): Relation {
 		$relationQuery->set( 'client', $this );
-		$relation = Factory::createRelation( $relationQuery );
+
+		$missingParameters = new MissingParameters();
+
+		if ( empty( $relationQuery->get( 'name' ) ) ) {
+			$missingParameters->setParam( 'name' );
+		}
+
+		if ( empty( $relationQuery->get( 'from' ) ) ) {
+			$missingParameters->setParam( 'from' );
+		}
+
+		if ( empty( $relationQuery->get( 'name' ) ) ) {
+			$missingParameters->setParam( 'name' );
+		}
+
+		if ( $missingParameters->getParams() ) {
+			throw $missingParameters;
+		}
+
+		$relationWrongData = new RelationWrongData( 'Relation has been already created. ' );
+
+		try {
+			$exists = $relationQuery->client->getRelation( $relationQuery->name );
+		} catch ( Exceptions\RelationNotFound $notFound ) {
+			// Relation's name is free, it's ok.
+		}
+
+		if ( isset( $exists ) && $exists instanceof Relation ) {
+			$relationWrongData->setParam( $relationQuery->name );
+			throw $relationWrongData;
+		}
+
+		$default = [
+			'type'          => 'both',
+			'cardinality'   => 'm-m',
+			'duplicatable'  => false,
+			'closurable'    => false,
+		];
+
+		$args = wp_parse_args( $relationQuery, $default );
+
+		$relation = new Relation();
+		foreach ( $args as $field => $value ) {
+			$relation->set( $field, $value );
+		}
+
 		$this->relations->add( $relation );
 		return $relation;
 	}
 
-    private function init() {
-        $this->storage = new Storage( $this );
+	/**
+	 * @throws ClientRegisterFail
+	 */
+	private function init() {
+        $this->storage = Factory::getStorage( $this );
+		$restapi = Factory::getRestApi( $this );
+		$restapi->init();
         $this->relations = new RelationCollection();
-        $this->registerRestApi();
 
         add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
 
         do_action( 'wpConnections/client/inited', $this );
         do_action( "wpConnections/client/{$this->getName()}/inited", $this );
-    }
-
-    private function registerRestApi() {
-        $class = ClientRestApi::class;
-        $class = apply_filters( 'wpConnections/client/restApi', $class, $this );
-        $class = apply_filters( 'wpConnections/client/restApi/' . $this->getName(), $class, $this );
-
-        // Class should be ClientRestApi's descendant or itself.
-        /** @var ClientRestApi $restapi */
-        $restapi = new $class( $this );
-        $restapi->init();
     }
 }

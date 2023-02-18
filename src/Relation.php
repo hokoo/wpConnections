@@ -82,7 +82,9 @@ class Relation extends Abstracts\Relation {
 
 		do_action( 'wpConnections/relation/creating', $connectionQuery );
 
-		return Factory::createConnection( $connectionQuery, $this );
+		$this->getClient()->getStorage()->createConnection( $connectionQuery );
+
+		return new Connection( $connectionQuery );
 	}
 
     /**

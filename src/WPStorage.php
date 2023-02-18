@@ -7,7 +7,7 @@ use iTRON\wpConnections\Helpers\Database;
 use iTRON\wpConnections\Query;
 use iTRON\wpConnections\Query\MetaCollection;
 
-class Storage extends Abstracts\Storage {
+class WPStorage extends Abstracts\Storage {
 	use ClientInterface;
 
 	private string $connections_table = 'post_connections_';
