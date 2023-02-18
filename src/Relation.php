@@ -188,20 +188,12 @@ class Relation extends Abstracts\Relation {
 		$connectionQuery = $connectionQuery ?? new Query\Connection();
 		$connectionQuery->set( 'relation', $this->name );
 
-		$collection = $this->getClient()->getStorage()->findConnections( $connectionQuery );
+		return $this->getClient()->getStorage()->findConnections( $connectionQuery );
+	}
 
-        /**
-         * Processing the case if specific connection is queried.
-         * Since a Storage does not care about addition parameters when ID is specified,
-         * we have to ensure that the connection we've just obtained is consistent to the entire query.
-         * Particularly, we should check Relation field.
-         */
-        if ( ! empty( $connectionQuery->id ) && ! empty( $connectionQuery->relation ) && ! $collection->isEmpty() ) {
-            if ( $connectionQuery->relation !== $collection->first()->relation ) {
-                return new ConnectionCollection();
-            }
-        }
-
-        return $collection;
+	public function hasConnectionID( int $connectionID ): bool {
+		$connectionQuery = $connectionQuery ?? new Query\Connection();
+		$connectionQuery->set( 'id', $connectionID );
+		return ! $this->findConnections( $connectionQuery )->isEmpty();
 	}
 }

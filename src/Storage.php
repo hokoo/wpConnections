@@ -247,8 +247,10 @@ class Storage extends Abstracts\Storage {
 
 		$where = [];
 
-		if ( is_numeric( $id = $params->get( 'id' ) ) ) {
-			$where []= "c.ID = {$id}";
+		if ( is_numeric( $id = $params->get( 'id' ) ) && ! empty( $id ) ) {
+			$_where = "c.ID = {$id}";
+			$_where .= $params->exists_relation()? $wpdb->prepare( " AND c.relation = '%s'", $params->get( 'relation' ) ) : '';
+			$where []= $_where;
 		} else {
 
 			if ( $params->exists_relation() ) {
