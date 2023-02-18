@@ -246,24 +246,24 @@ class Storage extends Abstracts\Storage {
 
 		$where = [];
 
-		if ( $id = $params->get( 'id' ) ) {
+		if ( is_numeric( $id = $params->get( 'id' ) ) ) {
 			$where []= "c.ID = {$id}";
 		} else {
 
 			if ( $params->exists_relation() ) {
-				$where [] = "c.relation = '{$params->get( 'relation' )}'";
+				$where [] = $wpdb->prepare( "c.relation = '%s'", $params->get( 'relation' ) );
 			}
 
 			if ( $params->exists_from() ) {
-				$where [] = "c.from = {$params->get( 'from' )}";
+				$where [] = $wpdb->prepare( "c.from = %d", $params->get( 'from' ) );
 			}
 
 			if ( $params->exists_to() ) {
-				$where [] = "c.to = {$params->get( 'to' )}";
+				$where [] = $wpdb->prepare( "c.to = %d", $params->get( 'to' ) );
 			}
 
 			if ( $params->exists_both() ) {
-				$where [] = "( c.from = {$params->get( 'both' )} OR c.to = {$params->get( 'both' )} )";
+				$where [] = $wpdb->prepare( "( c.from = $1%d OR c.to = $1%d )", $params->get( 'both' ) );
 			}
 		}
 
