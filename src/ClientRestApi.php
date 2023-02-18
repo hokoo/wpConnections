@@ -3,13 +3,16 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Abstracts\IArrayConvertable;
+use iTRON\wpConnections\Abstracts\IQuery;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
 use iTRON\wpConnections\RestResponse\CollectionItem;
 use Ramsey\Collection\Exception\OutOfBoundsException;
 use WP_Error;
+use WP_HTTP_Response;
 use WP_REST_Request;
+use WP_REST_Response;
 use WP_REST_Server;
 
 class ClientRestApi{
@@ -66,6 +69,71 @@ class ClientRestApi{
         }
     }
 
+    public function updateConnection( WP_REST_Request $request ) {
+        $q = $this->obtainConnectionDataFromRequest( $request );
+        $q->set('id', $request->get_param('connectionID') );
+
+        try {
+            $result = $this->getClient()->getRelation( $request->get_param('relation') )->updateConnection( $q );
+        } catch ( Exception $e ) {
+            return rest_ensure_response( $this->getError( $e ) );
+        }
+
+        return [ 'updated' => $result ];
+    }
+
+	/**
+	 * POST means nothing to delete, add new meta only.
+	 * PATCH means removing if key already exists and then adding new meta fields.
+	 * PUT means erasing all existing metadata and put the new fields.
+	 *
+	 * @param WP_REST_Request $request
+	 *
+	 * @return array|mixed|WP_Error|WP_HTTP_Response|WP_REST_Response
+	 */
+    public function updateConnectionMeta( WP_REST_Request $request ) {
+        $queryConnection = new Query\Connection();
+        $queryConnection->set('id', $request->get_param('connectionID'));
+
+        if ( 'PUT' === $request->get_method() ) {
+            $queryConnection->meta->setIsUpdate( false );
+        }
+
+        $queryConnection->meta->fromArray( (array) $request->get_param('meta') );
+
+        if ( 'PATCH' === $request->get_method() ) {
+            $queryConnection->meta->map(
+                function ( $item ) {
+                    /** @var Query\Connection $item */
+                    $item->setIsUpdate( false );
+                }
+            );
+        }
+
+        try {
+            $result = $this->getClient()->getRelation( $request->get_param('relation') )->updateConnectionMeta( $queryConnection );
+        } catch ( Exception $e ) {
+            return rest_ensure_response( $this->getError( $e ) );
+        }
+
+        return [ 'updated' => $result ];
+    }
+
+    public function deleteConnectionMeta( WP_REST_Request $request ) {
+	    $queryConnection = new Query\Connection();
+	    $queryConnection->set('id', $request->get_param('connectionID'));
+	    $queryConnection->meta->fromArray( (array) $request->get_param('meta') );
+
+	    try {
+		    $result = $this->getClient()->getRelation( $request->get_param('relation') )->removeConnectionMeta( $queryConnection );
+	    } catch ( Exception $e ) {
+		    return rest_ensure_response( $this->getError( $e ) );
+	    }
+
+	    return [ 'deleted' => $result ];
+    }
+
+
     /**
      * @param WP_REST_Request $request
      * @return bool
@@ -75,9 +143,11 @@ class ClientRestApi{
     }
 
     public function deleteConnection( WP_REST_Request $request ) {
-        $q = new \iTRON\wpConnections\Query\Connection();
+        $q = new Query\Connection();
+        $q->set('id', $request->get_param('connectionID') );
+
         try {
-            $rows = $this->getClient()->getRelation( $request->get_param('relation') )->detachConnections( $q->set('id', $request->get_param('connectionID') ) );
+            $rows = $this->getClient()->getRelation( $request->get_param('relation') )->detachConnections( $q );
         } catch ( Exception $e ) {
             return rest_ensure_response( $this->getError( $e ) );
         }
@@ -90,12 +160,7 @@ class ClientRestApi{
     }
 
     public function createConnection( WP_REST_Request $request ) {
-        $q = new Query\Connection();
-        $q
-            ->set( 'from', $request->get_param('from') )
-            ->set( 'to', $request->get_param('to') )
-            ->set( 'order', $request->get_param('order') )
-            ->meta->fromArray( (array) $request->get_param('meta') );
+        $q = $this->obtainConnectionDataFromRequest( $request );
 
         try {
             return $this->ensureRestResponse( $this->getClient()->getRelation( $request->get_param('relation') )->createConnection( $q ) );
@@ -104,9 +169,22 @@ class ClientRestApi{
         }
     }
 
+    protected function obtainConnectionDataFromRequest( WP_REST_Request $request ): Query\Connection {
+        $queryConnection = new Query\Connection();
+        foreach ( $request->get_params() as $key => $value ) {
+            if ( property_exists( $queryConnection, $key ) && ! is_null( $value ) && 'meta' != $key ) {
+                $queryConnection->set( $key, $value );
+            }
+        }
+
+        $queryConnection->meta->fromArray( (array) $request->get_param('meta') );
+
+        return $queryConnection;
+    }
+
     protected function getRestConnectionItem( Connection $connection ): CollectionItem {
         $response = $this->ensureRestResponseCollectionItem( $connection );
-        $response->add_link( 'self', $this->getRestConnectionUrl( $connection->get( 'relation' ), $connection->get( 'id' ) ) );
+        $response->add_link( 'self', $this->getRestConnectionUrl( $connection->relation, $connection->id ) );
         return $response;
     }
 
@@ -236,12 +314,86 @@ class ClientRestApi{
                     ]
                 ],
                 [
+                    'methods'             => WP_REST_Server::EDITABLE,
+                    'callback'            => [ $this, 'updateConnection' ],
+                    'permission_callback' => [ $this, 'checkPermissions' ],
+                    'args' => [
+                        'connectionID' => [
+                            'type'        => 'integer',
+                            'required'    => true,
+                        ],
+                        'from'  => [
+                            'description' => __( 'Post ID that is considered as FROM.' ),
+                            'type'        => 'integer',
+                            'required'    => true,
+                        ],
+                        'to'  => [
+                            'description' => __( 'Post ID that is considered as TO.' ),
+                            'type'        => 'integer',
+                            'required'    => true,
+                        ],
+                        'order' => [
+                            'description' => __( 'Connection order.' ),
+                            'type'        => 'integer',
+                            'required'    => false,
+                            'default'     => 0,
+                        ],
+                    ]
+                ],
+                [
                     'methods'             => WP_REST_Server::DELETABLE,
                     'callback'            => [ $this, 'deleteConnection' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
                             'description' => __( 'Connection ID to be removed.' ),
+                            'type'        => 'integer',
+                            'required'    => true,
+                        ],
+                    ]
+                ],
+            ]
+        );
+
+        $result []= register_rest_route(
+            $this->namespace,
+            '/' . $this->base . '/' . $this->getClient()->getName() .
+            '/relation/' . '(?P<relation>[\w-]+)' .
+            '/(?P<connectionID>[\d]+)' .
+            '/meta',
+            [
+                'args'   => [
+                    'relation' => [
+                        'description' => __( 'Unique name for the relation.' ),
+                        'type'        => 'string',
+                        'required'    => true,
+                    ],
+                    'connectionID' => [
+                        'description' => __( 'Unique ID of the connection.' ),
+                        'type'        => 'integer',
+                        'required'    => true,
+                    ],
+                ],
+                [
+                    'methods'             => WP_REST_Server::EDITABLE,
+                    'callback'            => [ $this, 'updateConnectionMeta' ],
+                    'permission_callback' => [ $this, 'checkPermissions' ],
+                    'args' => [
+                        'meta'  => [
+                            'description' => __( 'Add connection meta data.' ),
+                            'type'        => 'array',
+                            'required'    => false,
+                            'default'     => [],
+                        ],
+                    ]
+                ],
+                [
+                    'methods'             => WP_REST_Server::DELETABLE,
+                    'callback'            => [ $this, 'deleteConnectionMeta' ],
+                    'permission_callback' => [ $this, 'checkPermissions' ],
+                    'args' => [
+                        'connectionID' => [
+                            'description' => __( 'Connection ID of the meta to be removed.' ),
                             'type'        => 'integer',
                             'required'    => true,
                         ],

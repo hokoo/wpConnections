@@ -37,8 +37,8 @@ class ConnectionCollection extends Collection implements IArrayConvertable {
 			if ( ! isset( $item->to ) ) continue;
 			if ( ! isset( $item->order ) ) continue;
 
-			$connection = new Connection();
-			$connection
+			$connectionQuery = new Query\Connection();
+			$connectionQuery
 				->set( 'id', $item->ID )
 				->set( 'from', $item->from )
 				->set( 'to', $item->to )
@@ -46,6 +46,8 @@ class ConnectionCollection extends Collection implements IArrayConvertable {
 				->set( 'title', $item->title ?? '' )
 				->set( 'client', $item->client ?? null )
                 ->set( 'relation', $item->relation ?? null );
+
+            $connection = new Connection( $connectionQuery );
 
 			if ( ! empty( $item->meta ) && is_array( $item->meta ) ) {
 				$connection->meta->fromArray( $item->meta );

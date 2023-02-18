@@ -2,16 +2,27 @@
 
 namespace iTRON\wpConnections\Abstracts;
 
+use iTRON\wpConnections\Query;
 use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Query\Connection;
 
 abstract class Storage {
 	/**
+     * @param Connection $connectionQuery
 	 * @throws ConnectionWrongData
 	 *
 	 * @return int Connection ID
 	 */
-	abstract public function createConnection( \iTRON\wpConnections\Query\Connection $connectionQuery ): int;
+	abstract public function createConnection( Query\Connection $connectionQuery ): int;
+
+    /**
+     * @param Query\Connection $connectionQuery
+     * @return bool Successful or not.
+     *
+     * @throws ConnectionWrongData
+     */
+	abstract public function updateConnection( Query\Connection $connectionQuery ): bool;
 
 	/**
 	 * Deletes connections by set of connection IDs.
@@ -46,5 +57,20 @@ abstract class Storage {
 	 */
 	abstract public function deleteDirectedConnections( int $from = null, int $to = null, string $relation = '' ): int;
 
-	abstract public function findConnections( \iTRON\wpConnections\Query\Connection $params ): ConnectionCollection;
+	abstract public function findConnections( Query\Connection $params ): ConnectionCollection;
+
+	/**
+	 * Only adds meta fields to the DB.
+	 *
+	 * @param int $objectID
+	 * @param Query\MetaCollection $metaQuery
+	 * @return void
+	 * @throws ConnectionWrongData
+	 */
+	abstract public function addConnectionMeta( int $objectID, Query\MetaCollection $metaQuery );
+
+	/**
+	 * @throws ConnectionWrongData
+	 */
+	abstract public function removeConnectionMeta( int $objectID, Query\MetaCollection $metaQuery );
 }
