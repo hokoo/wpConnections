@@ -16,35 +16,35 @@ abstract class Meta implements IArrayConvertable {
 	/**
 	 * @return mixed
 	 */
-	public function get_value() {
+	public function getValue() {
 		return $this->value;
 	}
 
 	/**
 	 * @param mixed $value
 	 */
-	public function set_value( $value ): void {
+	public function setValue( $value ): void {
 		$this->value = $value;
 	}
 
 	/**
 	 * @return string
 	 */
-	public function get_key(): string {
+	public function getKey(): string {
 		return $this->key;
 	}
 
 	/**
 	 * @param string $key
 	 */
-	public function set_key( string $key ): void {
+	public function setKey( string $key ): void {
 		$this->key = $key;
 	}
 
     public function toArray(): array {
         return [
-            'key'   => $this->get_key(),
-            'value' => $this->get_value(),
+            'key'   => $this->getKey(),
+            'value' => $this->getValue(),
         ];
     }
 }

@@ -1,0 +1,614 @@
+{
+	"info": {
+		"_postman_id": "fa3091a2-a96b-4b03-8271-85f3067d96b4",
+		"name": "wpConnections",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "9699367"
+	},
+	"item": [
+		{
+			"name": "Connection",
+			"item": [
+				{
+					"name": "Get Connection",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							},
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": []
+						},
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/1",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Connection",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "from",
+									"value": "6",
+									"type": "text"
+								},
+								{
+									"key": "to",
+									"value": "7",
+									"type": "text"
+								},
+								{
+									"key": "order",
+									"value": "2",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Look",
+									"type": "text"
+								},
+								{
+									"key": "meta[0][key]",
+									"value": "foo",
+									"type": "text"
+								},
+								{
+									"key": "meta[0][value]",
+									"value": "bar",
+									"type": "text"
+								},
+								{
+									"key": "meta[1][key]",
+									"value": "qwe",
+									"type": "text"
+								},
+								{
+									"key": "meta[1][value]",
+									"value": "zxc",
+									"type": "text"
+								},
+								{
+									"key": "meta[2][key]",
+									"value": "qwe",
+									"type": "text"
+								},
+								{
+									"key": "meta[2][value]",
+									"value": "wer",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Connection",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "from",
+									"value": "6",
+									"type": "text"
+								},
+								{
+									"key": "to",
+									"value": "7",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Look at this",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Connection",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/8",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel",
+								"8"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Connection Meta",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "meta[0][key]",
+									"value": "ert",
+									"type": "text"
+								},
+								{
+									"key": "meta[0][value]",
+									"value": "iop",
+									"type": "text"
+								},
+								{
+									"key": "meta[1][key]",
+									"value": "ert",
+									"type": "text"
+								},
+								{
+									"key": "meta[1][value]",
+									"value": "qwe",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2/meta",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel",
+								"2",
+								"meta"
+							]
+						},
+						"description": "StartFragment\n\nPOST query does only add new keys and/or values even if keys already exist.\n\nEndFragm"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Connection Meta",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "meta[0][key]",
+									"value": "key",
+									"type": "text"
+								},
+								{
+									"key": "meta[0][value]",
+									"value": "value",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2/meta",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel",
+								"2",
+								"meta"
+							]
+						},
+						"description": "PATCH means removing if key already exists and then adding new meta fields."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Connection Meta",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "meta[0][key]",
+									"value": "key0",
+									"type": "text"
+								},
+								{
+									"key": "meta[0][value]",
+									"value": "value0-0",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2/meta",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel",
+								"2",
+								"meta"
+							]
+						},
+						"description": "PUT means erasing all existing metadata and put the new fields."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Connection Meta",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "meta[0][key]",
+									"value": "foo",
+									"type": "text"
+								},
+								{
+									"key": "meta[0][value]",
+									"value": "bar",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "meta[1][key]",
+									"value": "baz",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/3/meta",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel",
+								"3",
+								"meta"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Relation",
+			"item": [
+				{
+					"name": "Get Relation",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-WP-Nonce",
+								"value": "{{nonce}}",
+								"type": "text"
+							},
+							{
+								"key": "Cookie",
+								"value": "{{wpcookie}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel",
+							"protocol": "http",
+							"host": [
+								"cf7tgdev",
+								"loc"
+							],
+							"path": [
+								"wp-json",
+								"wp-connections",
+								"v1",
+								"client",
+								"cf7-telegram",
+								"relation",
+								"chat2channel"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "WPC REST Root",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-WP-Nonce",
+						"value": "{{nonce}}",
+						"type": "text"
+					},
+					{
+						"key": "Cookie",
+						"value": "{{wpcookie}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1",
+					"protocol": "http",
+					"host": [
+						"cf7tgdev",
+						"loc"
+					],
+					"path": [
+						"wp-json",
+						"wp-connections",
+						"v1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "WPC Client's Relation List",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-WP-Nonce",
+						"value": "{{nonce}}",
+						"type": "text"
+					},
+					{
+						"key": "Cookie",
+						"value": "{{wpcookie}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram",
+					"protocol": "http",
+					"host": [
+						"cf7tgdev",
+						"loc"
+					],
+					"path": [
+						"wp-json",
+						"wp-connections",
+						"v1",
+						"client",
+						"cf7-telegram"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "nonce",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "wpcookie",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

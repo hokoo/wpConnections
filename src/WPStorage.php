@@ -4,8 +4,10 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Helpers\Database;
+use iTRON\wpConnections\Query;
+use iTRON\wpConnections\Query\MetaCollection;
 
-class Storage extends Abstracts\Storage {
+class WPStorage extends Abstracts\Storage {
 	use ClientInterface;
 
 	private string $connections_table = 'post_connections_';
@@ -48,7 +50,8 @@ class Storage extends Abstracts\Storage {
 			PRIMARY KEY (`ID`),
 			INDEX `from` (`from`),
 			INDEX `to` (`to`),
-			INDEX `order` (`order`)
+			INDEX `order` (`order`),
+			INDEX `relation` (`relation`)
 		" );
 
         Database::install_table( $this->get_meta_table(), "
@@ -86,12 +89,11 @@ class Storage extends Abstracts\Storage {
 		$query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
 		$query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})";
 
-		// @TODO Transaction
 		$wpdb->query( esc_sql( $query_meta ) );
 		$wpdb->query( esc_sql( $query ) );
 
-		do_action( 'wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs );
-		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs );
+		do_action( 'wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $wpdb->rows_affected );
+		do_action( "wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $wpdb->rows_affected );
 
 		return $wpdb->rows_affected;
 	}
@@ -150,7 +152,6 @@ class Storage extends Abstracts\Storage {
 		$query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})";
 		$query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
 
-		// @TODO Transaction
 		$wpdb->query( esc_sql( $query_meta ) );
 		$wpdb->query( esc_sql( $query ) );
 
@@ -246,24 +247,26 @@ class Storage extends Abstracts\Storage {
 
 		$where = [];
 
-		if ( $id = $params->get( 'id' ) ) {
-			$where []= "c.ID = {$id}";
+		if ( is_numeric( $id = $params->get( 'id' ) ) && ! empty( $id ) ) {
+			$_where = "c.ID = {$id}";
+			$_where .= $params->exists_relation()? $wpdb->prepare( " AND c.relation = '%s'", $params->get( 'relation' ) ) : '';
+			$where []= $_where;
 		} else {
 
 			if ( $params->exists_relation() ) {
-				$where [] = "c.relation = '{$params->get( 'relation' )}'";
+				$where [] = $wpdb->prepare( "c.relation = '%s'", $params->get( 'relation' ) );
 			}
 
 			if ( $params->exists_from() ) {
-				$where [] = "c.from = {$params->get( 'from' )}";
+				$where [] = $wpdb->prepare( "c.from = %d", $params->get( 'from' ) );
 			}
 
 			if ( $params->exists_to() ) {
-				$where [] = "c.to = {$params->get( 'to' )}";
+				$where [] = $wpdb->prepare( "c.to = %d", $params->get( 'to' ) );
 			}
 
 			if ( $params->exists_both() ) {
-				$where [] = "( c.from = {$params->get( 'both' )} OR c.to = {$params->get( 'both' )} )";
+				$where [] = $wpdb->prepare( "( c.from = $1%d OR c.to = $1%d )", $params->get( 'both' ) );
 			}
 		}
 
@@ -276,6 +279,8 @@ class Storage extends Abstracts\Storage {
 		$db_meta = $wpdb->prefix . $this->get_meta_table();
 		$query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
 		$query_result = $wpdb->get_results( $query );
+
+		do_action( 'wpConnections/storage/findConnections/dbQuery', $query, $query_result );
 
 		// Meta prepare
 		$data = [];
@@ -333,25 +338,143 @@ class Storage extends Abstracts\Storage {
 		}
 
 		$connection_id = $wpdb->insert_id;
+        $connectionQuery->set( 'id', $connection_id );
 
-		// Meta data insert
-		if ( ! $connectionQuery->meta->isEmpty() ) {
-			foreach ( $connectionQuery->meta->getIterator() as $meta ) {
-				/** @var Meta $meta */
-				$data = [
-					'connection_id' => $connection_id,
-					'meta_key'      => $meta->get_key(),
-					'meta_value'    => $meta->get_value(),
-				];
-
-				$result = $wpdb->insert( $wpdb->prefix . $this->get_meta_table(), $data );
-
-				if ( false === $result ) {
-					throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection meta data with the words: [{$wpdb->last_error}]" );
-				}
-			}
-		}
+        // Insert meta data.
+        $metaQuery = $connectionQuery->get( 'meta' );
+		/** @var Query\MetaCollection $metaQuery */
+        if ( ! $metaQuery->isEmpty() ) {
+            $this->addConnectionMeta( $connection_id, $metaQuery );
+        }
 
 		return $connection_id;
 	}
+
+    public function updateConnection( Query\Connection $connectionQuery ): bool {
+        global $wpdb;
+
+        $objectID = $connectionQuery->get( 'id' );
+        if ( ! is_numeric( $objectID ) ) {
+            throw new Exceptions\ConnectionWrongData( "Object ID is undefined." );
+        }
+
+        $where = ['ID' => $objectID];
+        $update = [];
+
+        if ( ! is_null( $title = $connectionQuery->get( 'title' ) ) ) {
+            $update['title'] = $title;
+        }
+
+        if ( ! is_null( $from = $connectionQuery->get( 'from' ) ) ) {
+            $update['from'] = $from;
+        }
+
+        if ( ! is_null( $to = $connectionQuery->get( 'to' ) ) ) {
+            $update['to'] = $to;
+        }
+
+        if ( ! is_null( $order = $connectionQuery->get( 'order' ) ) ) {
+            $update['order'] = $order;
+        }
+
+        if ( ! $connectionQuery->isUpdate() ) {
+            $update = $connectionQuery->toArray();
+
+            unset( $update['meta'] );
+            unset( $update['relation'] );
+        }
+
+        if ( ! empty( $update ) ) {
+            $updated = $wpdb->update( $wpdb->prefix . $this->get_connections_table(), $update, $where );
+        }
+
+        return true;
+    }
+
+    /**
+     * Only adds meta fields to the DB.
+     *
+     * @param int $objectID
+     * @param MetaCollection $metaQuery
+     * @return void
+     * @throws ConnectionWrongData
+     */
+    public function addConnectionMeta( int $objectID, Query\MetaCollection $metaQuery ) {
+        global $wpdb;
+
+        if  ( $metaQuery->isEmpty() ) {
+            throw new Exceptions\ConnectionWrongData( "Meta object is empty." );
+        }
+
+        if ( empty( $objectID ) ) {
+            throw new Exceptions\ConnectionWrongData( "Object ID is empty." );
+        }
+
+        $errors = [];
+        foreach ( $metaQuery->getIterator() as $meta ) {
+            /** @var Query\Meta $meta */
+            $data = [
+                'connection_id' => $objectID,
+                'meta_key'      => $meta->getKey(),
+                'meta_value'    => $meta->getValue(),
+            ];
+
+			do_action( 'logger', $data );
+
+            $result = $wpdb->insert( $wpdb->prefix . $this->get_meta_table(), $data );
+            if ( false === $result ) {
+                $errors []= $wpdb->last_error;
+            }
+        }
+
+        if ( $errors ) {
+            $errors = implode( '; ', $errors );
+            throw new Exceptions\ConnectionWrongData( "Database refused inserting new connection meta data with the words: [{$errors}]" );
+        }
+    }
+
+    /**
+     * @throws ConnectionWrongData
+     */
+    public function removeConnectionMeta( int $objectID, Query\MetaCollection $metaQuery ) {
+        global $wpdb;
+
+        if ( empty( $objectID ) ) {
+            throw new Exceptions\ConnectionWrongData( "Object ID is empty." );
+        }
+
+        $from = "DELETE FROM {$wpdb->prefix}{$this->get_meta_table()}";
+        $where = [" WHERE connection_id = {$objectID}"];
+        if ( ! $metaQuery->isEmpty() ) {
+            $where []= "AND (";
+
+            $or = [];
+            foreach ( $metaQuery->getIterator() as $meta ) {
+                /** @var Meta $meta */
+                $item = [];
+                $item []= "(";
+                $item []= $wpdb->prepare( "meta_key = '%s'", $meta->getKey() );
+                if ( ! is_null( $meta->getValue() ) ) {
+                    $item []= $wpdb->prepare( "AND meta_value = '%s'", $meta->getValue() );
+                }
+                $item []= ")";
+
+                $or []= implode( ' ', $item );
+            }
+            $where []= implode( ' OR ', $or );
+
+            $where []= ")";
+        }
+
+        $query = $from . implode( ' ', $where );
+        $rowsAffected = $wpdb->query( $query );
+
+	    do_action( 'wpConnections/storage/removeConnectionMeta/dbQuery', $query, $rowsAffected );
+
+		if ( false === $rowsAffected ) {
+			throw new Exceptions\ConnectionWrongData( "Database refused removing new connection meta data with the words: [{$wpdb->last_error}]" );
+		}
+
+		return $rowsAffected;
+    }
 }

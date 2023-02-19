@@ -14,31 +14,67 @@ class MetaCollectionTest extends TestCase {
 		$mc->add( new Meta( 'key1', 'value2' ) );
 		$mc->add( new Meta( 'key2', 'value2' ) );
 		$mc->add( new Meta( 'key3', 'value3' ) );
+		$mc->add( new Meta( 'key4' ) );
 
-		$result = [
+		$mcExpected = [
 			'key1' => [ 'value1', 'value2' ],
 			'key2' => [ 'value2' ],
 			'key3' => [ 'value3' ],
+			'key4' => [ null ],
 		];
 
-		self::assertEquals( $result, $mc->toArray() );
+		self::assertEquals( $mcExpected, $mc->toArray() );
 	}
 
 	public function testFromArray() {
-		$mc = new MetaCollection();
-		$dataArray = [
+		$dataArrayType0 = [
+			[
+				'key'   => 'key0',
+				'value' => 'value0',
+			],
+			[
+				'key'   => 'key0',
+				'value' => 'value1',
+			],
+			[
+				'key'   => 'key1',
+				'value' => 'value1',
+			],
+			[
+				'key'   => 'key2',
+			],
+		];
+		$resultType0 = new MetaCollection();
+		$resultType0->fromArray( $dataArrayType0 );
+
+		$mcExpectedType0 = new MetaCollection();
+		$mcExpectedType0->add( new Meta( 'key0', 'value0' ) );
+		$mcExpectedType0->add( new Meta( 'key0', 'value1' ) );
+		$mcExpectedType0->add( new Meta( 'key1', 'value1' ) );
+		$mcExpectedType0->add( new Meta( 'key2' ) );
+
+		self::assertEquals( $mcExpectedType0, $resultType0 );
+
+		$dataArrayType1 = [
 			'key1' => [ 'value1', 'value2' ],
 			'key2' => [ 'value2' ],
 			'key3' => [ 'value3' ],
+			'key4' => [],
+			'key5' => null,
+			'key6' => '',
 		];
-		$mc->fromArray( $dataArray );
+		$resultType1 = new MetaCollection();
+		$resultType1->fromArray( $dataArrayType1 );
 
-		$mcExpected = new MetaCollection();
-		$mcExpected->add( new Meta( 'key1', 'value1' ) );
-		$mcExpected->add( new Meta( 'key1', 'value2' ) );
-		$mcExpected->add( new Meta( 'key2', 'value2' ) );
-		$mcExpected->add( new Meta( 'key3', 'value3' ) );
+		$mcExpectedType1 = new MetaCollection();
+		$mcExpectedType1->add( new Meta( 'key1', 'value1' ) );
+		$mcExpectedType1->add( new Meta( 'key1', 'value2' ) );
+		$mcExpectedType1->add( new Meta( 'key2', 'value2' ) );
+		$mcExpectedType1->add( new Meta( 'key3', 'value3' ) );
+		$mcExpectedType1->add( new Meta( 'key4' ) );
+		$mcExpectedType1->add( new Meta( 'key5', null ) );
+		$mcExpectedType1->add( new Meta( 'key6', '' ) );
 
-		self::assertEquals( $mc, $mcExpected );
+		self::assertEquals( $mcExpectedType1, $resultType1 );
 	}
 }

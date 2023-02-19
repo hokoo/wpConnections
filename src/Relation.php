@@ -82,7 +82,59 @@ class Relation extends Abstracts\Relation {
 
 		do_action( 'wpConnections/relation/creating', $connectionQuery );
 
-		return Factory::createConnection( $connectionQuery, $this );
+		$this->getClient()->getStorage()->createConnection( $connectionQuery );
+
+		return new Connection( $connectionQuery );
+	}
+
+    /**
+     * @throws ConnectionWrongData
+     */
+    public function updateConnection( Query\Connection $connectionQuery ): bool {
+        $connectionQuery->set( 'relation', $this->name );
+        return $this->getClient()->getStorage()->updateConnection( $connectionQuery );
+    }
+
+	/**
+	 * @throws ConnectionWrongData
+	 */
+	public function updateConnectionMeta( Query\Connection $connectionQuery ): bool {
+		$connectionQuery->set( 'relation', $this->name );
+		$objectID = $connectionQuery->get( 'id' );
+
+		/** @var Query\MetaCollection $metaQuery */
+		$metaQuery = $connectionQuery->get('meta');
+
+		if ( ! $metaQuery->isUpdate() ) {
+			// Remove all meta fields first if false === isUpdate.
+			$this->getClient()->getStorage()->removeConnectionMeta( $objectID, new Query\MetaCollection() );
+		} else {
+			// Check the array items for false === $isUpdate fields in order to remove older values.
+			$toRemove = $metaQuery->where('isUpdate', false);
+			if ( ! $toRemove->isEmpty() ) {
+				foreach ( $toRemove->getIterator() as $meta ) {
+					/** @var Meta $meta */
+					$meta->setValue(null);
+				}
+				$this->getClient()->getStorage()->removeConnectionMeta($objectID, $toRemove);
+			}
+		}
+
+		// Finally, insert new meta fields.
+		if ( ! $metaQuery->isEmpty() ) {
+			$this->getClient()->getStorage()->addConnectionMeta( $objectID, $metaQuery );
+		}
+
+		return true;
+	}
+
+	/**
+	 * @throws ConnectionWrongData
+	 */
+	public function removeConnectionMeta( Query\Connection $connectionQuery ): int {
+		$rowsAffected = $this->getClient()->getStorage()->removeConnectionMeta( $connectionQuery->get( 'id' ), $connectionQuery->get('meta') );
+
+		return (int) $rowsAffected;
 	}
 
 	/**
@@ -138,20 +190,12 @@ class Relation extends Abstracts\Relation {
 		$connectionQuery = $connectionQuery ?? new Query\Connection();
 		$connectionQuery->set( 'relation', $this->name );
 
-		$collection = $this->getClient()->getStorage()->findConnections( $connectionQuery );
+		return $this->getClient()->getStorage()->findConnections( $connectionQuery );
+	}
 
-        /**
-         * Processing the case if specific connection is queried.
-         * Since a Storage does not care about addition parameters when ID is specified,
-         * we have to ensure that the connection we've just obtained is consistent to the entire query.
-         * Particularly, we should check Relation field.
-         */
-        if ( ! empty( $connectionQuery->id ) && ! empty( $connectionQuery->relation ) && ! $collection->isEmpty() ) {
-            if ( $connectionQuery->relation !== $collection->first()->relation ) {
-                return new ConnectionCollection();
-            }
-        }
-
-        return $collection;
+	public function hasConnectionID( int $connectionID ): bool {
+		$connectionQuery = $connectionQuery ?? new Query\Connection();
+		$connectionQuery->set( 'id', $connectionID );
+		return ! $this->findConnections( $connectionQuery )->isEmpty();
 	}
 }

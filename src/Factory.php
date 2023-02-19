@@ -2,74 +2,57 @@
 
 namespace iTRON\wpConnections;
 
-use iTRON\wpConnections\Exceptions\ConnectionWrongData;
-use iTRON\wpConnections\Exceptions\MissingParameters;
-use iTRON\wpConnections\Exceptions\RelationWrongData;
+use iTRON\wpConnections\Abstracts\Storage;
+use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use Psr\Log\LoggerInterface;
+use TypeError;
 
 class Factory {
 	/**
-	 * @throws Exceptions\MissingParameters
-	 * @throws Exceptions\RelationWrongData
-     */
-	public static function createRelation( Query\Relation $relationQuery ): Relation {
-        $missingParameters = new MissingParameters();
-
-		if ( empty( $relationQuery->get( 'name' ) ) ) {
-            $missingParameters->setParam( 'name' );
+	 * @throws ClientRegisterFail
+	 */
+	public static function getStorage( Client $client ) : Storage {
+		$storageClass = apply_filters( 'wpConnections/factory/getStorage/class', WPStorage::class, $client );
+		if ( ! class_exists( $storageClass ) ) {
+			throw new ClientRegisterFail( 'A storage class does not exist. See filter hooks [wpConnections/factory/getStorage/class]' );
 		}
 
-		if ( empty( $relationQuery->get( 'from' ) ) ) {
-            $missingParameters->setParam( 'from' );
+		try {
+			return new $storageClass( $client );
+		} catch ( TypeError $e ) {
+			throw new ClientRegisterFail( 'A storage class does not inherit iTRON\wpConnections\Abstract\Storage. See filter hooks [wpConnections/factory/getStorage/class]' );
 		}
-
-		if ( empty( $relationQuery->get( 'name' ) ) ) {
-            $missingParameters->setParam( 'name' );
-		}
-
-        if ( $missingParameters->getParams() ) {
-            throw $missingParameters;
-        }
-
-        $relationWrongData = new RelationWrongData( 'Relation has been already created. ' );
-
-        try {
-            $exists = $relationQuery->client->getRelation( $relationQuery->name );
-        } catch ( Exceptions\RelationNotFound $notFound ) {
-            // That's ok, relation name is free.
-        }
-
-        if ( isset( $exists ) && $exists instanceof Relation ) {
-            $relationWrongData->setParam( $relationQuery->name );
-            throw $relationWrongData;
-        }
-
-        $default = [
-			'type'          => 'both',
-			'cardinality'   => 'm-m',
-			'duplicatable'  => false,
-			'closurable'    => false,
-		];
-
-		$args = wp_parse_args( $relationQuery, $default );
-
-		$relation = new Relation();
-		foreach ( $args as $field => $value ) {
-			$relation->set( $field, $value );
-		}
-
-		return $relation;
 	}
 
 	/**
-	 * @throws ConnectionWrongData
+	 * @throws ClientRegisterFail
 	 */
-	public static function createConnection( Query\Connection $connectionQuery, Relation $relation ): Connection {
-		$connectionID = $relation->getClient()->getStorage()->createConnection( $connectionQuery );
-		$connection = new Connection();
-		$connection
-			->loadFromQuery( $connectionQuery )
-			->set( 'id', $connectionID );
+	public static function getRestApi( Client $client ): ClientRestApi {
+		$restApiClass = apply_filters( 'wpConnections/factory/getRestApi/class', ClientRestApi::class, $client );
+		if ( ! class_exists( $restApiClass ) ) {
+			throw new ClientRegisterFail( 'A REST API class does not exist. See filter hooks [wpConnections/factory/getRestApi/class]' );
+		}
 
-		return $connection;
+		try {
+			return new $restApiClass( $client );
+		} catch ( TypeError $e ) {
+			throw new ClientRegisterFail( 'A REST API class does not inherit iTRON\wpConnections\ClientRestApi. See filter hooks [wpConnections/factory/getStorage/class]' );
+		}
+	}
+
+	/**
+	 * @throws ClientRegisterFail
+	 */
+	public static function getLogger( Client $client ): LoggerInterface {
+		$loggerClass = apply_filters( 'wpConnections/factory/getLogger/class', Logger::class, $client );
+		if ( ! class_exists( $loggerClass ) ) {
+			throw new ClientRegisterFail( 'A Logger class does not exist. See filter hooks [wpConnections/factory/getLogger/class]' );
+		}
+
+		try {
+			return new $loggerClass( $client );
+		} catch ( TypeError $e ) {
+			throw new ClientRegisterFail( 'A Logger class does not implement Psr\Log\LoggerInterface. See filter hooks [wpConnections/factory/getLogger/class]' );
+		}
 	}
 }
