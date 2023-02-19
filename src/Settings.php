@@ -20,6 +20,7 @@ class Settings {
 		};
 
 		add_action( 'wpConnections/storage/findConnections/dbQuery', $f, 10, 2 );
+		add_action( 'wpConnections/storage/removeConnectionMeta/dbQuery', $f, 10, 2 );
 		add_action( 'wpConnections/storage/deletedSpecificConnections', $f, 10, 3 );
 	}
 }

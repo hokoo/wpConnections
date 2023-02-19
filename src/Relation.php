@@ -131,10 +131,10 @@ class Relation extends Abstracts\Relation {
 	/**
 	 * @throws ConnectionWrongData
 	 */
-	public function removeConnectionMeta( Query\Connection $connectionQuery ): bool {
-		$this->getClient()->getStorage()->removeConnectionMeta( $connectionQuery->get( 'id' ), $connectionQuery->get('meta') );
+	public function removeConnectionMeta( Query\Connection $connectionQuery ): int {
+		$rowsAffected = $this->getClient()->getStorage()->removeConnectionMeta( $connectionQuery->get( 'id' ), $connectionQuery->get('meta') );
 
-		return true;
+		return (int) $rowsAffected;
 	}
 
 	/**

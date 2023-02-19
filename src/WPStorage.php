@@ -467,10 +467,14 @@ class WPStorage extends Abstracts\Storage {
         }
 
         $query = $from . implode( ' ', $where );
-        $result = $wpdb->query( $query );
+        $rowsAffected = $wpdb->query( $query );
 
-		if ( false === $result ) {
+	    do_action( 'wpConnections/storage/removeConnectionMeta/dbQuery', $query, $rowsAffected );
+
+		if ( false === $rowsAffected ) {
 			throw new Exceptions\ConnectionWrongData( "Database refused removing new connection meta data with the words: [{$wpdb->last_error}]" );
 		}
+
+		return $rowsAffected;
     }
 }

@@ -58,22 +58,24 @@ class MetaCollection extends Collection implements IArrayConvertable {
 
 		foreach ( $data as $key => $value ) {
             /**
-             * Process meta element that is kind of
+             * Process meta array that is kind of
              * [
-             *  'key'   => 'foo',
-             *  'value' => 'bar'
-             *  ]
+             *  [ 'key' => 'foo', 'value' => 'bar' ],
+             * ]
              */
             if ( is_numeric( $key ) && is_array( $value ) && isset( $value['key'] ) ) {
-                $this->add( new $this->collectionType( $value['key'], $value['value'] ?? '' ) );
+                $this->add( new $this->collectionType( $value['key'], $value['value'] ?? null ) );
                 continue;
             }
 
             /**
-             * Process meta element that is kind of
-             * 'key1' => ['value1','value2']
+             * Process meta array that is kind of
+             * [ 'key1' => ['value1','value2'], ]
              */
 			$value = is_array( $value ) ? $value : [ $value ];
+			if ( empty( $value ) ) {
+				$value []= null;
+			}
 			foreach ( $value as $term ) {
 				$this->add( new $this->collectionType( $key, $term ) );
 			}
