@@ -33,20 +33,18 @@
 							"urlencoded": []
 						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/1",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}/1",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel",
+								"{{relation}}",
 								"1"
 							]
 						}
@@ -125,20 +123,18 @@
 							]
 						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel"
+								"{{relation}}"
 							]
 						}
 					},
@@ -181,21 +177,19 @@
 							]
 						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}/1",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel",
-								"2"
+								"{{relation}}",
+								"1"
 							]
 						}
 					},
@@ -217,22 +211,24 @@
 								"type": "text"
 							}
 						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": []
+						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/8",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}/1",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel",
-								"8"
+								"{{relation}}",
+								"1"
 							]
 						}
 					},
@@ -280,21 +276,19 @@
 							]
 						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2/meta",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}/1/meta",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel",
-								"2",
+								"{{relation}}",
+								"1",
 								"meta"
 							]
 						},
@@ -334,21 +328,19 @@
 							]
 						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2/meta",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}/1/meta",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel",
-								"2",
+								"{{relation}}",
+								"1",
 								"meta"
 							]
 						},
@@ -388,21 +380,19 @@
 							]
 						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/2/meta",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}/1/meta",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel",
-								"2",
+								"{{relation}}",
+								"1",
 								"meta"
 							]
 						},
@@ -448,21 +438,19 @@
 							]
 						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel/3/meta",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}/1/meta",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel",
-								"3",
+								"{{relation}}",
+								"1",
 								"meta"
 							]
 						}
@@ -476,6 +464,9 @@
 			"item": [
 				{
 					"name": "Get Relation",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
 					"request": {
 						"method": "GET",
 						"header": [
@@ -490,21 +481,23 @@
 								"type": "text"
 							}
 						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": []
+						},
 						"url": {
-							"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram/relation/chat2channel",
-							"protocol": "http",
+							"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}/relation/{{relation}}",
 							"host": [
-								"cf7tgdev",
-								"loc"
+								"{{homeUrl}}"
 							],
 							"path": [
 								"wp-json",
 								"wp-connections",
 								"v1",
 								"client",
-								"cf7-telegram",
+								"{{client}}",
 								"relation",
-								"chat2channel"
+								"{{relation}}"
 							]
 						}
 					},
@@ -529,11 +522,9 @@
 					}
 				],
 				"url": {
-					"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1",
-					"protocol": "http",
+					"raw": "{{homeUrl}}/wp-json/wp-connections/v1",
 					"host": [
-						"cf7tgdev",
-						"loc"
+						"{{homeUrl}}"
 					],
 					"path": [
 						"wp-json",
@@ -561,18 +552,16 @@
 					}
 				],
 				"url": {
-					"raw": "http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram",
-					"protocol": "http",
+					"raw": "{{homeUrl}}/wp-json/wp-connections/v1/client/{{client}}",
 					"host": [
-						"cf7tgdev",
-						"loc"
+						"{{homeUrl}}"
 					],
 					"path": [
 						"wp-json",
 						"wp-connections",
 						"v1",
 						"client",
-						"cf7-telegram"
+						"{{client}}"
 					]
 				}
 			},
@@ -600,6 +589,21 @@
 		}
 	],
 	"variable": [
+		{
+			"key": "homeUrl",
+			"value": "http://cf7tgdev.loc",
+			"type": "string"
+		},
+		{
+			"key": "client",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "relation",
+			"value": "",
+			"type": "string"
+		},
 		{
 			"key": "nonce",
 			"value": "",

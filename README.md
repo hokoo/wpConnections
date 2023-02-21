@@ -1,5 +1,11 @@
 # WP Connections: post-to-post connections for WordPress
 
+<!-- TOC -->
+* [Why wpConnection?](#why-wpconnection)
+* [Quick Start](#ok-what-should-i-do-to-start-using)
+* [WIKI](https://github.com/hokoo/wpConnections/wiki)
+<!-- TOC -->
+
 wpConnections allows to link posts in WordPress by graph-like connections.
 The library provides such connection properties as: 
 
@@ -18,7 +24,7 @@ The relation has properties:
 - duplicatable (whether may have same connections)
 - closurable (whether may have the same post on from and to).
 
-> There are four CPT: `magazine`, `issue`, `article` and `author`.
+> **EXAMPLE.** There are four CPT: `magazine`, `issue`, `article` and `author`.
 > Magazine posts may have connections with some Issues (one-to-many type) so that the Issues constitute the Magazine.  
 > The Issues in turn have connections with Articles (one-to-many as well).
 > But an Author might have been linked with many Articles, and an Article might have many connections with Authors (many-to-many).  
@@ -30,15 +36,19 @@ All you need is creating a client instance for your application. Every client ha
 
 ## Ok, what should I do to start using?
 
+> Full documentation is available on [Wiki project pages](https://github.com/hokoo/wpConnections/wiki).
+
 It is available as github repo, so add this as dependency into your project using composer.json.
 
-```
-"repositories": [
+```json
+{
+  "repositories": [
     {
-        "type": "vcs",
-        "url": "https://github.com/hokoo/wpConnections.git"
+      "type": "vcs",
+      "url": "https://github.com/hokoo/wpConnections.git"
     }
-]
+  ]
+}
 ```
 
 So, you have to create client instance...
@@ -70,3 +80,7 @@ $qc->set( 'to', $post_id_to );
 
 $wpc_client->getRelation( 'post-to-page' )->createConnection( $qc );
 ```
+
+Since you have initialized new client, its REST API endpoints are available.
+
+`http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram`
