@@ -38,17 +38,10 @@ All you need is creating a client instance for your application. Every client ha
 
 > Full documentation is available on [Wiki project pages](https://github.com/hokoo/wpConnections/wiki).
 
-It is available as github repo, so add this as dependency into your project using composer.json.
+Add the package
 
-```json
-{
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/hokoo/wpConnections.git"
-    }
-  ]
-}
+```php
+composer require hokoo/wpconnections
 ```
 
 So, you have to create client instance...
