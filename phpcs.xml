@@ -100,13 +100,6 @@
         </properties>
     </rule>
 
-    <rule ref="Generic.WhiteSpace.ScopeIndent">
-        <properties>
-            <property name="indent" value="4"/>
-            <property name="ignoreIndentationTokens" type="array" value="T_COMMENT,T_DOC_COMMENT_OPEN_TAG"/>
-        </properties>
-    </rule>
-
     <!-- Fix errors "No PHP code was found" in GitHub action. These errors show on GitHub actions. It can happen in case you run PHPCS into Docker container -->
     <rule ref="Internal.NoCodeFound">
         <severity>0</severity>
