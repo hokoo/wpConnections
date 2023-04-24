@@ -1,7 +1,7 @@
 name: Run Tests
 
 env:
-  PHP_VER: "7.2"
+  PHP_VER: "7.4"
   COMPOSER_VER: "2.5.1"
 
 on:
