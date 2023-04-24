@@ -1,17 +1,41 @@
 name: Run Tests
 
 on:
+  push:
+    branches: [ "master", "main", "dev" ]
   pull_request:
-    branches: [ master, dev ]
+    types: [synchronize, opened, reopened]
 
 jobs:
-  tests:
+  php-ci:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-      - name: run
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: /tmp/composer-cache
+          key: ${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
+
+      - uses: php-actions/composer@v6
+        with:
+          php_version: ${{ env.PHP_VER }}
+          version: ${{ env.COMPOSER_VER }}
+
+      - name: Get PHPCS Cache
+        id: phpcs-cache
         run: |
-          sudo apt-get update -y && sudo apt-get -y install composer
-          composer install --no-dev
-          composer phpunit
+          echo "file=.phpcs.cache" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ steps.phpcs-cache.outputs.file }}
+          key: ${{ runner.os }}-phpcs-${{ hashFiles('**/.phpcs.cache') }}
+          restore-keys: |
+            ${{ runner.os }}-phpcs-
+
+      - name: Run PHPCS
+        run: composer run phpcs
+
+      - name: Run UnitTests
+        run: composer run phpunit
