@@ -1,5 +1,9 @@
 name: Run Tests
 
+env:
+  PHP_VER: "7.2"
+  COMPOSER_VER: "2.5.1"
+
 on:
   push:
     branches: [ "master", "main", "dev" ]
