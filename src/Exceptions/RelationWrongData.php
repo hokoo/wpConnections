@@ -2,4 +2,6 @@
 
 namespace iTRON\wpConnections\Exceptions;
 
-class RelationWrongData extends Exception {}
+class RelationWrongData extends Exception
+{
+}

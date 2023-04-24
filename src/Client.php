@@ -8,36 +8,41 @@ use iTRON\wpConnections\Exceptions\RelationWrongData;
 use iTRON\wpConnections\Exceptions\MissingParameters;
 use Psr\Log\LoggerInterface;
 
-class Client {
-	private string $name;
-	private Abstracts\Storage $storage;
-	private RelationCollection $relations;
-	private LoggerInterface $logger;
+class Client
+{
+    private string $name;
+    private Abstracts\Storage $storage;
+    private RelationCollection $relations;
+    private LoggerInterface $logger;
 
     /**
      * WP user capability id that is required for performing actions with client.
      */
     public string $capability = 'manage_options';
 
-	/**
-	 * @throws ClientRegisterFail
-	 */
-	public function __construct( $name ) {
-		$this->name = sanitize_title( $name );
-		$this->init();
-	}
+    /**
+     * @throws ClientRegisterFail
+     */
+    public function __construct($name)
+    {
+        $this->name = sanitize_title($name);
+        $this->init();
+    }
 
-    public function getName(): string {
-		return $this->name;
-	}
+    public function getName(): string
+    {
+        return $this->name;
+    }
 
-    public function getStorage(): Abstracts\Storage {
-		return $this->storage;
-	}
+    public function getStorage(): Abstracts\Storage
+    {
+        return $this->storage;
+    }
 
-	public function getRelations(): RelationCollection {
-		return $this->relations;
-	}
+    public function getRelations(): RelationCollection
+    {
+        return $this->relations;
+    }
 
     /**
      * Sugar for $this->getRelations()->get()
@@ -47,90 +52,94 @@ class Client {
      * @return Relation
      * @throws RelationNotFound
      */
-	public function getRelation( string $name ): Relation {
-		return $this->relations->get( $name );
-	}
+    public function getRelation(string $name): Relation
+    {
+        return $this->relations->get($name);
+    }
 
-	/**
-	 * @return Relation Registers new relation.
-	 *
+    /**
+     * @return Relation Registers new relation.
+     *
      * @throws RelationWrongData
      * @throws MissingParameters
      */
-	public function registerRelation( Query\Relation $relationQuery ): Relation {
-		$relationQuery->set( 'client', $this );
+    public function registerRelation(Query\Relation $relationQuery): Relation
+    {
+        $relationQuery->set('client', $this);
 
-		$missingParameters = new MissingParameters();
+        $missingParameters = new MissingParameters();
 
-		if ( empty( $relationQuery->get( 'name' ) ) ) {
-			$missingParameters->setParam( 'name' );
-		}
+        if (empty($relationQuery->get('name'))) {
+            $missingParameters->setParam('name');
+        }
 
-		if ( empty( $relationQuery->get( 'from' ) ) ) {
-			$missingParameters->setParam( 'from' );
-		}
+        if (empty($relationQuery->get('from'))) {
+            $missingParameters->setParam('from');
+        }
 
-		if ( empty( $relationQuery->get( 'name' ) ) ) {
-			$missingParameters->setParam( 'name' );
-		}
+        if (empty($relationQuery->get('name'))) {
+            $missingParameters->setParam('name');
+        }
 
-		if ( $missingParameters->getParams() ) {
-			throw $missingParameters;
-		}
+        if ($missingParameters->getParams()) {
+            throw $missingParameters;
+        }
 
-		$relationWrongData = new RelationWrongData( 'Relation has been already created. ' );
+        $relationWrongData = new RelationWrongData('Relation has been already created. ');
 
-		try {
-			$exists = $relationQuery->client->getRelation( $relationQuery->name );
-		} catch ( Exceptions\RelationNotFound $notFound ) {
-			// Relation's name is free, it's ok.
-		}
+        try {
+            $exists = $relationQuery->client->getRelation($relationQuery->name);
+        } catch (Exceptions\RelationNotFound $notFound) {
+            // Relation's name is free, it's ok.
+        }
 
-		if ( isset( $exists ) && $exists instanceof Relation ) {
-			$relationWrongData->setParam( $relationQuery->name );
-			throw $relationWrongData;
-		}
+        if (isset($exists) && $exists instanceof Relation) {
+            $relationWrongData->setParam($relationQuery->name);
+            throw $relationWrongData;
+        }
 
-		$default = [
-			'type'          => 'both',
-			'cardinality'   => 'm-m',
-			'duplicatable'  => false,
-			'closurable'    => false,
-		];
+        $default = [
+            'type'          => 'both',
+            'cardinality'   => 'm-m',
+            'duplicatable'  => false,
+            'closurable'    => false,
+        ];
 
-		$args = wp_parse_args( $relationQuery, $default );
+        $args = wp_parse_args($relationQuery, $default);
 
-		$relation = new Relation();
-		foreach ( $args as $field => $value ) {
-			$relation->set( $field, $value );
-		}
+        $relation = new Relation();
+        foreach ($args as $field => $value) {
+            $relation->set($field, $value);
+        }
 
-		$this->relations->add( $relation );
-		return $relation;
-	}
+        $this->relations->add($relation);
+        return $relation;
+    }
 
-	public function getLogger(): LoggerInterface {
-		return $this->logger;
-	}
+    public function getLogger(): LoggerInterface
+    {
+        return $this->logger;
+    }
 
-	/**
-	 * @throws ClientRegisterFail
-	 */
-	private function init() {
-        $this->storage = Factory::getStorage( $this );
-		$this->logger = Factory::getLogger( $this );
-		$restapi = Factory::getRestApi( $this );
-		$restapi->init();
+    /**
+     * @throws ClientRegisterFail
+     */
+    private function init()
+    {
+        $this->storage = Factory::getStorage($this);
+        $this->logger = Factory::getLogger($this);
+        $restapi = Factory::getRestApi($this);
+        $restapi->init();
 
-		$settings = new Settings();
-		$settings->setLogger( $this->getLogger() );
-		$settings->init();
+        $settings = new Settings();
+        $settings->setLogger($this->getLogger());
+        $settings->init();
 
         $this->relations = new RelationCollection();
 
-        add_action( 'deleted_post', [ $this->storage, 'deleteByObjectID' ] );
+        add_action('deleted_post', [ $this->storage, 'deleteByObjectID' ]);
 
-        do_action( 'wpConnections/client/inited', $this );
-        do_action( "wpConnections/client/{$this->getName()}/inited", $this );
+        do_action('wpConnections/client/inited', $this);
+        do_action("wpConnections/client/{$this->getName()}/inited", $this);
     }
 }
