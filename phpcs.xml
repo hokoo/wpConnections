@@ -1,0 +1,143 @@
+<?xml version="1.0"?>
+<ruleset name="WordPress Coding Standards">
+    <description>A custom set of code standard rules to check for WordPress code.</description>
+
+    <!-- How to scan -->
+    <arg value="sp"/><!-- Show sniff and progress -->
+    <arg name="basepath" value="./"/><!-- Strip the file paths down to the relevant bit -->
+    <arg name="extensions" value="php"/>
+    <arg name="parallel" value="10"/><!-- Enables parallel processing when available for faster results. -->
+    <arg name="cache" value=".phpcs.cache"/>
+
+    <!-- Check for cross-version support for PHP 7.2 and higher. -->
+    <config name="testVersion" value="7.2-"/>
+
+    <!-- Minimum WP version to check for usage of deprecated functions, classes and function parameters -->
+    <config name="minimum_supported_wp_version" value="5.4.1"/>
+
+    <!-- Rules:  -->
+    <rule ref="PHPCompatibilityWP"/>
+
+    <!-- What to scan -->
+     <file>./</file>
+
+    <!-- Exclude "Third-party" -->
+    <!-- <exclude-pattern>wp-content/themes/twentytwenty/</exclude-pattern> -->
+
+    <!-- Exclude common files -->
+    <exclude-pattern>*/\.idea/*</exclude-pattern>
+    <exclude-pattern>*/\.github/*</exclude-pattern>
+    <exclude-pattern>*/\.idea/*</exclude-pattern>
+    <exclude-pattern>*/\.make/*</exclude-pattern>
+    <exclude-pattern>*/\.wordpress-org/*</exclude-pattern>
+    <exclude-pattern>*/assets/*</exclude-pattern>
+    <exclude-pattern>*/languages/*</exclude-pattern>
+    <exclude-pattern>*/lib/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/src/js/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*\.js</exclude-pattern>
+    <exclude-pattern>*\.mo</exclude-pattern>
+    <exclude-pattern>*\.po</exclude-pattern>
+    <exclude-pattern>*\.twig</exclude-pattern>
+    <exclude-pattern>*\.css</exclude-pattern>
+    <exclude-pattern>*\.scss</exclude-pattern>
+    <exclude-pattern>wp-content/uploads/</exclude-pattern>
+
+    <rule ref="WordPress">
+        <!-- Allow short ternary syntax and short arrays and short open tag -->
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax" />
+        <exclude name="WordPress.PHP.DisallowShortTernary.Found" />
+        <exclude name="Generic.PHP.DisallowShortOpenTag.EchoFound" />
+        <exclude name="Generic.Commenting.DocComment.MissingShort" />
+
+        <!-- Disable dot of end string docblock -->
+        <exclude name="Squiz.Commenting.InlineComment.InvalidEndChar" />
+
+        <exclude name="WordPress.PHP.YodaConditions" />
+
+        <exclude name="WordPress.Files.FileName.InvalidClassFileName" />
+        <exclude name="WordPress.Files.FileName.NotHyphenatedLowercase" />
+    </rule>
+
+    <!-- Disable comments blocks -->
+    <rule ref="WordPress-Docs">
+        <exclude name="Squiz.Commenting.FileComment.Missing" />
+        <exclude name="Squiz.Commenting.FileComment.MissingPackageTag" />
+        <exclude name="Squiz.Commenting.ClassComment.Missing" />
+        <exclude name="Squiz.Commenting.FunctionComment.Missing" />
+        <exclude name="Squiz.Commenting.FunctionComment.SpacingAfterParamType" />
+        <exclude name="Squiz.Commenting.VariableComment.Missing" />
+        <exclude name="Squiz.Commenting.FunctionComment.MissingParamComment" />
+        <exclude name="Squiz.Commenting.FunctionComment.MissingParamTag" />
+    </rule>
+
+    <!-- Allow symbol `/` in hook names. -->
+    <rule ref="WordPress.NamingConventions.ValidHookName">
+        <properties>
+            <property name="additionalWordDelimiters" value="/" />
+        </properties>
+    </rule>
+
+    <!-- Allow for underscores in theme template file names -->
+    <rule ref="WordPress.Files.FileName">
+        <properties>
+            <property name="is_theme" value="true" />
+        </properties>
+    </rule>
+
+    <!--<rule ref="Generic.Metrics.CyclomaticComplexity">
+        <properties>
+            <property name="complexity" value="3"/>
+            <property name="absoluteComplexity" value="5"/>
+        </properties>
+    </rule>-->
+
+    <rule ref="Generic.Metrics.NestingLevel">
+        <properties>
+            <property name="absoluteNestingLevel" value="4"/>
+        </properties>
+    </rule>
+
+    <!-- Disallow long array syntax. -->
+    <rule ref="Generic.Arrays.DisallowLongArraySyntax.Found"/>
+
+    <!-- Prohibit Yoda Conditions expressions -->
+    <rule ref="Generic.ControlStructures.DisallowYodaConditions"/>
+
+    <!-- Namespacing required for classes. -->
+    <!-- <rule ref="PSR1.Classes.ClassDeclaration" /> -->
+
+    <!-- Namespacing required for functions. -->
+    <!-- <rule ref="PSR2.Namespaces.NamespaceDeclaration" /> -->
+
+    <!-- Forbidden functions -->
+    <rule ref="Generic.PHP.ForbiddenFunctions">
+        <properties>
+            <property name="forbiddenFunctions" type="array">
+                <element key="delete" value="unset"/>
+                <element key="print" value="echo"/>
+                <element key="create_function" value="null"/>
+                <element key="sizeof" value="count"/>
+                <!-- <element key="var_dump" value="null"/> duplicate of WP rule-->
+                <element key="print_r" value="null"/>
+                <element key="eval" value="null"/>
+                <element key="compact" value="null"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- AutoEscaped functions -->
+<!--    <rule ref="WordPress.Security.EscapeOutput">-->
+<!--        <properties>-->
+<!--            <property name="customAutoEscapedFunctions" type="array">-->
+<!--                <element value="rd_render_attributes" />-->
+<!--            </property>-->
+<!--        </properties>-->
+<!--    </rule>-->
+
+    <!-- Fix errors "No PHP code was found" in GitHub action. These errors show on GitHub actions. It can happen in case you run PHPCS into Docker container -->
+    <rule ref="Internal.NoCodeFound">
+        <severity>0</severity>
+    </rule>
+ </ruleset>
