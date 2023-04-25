@@ -4,15 +4,18 @@ namespace iTRON\wpConnections;
 
 use Psr\Log\AbstractLogger;
 
-class Logger extends AbstractLogger {
+class Logger extends AbstractLogger
+{
+    public function __construct(Client $client)
+    {
+    }
 
-	public function __construct( Client $client ) {}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function log( $level, $message, array $context = [] ) {
-		// WP Data Logger plugin compatability.
-		do_action( 'logger', [ $message, $context ], $level );
-	}
+    /**
+     * @inheritDoc
+     */
+    public function log($level, $message, array $context = [])
+    {
+        // WP Data Logger plugin compatability.
+        do_action('logger', [ $message, $context ], $level);
+    }
 }

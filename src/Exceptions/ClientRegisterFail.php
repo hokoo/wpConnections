@@ -2,4 +2,6 @@
 
 namespace iTRON\wpConnections\Exceptions;
 
-class ClientRegisterFail extends Exception {}
+class ClientRegisterFail extends Exception
+{
+}

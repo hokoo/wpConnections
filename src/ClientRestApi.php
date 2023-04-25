@@ -15,122 +15,131 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 
-class ClientRestApi{
+class ClientRestApi
+{
     use ClientInterface;
 
     public string $namespace = 'wp-connections/v1';
     public string $base = 'client';
 
-    public function __construct( Client $client ) {
-        $this->setClient( $client );
+    public function __construct(Client $client)
+    {
+        $this->setClient($client);
     }
 
-    public function init() {
-        add_action( 'rest_api_init', [ $this, 'registerRestRoutes' ], 10 );
+    public function init()
+    {
+        add_action('rest_api_init', [ $this, 'registerRestRoutes' ], 10);
     }
 
-    public function restGetClient( WP_REST_Request $request ) {
+    public function restGetClient(WP_REST_Request $request)
+    {
         $relations = [];
-        foreach ( $this->getClient()->getRelations()->getIterator() as $relationItem ) {
+        foreach ($this->getClient()->getRelations()->getIterator() as $relationItem) {
             /** @var Relation $relationItem */
-            $relation = $this->ensureRestResponseCollectionItem( $relationItem );
-            $relation->add_link( 'self', $this->getRestRelationUrl( $relationItem->get( 'name' ) ) );
-            $relations []= $relation;
+            $relation = $this->ensureRestResponseCollectionItem($relationItem);
+            $relation->add_link('self', $this->getRestRelationUrl($relationItem->get('name')));
+            $relations [] = $relation;
         }
 
-        return rest_ensure_response( $relations );
+        return rest_ensure_response($relations);
     }
 
-    function restGetRelation( WP_REST_Request $request ) {
+    public function restGetRelation(WP_REST_Request $request)
+    {
         try {
             $response = [];
-            foreach ( $this->getClient()->getRelation( $request->get_param('relation') )->findConnections()->getIterator() as $connectionItem ) {
+            foreach ($this->getClient()->getRelation($request->get_param('relation'))->findConnections()->getIterator() as $connectionItem) {
                 /** @var Connection $connectionItem */
-                $response []= $this->getRestConnectionItem( $connectionItem );
+                $response [] = $this->getRestConnectionItem($connectionItem);
             }
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
+        } catch (Exception $e) {
+            return rest_ensure_response($this->getError($e));
         }
 
-        return rest_ensure_response( $response );
+        return rest_ensure_response($response);
     }
 
-    public function restGetConnection( WP_REST_Request $request ) {
+    public function restGetConnection(WP_REST_Request $request)
+    {
         $q = new Query\Connection();
-        $q->set( 'id', $request->get_param( 'connectionID' ) );
+        $q->set('id', $request->get_param('connectionID'));
         try {
             return $this->ensureRestResponse(
-                $this->getClient()->getRelation( $request->get_param('relation' ) )->findConnections( $q )->first()
+                $this->getClient()->getRelation($request->get_param('relation'))->findConnections($q)->first()
             );
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
-        } catch ( OutOfBoundsException $e ) {
-            return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
+        } catch (Exception $e) {
+            return rest_ensure_response($this->getError($e));
+        } catch (OutOfBoundsException $e) {
+            return rest_ensure_response($this->getError(new ConnectionNotFound()));
         }
     }
 
-    public function restUpdateConnection( WP_REST_Request $request ) {
-        $q = $this->obtainConnectionDataFromRequest( $request );
-        $q->set('id', $request->get_param('connectionID') );
+    public function restUpdateConnection(WP_REST_Request $request)
+    {
+        $q = $this->obtainConnectionDataFromRequest($request);
+        $q->set('id', $request->get_param('connectionID'));
 
         try {
-            $result = $this->getClient()->getRelation( $request->get_param('relation') )->updateConnection( $q );
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
+            $result = $this->getClient()->getRelation($request->get_param('relation'))->updateConnection($q);
+        } catch (Exception $e) {
+            return rest_ensure_response($this->getError($e));
         }
 
         return [ 'updated' => $result ];
     }
 
-	/**
-	 * POST means nothing to delete, add new meta only.
-	 * PATCH means removing if key already exists and then adding new meta fields.
-	 * PUT means erasing all existing metadata and put the new fields.
-	 *
-	 * @param WP_REST_Request $request
-	 *
-	 * @return array|mixed|WP_Error|WP_HTTP_Response|WP_REST_Response
-	 */
-    public function restUpdateConnectionMeta( WP_REST_Request $request ) {
+    /**
+     * POST means nothing to delete, add new meta only.
+     * PATCH means removing if key already exists and then adding new meta fields.
+     * PUT means erasing all existing metadata and put the new fields.
+     *
+     * @param WP_REST_Request $request
+     *
+     * @return array|mixed|WP_Error|WP_HTTP_Response|WP_REST_Response
+     */
+    public function restUpdateConnectionMeta(WP_REST_Request $request)
+    {
         $queryConnection = new Query\Connection();
         $queryConnection->set('id', $request->get_param('connectionID'));
 
-        if ( 'PUT' === $request->get_method() ) {
-            $queryConnection->meta->setIsUpdate( false );
+        if ('PUT' === $request->get_method()) {
+            $queryConnection->meta->setIsUpdate(false);
         }
 
-        $queryConnection->meta->fromArray( (array) $request->get_param('meta') );
+        $queryConnection->meta->fromArray((array) $request->get_param('meta'));
 
-        if ( 'PATCH' === $request->get_method() ) {
+        if ('PATCH' === $request->get_method()) {
             $queryConnection->meta->map(
-                function ( $item ) {
+                function ($item) {
                     /** @var Query\Connection $item */
-                    $item->setIsUpdate( false );
+                    $item->setIsUpdate(false);
                 }
             );
         }
 
         try {
-            $result = $this->getClient()->getRelation( $request->get_param('relation') )->updateConnectionMeta( $queryConnection );
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
+            $result = $this->getClient()->getRelation($request->get_param('relation'))->updateConnectionMeta($queryConnection);
+        } catch (Exception $e) {
+            return rest_ensure_response($this->getError($e));
         }
 
         return [ 'updated' => $result ];
     }
 
-    public function restDeleteConnectionMeta( WP_REST_Request $request ) {
-	    $queryConnection = new Query\Connection();
-	    $queryConnection->set('id', $request->get_param('connectionID'));
-	    $queryConnection->meta->fromArray( (array) $request->get_param('meta') );
+    public function restDeleteConnectionMeta(WP_REST_Request $request)
+    {
+        $queryConnection = new Query\Connection();
+        $queryConnection->set('id', $request->get_param('connectionID'));
+        $queryConnection->meta->fromArray((array) $request->get_param('meta'));
 
-	    try {
-		    $result = $this->getClient()->getRelation( $request->get_param('relation') )->removeConnectionMeta( $queryConnection );
-	    } catch ( Exception $e ) {
-		    return rest_ensure_response( $this->getError( $e ) );
-	    }
+        try {
+            $result = $this->getClient()->getRelation($request->get_param('relation'))->removeConnectionMeta($queryConnection);
+        } catch (Exception $e) {
+            return rest_ensure_response($this->getError($e));
+        }
 
-	    return [ 'deleted' => $result ];
+        return [ 'deleted' => $result ];
     }
 
 
@@ -138,94 +147,107 @@ class ClientRestApi{
      * @param WP_REST_Request $request
      * @return bool
      */
-    public function checkPermissions( WP_REST_Request $request ): bool {
-        return current_user_can( $this->getClient()->capability );
+    public function checkPermissions(WP_REST_Request $request): bool
+    {
+        return current_user_can($this->getClient()->capability);
     }
 
-    public function restDeleteConnection( WP_REST_Request $request ) {
+    public function restDeleteConnection(WP_REST_Request $request)
+    {
         $q = new Query\Connection();
-        $q->set('id', $request->get_param('connectionID') );
+        $q->set('id', $request->get_param('connectionID'));
 
         try {
-            $rows = $this->getClient()->getRelation( $request->get_param('relation') )->detachConnections( $q );
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
+            $rows = $this->getClient()->getRelation($request->get_param('relation'))->detachConnections($q);
+        } catch (Exception $e) {
+            return rest_ensure_response($this->getError($e));
         }
 
-        if ( 0 === (int) $rows ) {
-            return rest_ensure_response( $this->getError( new ConnectionNotFound() ) );
+        if (0 === (int) $rows) {
+            return rest_ensure_response($this->getError(new ConnectionNotFound()));
         }
 
-        return rest_ensure_response( [ 'deleted'  => true ] );
+        return rest_ensure_response([ 'deleted'  => true ]);
     }
 
-    public function restCreateConnection( WP_REST_Request $request ) {
-        $q = $this->obtainConnectionDataFromRequest( $request );
+    public function restCreateConnection(WP_REST_Request $request)
+    {
+        $q = $this->obtainConnectionDataFromRequest($request);
 
         try {
-            return $this->ensureRestResponse( $this->getClient()->getRelation( $request->get_param('relation') )->createConnection( $q ) );
-        } catch ( Exception $e ) {
-            return rest_ensure_response( $this->getError( $e ) );
+            return $this->ensureRestResponse($this->getClient()->getRelation($request->get_param('relation'))->createConnection($q));
+        } catch (Exception $e) {
+            return rest_ensure_response($this->getError($e));
         }
     }
 
-    protected function obtainConnectionDataFromRequest( WP_REST_Request $request ): Query\Connection {
+    protected function obtainConnectionDataFromRequest(WP_REST_Request $request): Query\Connection
+    {
         $queryConnection = new Query\Connection();
-        foreach ( $request->get_params() as $key => $value ) {
-            if ( property_exists( $queryConnection, $key ) && ! is_null( $value ) && 'meta' != $key ) {
-                $queryConnection->set( $key, $value );
+        foreach ($request->get_params() as $key => $value) {
+            if (property_exists($queryConnection, $key) && ! is_null($value) && 'meta' != $key) {
+                $queryConnection->set($key, $value);
             }
         }
 
-        $queryConnection->meta->fromArray( (array) $request->get_param('meta') );
+        $queryConnection->meta->fromArray((array) $request->get_param('meta'));
 
         return $queryConnection;
     }
 
-    protected function getRestConnectionItem( Connection $connection ): CollectionItem {
-        $response = $this->ensureRestResponseCollectionItem( $connection );
-        $response->add_link( 'self', $this->getRestConnectionUrl( $connection->relation, $connection->id ) );
+    protected function getRestConnectionItem(Connection $connection): CollectionItem
+    {
+        $response = $this->ensureRestResponseCollectionItem($connection);
+        $response->add_link('self', $this->getRestConnectionUrl($connection->relation, $connection->id));
         return $response;
     }
 
-    protected function ensureRestResponseCollectionItem( IArrayConvertable $data ): CollectionItem {
-        if ( $data instanceof CollectionItem ) {
+    protected function ensureRestResponseCollectionItem(IArrayConvertable $data): CollectionItem
+    {
+        if ($data instanceof CollectionItem) {
             return $data;
         }
 
-        return new CollectionItem( $data );
+        return new CollectionItem($data);
     }
 
-    protected function ensureRestResponse( IArrayConvertable $data ) {
-        return rest_ensure_response( $data->toArray() );
+    protected function ensureRestResponse(IArrayConvertable $data)
+    {
+        return rest_ensure_response($data->toArray());
     }
 
-    protected function getError( \Exception $exception ): WP_Error{
-        return new WP_Error( $exception->getCode(), $exception->getMessage() );
+    protected function getError(\Exception $exception): WP_Error
+    {
+        return new WP_Error($exception->getCode(), $exception->getMessage());
     }
 
-    protected function getRestBaseUrl(): string {
-        return rest_url( $this->namespace . '/' . $this->base );
+    protected function getRestBaseUrl(): string
+    {
+        return rest_url($this->namespace . '/' . $this->base);
     }
 
-    protected function getRestClientUrl(): string {
+    protected function getRestClientUrl(): string
+    {
         return $this->getRestBaseUrl() . '/' . $this->getClient()->getName();
     }
 
-    protected function getRestRelationUrl( string $relationName ): string {
+    protected function getRestRelationUrl(string $relationName): string
+    {
         return $this->getRestClientUrl() . '/relation/' . $relationName;
     }
 
-    protected function getRestConnectionUrl( string $relationName, $connectionID ): string {
-        return $this->getRestRelationUrl( $relationName ) . '/' . $connectionID;
+    protected function getRestConnectionUrl(string $relationName, $connectionID): string
+    {
+        return $this->getRestRelationUrl($relationName) . '/' . $connectionID;
     }
 
     /**
      * @throws ClientRegisterFail
      */
-    public function registerRestRoutes() {
+    public function registerRestRoutes()
+    {
         $result = [];
-        $result []= register_rest_route(
+        $result [] = register_rest_route(
             $this->namespace,
             '/' . $this->base . '/' . $this->getClient()->getName(),
             [
@@ -239,7 +261,7 @@ class ClientRestApi{
             ]
         );
 
-        $result []= register_rest_route(
+        $result [] = register_rest_route(
             $this->namespace,
             '/' . $this->base . '/' . $this->getClient()->getName() .
             '/relation/' . '(?P<relation>[\w-]+)',
@@ -250,7 +272,7 @@ class ClientRestApi{
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args'   => [
                         'relation' => [
-                            'description' => __( 'Unique name for the relation.' ),
+                            'description' => __('Unique name for the relation.'),
                             'type'        => 'string',
                             'required'    => true,
                         ],
@@ -262,23 +284,23 @@ class ClientRestApi{
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'from'  => [
-                            'description' => __( 'Post ID that is considered as FROM.' ),
+                            'description' => __('Post ID that is considered as FROM.'),
                             'type'        => 'integer',
                             'required'    => true,
                         ],
                         'to'  => [
-                            'description' => __( 'Post ID that is considered as TO.' ),
+                            'description' => __('Post ID that is considered as TO.'),
                             'type'        => 'integer',
                             'required'    => true,
                         ],
                         'order' => [
-                            'description' => __( 'Connection order.' ),
+                            'description' => __('Connection order.'),
                             'type'        => 'integer',
                             'required'    => false,
                             'default'     => 0,
                         ],
                         'meta'  => [
-                            'description' => __( 'Connection meta data.' ),
+                            'description' => __('Connection meta data.'),
                             'type'        => 'array',
                             'required'    => false,
                             'default'     => [],
@@ -288,7 +310,7 @@ class ClientRestApi{
             ]
         );
 
-        $result []= register_rest_route(
+        $result [] = register_rest_route(
             $this->namespace,
             '/' . $this->base . '/' . $this->getClient()->getName() .
             '/relation/' . '(?P<relation>[\w-]+)' .
@@ -296,7 +318,7 @@ class ClientRestApi{
             [
                 'args'   => [
                     'relation' => [
-                        'description' => __( 'Unique name for the relation.' ),
+                        'description' => __('Unique name for the relation.'),
                         'type'        => 'string',
                         'required'    => true,
                     ],
@@ -307,7 +329,7 @@ class ClientRestApi{
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
-                            'description' => __( 'Connection ID to be retrieved.' ),
+                            'description' => __('Connection ID to be retrieved.'),
                             'type'        => 'integer',
                             'required'    => true,
                         ],
@@ -323,17 +345,17 @@ class ClientRestApi{
                             'required'    => true,
                         ],
                         'from'  => [
-                            'description' => __( 'Post ID that is considered as FROM.' ),
+                            'description' => __('Post ID that is considered as FROM.'),
                             'type'        => 'integer',
                             'required'    => true,
                         ],
                         'to'  => [
-                            'description' => __( 'Post ID that is considered as TO.' ),
+                            'description' => __('Post ID that is considered as TO.'),
                             'type'        => 'integer',
                             'required'    => true,
                         ],
                         'order' => [
-                            'description' => __( 'Connection order.' ),
+                            'description' => __('Connection order.'),
                             'type'        => 'integer',
                             'required'    => false,
                             'default'     => 0,
@@ -346,7 +368,7 @@ class ClientRestApi{
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
-                            'description' => __( 'Connection ID to be removed.' ),
+                            'description' => __('Connection ID to be removed.'),
                             'type'        => 'integer',
                             'required'    => true,
                         ],
@@ -355,7 +377,7 @@ class ClientRestApi{
             ]
         );
 
-        $result []= register_rest_route(
+        $result [] = register_rest_route(
             $this->namespace,
             '/' . $this->base . '/' . $this->getClient()->getName() .
             '/relation/' . '(?P<relation>[\w-]+)' .
@@ -364,12 +386,12 @@ class ClientRestApi{
             [
                 'args'   => [
                     'relation' => [
-                        'description' => __( 'Unique name for the relation.' ),
+                        'description' => __('Unique name for the relation.'),
                         'type'        => 'string',
                         'required'    => true,
                     ],
                     'connectionID' => [
-                        'description' => __( 'Unique ID of the connection.' ),
+                        'description' => __('Unique ID of the connection.'),
                         'type'        => 'integer',
                         'required'    => true,
                     ],
@@ -380,7 +402,7 @@ class ClientRestApi{
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'meta'  => [
-                            'description' => __( 'Add connection meta data.' ),
+                            'description' => __('Add connection meta data.'),
                             'type'        => 'array',
                             'required'    => false,
                             'default'     => [],
@@ -393,7 +415,7 @@ class ClientRestApi{
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
-                            'description' => __( 'Connection ID of the meta to be removed.' ),
+                            'description' => __('Connection ID of the meta to be removed.'),
                             'type'        => 'integer',
                             'required'    => true,
                         ],
@@ -402,8 +424,8 @@ class ClientRestApi{
             ]
         );
 
-        if ( in_array( false, $result, true ) ) {
-            throw new ClientRegisterFail( 'An error has occurred during REST API Routes registering.' );
+        if (in_array(false, $result, true)) {
+            throw new ClientRegisterFail('An error has occurred during REST API Routes registering.');
         }
     }
 }

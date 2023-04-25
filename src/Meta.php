@@ -2,4 +2,6 @@
 
 namespace iTRON\wpConnections;
 
-class Meta extends Abstracts\Meta {}
+class Meta extends Abstracts\Meta
+{
+}

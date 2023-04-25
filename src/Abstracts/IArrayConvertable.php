@@ -2,6 +2,7 @@
 
 namespace iTRON\wpConnections\Abstracts;
 
-interface IArrayConvertable {
+interface IArrayConvertable
+{
     public function toArray(): array;
 }

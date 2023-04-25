@@ -2,33 +2,34 @@
 
 namespace iTRON\wpConnections\Abstracts;
 
-class Relation implements IArrayConvertable {
-
-	public string $name = '';
+class Relation implements IArrayConvertable
+{
+    public string $name = '';
     public string $from;
     public string $to;
 
-	/**
-	 * 'from', 'to', 'both'
-	 */
-	public string $type;
+    /**
+     * 'from', 'to', 'both'
+     */
+    public string $type;
 
-	/**
-	 * '1-1', '1-m', 'm-m', 'm-1'
-	 */
+    /**
+     * '1-1', '1-m', 'm-m', 'm-1'
+     */
     public string $cardinality;
 
-	/**
-	 * Ability to make identical connections
-	 */
+    /**
+     * Ability to make identical connections
+     */
     public bool $duplicatable;
 
-	/**
-	 * Ability to make self-connections
-	 */
+    /**
+     * Ability to make self-connections
+     */
     public bool $closurable;
 
-    public function toArray(): array {
+    public function toArray(): array
+    {
         return [
             'name'          => $this->name,
             'from'          => $this->from,
