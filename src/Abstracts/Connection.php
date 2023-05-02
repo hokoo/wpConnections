@@ -11,7 +11,7 @@ class Connection implements IArrayConvertable
     public string $relation = '';
     public int $from;
     public int $to;
-    public int $order = 0;
+    public ?int $order;
 
     public MetaCollection $meta;
 
