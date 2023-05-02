@@ -391,7 +391,7 @@ class WPStorage extends Abstracts\Storage
             $update['to'] = $to;
         }
 
-        if (! empty($order = $connectionQuery->get('order'))) {
+        if (! is_null($order = $connectionQuery->get('order'))) {
             $update['order'] = $order;
         }
 
