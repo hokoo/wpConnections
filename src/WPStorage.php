@@ -383,15 +383,15 @@ class WPStorage extends Abstracts\Storage
             $update['title'] = $title;
         }
 
-        if (! is_null($from = $connectionQuery->get('from'))) {
+        if (! empty($from = $connectionQuery->get('from'))) {
             $update['from'] = $from;
         }
 
-        if (! is_null($to = $connectionQuery->get('to'))) {
+        if (! empty($to = $connectionQuery->get('to'))) {
             $update['to'] = $to;
         }
 
-        if (! is_null($order = $connectionQuery->get('order'))) {
+        if (! empty($order = $connectionQuery->get('order'))) {
             $update['order'] = $order;
         }
 
