@@ -76,4 +76,4 @@ $wpc_client->getRelation( 'post-to-page' )->createConnection( $qc );
 
 Since you have initialized new client, its REST API endpoints are available.
 
-`http://cf7tgdev.loc/wp-json/wp-connections/v1/client/cf7-telegram`
+`http://cf7tgdev.loc/wp-json/wp-connections/v1/client/my-app-wpc-client/`
