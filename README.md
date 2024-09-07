@@ -1,5 +1,6 @@
 # WP Connections: post-to-post connections for WordPress
 [![PHPUnit Tests](https://github.com/hokoo/wpConnections/actions/workflows/ci.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/ci.yml)
+[![PHP WordPress Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml)
 
 <!-- TOC -->
 * [Why wpConnection?](#why-wpconnection)
