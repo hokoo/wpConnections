@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+	bootstrap="tests/wp_bootstrap.php"
+	backupGlobals="false"
+	colors="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+	verbose="true"
+	>
+	<php>
+		<const name="DOING_TESTS" value="1" />
+	</php>
+	<testsuites>
+		<testsuite name="wpConnections creating for WordPress test suite">
+			<directory suffix=".php">tests/iTRON/wpConnections/WP</directory>
+		</testsuite>
+	</testsuites>
+</phpunit>
