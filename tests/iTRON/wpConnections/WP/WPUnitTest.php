@@ -60,6 +60,8 @@ class WPUnitTest extends TestCase
 
 		$created_connection = $this->client->getRelation( self::RELATION_NAME )->createConnection( $connection_query );
 
+		var_dump( $created_connection );
+
 		self::assertEquals( $this->page_id, $created_connection->from );
 		self::assertEquals( $this->post_id, $created_connection->to );
 
