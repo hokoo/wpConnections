@@ -14,7 +14,7 @@
     </coverage>
     <testsuites>
         <testsuite name="project">
-            <directory>tests/</directory>
+            <directory>tests/iTRON/wpConnections/Tests</directory>
         </testsuite>
     </testsuites>
 </phpunit>
