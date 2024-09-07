@@ -42,6 +42,13 @@ class WPUnitTest extends TestCase
 			'post_status' => 'publish',
 			'post_type' => 'page',
 		] );
+
+		self::assertIsInt( $this->post_id );
+		self::assertIsInt( $this->page_id );
+
+		// Echo the post and page IDs
+		echo 'Post ID: ' . $this->post_id . PHP_EOL;
+		echo 'Page ID: ' . $this->page_id . PHP_EOL;
 	}
 
 	public function testCreateConnection()
