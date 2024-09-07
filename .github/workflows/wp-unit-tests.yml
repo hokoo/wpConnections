@@ -2,10 +2,6 @@ name: PHP WP Unit Tests
 
 on: [ push, pull_request, workflow_dispatch ]
 
-concurrency:
-  group: main
-  cancel-in-progress: true
-
 permissions: {}
 
 jobs:
