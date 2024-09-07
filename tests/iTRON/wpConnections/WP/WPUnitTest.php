@@ -64,8 +64,8 @@ class WPUnitTest extends TestCase
 
 		$connection = $this->client->getRelation( self::RELATION_NAME )->findConnections( $connection_query )->first();
 
-		self::assertEquals( $created_connection->id, $connection->id );
-		self::assertEquals( $created_connection->from, $connection->from );
-		self::assertEquals( $created_connection->to, $connection->to );
+		self::assertEquals( $connection_query->id, $connection->id );
+		self::assertEquals( $connection_query->from, $connection->from );
+		self::assertEquals( $connection_query->to, $connection->to );
 	}
 }
