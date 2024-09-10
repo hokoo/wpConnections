@@ -42,7 +42,7 @@ class Relation extends Abstracts\Relation
 
         // Self-connection ability
         if (! $this->closurable && $connectionQuery->get('from') === $connectionQuery->get('to')) {
-            throw new Exceptions\ConnectionWrongData('Closurable not allowed by relation settings.');
+            throw new Exceptions\ConnectionWrongData('Closurable not allowed by relation settings.', 301);
         }
 
         // Cardinality check
@@ -56,7 +56,7 @@ class Relation extends Abstracts\Relation
 
             $check_output = $this->findConnections($query);
             if (! $check_output->isEmpty()) {
-                throw new Exceptions\ConnectionWrongData('Cardinality violation.');
+                throw new Exceptions\ConnectionWrongData('Cardinality violation.', 302);
             }
         }
 
@@ -66,7 +66,7 @@ class Relation extends Abstracts\Relation
 
             $check_input = $this->findConnections($query);
             if (! $check_input->isEmpty()) {
-                throw new Exceptions\ConnectionWrongData('Cardinality violation.');
+                throw new Exceptions\ConnectionWrongData('Cardinality violation.', 302);
             }
         }
 
@@ -77,7 +77,7 @@ class Relation extends Abstracts\Relation
         if (! $this->duplicatable) {
             $check_duplicatable = $this->findConnections($query);
             if (!$check_duplicatable->isEmpty()) {
-                throw new Exceptions\ConnectionWrongData('Duplicatable violation.');
+                throw new Exceptions\ConnectionWrongData('Duplicatable violation.', 303);
             }
         }
 

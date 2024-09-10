@@ -6,8 +6,8 @@ use Throwable;
 
 class ConnectionWrongData extends Exception
 {
-    public function __construct(string $message = '', Throwable $previous = null)
+    public function __construct(string $message = '', $code = 300, Throwable $previous = null)
     {
-        parent::__construct($message, 3, $previous);
+        parent::__construct($message, $code, $previous);
     }
 }
