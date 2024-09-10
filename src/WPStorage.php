@@ -4,15 +4,17 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Helpers\Database;
-use iTRON\wpConnections\Query;
 use iTRON\wpConnections\Query\MetaCollection;
 
 class WPStorage extends Abstracts\Storage
 {
     use ClientInterface;
 
-    private string $connections_table = 'post_connections_';
-    private string $meta_table = 'post_connections_meta_';
+	const CONNECTIONS_TABLE_PREFIX = 'post_connections_';
+	const META_TABLE_PREFIX = 'post_connections_meta_';
+
+    private string $connections_table;
+    private string $meta_table;
 
     /**
      * @param Client $client wpConnections Client
@@ -20,9 +22,9 @@ class WPStorage extends Abstracts\Storage
     public function __construct(Client $client)
     {
         $this->client = $client;
-        $postfix = str_replace('-', '_', sanitize_title($client->getName()));
-        $this->connections_table = $this->connections_table . $postfix;
-        $this->meta_table = $this->meta_table . $postfix;
+        $postfix = Database::normalize_table_name($client->getName());
+        $this->connections_table = self::CONNECTIONS_TABLE_PREFIX . $postfix;
+        $this->meta_table = self::META_TABLE_PREFIX . $postfix;
 
         $this->init();
     }
@@ -340,7 +342,10 @@ class WPStorage extends Abstracts\Storage
 
         $attempt = 0;
         do {
+			// Suppress errors when table does not exist.
+	        $suppress = $wpdb->suppress_errors();
             $result = $wpdb->insert($wpdb->prefix . $this->get_connections_table(), $data);
+			$wpdb->suppress_errors( $suppress );
 
             if (false === $result && 0 === $attempt) {
                 // Try to create tables

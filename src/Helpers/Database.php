@@ -4,6 +4,10 @@ namespace iTRON\wpConnections\Helpers;
 
 final class Database
 {
+	public static function normalize_table_name($name): string {
+		return str_replace('-', '_', sanitize_title($name));
+	}
+
     public static function register_table($key, $name = false)
     {
         global $wpdb;
