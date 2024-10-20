@@ -9,20 +9,16 @@ use PHPUnit\Framework\TestCase;
 
 class WPUnitTest extends TestCase
 {
-	const CLIENT_NAME = 'client-test';
-	const RELATION_NAME = 'relation-test';
-
 	protected Client $client;
 	protected int $post_id;
 	protected int $page_id;
 
-
 	protected function setUp(): void
 	{
 		// Create client
-		$this->client = new Client( self::CLIENT_NAME );
+		$this->client = new Client( CLIENT_NAME );
 		$relation = new Relation();
-		$relation->set( 'name', self::RELATION_NAME );
+		$relation->set( 'name', RELATION_NAME );
 		$relation->set( 'from', 'page' );
 		$relation->set( 'to', 'post' );
 		$relation->set( 'cardinality', 'm-m' );
@@ -47,6 +43,7 @@ class WPUnitTest extends TestCase
 		self::assertIsInt( $this->page_id );
 
 		// Echo the post and page IDs
+		echo PHP_EOL;
 		echo 'Post ID: ' . $this->post_id . PHP_EOL;
 		echo 'Page ID: ' . $this->page_id . PHP_EOL;
 	}
@@ -58,20 +55,18 @@ class WPUnitTest extends TestCase
 			$this->post_id
 		);
 
-		$created_connection = $this->client->getRelation( self::RELATION_NAME )->createConnection( $connection_query );
-
-		var_dump( $created_connection );
+		$created_connection = $this->client->getRelation( RELATION_NAME )->createConnection( $connection_query );
 
 		self::assertEquals( $this->page_id, $created_connection->from );
 		self::assertEquals( $this->post_id, $created_connection->to );
 
 		self::assertTrue(
-			$this->client->getRelation( self::RELATION_NAME )->hasConnectionID(
+			$this->client->getRelation( RELATION_NAME )->hasConnectionID(
 				$created_connection->id
 			)
 		);
 
-		$connection = $this->client->getRelation( self::RELATION_NAME )->findConnections( $connection_query )->first();
+		$connection = $this->client->getRelation( RELATION_NAME )->findConnections( $connection_query )->first();
 
 		self::assertEquals( $connection_query->id, $connection->id );
 		self::assertEquals( $connection_query->from, $connection->from );

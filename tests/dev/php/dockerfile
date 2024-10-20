@@ -1,0 +1,14 @@
+ARG PHP_VER
+
+FROM wodby/wordpress-php:$PHP_VER
+
+LABEL maintainer="Igor Tron <root@itron.pro>"
+
+USER root
+
+RUN mkdir -p /var/log/php && chown -R wodby:wodby /var/log/php
+
+RUN echo 'alias ll="ls -la"' >>  /etc/bash.bashrc
+RUN echo 'alias ll="ls -la"' >>  /home/wodby/.bashrc
+
+USER wodby

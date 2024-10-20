@@ -4,15 +4,17 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Helpers\Database;
-use iTRON\wpConnections\Query;
 use iTRON\wpConnections\Query\MetaCollection;
 
 class WPStorage extends Abstracts\Storage
 {
     use ClientInterface;
 
-    private string $connections_table = 'post_connections_';
-    private string $meta_table = 'post_connections_meta_';
+	const CONNECTIONS_TABLE_PREFIX = 'post_connections_';
+	const META_TABLE_PREFIX = 'post_connections_meta_';
+
+    private string $connections_table;
+    private string $meta_table;
 
     /**
      * @param Client $client wpConnections Client
@@ -20,13 +22,12 @@ class WPStorage extends Abstracts\Storage
     public function __construct(Client $client)
     {
         $this->client = $client;
-        $postfix = str_replace('-', '_', sanitize_title($client->getName()));
-        $this->connections_table = $this->connections_table . $postfix;
-        $this->meta_table = $this->meta_table . $postfix;
+        $postfix = Database::normalize_table_name($client->getName());
+        $this->connections_table = self::CONNECTIONS_TABLE_PREFIX . $postfix;
+        $this->meta_table = self::META_TABLE_PREFIX . $postfix;
 
         $this->init();
     }
-
     public function get_connections_table(): string
     {
         return $this->connections_table;
@@ -41,6 +42,14 @@ class WPStorage extends Abstracts\Storage
     {
         Database::register_table($this->get_connections_table());
         Database::register_table($this->get_meta_table());
+
+	    $install_on_init = apply_filters( 'wpConnections/storage/installOnInit', false, $this->client );
+
+		if ( true !== $install_on_init ) {
+			return;
+		}
+
+		$this->install();
     }
 
     private function install()
@@ -340,7 +349,12 @@ class WPStorage extends Abstracts\Storage
 
         $attempt = 0;
         do {
+			// Suppress errors when table does not exist.
+	        do_action( 'iTRON/wpConnections/storage/createConnection/attempt', $attempt );
+	        $suppress = $wpdb->suppress_errors();
             $result = $wpdb->insert($wpdb->prefix . $this->get_connections_table(), $data);
+			$wpdb->suppress_errors( $suppress );
+			do_action( 'iTRON/wpConnections/storage/createConnection/attempt/result', $result, $wpdb->last_error );
 
             if (false === $result && 0 === $attempt) {
                 // Try to create tables
