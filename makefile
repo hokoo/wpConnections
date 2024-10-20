@@ -15,4 +15,4 @@ tests.docker.connect:
 
 tests.run:
 	cd ./tests/dev/ && \
-	docker-compose -p wpc-tests exec php sh -c 'vendor/bin/phpunit -c php-wp-unit.xml'
+	docker-compose -p wpc-tests exec php sh -c 'vendor/bin/phpunit -c phpunit.xml && vendor/bin/phpunit -c php-wp-unit.xml'
