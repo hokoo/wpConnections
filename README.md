@@ -1,5 +1,5 @@
 # WP Connections: post-to-post connections for WordPress
-[![PHPUnit Tests](https://github.com/hokoo/wpConnections/actions/workflows/phpunit.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/phpunit.yml)
+[![PHP CS](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/phpunit.yml)
 [![PHP WordPress Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml)
 
 <!-- TOC -->
