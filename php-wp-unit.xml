@@ -10,6 +10,8 @@
 	>
 	<php>
 		<const name="DOING_TESTS" value="1" />
+		<const name="CLIENT_NAME" value="client-test" />
+		<const name="RELATION_NAME" value="relation-test" />
 	</php>
 	<testsuites>
 		<testsuite name="wpConnections creating for WordPress test suite">
