@@ -1,11 +1,56 @@
 name: PHP WP Unit Tests
 
-on: [ pull_request, workflow_dispatch ]
+env:
+  COMPOSER_VER: "2.7.9"
+
+on:
+  push:
+    branches: [ "master", "main", "dev" ]
+  pull_request:
+    types: [synchronize, opened, reopened]
 
 permissions: {}
 
 jobs:
   phpunit:
+    name: ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: [ 7.4, 8.0, 8.1, 8.2, 8.3 ]
+
+    services:
+      mysql:
+        image: mariadb:latest
+        ports:
+          - '3306:3306'
+        env:
+          MYSQL_ROOT_PASSWORD: wordpress
+          MARIADB_INITDB_SKIP_TZINFO: 1
+          MYSQL_USER: wordpress
+          MYSQL_PASSWORD: wordpress
+          MYSQL_DATABASE: wordpress_test
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v3
+
+      - uses: shivammathur/setup-php@v2
+        name: Set up PHP
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+
+      - uses: php-actions/composer@v6
+        with:
+          php_version: ${{ matrix.php-version }}
+          version: ${{ env.COMPOSER_VER }}
+
+      - name: Run UnitTests
+        run: composer run phpunit
+
+  wp-unit:
     name: ${{ matrix.php-version }}
     runs-on: ubuntu-latest
 
