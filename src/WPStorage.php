@@ -10,8 +10,8 @@ class WPStorage extends Abstracts\Storage
 {
     use ClientInterface;
 
-	const CONNECTIONS_TABLE_PREFIX = 'post_connections_';
-	const META_TABLE_PREFIX = 'post_connections_meta_';
+    public const CONNECTIONS_TABLE_PREFIX = 'post_connections_';
+    public const META_TABLE_PREFIX = 'post_connections_meta_';
 
     private string $connections_table;
     private string $meta_table;
@@ -43,13 +43,13 @@ class WPStorage extends Abstracts\Storage
         Database::register_table($this->get_connections_table());
         Database::register_table($this->get_meta_table());
 
-	    $install_on_init = apply_filters( 'wpConnections/storage/installOnInit', false, $this->client );
+        $install_on_init = apply_filters('wpConnections/storage/installOnInit', false, $this->client);
 
-		if ( true !== $install_on_init ) {
-			return;
-		}
+        if (true !== $install_on_init) {
+            return;
+        }
 
-		$this->install();
+        $this->install();
     }
 
     private function install()
@@ -349,12 +349,12 @@ class WPStorage extends Abstracts\Storage
 
         $attempt = 0;
         do {
-			// Suppress errors when table does not exist.
-	        do_action( 'iTRON/wpConnections/storage/createConnection/attempt', $attempt );
-	        $suppress = $wpdb->suppress_errors();
+            // Suppress errors when table does not exist.
+            do_action('iTRON/wpConnections/storage/createConnection/attempt', $attempt);
+            $suppress = $wpdb->suppress_errors();
             $result = $wpdb->insert($wpdb->prefix . $this->get_connections_table(), $data);
-			$wpdb->suppress_errors( $suppress );
-			do_action( 'iTRON/wpConnections/storage/createConnection/attempt/result', $result, $wpdb->last_error );
+            $wpdb->suppress_errors($suppress);
+            do_action('iTRON/wpConnections/storage/createConnection/attempt/result', $result, $wpdb->last_error);
 
             if (false === $result && 0 === $attempt) {
                 // Try to create tables
