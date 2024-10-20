@@ -2,6 +2,7 @@ name: PHP Code Styles
 
 env:
   COMPOSER_VER: "2.7.9"
+  PHP_VER: "8.0"
 
 on:
   push:
@@ -12,9 +13,6 @@ on:
 jobs:
   php-cs:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php-version: [ 7.4, 8.0, 8.1, 8.2, 8.3 ]
     steps:
       - uses: actions/checkout@v3
       - name: Cache Composer dependencies
@@ -25,7 +23,7 @@ jobs:
 
       - uses: php-actions/composer@v6
         with:
-          php_version: ${{ matrix.php-version }}
+          php_version: ${{ env.PHP_VER }}
           version: ${{ env.COMPOSER_VER }}
 
       - name: Get PHPCS Cache
