@@ -10,7 +10,8 @@ if ( defined( 'PHPSTORM_META' ) ) {
 use iTRON\wpConnections\Helpers\Database;
 use iTRON\wpConnections\WPStorage;
 
-require_once dirname( __FILE__ ) . '/../wordpress-develop/tests/phpunit/includes/functions.php';
+$test_root = getenv( 'WP_TESTS_DIR' ) ? : dirname( __FILE__ ) . '/../wordpress-develop/tests/phpunit';
+require_once $test_root . '/includes/functions.php';
 
 tests_add_filter( 'muplugins_loaded', function() {
 	// Remove tables created by WPC Client.
@@ -33,4 +34,4 @@ tests_add_filter( 'wpConnections/storage/installOnInit', function ( $installOnIn
 	return true;
 }, 10, 1 );
 
-require_once dirname( __FILE__ ) . "/../wordpress-develop/tests/phpunit/includes/bootstrap.php";
+require_once $test_root . '/includes/bootstrap.php';
