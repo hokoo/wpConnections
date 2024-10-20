@@ -1,8 +1,8 @@
-name: PHP Unit Tests
+name: PHP Code Styles
 
 env:
-  PHP_VER: "7.4"
-  COMPOSER_VER: "2.5.1"
+  COMPOSER_VER: "2.7.9"
+  PHP_VER: "8.0"
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
     types: [synchronize, opened, reopened]
 
 jobs:
-  php-ci:
+  php-cs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -40,6 +40,3 @@ jobs:
 
       - name: Run PHPCS
         run: composer run phpcs
-
-      - name: Run UnitTests
-        run: composer run phpunit
