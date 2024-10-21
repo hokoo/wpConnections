@@ -2,14 +2,11 @@
 
 namespace iTRON\wpConnections\Query;
 
-use iTRON\wpConnections\Abstracts\IQuery;
 use iTRON\wpConnections\GSInterface;
-use iTRON\wpConnections\IQueryTrait;
 
-class Connection extends \iTRON\wpConnections\Abstracts\Connection implements IQuery
+class Connection extends \iTRON\wpConnections\Abstracts\Connection
 {
     use GSInterface;
-    use IQueryTrait;
 
     public int $both = 0;
 

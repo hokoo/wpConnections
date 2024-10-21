@@ -4,7 +4,6 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Helpers\Database;
-use iTRON\wpConnections\Query\MetaCollection;
 
 class WPStorage extends Abstracts\Storage
 {
@@ -327,7 +326,11 @@ class WPStorage extends Abstracts\Storage
             $data[ $connection->ID ] = $item;
         }
 
-        return new ConnectionCollection($data);
+        $collection = new ConnectionCollection($data);
+
+        do_action('wpConnections/storage/findConnections/dbQuery/data', $query, $query_result, $data, $collection->toArray());
+
+        return $collection;
     }
 
     /**
@@ -381,61 +384,36 @@ class WPStorage extends Abstracts\Storage
         return $connection_id;
     }
 
-    public function updateConnection(Query\Connection $connectionQuery): bool
+    public function updateConnection(Abstracts\Connection $connection): bool
     {
         global $wpdb;
 
-        $objectID = $connectionQuery->get('id');
-        if (! is_numeric($objectID)) {
-            throw new Exceptions\ConnectionWrongData("Object ID is undefined.");
-        }
+        $where = ['ID' => $connection->id];
+        $update = [
+            'from'      => $connection->from,
+            'to'        => $connection->to,
+            'order'     => $connection->order,
+            'relation'  => $connection->relation,
+            'title'     => $connection->title,
+        ];
 
-        $where = ['ID' => $objectID];
-        $update = [];
-
-        if (! is_null($title = $connectionQuery->get('title'))) {
-            $update['title'] = $title;
-        }
-
-        if (! empty($from = $connectionQuery->get('from'))) {
-            $update['from'] = $from;
-        }
-
-        if (! empty($to = $connectionQuery->get('to'))) {
-            $update['to'] = $to;
-        }
-
-        if (! is_null($order = $connectionQuery->get('order'))) {
-            $update['order'] = $order;
-        }
-
-        if (! $connectionQuery->isUpdate()) {
-            $update = $connectionQuery->toArray();
-
-            unset($update['meta']);
-            unset($update['relation']);
-        }
-
-        if (! empty($update)) {
-            $updated = $wpdb->update($wpdb->prefix . $this->get_connections_table(), $update, $where);
-        }
-
-        return true;
+        return $wpdb->update($wpdb->prefix . $this->get_connections_table(), $update, $where);
     }
 
     /**
      * Only adds meta fields to the DB.
      *
      * @param int $objectID
-     * @param MetaCollection $metaQuery
+     * @param MetaCollection $metaCollection
+     *
      * @return void
      * @throws ConnectionWrongData
      */
-    public function addConnectionMeta(int $objectID, Query\MetaCollection $metaQuery)
+    public function addConnectionMeta(int $objectID, MetaCollection $metaCollection): void
     {
         global $wpdb;
 
-        if ($metaQuery->isEmpty()) {
+        if ($metaCollection->isEmpty()) {
             throw new Exceptions\ConnectionWrongData("Meta object is empty.");
         }
 
@@ -443,8 +421,10 @@ class WPStorage extends Abstracts\Storage
             throw new Exceptions\ConnectionWrongData("Object ID is empty.");
         }
 
+        do_action('wpConnections/storage/addConnectionMeta/before', $this->getClient(), $objectID, $metaCollection);
+
         $errors = [];
-        foreach ($metaQuery->getIterator() as $meta) {
+        foreach ($metaCollection->getIterator() as $meta) {
             /** @var Query\Meta $meta */
             $data = [
                 'connection_id' => $objectID,
@@ -452,13 +432,13 @@ class WPStorage extends Abstracts\Storage
                 'meta_value'    => $meta->getValue(),
             ];
 
-            do_action('logger', $data);
-
             $result = $wpdb->insert($wpdb->prefix . $this->get_meta_table(), $data);
             if (false === $result) {
                 $errors [] = $wpdb->last_error;
             }
         }
+
+        do_action('wpConnections/storage/addConnectionMeta/after', $this->getClient(), $objectID, $metaCollection, $errors);
 
         if ($errors) {
             $errors = implode('; ', $errors);
@@ -467,6 +447,10 @@ class WPStorage extends Abstracts\Storage
     }
 
     /**
+     * Deletes meta fields from the DB.
+     * Provide Query\MetaCollection with meta fields to remove.
+     * Put empty Query\MetaCollection to remove all meta fields.
+     *
      * @throws ConnectionWrongData
      */
     public function removeConnectionMeta(int $objectID, Query\MetaCollection $metaQuery)
@@ -501,13 +485,12 @@ class WPStorage extends Abstracts\Storage
         }
 
         $query = $from . implode(' ', $where);
+
+        do_action('wpConnections/storage/removeConnectionMeta/before', $this->getClient(), $objectID, $metaQuery, $query);
+
         $rowsAffected = $wpdb->query($query);
 
-        do_action('wpConnections/storage/removeConnectionMeta/dbQuery', $query, $rowsAffected);
-
-        if (false === $rowsAffected) {
-            throw new Exceptions\ConnectionWrongData("Database refused removing new connection meta data with the words: [{$wpdb->last_error}]");
-        }
+        do_action('wpConnections/storage/removeConnectionMeta/after', $this->getClient(), $objectID, $metaQuery, $query, $rowsAffected);
 
         return $rowsAffected;
     }

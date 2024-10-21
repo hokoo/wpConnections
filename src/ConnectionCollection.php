@@ -46,16 +46,13 @@ class ConnectionCollection extends Collection implements IArrayConvertable
             if (! isset($item->to)) {
                 continue;
             }
-            if (! isset($item->order)) {
-                continue;
-            }
 
             $connectionQuery = new Query\Connection();
             $connectionQuery
                 ->set('id', $item->ID)
                 ->set('from', $item->from)
                 ->set('to', $item->to)
-                ->set('order', $item->order)
+                ->set('order', $item->order ?? 0)
                 ->set('title', $item->title ?? '')
                 ->set('client', $item->client ?? null)
                 ->set('relation', $item->relation ?? null);

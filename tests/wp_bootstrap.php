@@ -1,5 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
+const UNIT_TESTS = true;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
 // Define constants for the IDE. Never fired.
 if ( defined( 'PHPSTORM_META' ) ) {
 	define( 'DOING_TESTS', 1 );

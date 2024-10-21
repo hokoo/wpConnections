@@ -2,13 +2,10 @@
 
 namespace iTRON\wpConnections\Query;
 
-use iTRON\wpConnections\Abstracts\IQuery;
 use iTRON\wpConnections\GSInterface;
-use iTRON\wpConnections\IQueryTrait;
 
-class MetaCollection extends \iTRON\wpConnections\MetaCollection implements IQuery
+class MetaCollection extends \iTRON\wpConnections\MetaCollection
 {
-    use IQueryTrait;
     use GSInterface;
 
     public string $collectionType = Meta::class;
