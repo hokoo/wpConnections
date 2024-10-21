@@ -7,7 +7,7 @@ use iTRON\wpConnections\MetaCollection;
 class Connection implements IArrayConvertable
 {
     public ?int $id = 0;
-    protected ?string $title;
+    public ?string $title;
     public string $relation = '';
     public int $from;
     public int $to;

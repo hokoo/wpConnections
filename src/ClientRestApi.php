@@ -7,6 +7,7 @@ use iTRON\wpConnections\Abstracts\IQuery;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
+use iTRON\wpConnections\Exceptions\RelationNotFound;
 use iTRON\wpConnections\RestResponse\CollectionItem;
 use Ramsey\Collection\Exception\OutOfBoundsException;
 use WP_Error;
@@ -100,31 +101,39 @@ class ClientRestApi
      */
     public function restUpdateConnectionMeta(WP_REST_Request $request)
     {
-        $queryConnection = new Query\Connection();
-        $queryConnection->set('id', $request->get_param('connectionID'));
-
-        if ('PUT' === $request->get_method()) {
-            $queryConnection->meta->setIsUpdate(false);
-        }
-
-        $queryConnection->meta->fromArray((array) $request->get_param('meta'));
-
-        if ('PATCH' === $request->get_method()) {
-            $queryConnection->meta->map(
-                function ($item) {
-                    /** @var Query\Connection $item */
-                    $item->setIsUpdate(false);
-                }
-            );
-        }
-
         try {
-            $result = $this->getClient()->getRelation($request->get_param('relation'))->updateConnectionMeta($queryConnection);
+            $queryConnection = new Query\Connection();
+            $queryConnection->id = $request->get_param('connectionID');
+
+            $found = $this->getClient()->getRelation($request->get_param('relation'))->findConnections($queryConnection);
+
+            if ($found->isEmpty()) {
+                return rest_ensure_response($this->getError(new ConnectionNotFound()));
+            }
+
+            $connection = $found->first();
+
+            if ('PUT' === $request->get_method()) {
+                $connection->meta->clear();
+            }
+
+            if ('PATCH' === $request->get_method()) {
+                $filtered_meta = $connection->meta->filter(function (Meta $meta) use ($request) {
+                    return ! in_array($meta->getKey(), array_column($request->get_param('meta'), 'key'));
+                });
+
+                $connection->meta->clear();
+                $connection->meta->fromArray($filtered_meta->toArray());
+            }
+
+            $connection->meta->fromArray((array) $request->get_param('meta'));
+
+            $connection->update();
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
         }
 
-        return [ 'updated' => $result ];
+        return rest_ensure_response([ 'updated' => $connection ]);
     }
 
     public function restDeleteConnectionMeta(WP_REST_Request $request)

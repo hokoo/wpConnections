@@ -2,6 +2,8 @@
 
 namespace iTRON\wpConnections;
 
+use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+
 class Connection extends Abstracts\Connection
 {
     use ClientInterface;
@@ -19,10 +21,22 @@ class Connection extends Abstracts\Connection
     }
 
     /**
-     * Saves instance to DB
+     * Saves instance to DB.
+     * Cannot be used to create new instance, only to update existing.
+     * This method overrides fields in a storage, not appends, and deletes all meta fields in a storage before saving.
+     *
+     * @throws ConnectionWrongData
      */
-    public function save()
+    public function update(): void
     {
+        if (empty($this->id)) {
+            throw new ConnectionWrongData('Cannot update uninitialized connection', 304);
+        }
+
+        $this->getClient()->getStorage()->updateConnection($this);
+
+        $this->getClient()->getStorage()->removeConnectionMeta($this->id, new Query\MetaCollection());
+        $this->getClient()->getStorage()->addConnectionMeta($this->id, $this->meta);
     }
 
     /**
@@ -39,8 +53,12 @@ class Connection extends Abstracts\Connection
         $this->relation = $connectionQuery->get('relation');
         $this->from = $connectionQuery->get('from');
         $this->to = $connectionQuery->get('to');
-        $this->meta = clone $connectionQuery->get('meta');
+        $this->meta = new MetaCollection();
+        $this->meta->fromArray($connectionQuery->get('meta')->toArray());
         $this->order = $connectionQuery->get('order');
+        if ($connectionQuery->get('client')) {
+            $this->setClient($connectionQuery->get('client'));
+        }
 
         return $this;
     }
