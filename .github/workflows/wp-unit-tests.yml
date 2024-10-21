@@ -1,4 +1,4 @@
-name: PHP WP Unit Tests
+name: Unit Tests
 
 env:
   COMPOSER_VER: "2.7.9"
@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   phpunit:
-    name: ${{ matrix.php-version }}
+    name: PHP Unit ${{ matrix.php-version }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -51,7 +51,7 @@ jobs:
         run: composer run phpunit
 
   wp-unit:
-    name: ${{ matrix.php-version }}
+    name: WP Unit ${{ matrix.php-version }}
     runs-on: ubuntu-latest
 
     strategy:
