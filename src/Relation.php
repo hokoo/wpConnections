@@ -45,6 +45,17 @@ class Relation extends Abstracts\Relation
             throw new Exceptions\ConnectionWrongData('Closurable not allowed by relation settings.', 301);
         }
 
+        // Duplicatable check
+        if (! $this->duplicatable) {
+            $query = new Query\Connection($connectionQuery->get('from'), $connectionQuery->get('to'));
+            $query->set('relation', $this->name);
+
+            $check_duplicatable = $this->findConnections($query);
+            if (!$check_duplicatable->isEmpty()) {
+                throw new Exceptions\ConnectionWrongData('Duplicatable violation.', 303);
+            }
+        }
+
         // Cardinality check
         $cardinality = explode('-', $this->cardinality);
         $output = $cardinality[0];
@@ -67,17 +78,6 @@ class Relation extends Abstracts\Relation
             $check_input = $this->findConnections($query);
             if (! $check_input->isEmpty()) {
                 throw new Exceptions\ConnectionWrongData('Cardinality violation.', 302);
-            }
-        }
-
-        // Duplicatable check
-        $query = new Query\Connection($connectionQuery->get('from'), $connectionQuery->get('to'));
-        $query->set('relation', $this->name);
-
-        if (! $this->duplicatable) {
-            $check_duplicatable = $this->findConnections($query);
-            if (!$check_duplicatable->isEmpty()) {
-                throw new Exceptions\ConnectionWrongData('Duplicatable violation.', 303);
             }
         }
 
