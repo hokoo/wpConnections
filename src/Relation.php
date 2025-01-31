@@ -45,16 +45,16 @@ class Relation extends Abstracts\Relation
             throw new Exceptions\ConnectionWrongData('Closurable not allowed by relation settings.', 301);
         }
 
-	    // Duplicatable check
-	    if (! $this->duplicatable) {
-		    $query = new Query\Connection($connectionQuery->get('from'), $connectionQuery->get('to'));
-		    $query->set('relation', $this->name);
+        // Duplicatable check
+        if (! $this->duplicatable) {
+            $query = new Query\Connection($connectionQuery->get('from'), $connectionQuery->get('to'));
+            $query->set('relation', $this->name);
 
-		    $check_duplicatable = $this->findConnections($query);
-		    if (!$check_duplicatable->isEmpty()) {
-			    throw new Exceptions\ConnectionWrongData('Duplicatable violation.', 303);
-		    }
-	    }
+            $check_duplicatable = $this->findConnections($query);
+            if (!$check_duplicatable->isEmpty()) {
+                throw new Exceptions\ConnectionWrongData('Duplicatable violation.', 303);
+            }
+        }
 
         // Cardinality check
         $cardinality = explode('-', $this->cardinality);
