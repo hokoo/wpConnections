@@ -62,7 +62,7 @@ class Relation extends Abstracts\Relation
         $input = $cardinality[1];
 
         if ('1' === $output) {
-            $query = new Query\Connection($connectionQuery->get('from'));
+            $query = new Query\Connection($connectionQuery->get('to'));
             $query->set('relation', $this->name);
 
             $check_output = $this->findConnections($query);
@@ -72,7 +72,7 @@ class Relation extends Abstracts\Relation
         }
 
         if ('1' === $input) {
-            $query = new Query\Connection(0, $connectionQuery->get('to'));
+            $query = new Query\Connection(0, $connectionQuery->get('from'));
             $query->set('relation', $this->name);
 
             $check_input = $this->findConnections($query);
