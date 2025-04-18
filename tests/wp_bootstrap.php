@@ -10,7 +10,8 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 if ( defined( 'PHPSTORM_META' ) ) {
 	define( 'DOING_TESTS', 1 );
 	define( 'CLIENT_NAME', 'client-test' );
-	define( 'RELATION_NAME', 'relation-test' );
+	define( 'RELATION_0_NAME', 'relation-0-test' );
+	define( 'RELATION_1_NAME', 'relation-1-test' );
 }
 
 use iTRON\wpConnections\Helpers\Database;

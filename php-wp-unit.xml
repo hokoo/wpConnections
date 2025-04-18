@@ -10,7 +10,8 @@
 	<php>
 		<const name="DOING_TESTS" value="1" />
 		<const name="CLIENT_NAME" value="client-test" />
-		<const name="RELATION_NAME" value="relation-test" />
+		<const name="RELATION_0_NAME" value="relation-0-test" />
+		<const name="RELATION_1_NAME" value="relation-1-test" />
 	</php>
 	<testsuites>
 		<testsuite name="wpConnections creating for WordPress test suite">
