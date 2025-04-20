@@ -2,11 +2,12 @@ version: "3"
 
 services:
   mysql:
+    platform: "${DOCKER_PLATFORM:-linux/amd64}"
     container_name: "${PROJECT_NAME}_mysql"
-    image: mysql:5.7
+    image: mysql:8
     stop_grace_period: 30s
     volumes:
-      - ~/mysql-data/iTRON/wpConnections:/var/lib/mysql
+      - ~/mysql-data/itron/wpconnections:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: $DB_ROOT_PASSWORD
       MYSQL_DATABASE: $DB_NAME
@@ -15,24 +16,29 @@ services:
     ports:
       - "3066:3306"
     networks:
-      - itron-network
+      - wpconnections-local
 
   php:
+    depends_on:
+      - "mysql"
     build:
-      context: ./php
+      context: ./php-fpm
       args:
         PHP_VER: $PHP_VERSION
     container_name: "${PROJECT_NAME}_php"
     working_dir: /srv/web/
+    extra_hosts:
+      - "wpconnections.local:host-gateway"
     environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
       PHP_SENDMAIL_PATH: /usr/sbin/sendmail -t -i -S mailhog:1025
       DB_HOST: $DB_HOST
       DB_USER: $DB_USER
       DB_PASSWORD: $DB_PASSWORD
-      DB_ROOT_PASSWORD: $DB_ROOT_PASSWORD
       DB_NAME: $DB_NAME
       PHP_FPM_USER: wodby
       PHP_FPM_GROUP: wodby
+      PHP_IDE_CONFIG: $XDEBUG_IDE_CONFIG
       PHP_XDEBUG: 1
       PHP_XDEBUG_DEFAULT_ENABLE: 1
       PHP_XDEBUG_CLIENT_PORT: $XDEBUG_PORT
@@ -40,11 +46,29 @@ services:
       PHP_XDEBUG_IDEKEY: $XDEBUG_IDE_KEY
       PHP_EXTENSIONS_DISABLE: $EXTENSIONS_DISABLE
     volumes:
-      - ../../:/srv/web/
-      - ./php.ini:/usr/local/etc/php/conf.d/php-sp-overrides.ini
+      - ../:/srv/web/
+      - ./php-fpm/php.ini:/usr/local/etc/php/conf.d/php-wpc-overrides.ini
+      - ./php-fpm/grc.php.log.conf:/home/wodby/.grc/grc.conf
     networks:
-      - itron-network
+      - wpconnections-local
+
+  nginx:
+    platform: "${DOCKER_PLATFORM:-linux/amd64}"
+    container_name: "${PROJECT_NAME}_nginx"
+    image: nginx:alpine
+    working_dir: /srv/web/
+    depends_on:
+      - php
+    volumes:
+      - ../:/srv/web/
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+      - ./nginx/ssl/:/etc/nginx/ssl/
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - wpconnections-local
 
 networks:
-  itron-network:
+  wpconnections-local:
     driver: bridge
