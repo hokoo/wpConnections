@@ -18,7 +18,7 @@ class Client
     /**
      * WP user capability id that is required for performing actions with client.
      */
-    public string $capability = 'manage_options';
+    public Capabilities $capabilities;
 
     /**
      * @throws ClientRegisterFail
@@ -126,6 +126,7 @@ class Client
      */
     private function init()
     {
+		$this->capabilities = new Capabilities();
         $this->storage = Factory::getStorage($this);
         $this->logger = Factory::getLogger($this);
         $restapi = Factory::getRestApi($this);

@@ -262,7 +262,7 @@ class WPUnitTest extends TestCase
 		$request->set_param( 'relation', RELATION_0_NAME );
 
 		$restapi = new ClientRestApi( $this->client );
-		$response = $restapi->restUpdateConnectionMeta( $request );
+		$response = $restapi->updateConnectionMeta( $request );
 
 		$connection->meta->add( $meta1 );
 		self::assertEquals( 'WP_REST_Response', get_class( $response ) );
@@ -274,7 +274,7 @@ class WPUnitTest extends TestCase
 		$request->set_param( 'meta', [$meta02->toArray()] );
 		$request->set_param( 'relation', RELATION_0_NAME );
 
-		$response = $restapi->restUpdateConnectionMeta( $request );
+		$response = $restapi->updateConnectionMeta( $request );
 		$connection->meta->remove( $meta00 );
 		$connection->meta->remove( $meta01 );
 		$connection->meta->add( $meta02 );
@@ -289,7 +289,7 @@ class WPUnitTest extends TestCase
 		$request->set_param( 'meta', [$meta3->toArray(), $meta4->toArray()] );
 		$request->set_param( 'relation', RELATION_0_NAME );
 
-		$response = $restapi->restUpdateConnectionMeta( $request );
+		$response = $restapi->updateConnectionMeta( $request );
 		$connection->meta->clear();
 		$connection->meta->add( $meta3 );
 		$connection->meta->add( $meta4 );
