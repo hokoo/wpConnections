@@ -28,3 +28,11 @@ php.connect:
 php.log:
 	cd ./local-dev/ && \
 	docker-compose -p wpconnections exec php sh -c 'tail -n 50 -f /var/log/php/error.log | grcat grc.conf'
+
+lint.phpcs:
+	cd ./local-dev/ && \
+	docker-compose -p wpconnections exec php sh -c 'composer run phpcs'
+
+lint.phpcs.fix:
+	cd ./local-dev/ && \
+	docker-compose -p wpconnections exec php sh -c 'composer run phpcbf'
