@@ -126,7 +126,8 @@ class Client
      */
     private function init()
     {
-        $this->capabilities = new Capabilities();
+        $clientDefaultCapabilities = apply_filters("wpConnections/client/{$this->getName()}/clientDefaultCapabilities", '');
+        $this->capabilities = new Capabilities($clientDefaultCapabilities);
         $this->storage = Factory::getStorage($this);
         $this->logger = Factory::getLogger($this);
         $restapi = Factory::getRestApi($this);
