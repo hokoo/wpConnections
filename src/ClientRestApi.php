@@ -33,7 +33,7 @@ class ClientRestApi
         add_action('rest_api_init', [ $this, 'registerRestRoutes' ], 10);
     }
 
-    public function restGetClient(WP_REST_Request $request)
+    public function getTheClient(WP_REST_Request $request)
     {
         $relations = [];
         foreach ($this->getClient()->getRelations()->getIterator() as $relationItem) {
@@ -46,7 +46,7 @@ class ClientRestApi
         return rest_ensure_response($relations);
     }
 
-    public function restGetRelation(WP_REST_Request $request)
+    public function getRelation(WP_REST_Request $request)
     {
         try {
             $response = [];
@@ -61,7 +61,7 @@ class ClientRestApi
         return rest_ensure_response($response);
     }
 
-    public function restGetConnection(WP_REST_Request $request)
+    public function getConnection(WP_REST_Request $request)
     {
         $q = new Query\Connection();
         $q->set('id', $request->get_param('connectionID'));
@@ -76,7 +76,7 @@ class ClientRestApi
         }
     }
 
-    public function restUpdateConnection(WP_REST_Request $request)
+    public function updateConnection(WP_REST_Request $request)
     {
         $q = $this->obtainConnectionDataFromRequest($request);
         $q->set('id', $request->get_param('connectionID'));
@@ -99,7 +99,7 @@ class ClientRestApi
      *
      * @return array|mixed|WP_Error|WP_HTTP_Response|WP_REST_Response
      */
-    public function restUpdateConnectionMeta(WP_REST_Request $request)
+    public function updateConnectionMeta(WP_REST_Request $request)
     {
         try {
             $queryConnection = new Query\Connection();
@@ -136,7 +136,7 @@ class ClientRestApi
         return rest_ensure_response([ 'updated' => $connection ]);
     }
 
-    public function restDeleteConnectionMeta(WP_REST_Request $request)
+    public function deleteConnectionMeta(WP_REST_Request $request)
     {
         $queryConnection = new Query\Connection();
         $queryConnection->set('id', $request->get_param('connectionID'));
@@ -158,10 +158,11 @@ class ClientRestApi
      */
     public function checkPermissions(WP_REST_Request $request): bool
     {
-        return current_user_can($this->getClient()->capability);
+        $callback = $request->get_attributes()['callback'][1] ?? '';
+        return current_user_can($this->getClient()->capabilities->{$callback});
     }
 
-    public function restDeleteConnection(WP_REST_Request $request)
+    public function deleteConnection(WP_REST_Request $request)
     {
         $q = new Query\Connection();
         $q->set('id', $request->get_param('connectionID'));
@@ -179,7 +180,7 @@ class ClientRestApi
         return rest_ensure_response([ 'deleted'  => true ]);
     }
 
-    public function restCreateConnection(WP_REST_Request $request)
+    public function createConnection(WP_REST_Request $request)
     {
         $q = $this->obtainConnectionDataFromRequest($request);
 
@@ -264,7 +265,7 @@ class ClientRestApi
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'description'         => 'Get the client relations.',
-                    'callback'            => [ $this, 'restGetClient' ],
+                    'callback'            => [ $this, 'getTheClient' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                 ],
             ]
@@ -277,7 +278,7 @@ class ClientRestApi
             [
                 [
                     'methods'             => WP_REST_Server::READABLE,
-                    'callback'            => [ $this, 'restGetRelation' ],
+                    'callback'            => [ $this, 'getRelation' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args'   => [
                         'relation' => [
@@ -289,7 +290,7 @@ class ClientRestApi
                 ],
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
-                    'callback'            => [ $this, 'restCreateConnection' ],
+                    'callback'            => [ $this, 'createConnection' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'from'  => [
@@ -334,7 +335,7 @@ class ClientRestApi
                 ],
                 [
                     'methods'             => WP_REST_Server::READABLE,
-                    'callback'            => [ $this, 'restGetConnection' ],
+                    'callback'            => [ $this, 'getConnection' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
@@ -346,7 +347,7 @@ class ClientRestApi
                 ],
                 [
                     'methods'             => WP_REST_Server::EDITABLE,
-                    'callback'            => [ $this, 'restUpdateConnection' ],
+                    'callback'            => [ $this, 'updateConnection' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
@@ -373,7 +374,7 @@ class ClientRestApi
                 ],
                 [
                     'methods'             => WP_REST_Server::DELETABLE,
-                    'callback'            => [ $this, 'restDeleteConnection' ],
+                    'callback'            => [ $this, 'deleteConnection' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
@@ -407,7 +408,7 @@ class ClientRestApi
                 ],
                 [
                     'methods'             => WP_REST_Server::EDITABLE,
-                    'callback'            => [ $this, 'restUpdateConnectionMeta' ],
+                    'callback'            => [ $this, 'updateConnectionMeta' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'meta'  => [
@@ -420,7 +421,7 @@ class ClientRestApi
                 ],
                 [
                     'methods'             => WP_REST_Server::DELETABLE,
-                    'callback'            => [ $this, 'restDeleteConnectionMeta' ],
+                    'callback'            => [ $this, 'deleteConnectionMeta' ],
                     'permission_callback' => [ $this, 'checkPermissions' ],
                     'args' => [
                         'connectionID' => [
