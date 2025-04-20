@@ -3,3 +3,8 @@
 /wordpress-develop
 .phpunit.result.cache
 .phpcs.cache
+
+.env
+/wordpress
+/wp-config.php
+/index.php
