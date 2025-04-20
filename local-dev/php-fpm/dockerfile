@@ -1,0 +1,19 @@
+ARG PHP_VER
+
+FROM wodby/wordpress-php:$PHP_VER-4.62.1
+
+LABEL maintainer="Igor Tron <root@itron.pro>"
+
+USER root
+
+RUN mkdir -p /var/log/php && chown -R wodby:wodby /var/log/php
+
+# Install grc (a colorizer for logs)
+RUN apk add --no-cache python3 py3-pip
+RUN git clone https://github.com/garabik/grc.git ./grc-source && cd grc-source && ./install.sh
+RUN mkdir /home/wodby/.grc && chown -R wodby:wodby /home/wodby/.grc
+
+RUN echo 'alias ll="ls -la"' >>  /etc/bash.bashrc
+RUN echo 'alias ll="ls -la"' >>  /home/wodby/.bashrc
+
+USER wodby

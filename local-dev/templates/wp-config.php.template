@@ -1,0 +1,25 @@
+<?php
+const WP_SITEURL = '%s';
+const WP_HOME    = '%s';
+
+define( 'DB_NAME', '%s' );
+define( 'DB_USER', 'root' );
+define( 'DB_PASSWORD', 'password' );
+define( 'DB_HOST', 'mysql' );
+define( 'DB_CHARSET', 'utf8' );
+define( 'DB_COLLATE', '' );
+$table_prefix = 'wp_';
+
+define( 'WP_DEBUG', true );
+define( 'SCRIPT_DEBUG', true );
+
+// Environment
+define( 'WP_DEVELOPMENT_MODE', 'all' );
+define( 'WP_ENVIRONMENT_TYPE', 'local' );
+
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', __DIR__ . '/wordpress/' );
+}
+
+require_once __DIR__ . '/vendor/autoload.php';
+require_once ABSPATH . 'wp-settings.php';

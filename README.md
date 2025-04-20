@@ -79,3 +79,19 @@ $wpc_client->getRelation( 'post-to-page' )->createConnection( $qc );
 Since you have initialized new client, its REST API endpoints are available.
 
 `http://cf7tgdev.loc/wp-json/wp-connections/v1/client/my-app-wpc-client/`
+
+## Local Development
+
+### Prerequisites
+- Windows 10 or later (WSL2), or Linux, or MacOS
+- Docker Desktop, Docker Compose
+- Make
+
+### Installation
+1. Clone this repo to the **Ubuntu disk space**. Location path should look like `\\wsl$\Ubuntu-20.04\home\username\path\to\the\repo`.
+2. Make sure you have `make` installed in your system. If not, run `sudo apt install make`.
+3. Make sure you have installed Docker Desktop with configured WSL2 support if you are using Windows.
+4. Run folowing command in the root directory to install the project:
+```bash
+bash ./local-dev/init.sh && make tests.init && make docker.up && make dev.install
+```
