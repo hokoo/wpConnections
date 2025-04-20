@@ -126,7 +126,7 @@ class Client
      */
     private function init()
     {
-		$this->capabilities = new Capabilities();
+        $this->capabilities = new Capabilities();
         $this->storage = Factory::getStorage($this);
         $this->logger = Factory::getLogger($this);
         $restapi = Factory::getRestApi($this);

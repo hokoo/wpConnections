@@ -159,7 +159,7 @@ class ClientRestApi
     public function checkPermissions(WP_REST_Request $request): bool
     {
         $callback = $request->get_attributes()['callback'][1] ?? '';
-		return current_user_can( $this->getClient()->capabilities->{$callback} );
+        return current_user_can($this->getClient()->capabilities->{$callback});
     }
 
     public function deleteConnection(WP_REST_Request $request)
