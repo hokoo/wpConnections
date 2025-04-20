@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # import variables from .env file
-. ./.env
+. ./local-dev/.env
 
 # prepare file structure
 echo -e "${RCYAN}Create wp-config.php from example${COLOR_OFF}"

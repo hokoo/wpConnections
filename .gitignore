@@ -1,10 +1,10 @@
 /.idea
 /vendor
-/wordpress-develop
-.phpunit.result.cache
-.phpcs.cache
-
-.env
 /wordpress
+/wordpress-develop
+.env
 /wp-config.php
 /index.php
+
+.phpunit.result.cache
+.phpcs.cache

@@ -22,7 +22,7 @@ services:
     depends_on:
       - "mysql"
     build:
-      context: ./local-dev/php-fpm
+      context: ./php-fpm
       args:
         PHP_VER: $PHP_VERSION
     container_name: "${PROJECT_NAME}_php"
@@ -46,9 +46,9 @@ services:
       PHP_XDEBUG_IDEKEY: $XDEBUG_IDE_KEY
       PHP_EXTENSIONS_DISABLE: $EXTENSIONS_DISABLE
     volumes:
-      - ./:/srv/web/
-      - ./local-dev/php-fpm/php.ini:/usr/local/etc/php/conf.d/php-wpc-overrides.ini
-      - ./local-dev/php-fpm/grc.php.log.conf:/home/wodby/.grc/grc.conf
+      - ../:/srv/web/
+      - ./php-fpm/php.ini:/usr/local/etc/php/conf.d/php-wpc-overrides.ini
+      - ./php-fpm/grc.php.log.conf:/home/wodby/.grc/grc.conf
     networks:
       - wpconnections-local
 
@@ -60,9 +60,9 @@ services:
     depends_on:
       - php
     volumes:
-      - ./:/srv/web/
-      - ./local-dev/nginx/conf.d/:/etc/nginx/conf.d/
-      - ./local-dev/nginx/ssl/:/etc/nginx/ssl/
+      - ../:/srv/web/
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+      - ./nginx/ssl/:/etc/nginx/ssl/
     ports:
       - "80:80"
       - "443:443"
