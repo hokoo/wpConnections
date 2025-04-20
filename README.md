@@ -91,7 +91,8 @@ Since you have initialized new client, its REST API endpoints are available.
 1. Clone this repo to the **Ubuntu disk space**. Location path should look like `\\wsl$\Ubuntu-20.04\home\username\path\to\the\repo`.
 2. Make sure you have `make` installed in your system. If not, run `sudo apt install make`.
 3. Make sure you have installed Docker Desktop with configured WSL2 support if you are using Windows.
-4. Run folowing command in the root directory to install the project:
+4. Add `127.0.0.1 wpconnections.local` to the hosts file (on the host machine).
+5. Run folowing command in the root directory to install the project:
 ```bash
 bash ./local-dev/init.sh && make tests.init && make docker.up && make dev.install
 ```
