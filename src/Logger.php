@@ -13,7 +13,7 @@ class Logger extends AbstractLogger
     /**
      * @inheritDoc
      */
-    public function log($level, $message, array $context = [])
+    public function log($level, $message, array $context = []): void
     {
         // WP Data Logger plugin compatability.
         do_action('logger', [ $message, $context ], $level);
