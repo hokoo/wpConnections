@@ -56,7 +56,10 @@ RUN set -eux; \
     curl -fsSL "$WP_TARBALL_URL" -o /tmp/wordpress.tar.gz; \
     tar -xzf /tmp/wordpress.tar.gz -C "${WP_CORE_DIR}" --strip-components=1; \
     rm /tmp/wordpress.tar.gz; \
-    svn export --quiet "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit" "${WP_TESTS_DIR}"; \
+    svn export --non-interactive --trust-server-cert --quiet "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit" "${WP_TESTS_DIR}"; \
+    if [ ! -f "${WP_TESTS_DIR}/wp-tests-config-sample.php" ]; then \
+        curl -fsSL "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/wp-tests-config-sample.php" -o "${WP_TESTS_DIR}/wp-tests-config-sample.php"; \
+    fi; \
     cp "${WP_TESTS_DIR}/wp-tests-config-sample.php" "${WP_TESTS_DIR}/wp-tests-config.php"
 
 WORKDIR /srv/web
