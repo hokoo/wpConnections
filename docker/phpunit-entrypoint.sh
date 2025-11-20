@@ -52,8 +52,14 @@ GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
 FLUSH PRIVILEGES;
 SQL
 
-if [ -f "${CONFIG_SAMPLE}" ]; then
-  cp "${CONFIG_SAMPLE}" "${CONFIG_FILE}"
+if [ ! -f "${CONFIG_FILE}" ]; then
+  echo "wp-tests-config.php missing; recreating from sample" >&2
+  if [ -f "${CONFIG_SAMPLE}" ]; then
+    cp "${CONFIG_SAMPLE}" "${CONFIG_FILE}"
+  else
+    echo "Sample config not found at ${CONFIG_SAMPLE}" >&2
+    exit 1
+  fi
 fi
 
 sed -i "s/youremptytestdbnamehere/${DB_NAME}/" "${CONFIG_FILE}"

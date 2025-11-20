@@ -64,7 +64,8 @@ RUN set -eux; \
     cp -R "$TMP_TESTS_DIR/tests/phpunit/." "$WP_TESTS_DIR"; \
     rm -rf "$TMP_TESTS_DIR"; \
     if [ ! -f "${WP_TESTS_DIR}/wp-tests-config-sample.php" ]; then \
-        curl -fsSL "https://raw.githubusercontent.com/WordPress/wordpress-develop/${WP_TESTS_REF}/tests/phpunit/wp-tests-config-sample.php" -o "${WP_TESTS_DIR}/wp-tests-config-sample.php"; \
+        echo "Missing wp-tests-config-sample.php in extracted WordPress tests archive" >&2; \
+        exit 1; \
     fi; \
     cp "${WP_TESTS_DIR}/wp-tests-config-sample.php" "${WP_TESTS_DIR}/wp-tests-config.php"
 
