@@ -85,7 +85,7 @@ sed -i "s|dirname( __FILE__ ) . '/../../'|'${WP_CORE_DIR}/'|" "${CONFIG_FILE}"
 
 export WP_TESTS_DIR DB_HOST DB_NAME DB_USER DB_PASSWORD
 
-# ==== Дальше — универсальный "диспетчер" команд ====
+# ==== Here and below is a universal "command dispatcher" ====
 
 WORKDIR="/srv/web"
 cd "$WORKDIR"
@@ -100,7 +100,7 @@ log_section() {
 run_composer_install() {
   log_section "Composer install"
   if [ -f composer.json ]; then
-    # Чтобы не долбить каждый запуск локально — можно скипать, если vendor уже есть
+    # Skip if vendor/ already exists.
     if [ -d vendor ]; then
       echo "vendor/ already exists, skipping composer install"
     else
@@ -121,7 +121,7 @@ run_wpunit() {
   vendor/bin/phpunit -c php-wp-unit.xml "$@"
 }
 
-# Собираем экзит-коды обеих суит
+# Collect exit codes of both suites
 run_all_tests() {
   local phpunit_exit=0
   local wpunit_exit=0
@@ -136,7 +136,7 @@ run_all_tests() {
     echo "One or more test suites failed:"
     echo "  PHP Unit exit code: $phpunit_exit"
     echo "  WP Unit exit code:  $wpunit_exit"
-    # Если нужно различать — можно возвращать, например, первый ненулевой
+    # If needed to distinguish, we could return, for example, the first non-zero
     exit 1
   fi
 }
@@ -167,7 +167,7 @@ case "$CMD" in
     ;;
 
   *)
-    # Обратная совместимость:
+    # Fallback to default behavior: run the given command.
     # docker run image vendor/bin/phpunit -c phpunit.xml
     exec "$@"
     ;;
