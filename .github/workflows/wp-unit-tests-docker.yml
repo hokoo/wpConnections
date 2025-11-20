@@ -1,0 +1,52 @@
+name: Unit Tests (Dockerfile)
+
+on:
+  push:
+    branches: [ "master", "main", "dev" ]
+  pull_request:
+    types: [synchronize, opened, reopened]
+
+permissions: {}
+
+jobs:
+  phpunit:
+    name: PHP Unit ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: [ 7.4, 8.0, 8.1, 8.2, 8.3 ]
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v3
+
+      - name: Build PHPUnit image
+        run: docker build --build-arg PHP_VERSION=${{ matrix.php-version }} -t wpconnections-phpunit:${{ matrix.php-version }} -f Dockerfile.phpunit .
+
+      - name: Install dependencies
+        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} composer install --no-interaction --prefer-dist
+
+      - name: Run UnitTests
+        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} vendor/bin/phpunit -c phpunit.xml
+
+  wp-unit:
+    name: WP Unit ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: [ 7.4, 8.0, 8.1, 8.2, 8.3 ]
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v3
+
+      - name: Build PHPUnit image
+        run: docker build --build-arg PHP_VERSION=${{ matrix.php-version }} -t wpconnections-phpunit:${{ matrix.php-version }} -f Dockerfile.phpunit .
+
+      - name: Install dependencies
+        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} composer install --no-interaction --prefer-dist
+
+      - name: Run WordPress Unit Tests
+        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} vendor/bin/phpunit -c php-wp-unit.xml

@@ -69,6 +69,19 @@ services:
     networks:
       - wpconnections-local
 
+  phpunit:
+    build:
+      context: ..
+      dockerfile: Dockerfile.phpunit
+      args:
+        PHP_VERSION: $PHP_VERSION
+    container_name: "${PROJECT_NAME}_phpunit"
+    working_dir: /srv/web/
+    volumes:
+      - ../:/srv/web/
+    networks:
+      - wpconnections-local
+
 networks:
   wpconnections-local:
     driver: bridge
