@@ -3,7 +3,7 @@ tests.init:
 
 tests.run:
 	cd ./local-dev/ && \
-	docker-compose -p wpconnections exec php sh -c 'vendor/bin/phpunit -c phpunit.xml && vendor/bin/phpunit -c php-wp-unit.xml'
+	docker-compose -p wpconnections run --rm phpunit sh -c 'vendor/bin/phpunit -c phpunit.xml && vendor/bin/phpunit -c php-wp-unit.xml'
 
 dev.install:
 	cd ./local-dev/ && \
