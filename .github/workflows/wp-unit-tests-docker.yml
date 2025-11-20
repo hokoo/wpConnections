@@ -1,0 +1,34 @@
+name: Unit Tests (Dockerfile)
+
+on:
+  push:
+    branches: [ "master", "main", "dev" ]
+  pull_request:
+    types: [synchronize, opened, reopened]
+
+permissions: {}
+
+jobs:
+  phpunit:
+    name: PHP Unit ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: [ 8.0, 8.1, 8.2, 8.3, 8.4 ]
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Build PHPUnit image
+        run: |
+          docker build \
+            --build-arg PHP_VERSION=${{ matrix.php-version }} \
+            -t wpconnections-phpunit:${{ matrix.php-version }} \
+            -f Dockerfile.phpunit .
+
+      - name: Run all tests
+        run: |
+          docker run --rm -v "$PWD:/srv/web" \
+            wpconnections-phpunit:${{ matrix.php-version }} test:all

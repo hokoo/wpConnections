@@ -1,0 +1,74 @@
+# syntax=docker/dockerfile:1
+# Universal image for running wpConnections PHPUnit suites with embedded services
+ARG PHP_VERSION=8.2
+ARG WP_VERSION=latest
+FROM php:${PHP_VERSION}-cli
+
+ARG WP_VERSION=latest
+
+LABEL maintainer="wpConnections"
+
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    PATH="/root/.composer/vendor/bin:${PATH}" \
+    WP_VERSION=${WP_VERSION} \
+    WP_CORE_DIR=/opt/wordpress \
+    WP_DEVELOP_DIR=/opt/wordpress-develop \
+    WP_TESTS_DIR=/opt/wordpress-develop/tests/phpunit \
+    MYSQL_DATA_DIR=/tmp/mysql-data \
+    MYSQL_SOCKET=/run/mysqld/mysqld.sock \
+    DB_HOST=127.0.0.1 \
+    DB_NAME=wordpress_test \
+    DB_USER=wordpress \
+    DB_PASSWORD=wordpress
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        gnupg \
+        libonig-dev \
+        libxml2-dev \
+        libzip-dev \
+        mariadb-client \
+        mariadb-server \
+        unzip \
+        zip; \
+    docker-php-ext-install -j"$(nproc)" mbstring mysqli pdo_mysql zip; \
+    rm -rf /var/lib/apt/lists/*
+
+# Provide composer inside the image
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Pre-install WordPress core and the WordPress test library so the container
+# is fully self-contained when executing the WordPress PHPUnit suite.
+RUN set -eux; \
+    rm -rf "${WP_DEVELOP_DIR}"; \
+    mkdir -p "${WP_DEVELOP_DIR}"; \
+    if [ "${WP_VERSION}" = "latest" ]; then \
+        WP_TARBALL_URL="https://wordpress.org/latest.tar.gz"; \
+        WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/heads/master.tar.gz"; \
+        WP_TESTS_REF="master"; \
+    else \
+        WP_TARBALL_URL="https://wordpress.org/wordpress-${WP_VERSION}.tar.gz"; \
+        WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/tags/${WP_VERSION}.tar.gz"; \
+        WP_TESTS_REF="${WP_VERSION}"; \
+    fi; \
+
+    curl -fsSL "$WP_TESTS_ARCHIVE" -o /tmp/wordpress-develop.tar.gz; \
+    tar -xzf /tmp/wordpress-develop.tar.gz -C "${WP_DEVELOP_DIR}" --strip-components=1; \
+    rm /tmp/wordpress-develop.tar.gz; \
+    if [ ! -f "${WP_DEVELOP_DIR}/wp-tests-config-sample.php" ]; then \
+        echo "Missing wp-tests-config-sample.php in extracted WordPress tests archive" >&2; \
+        exit 1; \
+    fi; \
+    cp "${WP_DEVELOP_DIR}/wp-tests-config-sample.php" "${WP_DEVELOP_DIR}/wp-tests-config.php"
+
+WORKDIR /srv/web
+
+COPY docker/phpunit-entrypoint.sh /usr/local/bin/phpunit-entrypoint.sh
+RUN chmod +x /usr/local/bin/phpunit-entrypoint.sh
+
+ENTRYPOINT ["phpunit-entrypoint.sh"]
+CMD ["test:all"]

@@ -1,6 +1,7 @@
 # WP Connections: post-to-post connections for WordPress
 [![PHP CS](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/phpunit.yml)
 [![PHP WordPress Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml)
+[![Dockerfile Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml)
 
 <!-- TOC -->
 * [Why wpConnection?](#why-wpconnection)
@@ -96,3 +97,20 @@ Since you have initialized new client, its REST API endpoints are available.
 ```bash
 bash ./local-dev/init.sh && make tests.init && make docker.up && make dev.install
 ```
+
+### Running the test suites
+
+The project ships with a dedicated `Dockerfile.phpunit` image that bundles Composer, the WordPress test library and an embedded MariaDB server so the entire PHPUnit stack runs inside a single container locally and in CI. After the installation step you can run all tests from the project root with:
+
+```bash
+make tests.run
+```
+
+Behind the scenes this calls `docker compose` with the `phpunit` service defined in `local-dev/docker-compose.yml`. The service no longer depends on any other containers—the entrypoint spins up MariaDB and configures the WordPress test library on demand—so these commands can be executed anywhere Docker is available. You can also run the individual commands manually, for example:
+
+```bash
+docker compose -f local-dev/docker-compose.yml run --rm phpunit composer run phpunit
+docker compose -f local-dev/docker-compose.yml run --rm phpunit vendor/bin/phpunit -c php-wp-unit.xml
+```
+
+The same Dockerfile is also used by the optional GitHub Actions workflow defined in `.github/workflows/wp-unit-tests-docker.yml`, allowing you to compare its output against the long-standing `wp-unit-tests.yml` pipeline before switching over entirely. You can pin WordPress to a specific release by passing `--build-arg WP_VERSION=6.5.2` (or any other version number) when building the image.
