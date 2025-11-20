@@ -4,7 +4,7 @@ ARG PHP_VERSION=8.2
 ARG WP_VERSION=latest
 FROM php:${PHP_VERSION}-cli
 
-ARG WP_VERSION
+ARG WP_VERSION=latest
 
 LABEL maintainer="wpConnections"
 
