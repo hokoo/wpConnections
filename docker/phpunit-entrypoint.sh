@@ -23,10 +23,19 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 if [ ! -d "${MYSQL_DATA_DIR}/mysql" ]; then
-  mariadb-install-db --user="${MYSQL_RUNTIME_USER}" --datadir="${MYSQL_DATA_DIR}" --skip-test-db --auth-root-authentication-method=normal >/dev/null
+  mariadb-install-db \
+    --user="${MYSQL_RUNTIME_USER}" \
+    --datadir="${MYSQL_DATA_DIR}" \
+    --skip-test-db \
+    --auth-root-authentication-method=normal >/dev/null
 fi
 
-mariadbd --user="${MYSQL_RUNTIME_USER}" --datadir="${MYSQL_DATA_DIR}" --socket="${MYSQL_SOCKET}" --bind-address=127.0.0.1 --skip-networking=0 &
+mariadbd \
+  --user="${MYSQL_RUNTIME_USER}" \
+  --datadir="${MYSQL_DATA_DIR}" \
+  --socket="${MYSQL_SOCKET}" \
+  --bind-address=127.0.0.1 \
+  --skip-networking=0 &
 MYSQLD_PID=$!
 
 cleanup() {
@@ -76,4 +85,90 @@ sed -i "s|dirname( __FILE__ ) . '/../../'|'${WP_CORE_DIR}/'|" "${CONFIG_FILE}"
 
 export WP_TESTS_DIR DB_HOST DB_NAME DB_USER DB_PASSWORD
 
-exec "$@"
+# ==== Дальше — универсальный "диспетчер" команд ====
+
+WORKDIR="/srv/web"
+cd "$WORKDIR"
+
+log_section() {
+  echo
+  echo "========================================"
+  echo ">>> $1"
+  echo "========================================"
+}
+
+run_composer_install() {
+  log_section "Composer install"
+  if [ -f composer.json ]; then
+    # Чтобы не долбить каждый запуск локально — можно скипать, если vendor уже есть
+    if [ -d vendor ]; then
+      echo "vendor/ already exists, skipping composer install"
+    else
+      composer install --no-interaction --prefer-dist
+    fi
+  else
+    echo "composer.json not found in ${WORKDIR}, skipping composer install"
+  fi
+}
+
+run_phpunit() {
+  log_section "PHP Unit tests (phpunit.xml)"
+  vendor/bin/phpunit -c phpunit.xml "$@"
+}
+
+run_wpunit() {
+  log_section "WordPress Unit tests (php-wp-unit.xml)"
+  vendor/bin/phpunit -c php-wp-unit.xml "$@"
+}
+
+# Собираем экзит-коды обеих суит
+run_all_tests() {
+  local phpunit_exit=0
+  local wpunit_exit=0
+
+  run_composer_install
+
+  run_phpunit "$@" || phpunit_exit=$?
+  run_wpunit "$@" || wpunit_exit=$?
+
+  if [ "$phpunit_exit" -ne 0 ] || [ "$wpunit_exit" -ne 0 ]; then
+    echo
+    echo "One or more test suites failed:"
+    echo "  PHP Unit exit code: $phpunit_exit"
+    echo "  WP Unit exit code:  $wpunit_exit"
+    # Если нужно различать — можно возвращать, например, первый ненулевой
+    exit 1
+  fi
+}
+
+CMD="${1:-test:all}"
+
+case "$CMD" in
+  test:all)
+    shift
+    run_all_tests "$@"
+    ;;
+
+  test:phpunit)
+    shift
+    run_composer_install
+    run_phpunit "$@"
+    ;;
+
+  test:wpunit)
+    shift
+    run_composer_install
+    run_wpunit "$@"
+    ;;
+
+  composer-install)
+    shift
+    run_composer_install
+    ;;
+
+  *)
+    # Обратная совместимость:
+    # docker run image vendor/bin/phpunit -c phpunit.xml
+    exec "$@"
+    ;;
+esac

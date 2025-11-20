@@ -73,4 +73,4 @@ COPY docker/phpunit-entrypoint.sh /usr/local/bin/phpunit-entrypoint.sh
 RUN chmod +x /usr/local/bin/phpunit-entrypoint.sh
 
 ENTRYPOINT ["phpunit-entrypoint.sh"]
-CMD ["php", "-v"]
+CMD ["test:all"]
