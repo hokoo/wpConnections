@@ -13,7 +13,7 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     WP_VERSION=${WP_VERSION} \
     WP_CORE_DIR=/opt/wordpress \
     WP_DEVELOP_DIR=/opt/wordpress-develop \
-    WP_TESTS_DIR=/opt/wordpress-develop/tests/phpunit \
+    WP_TESTS_DIR=/opt/wordpress-develop \
     MYSQL_DATA_DIR=/tmp/mysql-data \
     MYSQL_SOCKET=/tmp/mysql-run/mysqld.sock \
     DB_HOST=127.0.0.1 \
@@ -61,11 +61,11 @@ RUN set -eux; \
     curl -fsSL "$WP_TESTS_ARCHIVE" -o /tmp/wordpress-develop.tar.gz; \
     tar -xzf /tmp/wordpress-develop.tar.gz -C "${WP_DEVELOP_DIR}" --strip-components=1; \
     rm /tmp/wordpress-develop.tar.gz; \
-    if [ ! -f "${WP_TESTS_DIR}/wp-tests-config-sample.php" ]; then \
+    if [ ! -f "${WP_DEVELOP_DIR}/wp-tests-config-sample.php" ]; then \
         echo "Missing wp-tests-config-sample.php in extracted WordPress tests archive" >&2; \
         exit 1; \
     fi; \
-    cp "${WP_TESTS_DIR}/wp-tests-config-sample.php" "${WP_TESTS_DIR}/wp-tests-config.php"
+    cp "${WP_DEVELOP_DIR}/wp-tests-config-sample.php" "${WP_DEVELOP_DIR}/wp-tests-config.php"
 
 WORKDIR /srv/web
 
