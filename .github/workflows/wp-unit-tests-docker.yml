@@ -25,10 +25,10 @@ jobs:
         run: docker build --build-arg PHP_VERSION=${{ matrix.php-version }} -t wpconnections-phpunit:${{ matrix.php-version }} -f Dockerfile.phpunit .
 
       - name: Install dependencies
-        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} composer install --no-interaction --prefer-dist
+        run: docker run --rm -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} composer install --no-interaction --prefer-dist
 
       - name: Run UnitTests
-        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} vendor/bin/phpunit -c phpunit.xml
+        run: docker run --rm -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} vendor/bin/phpunit -c phpunit.xml
 
   wp-unit:
     name: WP Unit ${{ matrix.php-version }}
@@ -46,7 +46,7 @@ jobs:
         run: docker build --build-arg PHP_VERSION=${{ matrix.php-version }} -t wpconnections-phpunit:${{ matrix.php-version }} -f Dockerfile.phpunit .
 
       - name: Install dependencies
-        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} composer install --no-interaction --prefer-dist
+        run: docker run --rm -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} composer install --no-interaction --prefer-dist
 
       - name: Run WordPress Unit Tests
-        run: docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} vendor/bin/phpunit -c php-wp-unit.xml
+        run: docker run --rm -v "$PWD:/srv/web" -w /srv/web wpconnections-phpunit:${{ matrix.php-version }} vendor/bin/phpunit -c php-wp-unit.xml
