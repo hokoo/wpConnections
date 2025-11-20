@@ -12,7 +12,8 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     PATH="/root/.composer/vendor/bin:${PATH}" \
     WP_VERSION=${WP_VERSION} \
     WP_CORE_DIR=/opt/wordpress \
-    WP_TESTS_DIR=/opt/wordpress-tests-lib \
+    WP_DEVELOP_DIR=/opt/wordpress-develop \
+    WP_TESTS_DIR=/opt/wordpress-develop/tests/phpunit \
     MYSQL_DATA_DIR=/tmp/mysql-data \
     MYSQL_SOCKET=/tmp/mysql-run/mysqld.sock \
     DB_HOST=127.0.0.1 \
@@ -43,8 +44,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Pre-install WordPress core and the WordPress test library so the container
 # is fully self-contained when executing the WordPress PHPUnit suite.
 RUN set -eux; \
-    rm -rf "${WP_CORE_DIR}" "${WP_TESTS_DIR}"; \
-    mkdir -p "${WP_CORE_DIR}" "${WP_TESTS_DIR}"; \
+    rm -rf "${WP_CORE_DIR}" "${WP_DEVELOP_DIR}"; \
+    mkdir -p "${WP_CORE_DIR}" "${WP_DEVELOP_DIR}"; \
     if [ "${WP_VERSION}" = "latest" ]; then \
         WP_TARBALL_URL="https://wordpress.org/latest.tar.gz"; \
         WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/heads/master.tar.gz"; \
@@ -57,12 +58,9 @@ RUN set -eux; \
     curl -fsSL "$WP_TARBALL_URL" -o /tmp/wordpress.tar.gz; \
     tar -xzf /tmp/wordpress.tar.gz -C "${WP_CORE_DIR}" --strip-components=1; \
     rm /tmp/wordpress.tar.gz; \
-    TMP_TESTS_DIR="$(mktemp -d /tmp/wp-tests-XXXX)"; \
     curl -fsSL "$WP_TESTS_ARCHIVE" -o /tmp/wordpress-develop.tar.gz; \
-    tar -xzf /tmp/wordpress-develop.tar.gz -C "$TMP_TESTS_DIR" --strip-components=1; \
+    tar -xzf /tmp/wordpress-develop.tar.gz -C "${WP_DEVELOP_DIR}" --strip-components=1; \
     rm /tmp/wordpress-develop.tar.gz; \
-    cp -R "$TMP_TESTS_DIR/tests/phpunit/." "$WP_TESTS_DIR"; \
-    rm -rf "$TMP_TESTS_DIR"; \
     if [ ! -f "${WP_TESTS_DIR}/wp-tests-config-sample.php" ]; then \
         echo "Missing wp-tests-config-sample.php in extracted WordPress tests archive" >&2; \
         exit 1; \
