@@ -44,8 +44,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Pre-install WordPress core and the WordPress test library so the container
 # is fully self-contained when executing the WordPress PHPUnit suite.
 RUN set -eux; \
-    rm -rf "${WP_CORE_DIR}" "${WP_DEVELOP_DIR}"; \
-    mkdir -p "${WP_CORE_DIR}" "${WP_DEVELOP_DIR}"; \
+    rm -rf "${WP_DEVELOP_DIR}"; \
+    mkdir -p "${WP_DEVELOP_DIR}"; \
     if [ "${WP_VERSION}" = "latest" ]; then \
         WP_TARBALL_URL="https://wordpress.org/latest.tar.gz"; \
         WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/heads/master.tar.gz"; \
@@ -55,9 +55,7 @@ RUN set -eux; \
         WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/tags/${WP_VERSION}.tar.gz"; \
         WP_TESTS_REF="${WP_VERSION}"; \
     fi; \
-    curl -fsSL "$WP_TARBALL_URL" -o /tmp/wordpress.tar.gz; \
-    tar -xzf /tmp/wordpress.tar.gz -C "${WP_CORE_DIR}" --strip-components=1; \
-    rm /tmp/wordpress.tar.gz; \
+
     curl -fsSL "$WP_TESTS_ARCHIVE" -o /tmp/wordpress-develop.tar.gz; \
     tar -xzf /tmp/wordpress-develop.tar.gz -C "${WP_DEVELOP_DIR}" --strip-components=1; \
     rm /tmp/wordpress-develop.tar.gz; \
