@@ -32,7 +32,6 @@ RUN set -eux; \
         libzip-dev \
         mariadb-client \
         mariadb-server \
-        subversion \
         unzip \
         zip; \
     docker-php-ext-install -j"$(nproc)" mbstring mysqli pdo_mysql zip; \
@@ -48,17 +47,24 @@ RUN set -eux; \
     mkdir -p "${WP_CORE_DIR}" "${WP_TESTS_DIR}"; \
     if [ "${WP_VERSION}" = "latest" ]; then \
         WP_TARBALL_URL="https://wordpress.org/latest.tar.gz"; \
-        WP_TESTS_TAG="trunk"; \
+        WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/heads/master.tar.gz"; \
+        WP_TESTS_REF="master"; \
     else \
         WP_TARBALL_URL="https://wordpress.org/wordpress-${WP_VERSION}.tar.gz"; \
-        WP_TESTS_TAG="tags/${WP_VERSION}"; \
+        WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/tags/${WP_VERSION}.tar.gz"; \
+        WP_TESTS_REF="${WP_VERSION}"; \
     fi; \
     curl -fsSL "$WP_TARBALL_URL" -o /tmp/wordpress.tar.gz; \
     tar -xzf /tmp/wordpress.tar.gz -C "${WP_CORE_DIR}" --strip-components=1; \
     rm /tmp/wordpress.tar.gz; \
-    svn export --non-interactive --trust-server-cert --quiet "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit" "${WP_TESTS_DIR}"; \
+    TMP_TESTS_DIR="$(mktemp -d /tmp/wp-tests-XXXX)"; \
+    curl -fsSL "$WP_TESTS_ARCHIVE" -o /tmp/wordpress-develop.tar.gz; \
+    tar -xzf /tmp/wordpress-develop.tar.gz -C "$TMP_TESTS_DIR" --strip-components=1; \
+    rm /tmp/wordpress-develop.tar.gz; \
+    cp -R "$TMP_TESTS_DIR/tests/phpunit/." "$WP_TESTS_DIR"; \
+    rm -rf "$TMP_TESTS_DIR"; \
     if [ ! -f "${WP_TESTS_DIR}/wp-tests-config-sample.php" ]; then \
-        curl -fsSL "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/wp-tests-config-sample.php" -o "${WP_TESTS_DIR}/wp-tests-config-sample.php"; \
+        curl -fsSL "https://raw.githubusercontent.com/WordPress/wordpress-develop/${WP_TESTS_REF}/tests/phpunit/wp-tests-config-sample.php" -o "${WP_TESTS_DIR}/wp-tests-config-sample.php"; \
     fi; \
     cp "${WP_TESTS_DIR}/wp-tests-config-sample.php" "${WP_TESTS_DIR}/wp-tests-config.php"
 
