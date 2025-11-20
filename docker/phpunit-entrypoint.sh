@@ -13,15 +13,20 @@ MYSQL_DATA_DIR="${MYSQL_DATA_DIR:-/tmp/mysql-data}"
 CONFIG_SAMPLE="${WP_DEVELOP_DIR}/wp-tests-config-sample.php"
 CONFIG_FILE="${WP_DEVELOP_DIR}/wp-tests-config.php"
 
-mkdir -p "$(dirname "${MYSQL_SOCKET}")" "${MYSQL_DATA_DIR}"
-
 MYSQL_RUNTIME_USER="${MYSQL_RUNTIME_USER:-$(id -un 2>/dev/null || echo root)}"
+MYSQL_RUN_DIR="$(dirname "${MYSQL_SOCKET}")"
+
+mkdir -p "${MYSQL_RUN_DIR}" "${MYSQL_DATA_DIR}"
+
+if [ "$(id -u)" -eq 0 ]; then
+  chown -R "${MYSQL_RUNTIME_USER}" "${MYSQL_RUN_DIR}" "${MYSQL_DATA_DIR}"
+fi
 
 if [ ! -d "${MYSQL_DATA_DIR}/mysql" ]; then
   mariadb-install-db --user="${MYSQL_RUNTIME_USER}" --datadir="${MYSQL_DATA_DIR}" --skip-test-db --auth-root-authentication-method=normal >/dev/null
 fi
 
-mariadbd --datadir="${MYSQL_DATA_DIR}" --socket="${MYSQL_SOCKET}" --bind-address=127.0.0.1 --skip-networking=0 &
+mariadbd --user="${MYSQL_RUNTIME_USER}" --datadir="${MYSQL_DATA_DIR}" --socket="${MYSQL_SOCKET}" --bind-address=127.0.0.1 --skip-networking=0 &
 MYSQLD_PID=$!
 
 cleanup() {
