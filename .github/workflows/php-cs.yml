@@ -2,7 +2,7 @@ name: PHP Code Styles
 
 env:
   COMPOSER_VER: "2.7.9"
-  PHP_VER: "8.0"
+  PHP_VER: "8.1"
 
 on:
   push:

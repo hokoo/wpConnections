@@ -10,12 +10,14 @@ permissions: {}
 
 jobs:
   phpunit:
-    name: PHP Unit ${{ matrix.php-version }}
+    name: PHP Unit ${{ matrix.php-version }} / Ramsey ${{ matrix.ramsey-version }}
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
-        php-version: [ 8.0, 8.1, 8.2, 8.3, 8.4 ]
+        php-version: [ 8.1, 8.2, 8.3, 8.4 ]
+        ramsey-version: [ "^1", "^2" ]
 
     steps:
       - name: Check out the source code
@@ -31,4 +33,5 @@ jobs:
       - name: Run all tests
         run: |
           docker run --rm -v "$PWD:/srv/web" \
-            wpconnections-phpunit:${{ matrix.php-version }} test:all
+            wpconnections-phpunit:${{ matrix.php-version }} \
+            sh -lc 'git config --global --add safe.directory "*" && composer update ramsey/collection --with "ramsey/collection:${{ matrix.ramsey-version }}" --prefer-dist --no-interaction && composer run phpunit && vendor/bin/phpunit -c php-wp-unit.xml'

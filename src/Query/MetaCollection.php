@@ -15,7 +15,7 @@ class MetaCollection extends \iTRON\wpConnections\MetaCollection
         parent::__construct();
     }
 
-    public function where(string $propertyOrMethod, $value): self
+    public function where(?string $propertyOrMethod, mixed $value): self
     {
         /** @var MetaCollection $result */
         $result = parent::where($propertyOrMethod, $value);

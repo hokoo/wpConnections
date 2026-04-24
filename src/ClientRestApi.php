@@ -9,6 +9,7 @@ use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use iTRON\wpConnections\RestResponse\CollectionItem;
+use Ramsey\Collection\Exception\NoSuchElementException;
 use Ramsey\Collection\Exception\OutOfBoundsException;
 use WP_Error;
 use WP_HTTP_Response;
@@ -71,7 +72,7 @@ class ClientRestApi
             );
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
-        } catch (OutOfBoundsException $e) {
+        } catch (OutOfBoundsException | NoSuchElementException $e) {
             return rest_ensure_response($this->getError(new ConnectionNotFound()));
         }
     }
