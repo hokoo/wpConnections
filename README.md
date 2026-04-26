@@ -1,6 +1,7 @@
 # WP Connections: post-to-post connections for WordPress
 [![PHP CS](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml)
 [![Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml)
+[![WP Integration Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-integration-tests.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-integration-tests.yml)
 
 <!-- TOC -->
 * [Why wpConnection?](#why-wpconnection)
@@ -105,13 +106,13 @@ The project ships with a dedicated `Dockerfile.phpunit` image that bundles Compo
 make tests.run
 ```
 
-Behind the scenes this calls the `phpunit` service defined in `local-dev/docker-compose.yml` and uses the same entrypoint commands as GitHub Actions. The service no longer depends on any other containers: the entrypoint installs Composer dependencies when needed, spins up MariaDB only for WordPress unit tests, and configures the WordPress test library on demand.
+Behind the scenes this calls the `phpunit` service defined in `local-dev/docker-compose.yml` and aggregates the same entrypoint checks that GitHub Actions runs separately. The service no longer depends on any other containers: the entrypoint installs Composer dependencies when needed, spins up MariaDB only for WP integration tests, and configures the WordPress test library on demand.
 
 You can also run individual checks from the project root:
 
 ```bash
 make tests.phpunit
-make tests.wpunit
+make tests.integration
 make lint.phpcs
 ```
 

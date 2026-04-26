@@ -136,8 +136,8 @@ run_phpunit() {
   vendor/bin/phpunit -c phpunit.xml "$@"
 }
 
-run_wpunit() {
-  log_section "WordPress Unit tests (php-wp-unit.xml)"
+run_wp_integration() {
+  log_section "WP Integration tests (php-wp-unit.xml)"
   prepare_wp_tests
   vendor/bin/phpunit -c php-wp-unit.xml "$@"
 }
@@ -154,13 +154,13 @@ run_all_tests() {
   run_composer_install
 
   run_phpunit "$@" || phpunit_exit=$?
-  run_wpunit "$@" || wpunit_exit=$?
+  run_wp_integration "$@" || wpunit_exit=$?
 
   if [ "$phpunit_exit" -ne 0 ] || [ "$wpunit_exit" -ne 0 ]; then
     echo
     echo "One or more test suites failed:"
     echo "  PHP Unit exit code: $phpunit_exit"
-    echo "  WP Unit exit code:  $wpunit_exit"
+    echo "  WP Integration exit code: $wpunit_exit"
     # If needed to distinguish, we could return, for example, the first non-zero
     exit 1
   fi
@@ -180,10 +180,10 @@ case "$CMD" in
     run_phpunit "$@"
     ;;
 
-  test:wpunit)
+  test:integration|test:wp-integration|test:wpunit)
     shift
     run_composer_install
-    run_wpunit "$@"
+    run_wp_integration "$@"
     ;;
 
   cs:phpcs|phpcs)

@@ -1,4 +1,4 @@
-.PHONY: tests.init tests.run tests.phpunit tests.wpunit dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
+.PHONY: tests.init tests.run tests.phpunit tests.integration tests.wpunit dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
 
 tests.init:
 	cd ./local-dev/ && bash ./tests-init.sh
@@ -11,9 +11,11 @@ tests.phpunit:
 	cd ./local-dev/ && \
 	docker-compose -p wpconnections run --rm phpunit test:phpunit
 
-tests.wpunit:
+tests.integration:
 	cd ./local-dev/ && \
-	docker-compose -p wpconnections run --rm phpunit test:wpunit
+	docker-compose -p wpconnections run --rm phpunit test:integration
+
+tests.wpunit: tests.integration
 
 dev.install:
 	cd ./local-dev/ && \
