@@ -1,4 +1,4 @@
-name: Unit Tests (Dockerfile)
+name: Unit Tests
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions: {}
 
 jobs:
   phpunit:
-    name: PHP Unit ${{ matrix.php-version }} / Ramsey ${{ matrix.ramsey-version }}
+    name: PHP + WP Unit ${{ matrix.php-version }} / Ramsey ${{ matrix.ramsey-version }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -23,15 +23,16 @@ jobs:
       - name: Check out the source code
         uses: actions/checkout@v4
 
-      - name: Build PHPUnit image
+      - name: Build CI image
         run: |
           docker build \
             --build-arg PHP_VERSION=${{ matrix.php-version }} \
-            -t wpconnections-phpunit:${{ matrix.php-version }} \
+            -t wpconnections-ci:${{ matrix.php-version }} \
             -f Dockerfile.phpunit .
 
-      - name: Run all tests
+      - name: Run PHP and WordPress unit tests
         run: |
           docker run --rm -v "$PWD:/srv/web" \
-            wpconnections-phpunit:${{ matrix.php-version }} \
-            sh -lc 'git config --global --add safe.directory "*" && composer update ramsey/collection --with "ramsey/collection:${{ matrix.ramsey-version }}" --prefer-dist --no-interaction && composer run phpunit && vendor/bin/phpunit -c php-wp-unit.xml'
+            -e RAMSEY_VERSION='${{ matrix.ramsey-version }}' \
+            wpconnections-ci:${{ matrix.php-version }} \
+            test:all

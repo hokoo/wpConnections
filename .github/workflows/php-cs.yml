@@ -1,7 +1,6 @@
 name: PHP Code Styles
 
 env:
-  COMPOSER_VER: "2.7.9"
   PHP_VER: "8.1"
 
 on:
@@ -14,29 +13,17 @@ jobs:
   php-cs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Cache Composer dependencies
-        uses: actions/cache@v3
-        with:
-          path: /tmp/composer-cache
-          key: ${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
+      - uses: actions/checkout@v4
 
-      - uses: php-actions/composer@v6
-        with:
-          php_version: ${{ env.PHP_VER }}
-          version: ${{ env.COMPOSER_VER }}
-
-      - name: Get PHPCS Cache
-        id: phpcs-cache
+      - name: Build CI image
         run: |
-          echo "file=.phpcs.cache" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v3
-        with:
-          path: ${{ steps.phpcs-cache.outputs.file }}
-          key: ${{ runner.os }}-phpcs-${{ hashFiles('**/.phpcs.cache') }}
-          restore-keys: |
-            ${{ runner.os }}-phpcs-
+          docker build \
+            --build-arg PHP_VERSION=${{ env.PHP_VER }} \
+            -t wpconnections-ci:${{ env.PHP_VER }} \
+            -f Dockerfile.phpunit .
 
       - name: Run PHPCS
-        run: composer run phpcs
+        run: |
+          docker run --rm -v "$PWD:/srv/web" \
+            wpconnections-ci:${{ env.PHP_VER }} \
+            cs:phpcs

@@ -18,8 +18,7 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     MYSQL_SOCKET=/run/mysqld/mysqld.sock \
     DB_HOST=127.0.0.1 \
     DB_NAME=wordpress_test \
-    DB_USER=wordpress \
-    DB_PASSWORD=wordpress
+    DB_USER=wordpress
 
 RUN set -eux; \
     apt-get update; \
@@ -41,21 +40,18 @@ RUN set -eux; \
 # Provide composer inside the image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Pre-install WordPress core and the WordPress test library so the container
-# is fully self-contained when executing the WordPress PHPUnit suite.
+# Pre-install the WordPress test library so the container is self-contained
+# when executing the WordPress PHPUnit suite.
 RUN set -eux; \
     rm -rf "${WP_DEVELOP_DIR}"; \
     mkdir -p "${WP_DEVELOP_DIR}"; \
     if [ "${WP_VERSION}" = "latest" ]; then \
-        WP_TARBALL_URL="https://wordpress.org/latest.tar.gz"; \
         WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/heads/master.tar.gz"; \
         WP_TESTS_REF="master"; \
     else \
-        WP_TARBALL_URL="https://wordpress.org/wordpress-${WP_VERSION}.tar.gz"; \
         WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/tags/${WP_VERSION}.tar.gz"; \
         WP_TESTS_REF="${WP_VERSION}"; \
     fi; \
-
     curl -fsSL "$WP_TESTS_ARCHIVE" -o /tmp/wordpress-develop.tar.gz; \
     tar -xzf /tmp/wordpress-develop.tar.gz -C "${WP_DEVELOP_DIR}" --strip-components=1; \
     rm /tmp/wordpress-develop.tar.gz; \
