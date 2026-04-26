@@ -1,8 +1,5 @@
 name: Unit Tests
 
-env:
-  COMPOSER_VER: "2.7.9"
-
 on:
   push:
     branches: [ "master", "main", "dev" ]
@@ -44,10 +41,8 @@ jobs:
           php-version: ${{ matrix.php-version }}
           coverage: none
 
-      - uses: php-actions/composer@v6
-        with:
-          php_version: ${{ matrix.php-version }}
-          version: ${{ env.COMPOSER_VER }}
+      - name: Install PHP Dependencies
+        uses: ramsey/composer-install@v2
 
       - name: Select Ramsey Collection version
         run: |
