@@ -13,12 +13,14 @@ permissions: {}
 
 jobs:
   phpunit:
-    name: PHP Unit ${{ matrix.php-version }}
+    name: PHP Unit ${{ matrix.php-version }} / Ramsey ${{ matrix.ramsey-version }}
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
-        php-version: [ 8.0, 8.1, 8.2, 8.3, 8.4 ]
+        php-version: [ 8.1, 8.2, 8.3, 8.4 ]
+        ramsey-version: [ "^1", "^2" ]
 
     services:
       mysql:
@@ -47,16 +49,25 @@ jobs:
           php_version: ${{ matrix.php-version }}
           version: ${{ env.COMPOSER_VER }}
 
+      - name: Select Ramsey Collection version
+        run: |
+          composer update ramsey/collection \
+            --with "ramsey/collection:${{ matrix.ramsey-version }}" \
+            --prefer-dist \
+            --no-interaction
+
       - name: Run UnitTests
         run: composer run phpunit
 
   wp-unit:
-    name: WP Unit ${{ matrix.php-version }}
+    name: WP Unit ${{ matrix.php-version }} / Ramsey ${{ matrix.ramsey-version }}
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
-        php-version: [ 8.0, 8.1, 8.2, 8.3, 8.4 ]
+        php-version: [ 8.1, 8.2, 8.3, 8.4 ]
+        ramsey-version: [ "^1", "^2" ]
 
     services:
       mysql:
@@ -82,6 +93,13 @@ jobs:
 
       - name: Install PHP Dependencies
         uses: ramsey/composer-install@v2
+
+      - name: Select Ramsey Collection version
+        run: |
+          composer update ramsey/collection \
+            --with "ramsey/collection:${{ matrix.ramsey-version }}" \
+            --prefer-dist \
+            --no-interaction
 
       - name: Install Subversion
         run: sudo apt-get update && sudo apt-get install -y subversion

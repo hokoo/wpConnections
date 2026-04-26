@@ -6,6 +6,7 @@ use iTRON\wpConnections\Abstracts\ArrayConvertableCollectionTrait;
 use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use Ramsey\Collection\Collection;
+use Ramsey\Collection\Exception\NoSuchElementException;
 use Ramsey\Collection\Exception\OutOfBoundsException;
 
 class RelationCollection extends Collection implements IArrayConvertable
@@ -28,7 +29,7 @@ class RelationCollection extends Collection implements IArrayConvertable
     {
         try {
             $result = $this->where('name', $name)->first();
-        } catch (OutOfBoundsException $e) {
+        } catch (OutOfBoundsException | NoSuchElementException $e) {
             $relation_e = new RelationNotFound($e);
             $relation_e->setRelation($name);
             throw $relation_e;
