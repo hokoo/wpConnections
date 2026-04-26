@@ -1,9 +1,19 @@
+.PHONY: tests.init tests.run tests.phpunit tests.wpunit dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
+
 tests.init:
 	cd ./local-dev/ && bash ./tests-init.sh
 
 tests.run:
 	cd ./local-dev/ && \
-	docker-compose -p wpconnections run --rm phpunit sh -c 'vendor/bin/phpunit -c phpunit.xml && vendor/bin/phpunit -c php-wp-unit.xml'
+	docker-compose -p wpconnections run --rm phpunit test:all
+
+tests.phpunit:
+	cd ./local-dev/ && \
+	docker-compose -p wpconnections run --rm phpunit test:phpunit
+
+tests.wpunit:
+	cd ./local-dev/ && \
+	docker-compose -p wpconnections run --rm phpunit test:wpunit
 
 dev.install:
 	cd ./local-dev/ && \
@@ -31,7 +41,7 @@ php.log:
 
 lint.phpcs:
 	cd ./local-dev/ && \
-	docker-compose -p wpconnections exec php sh -c 'composer run phpcs'
+	docker-compose -p wpconnections run --rm phpunit cs:phpcs
 
 lint.phpcs.fix:
 	cd ./local-dev/ && \

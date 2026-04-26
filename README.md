@@ -1,7 +1,6 @@
 # WP Connections: post-to-post connections for WordPress
-[![PHP CS](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/phpunit.yml)
-[![PHP WordPress Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml)
-[![Dockerfile Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml)
+[![PHP CS](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml)
+[![Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml)
 
 <!-- TOC -->
 * [Why wpConnection?](#why-wpconnection)
@@ -93,9 +92,9 @@ Since you have initialized new client, its REST API endpoints are available.
 2. Make sure you have `make` installed in your system. If not, run `sudo apt install make`.
 3. Make sure you have installed Docker Desktop with configured WSL2 support if you are using Windows.
 4. Add `127.0.0.1 wpconnections.local` to the hosts file (on the host machine).
-5. Run folowing command in the root directory to install the project:
+5. Run the following command in the root directory to install the project:
 ```bash
-bash ./local-dev/init.sh && make tests.init && make docker.up && make dev.install
+bash ./local-dev/init.sh && make docker.up && make dev.install
 ```
 
 ### Running the test suites
@@ -106,11 +105,16 @@ The project ships with a dedicated `Dockerfile.phpunit` image that bundles Compo
 make tests.run
 ```
 
-Behind the scenes this calls `docker compose` with the `phpunit` service defined in `local-dev/docker-compose.yml`. The service no longer depends on any other containers—the entrypoint spins up MariaDB and configures the WordPress test library on demand—so these commands can be executed anywhere Docker is available. You can also run the individual commands manually, for example:
+Behind the scenes this calls the `phpunit` service defined in `local-dev/docker-compose.yml` and uses the same entrypoint commands as GitHub Actions. The service no longer depends on any other containers: the entrypoint installs Composer dependencies when needed, spins up MariaDB only for WordPress unit tests, and configures the WordPress test library on demand.
+
+You can also run individual checks from the project root:
 
 ```bash
-docker compose -f local-dev/docker-compose.yml run --rm phpunit composer run phpunit
-docker compose -f local-dev/docker-compose.yml run --rm phpunit vendor/bin/phpunit -c php-wp-unit.xml
+make tests.phpunit
+make tests.wpunit
+make lint.phpcs
 ```
 
-The same Dockerfile is also used by the optional GitHub Actions workflow defined in `.github/workflows/wp-unit-tests-docker.yml`, allowing you to compare its output against the long-standing `wp-unit-tests.yml` pipeline before switching over entirely. You can pin WordPress to a specific release by passing `--build-arg WP_VERSION=6.5.2` (or any other version number) when building the image.
+`make tests.init` is only needed for direct, non-Docker WordPress PHPUnit runs that rely on a local `wordpress-develop` checkout. The default local and CI paths use `Dockerfile.phpunit`.
+
+The same Dockerfile is used by GitHub Actions workflows for unit tests and PHP code style checks. You can pin WordPress to a specific release by passing `--build-arg WP_VERSION=6.5.2` (or any other version number) when building the image.
