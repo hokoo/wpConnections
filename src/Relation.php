@@ -29,16 +29,16 @@ class Relation extends Abstracts\Relation
     {
 
         // Required fields
-        if (
-            empty($connectionQuery->get('from')) ||
-            empty($connectionQuery->get('to'))
-        ) {
-            $e = new Exceptions\MissingParameters();
-            $e
-                ->setParam('from')
-                ->setParam('to');
+        $missingParameters = new Exceptions\MissingParameters();
 
-            throw $e;
+        foreach ([ 'from', 'to' ] as $requiredParameter) {
+            if (empty($connectionQuery->get($requiredParameter))) {
+                $missingParameters->setParam($requiredParameter);
+            }
+        }
+
+        if ($missingParameters->getParams()) {
+            throw $missingParameters;
         }
 
         // Self-connection ability
