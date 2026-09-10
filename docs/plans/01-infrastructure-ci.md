@@ -3,7 +3,8 @@
 ## Контекст
 
 - Ветка: `codex/dockerfile-ci-transition`.
-- Pull request: [#48 Move CI checks toward Dockerfile workflow](https://github.com/hokoo/wpConnections/pull/48).
+- Pull request: [#48 Move CI checks toward Dockerfile workflow](https://github.com/hokoo/wpConnections/pull/48),
+  merged 2026-09-10 коммитом `a978bd2`.
 - Base: `master`; исходный implementation diff PR был на пять коммитов впереди,
   локальный HEAD дополнен execution-коммитами этого плана.
 - Исходная реализация PR состояла из пяти коммитов. Поверх неё локально завершён
@@ -623,7 +624,7 @@ Notes/Risks:
 
 ### INFRA-08. Завершить PR #48 и установить milestone M0
 
-Status: in_progress
+Status: completed
 
 Priority: P0
 
@@ -677,8 +678,9 @@ Dependencies:
 Notes/Risks:
 
 - Владелец одобрил DG-I7, снятие draft и merge 2026-09-10.
-- Branch protection на момент принятия DG-I7 отсутствовала; её настройка и
-  post-merge CI являются оставшимися внешними шагами задачи.
+- Branch protection настроена по DG-I7; PR merged без admin bypass.
+- Все четыре post-merge workflow успешны на merge-коммите `a978bd2`; M0 отмечен
+  в index plan, а `TEST-01` переведена в `todo`.
 
 ## Execution evidence 2026-09-10
 
@@ -697,10 +699,13 @@ Notes/Risks:
 | Final clean checkout | fresh Docker build; 47 lock packages installed; `test:all` passed |
 | Independent epic QA | `pass_with_notes`; blocking defects и missing AC не обнаружены |
 | GitHub PR checks на `16fe912` | 17/17 passed; PR `MERGEABLE` и `CLEAN` |
+| GitHub PR checks на `4cb7ee6` | 17/17 passed перед включением branch protection |
+| Branch protection | strict; 17 required contexts; admin enforcement; force-push/delete disabled |
+| Merge и post-merge CI | PR #48 merged как `a978bd2`; Unit, Integration, Coverage и PHPCS workflows passed |
 
 Известные наблюдения: PHP 8.4/8.5 показывают существующие deprecation notices;
 `composer validate --strict` возвращает warning status из-за устаревшего SPDX
 identifier `GPL-2.0+` и unbound constraint `psr/log >=1.1`. Две обнаруженные
 audit advisory закрыты одобренным DG-I6 и `INFRA-09`. Эти notes не требуют
-risk acceptance для локального infra outcome. Live GitHub checks подтверждены;
-required-check configuration выполняется по одобренному DG-I7.
+risk acceptance для infra outcome. Live GitHub checks и required-check
+configuration подтверждены; milestone M0 закрыт.
