@@ -6,6 +6,7 @@ use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 
 class Connection extends Abstracts\Connection
 {
+    use CardinalityValidation;
     use ClientInterface;
 
     public function __construct(Query\Connection $connectionQuery)
@@ -32,6 +33,9 @@ class Connection extends Abstracts\Connection
         if (empty($this->id)) {
             throw new ConnectionWrongData('Cannot update uninitialized connection', 304);
         }
+
+        $relation = $this->getClient()->getRelation($this->relation);
+        $this->assertCardinality($relation, $this);
 
         $this->getClient()->getStorage()->updateConnection($this);
 

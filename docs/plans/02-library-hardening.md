@@ -763,7 +763,7 @@ Notes/Risks:
 
 ### TEST-02B. Зафиксировать cardinality `1-m` regression
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -804,10 +804,19 @@ Dependencies:
 Notes/Risks:
 
 - Выполняется в одном зелёном vertical batch с TEST-02C и CORE-02.
+- Red evidence 2026-09-10 на неизменённом production-коде:
+  `docker compose -p wpconnections-core02 run --rm phpunit test:integration
+  --filter test_one_to_many_rejects_a_second_from_for_an_occupied_to` —
+  ожидаемый fail `1 test / 3 assertions`: relation допустила `B -> X` после
+  существующих `A -> X` и `A -> Y`.
+- Green evidence после CORE-02 той же isolated-командой: `1 test / 6
+  assertions`, passed; `B -> X` отклонён `ConnectionWrongData` code `302`,
+  обе разрешённые строки сохранены, success hook для отклонённой операции не
+  вызван.
 
 ### TEST-02C. Зафиксировать cardinality `m-1` regression
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -849,6 +858,15 @@ Dependencies:
 Notes/Risks:
 
 - Выполняется в одном зелёном vertical batch с TEST-02B и CORE-02.
+- Red evidence 2026-09-10 на неизменённом production-коде:
+  `docker compose -p wpconnections-core02 run --rm phpunit test:integration
+  --filter test_many_to_one_rejects_a_second_to_for_an_occupied_from` —
+  ожидаемый fail `1 test / 3 assertions`: relation допустила `A -> Y` после
+  существующих `A -> X` и `B -> X`.
+- Green evidence после CORE-02 той же isolated-командой: `1 test / 6
+  assertions`, passed; `A -> Y` отклонён `ConnectionWrongData` code `302`,
+  обе разрешённые строки сохранены, success hook для отклонённой операции не
+  вызван.
 
 ### TEST-02D. Зафиксировать REST update без `title`
 
@@ -1355,7 +1373,7 @@ Verification:
 
 ### CORE-02. Исправить и полностью проверить cardinality
 
-Status: waiting_dependency
+Status: review
 
 Priority: P0
 
@@ -1406,6 +1424,37 @@ Notes/Risks:
 - Не менять в этой задаче public storage parameter types: mismatch abstract SPI
   и текущего Relation update flow исследует SPI-01; CORE-02 должен валидировать
   cardinality до существующего storage boundary.
+- Общий internal guard проверяет create и оба существующих update entrypoint до
+  storage mutation, исключая текущий положительный connection ID. Storage SPI,
+  REST semantics, database indexes и duplicate/closure precedence не менялись.
+- Production и regression готовы для закрытия issue #33; GitHub issue остаётся
+  delivery-owner шагом, поэтому задача сохраняет `review`, пока этот DoD не
+  подтверждён.
+
+Verification:
+
+- Red-first phase сохранена отдельным commit: isolated `1-m` и `m-1` regressions
+  независимо дали ожидаемые failures `1 / 3` на неизменённом production.
+- Green focused regressions: `1 / 6` каждый; полная create/update matrix
+  `CardinalityTest`: `20 / 142`.
+- Critical mapping в `tests/iTRON/wpConnections/WP/CardinalityTest.php`:
+  `CARD-1M-01` → `::test_one_to_many_rejects_a_second_from_for_an_occupied_to`
+  и create matrix `one to many`; `CARD-M1-01` →
+  `::test_many_to_one_rejects_a_second_to_for_an_occupied_from` и create matrix
+  `many to one`; `CARD-11-01`/cardinality slice `CARD-MM-01` → create matrix
+  `one to one`/`many to many`; `CARD-MUT-01` → оба `::*update*` метода со всеми
+  provider cases. Duplicate/closure часть `CARD-MM-01` остаётся в CORE-03
+  согласно registry ownership.
+- Full default: unit `6 / 14`, integration `59 / 311`.
+- Fixed seed `20260910`: reverse/random repeat-2 — unit `12 / 28`, integration
+  `118 / 622` в каждой фазе.
+- Coverage floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0: combined `65 /
+  325`; PR gate `582/791 (73.58%)`, RC threshold ready. PHPCS: `36/36`.
+- Blocking integration lanes PHP/WP/Ramsey `8.2.33/7.1.0/1.3.0`,
+  `8.3.33/7.1.0/2.1.1`, `8.4.25/6.7.7/2.1.1` и
+  `8.5.10/7.1.0/2.1.1`: `59 / 311` в каждой; floor lane покрыта combined
+  coverage run. Known pre-existing PHP 8.2+ dynamic-property и PHP 8.4+
+  dependency deprecations не являются failures.
 
 ### CORE-03. Зафиксировать duplicatable, closurable и error precedence
 
