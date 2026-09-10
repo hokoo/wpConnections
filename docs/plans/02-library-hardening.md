@@ -4,7 +4,12 @@
 
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
-активен; `TEST-01` завершена, следующей исполняемой задачей является `TEST-02`.
+активен; `TEST-01` завершена, следующие regression slices — `TEST-02A` и
+`TEST-02E`.
+
+DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
+`needs_design` только там, где их остальные DoR и dependencies действительно
+выполнены.
 
 ## Цель
 
@@ -40,6 +45,11 @@ release и выделяется в отдельную инициативу.
 **Рекомендация:** C. Она соответствует заявленному контракту post-to-post и
 оставляет расширяемость без молчаливого нарушения целостности.
 
+**Решение:** approved C владельцем репозитория 2026-09-10. Все поддерживаемые
+domain mutation paths строго проверяют существование endpoint и соответствие
+`relation.from`/`relation.to` по умолчанию; non-post entities допускаются только
+через явную extension strategy.
+
 **Блокирует:** CORE-04, REST validation и документацию relation contract.
 
 ### DG-M2. Семантика relation `type`
@@ -51,8 +61,15 @@ release и выделяется в отдельную инициативу.
 - B: направление создания/изменения связи.
 - C: deprecated metadata; удалить в следующей major version.
 
-**Рекомендация:** A и не использовать `type` для запрета записи: физическая
-связь остаётся направленной `from -> to`, а `type` описывает доступный traversal.
+**Рекомендация:** C после дополнительного исследования истории, consumers и
+фактических write/read paths. Физическая связь остаётся направленной
+`from -> to`, её endpoint types задаются `relation.from`/`relation.to`, а
+`relation.type` не участвует ни в validation, ни в traversal.
+
+**Решение:** approved C владельцем репозитория 2026-09-10. В REST v1 поле
+сохраняется как deprecated no-op ради совместимости и удаляется в следующей
+major version. Новые traversal/filter contracts задают направление явно и не
+используют это поле.
 
 **Блокирует:** CORE-01, API-01 и OpenAPI.
 
@@ -69,6 +86,8 @@ release и выделяется в отдельную инициативу.
 **Рекомендация:** A для обратной совместимости; новый payload должен содержать
 стабильный domain code, а HTTP status не должен выводиться из числа 301—304.
 
+**Решение:** approved A владельцем репозитория 2026-09-10.
+
 **Блокирует:** CORE-03, REST-03 и OpenAPI.
 
 ### DG-M4. REST response/versioning policy
@@ -83,22 +102,37 @@ change?
 **Рекомендация:** A для bug fixes и фильтров; если entity expansion существенно
 меняет shape, использовать v2 или явно opt-in representation.
 
+**Решение:** approved A владельцем репозитория 2026-09-10. Default REST v1
+response shape сохраняется; новые representations включаются явно. Deprecated
+`relation.type` остаётся принимаемым/сериализуемым no-op в v1 и отмечается в
+документации/OpenAPI без REST runtime warning.
+
 **Блокирует:** REST-03, REST-06, API-01 и DOC-01.
 
-### DG-M5. Судьба пустых public methods
+### DG-M5. Судьба `Connection::load()`
 
-**Вопрос:** реализовать `Connection::load()` и `ConnectionCollection::getPosts()`
-или убрать/депрекейтить их?
+**Вопрос:** реализовать пустой `Connection::load()` или вывести его из public
+API?
 
-- A: реализовать оба как часть поддерживаемого API.
-- B: реализовать `getPosts()` для issue #20, `load()` deprecated/remove, потому
-  что существующий flow создаёт загруженные объекты через storage.
-- C: убрать оба в следующей major version.
+- A: реализовать refresh текущего объекта по уже установленным `id` и client.
+- B: объявить deprecated в текущей major version, документировать существующий
+  relation query flow как замену и удалить метод в следующей major version.
+- C: оставить пустой метод ради формальной совместимости.
 
-**Рекомендация:** B. Для `getPosts()` есть подтверждённый use case; контракт
-`load()` сейчас не определён.
+**Рекомендация:** B. У метода нет определённого identity/lifecycle contract и
+подтверждённого consumer use case; придумывать новое поведение для старой пустой
+сигнатуры рискованнее контролируемой deprecation.
 
-**Блокирует:** API-01 и API-02.
+**Решение:** approved B владельцем репозитория 2026-09-10.
+`ConnectionCollection::getPosts()` исключён из этого gate: его реализация или
+deprecation определяется отдельным исследованием REST issue #20, потому что
+задача включает connection filters, traversal, entity filters, permissions,
+ordering/pagination и representation, а не только direction.
+Deprecation `load()` в текущей major version сигнализируется PHPDoc и
+документацией без нового runtime notice/behavior; удаление — в следующей major
+version.
+
+**Блокирует:** API-02.
 
 ### DG-M6. Database tenancy model
 
@@ -111,6 +145,10 @@ change?
 **Рекомендация:** A для hardening release. B — отдельная major-version
 инициатива, поскольку требует migration/rollback и меняет операционную модель.
 
+**Решение:** approved A владельцем репозитория 2026-09-10. Hardening release
+сохраняет table-per-client и добавляет явные canonical-name, collision, empty и
+identifier-length rules; shared-table migration остаётся за scope релиза.
+
 **Блокирует:** CORE-05 и DB-06.
 
 ### DG-M7. Transaction и failure semantics
@@ -122,6 +160,11 @@ change?
 
 **Рекомендация:** A на transactional engines, с явной capability check и
 предсказуемым fallback/error на неподдерживаемом storage.
+
+**Решение:** approved A владельцем репозитория 2026-09-10. Составная операция
+либо commit целиком, либо полностью rollback; unsupported transactional
+capability должна приводить к явной ошибке до mutation, а не к silent best
+effort.
 
 **Блокирует:** DB-05.
 
@@ -136,20 +179,105 @@ change?
 **Рекомендация:** B. Critical scenarios: invariants, all delete paths, schema
 recovery, REST CRUD/errors/permissions и multi-client isolation.
 
-**Блокирует:** TEST-03 и REL-02.
+**Решение:** approved B владельцем репозитория 2026-09-10. До RC действует
+монотонный coverage baseline; RC требует не менее 70% statements и прохождения
+100% утверждённых critical scenarios.
+
+**Блокирует:** TEST-03A—TEST-03C и REL-02.
+
+### DG-M9. Граница domain API и Storage SPI
+
+**Вопрос:** считается ли публично достижимый storage равноправным consumer API
+для mutation или низкоуровневой extension boundary?
+
+- A: storage является SPI для persistence adapters; гарантии invariants даёт
+  high-level domain API, через общий validation path для всех его mutations.
+  `getStorage()` сохраняется в текущей major version ради совместимости, но
+  прямые storage writes не считаются поддерживаемым consumer flow.
+- B: каждый storage implementation обязан самостоятельно реализовать все domain
+  invariants.
+- C: сохранить и документировать прямой unsafe mutation bypass как обычный API.
+
+**Рекомендация:** A. Перенос relation/cardinality/entity rules в каждый custom
+storage создаёт дублирование и несовместимые реализации, а вариант C не
+позволяет библиотеке обещать целостность.
+
+**Решение:** approved A владельцем репозитория 2026-09-10. В текущей major
+version все high-level mutation paths, включая `Connection::update()`, должны
+проходить общий domain validation path; storage остаётся совместимой SPI для
+implementers. Сужение PHP visibility или новый command service возможно только
+в следующей major version.
+
+**Блокирует:** CORE-04, DB-05 и REL-02.
 
 ## Реестр решений
 
 | Gate | Решение | Владелец | Дата | Следствие |
 |---|---|---|---|---|
-| DG-M1 | pending; recommended C | unassigned | — | Entity validation |
-| DG-M2 | pending; recommended A | unassigned | — | Relation direction contract |
-| DG-M3 | pending; recommended A | unassigned | — | Exceptions и REST errors |
-| DG-M4 | pending; recommended A | unassigned | — | REST compatibility |
-| DG-M5 | pending; recommended B | unassigned | — | Empty public methods |
-| DG-M6 | pending; recommended A | unassigned | — | Client table model |
-| DG-M7 | pending; recommended A | unassigned | — | Atomicity |
-| DG-M8 | pending; recommended B | unassigned | — | Release quality gate |
+| DG-M1 | approved C | repository owner | 2026-09-10 | Strict entity validation + extension strategy |
+| DG-M2 | approved C | repository owner | 2026-09-10 | `type` deprecated no-op; remove next major |
+| DG-M3 | approved A | repository owner | 2026-09-10 | Stable domain codes отдельно от HTTP status |
+| DG-M4 | approved A | repository owner | 2026-09-10 | Backward-compatible REST v1; opt-in representations |
+| DG-M5 | approved B | repository owner | 2026-09-10 | `Connection::load()` deprecated; issue #20 отдельно |
+| DG-M6 | approved A | repository owner | 2026-09-10 | Table-per-client hardening без shared-table migration |
+| DG-M7 | approved A | repository owner | 2026-09-10 | Atomic compound operations или pre-mutation error |
+| DG-M8 | approved B | repository owner | 2026-09-10 | RC: 70% statements + all critical scenarios |
+| DG-M9 | approved A | repository owner | 2026-09-10 | Storage — SPI; invariants на domain boundary |
+
+## Execution batches
+
+### Batch 1. Активировать решения и нормализовать backlog
+
+Status: completed
+
+Scope:
+
+- Зафиксировать DG-M1—DG-M9 и их compatibility consequences.
+- Ограничить DG-M5 deprecation `Connection::load()` и отделить issue #20.
+- Разбить TEST-02 на пять mergeable red-first vertical slices.
+- Добавить недостающие design/inventory tasks и честно пересчитать readiness.
+- Проверить все epic/task attributes независимым planning QA.
+
+Exit criteria:
+
+- Plan/README не содержат pending/противоречащих решений.
+- Каждая execution task имеет обязательные `$decompose-work` attributes.
+- Первый functional batch содержит только `todo` tasks с выполненным DoR.
+- Docs-only PR проходит checks и влит до functional branches.
+
+Verification:
+
+- Independent planning QA: pass, blocking findings отсутствуют.
+- 6/6 epics и 43/43 execution tasks имеют обязательные attributes; task IDs
+  уникальны, `git diff --check` проходит.
+- Baseline `make tests.run`: unit 4/7, integration 5/24.
+- Commit: `6a3a336` (`Activate library hardening decisions`).
+
+### Batch 2. Green foundation и contract discovery
+
+Status: planned
+
+Tasks:
+
+- TEST-03A — quality/critical-scenario contract; automation остаётся в
+  последующих TEST-03B/TEST-03C.
+- REST-01 — full-dispatch REST harness без handler fixes.
+- REL-00 — public consumer/compatibility inventory.
+- API-01 — исследование REST issue #20 без production/API change.
+
+Execution model:
+
+- Четыре независимых workstreams с раздельными file ownership и зелёным CI.
+- TEST-03A владеет quality contract/critical registry и PR checklist; REST-01 —
+  только REST test base и новый harness test; REL-00 — отдельным compatibility
+  inventory artifact; API-01 — отдельным issue #20 design/ADR artifact.
+- После merge/QA выполняется readiness sweep; следующие design tasks — CORE-00,
+  SPI-01, DB-00, REST-00A и REST-00B.
+- Первые production vertical slices после contract tasks:
+  TEST-02A/CORE-01 и TEST-02E/DB-01.
+- В утверждённых vertical slices regression task после наблюдаемого red
+  переходит в `review`; это достаточно, чтобы взять paired fix в том же batch.
+  Обе задачи получают `completed` только после общего зелёного commit/PR.
 
 ## E1. Test foundation и regression harness
 
@@ -184,7 +312,12 @@ Risks/Open Questions:
 
 Tasking Guidance:
 
-- Выполнять TEST-01—TEST-03 по порядку.
+- При создании или переразбиении execution tasks повторно применять
+  `$decompose-work` и сохранять Status, Goal, Scope, Out of Scope, DoR, DoD, AC,
+  Dependencies и Notes/Risks.
+- После TEST-01 выполнять TEST-03A и затем TEST-03B/TEST-03C независимо, а
+  TEST-02A—TEST-02E поставлять red-first vertical slices вместе с
+  соответствующими production fixes.
 - Не переводить regression tasks в `completed`, пока тест не наблюдался красным
   на старом коде и зелёным после соответствующего исправления.
 
@@ -252,26 +385,25 @@ Verification:
 - `make tests.run`, `make tests.coverage` и `make lint.phpcs` прошли; coverage
   gate остался `365/786` statements (46,44%).
 
-### TEST-02. Перенести подтверждённые defects в штатные regression tests
+### TEST-02A. Зафиксировать missing-`to` relation regression
 
 Status: todo
 
 Priority: P0
 
-Goal: воспроизводимо зафиксировать пять обнаруженных дефектов до исправления.
+Goal: доказать, что relation без обязательного `to` ошибочно регистрируется до
+CORE-01 и предсказуемо отклоняется после исправления.
 
 Scope:
 
-- `1-m`: запрет второго `from` для уже занятого `to`.
-- `m-1`: запрет второго `to` для уже занятого `from`.
-- relation без `to`.
-- REST connection update без `title`.
-- поиск connection по `both` endpoint.
+- Один атомарный integration test для отсутствующего только `to`.
+- Assertions на exception type и точный список missing parameters.
+- Отдельная команда/filter для red/green evidence.
 
 Out of Scope:
 
-- Исправление production-кода.
-- Полная cardinality/REST/query matrix.
+- Production fix CORE-01.
+- Полная validation matrix.
 
 DoR:
 
@@ -279,15 +411,14 @@ DoR:
 
 DoD:
 
-- Пять атомарных тестов добавлены с описанием ожидаемого контракта.
-- На исходном production-коде каждый тест падает по ожидаемой причине.
-- Tests классифицированы так, чтобы их можно было запускать отдельно.
+- Test наблюдался красным на исходном production-коде по ожидаемой причине.
+- Test зелёный вместе с CORE-01 в финальном vertical PR.
+- Red/green команды и результаты записаны в task notes/PR.
 
 AC:
 
-- Given текущий код до fixes, when запускается regression group, then видны две
-  cardinality failures, missing validation failure, typed-property error и
-  `wpdb::prepare` placeholder error.
+- Given relation содержит `name` и `from`, но не `to`, when её регистрируют,
+  then возникает `MissingParameters`, перечисляющий `to` один раз.
 
 Dependencies:
 
@@ -295,29 +426,211 @@ Dependencies:
 
 Notes/Risks:
 
-- Cardinality ожидания основаны на формулировке закрытого issue #33.
-- Задача разблокирована после завершения и проверки TEST-01; production fixes
-  по-прежнему остаются out of scope этого regression-only шага.
+- Regression task не мержится отдельно с красным required CI; она поставляется
+  одним зелёным vertical batch с CORE-01.
 
-### TEST-03. Установить правила test quality и финальные thresholds
+### TEST-02B. Зафиксировать cardinality `1-m` regression
 
-Status: needs_design
+Status: waiting_dependency
+
+Priority: P0
+
+Goal: доказать правильное ограничение занятой `to` стороны для relation `1-m`.
+
+Scope:
+
+- Один integration test: второй отличный `from` к уже занятому `to` запрещён.
+- Assertion на утверждённый cardinality domain error.
+- Отдельная команда/filter для red/green evidence.
+
+Out of Scope:
+
+- Production fix CORE-02.
+- Остальные cardinality combinations.
+
+DoR:
+
+- CORE-01 завершена и relation definition validation стабильна.
+- Семантика issue #33 подтверждена утверждённой cardinality matrix CORE-02.
+
+DoD:
+
+- Test наблюдался красным на исходной реализации cardinality.
+- Test зелёный вместе с CORE-02 в финальном vertical PR.
+- Red/green evidence записан.
+
+AC:
+
+- Given `A -> X` в relation `1-m`, when создаётся `B -> X`, then операция
+  отклоняется cardinality error; `A -> Y` остаётся допустимой.
+
+Dependencies:
+
+- TEST-01.
+- CORE-01.
+
+Notes/Risks:
+
+- Выполняется в одном зелёном vertical batch с TEST-02C и CORE-02.
+
+### TEST-02C. Зафиксировать cardinality `m-1` regression
+
+Status: waiting_dependency
+
+Priority: P0
+
+Goal: доказать правильное ограничение занятой `from` стороны для relation
+`m-1`.
+
+Scope:
+
+- Один integration test: второй отличный `to` для уже занятого `from` запрещён.
+- Assertion на утверждённый cardinality domain error.
+- Отдельная команда/filter для red/green evidence.
+
+Out of Scope:
+
+- Production fix CORE-02.
+- Остальные cardinality combinations.
+
+DoR:
+
+- CORE-01 завершена и relation definition validation стабильна.
+- Семантика issue #33 подтверждена утверждённой cardinality matrix CORE-02.
+
+DoD:
+
+- Test наблюдался красным на исходной реализации cardinality.
+- Test зелёный вместе с CORE-02 в финальном vertical PR.
+- Red/green evidence записан.
+
+AC:
+
+- Given `A -> X` в relation `m-1`, when создаётся `A -> Y`, then операция
+  отклоняется cardinality error; `B -> X` остаётся допустимой.
+
+Dependencies:
+
+- TEST-01.
+- CORE-01.
+
+Notes/Risks:
+
+- Выполняется в одном зелёном vertical batch с TEST-02B и CORE-02.
+
+### TEST-02D. Зафиксировать REST update без `title`
+
+Status: waiting_dependency
+
+Priority: P0
+
+Goal: воспроизвести typed-property failure обычного update payload без `title`
+через WordPress REST dispatch.
+
+Scope:
+
+- Full-dispatch regression с существующей connection и omitted `title`.
+- Assertions на отсутствие fatal error и утверждённую preserve semantics.
+- Отдельная команда/filter для red/green evidence.
+
+Out of Scope:
+
+- Production fix REST-02.
+- Полная CRUD matrix.
+
+DoR:
+
+- REST-01 завершена.
+- Утверждён partial-update contract для omitted/null/falsy fields.
+
+DoD:
+
+- Test наблюдался красным на исходном handler по ожидаемой причине.
+- Test зелёный вместе с REST-02 в финальном vertical PR.
+- Red/green evidence записан.
+
+AC:
+
+- Given connection с title, when update меняет другое поле и не передаёт title,
+  then request не падает и прежний title сохраняется.
+
+Dependencies:
+
+- REST-01.
+- REST-00B.
+
+Notes/Risks:
+
+- Нельзя подменять full-dispatch test прямым вызовом handler.
+
+### TEST-02E. Зафиксировать поиск по `both`
+
+Status: todo
+
+Priority: P0
+
+Goal: воспроизвести SQL placeholder defect при поиске connection по endpoint с
+любой стороны.
+
+Scope:
+
+- Один integration test для `both=from` и `both=to` одной connection.
+- Assertions на отсутствие SQL warning и правильный result set.
+- Отдельная команда/filter для red/green evidence.
+
+Out of Scope:
+
+- Production fix DB-01.
+- Полная query combination matrix.
+
+DoR:
+
+- TEST-01 завершена.
+
+DoD:
+
+- Test наблюдался красным на исходном SQL path по ожидаемой причине.
+- Test зелёный вместе с DB-01 в финальном vertical PR.
+- Red/green evidence записан.
+
+AC:
+
+- Given connection `A -> B`, when поиск выполняется с `both=A` и `both=B`, then
+  оба запроса возвращают connection без `wpdb::prepare` warning.
+
+Dependencies:
+
+- TEST-01.
+
+Notes/Risks:
+
+- Regression task поставляется одним зелёным vertical batch с DB-01.
+
+### TEST-03A. Зафиксировать test quality и critical-scenario contract
+
+Status: todo
 
 Priority: P1
 
-Goal: новые тесты оцениваются по рисковым сценариям, isolation и coverage, а не
-только по числу assertions.
+Goal: определить reviewable quality contract и каталог critical scenarios до
+изменения CI enforcement.
 
 Scope:
 
 - Реализовать DG-M8.
-- Список critical scenarios и per-component expectations.
-- Random order/repeat или эквивалентный isolation check.
-- Политика flaky tests и временных exceptions к threshold.
+- Canonical список critical scenario IDs и per-component expectations: relation definition,
+  deprecated `type`, entity validation/extension strategy, cardinality,
+  error precedence, query directions, atomic create/update/delete/meta, schema
+  recovery, multi-client isolation, REST CRUD/errors/permissions/meta/filters и
+  hook/factory compatibility.
+- PR checklist для затронутых scenarios и test evidence.
+- Политика flaky/quarantine/exception: owner, reason, issue и expiry.
+- Разделение PR no-regression baseline и финального RC target 70% statements.
 
 Out of Scope:
 
 - Написание всех тестов остальных эпиков.
+- Изменение coverage checker/workflow и isolation commands.
 
 DoR:
 
@@ -326,14 +639,16 @@ DoR:
 
 DoD:
 
-- Quality contract записан и проверяется CI там, где возможно.
-- Исключения имеют owner, причину и expiry condition.
+- Quality contract и critical registry записаны в репозитории.
+- PR template ссылается на scenario IDs и требует evidence/exception metadata.
+- TEST-03B/TEST-03C имеют execution-ready inputs.
 
 AC:
 
 - Given PR в critical component, then checklist требует соответствующий
   scenario test независимо от глобального coverage.
-- Given coverage regression, then CI применяет утверждённую policy.
+- Given временное исключение, then оно не существует без owner, причины, issue и
+  expiry condition; RC не принимает active critical exceptions.
 
 Dependencies:
 
@@ -344,6 +659,106 @@ Notes/Risks:
 
 - Высокий процент без branch/scenario coverage не гарантирует корректность
   cardinality или data integrity.
+
+### TEST-03B. Автоматизировать PR baseline и RC coverage profiles
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: сохранить зелёный monotonic PR gate и добавить явную проверку RC threshold
+70% без преждевременной блокировки feature PR.
+
+Scope:
+
+- Добавить RC target в coverage configuration без изменения exact baseline.
+- Разделить default PR и explicit RC modes coverage checker.
+- Проверить baseline regression, RC below/equal/above 70% и malformed inputs.
+- Добавить локальную RC command и обновить runbook.
+
+Out of Scope:
+
+- Сделать текущие 46,44% равными 70%.
+- Добавить новый required GitHub check без branch-protection review.
+- Isolation/flaky enforcement TEST-03C.
+
+DoR:
+
+- TEST-03A завершена.
+- INFRA-04 coverage gate остаётся зелёным на current baseline.
+
+DoD:
+
+- Default PR mode не допускает coverage regression и проходит на baseline.
+- Explicit RC mode требует не менее 70% statements.
+- Checker имеет automated synthetic tests и различает policy failure/malformed
+  input exit codes.
+
+AC:
+
+- Given current 46,44% report, when работает PR mode, then gate проходит без
+  регрессии и сообщает RC not ready.
+- Given synthetic RC reports ниже/ровно/выше 70%, then результаты соответственно
+  fail/pass/pass; malformed input даёт отдельный configuration error.
+
+Dependencies:
+
+- TEST-03A.
+- INFRA-04.
+
+Notes/Risks:
+
+- Сравнение threshold выполняется exact integer counts, чтобы округление не
+  скрывало regression.
+
+### TEST-03C. Автоматизировать isolation и flaky policy
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: проверять order independence/repeat и не позволять retry/quarantine
+скрывать нестабильный critical test.
+
+Scope:
+
+- Локальная isolation command для reverse и seeded random repeat.
+- CI integration без переименования существующих required checks.
+- Seed/reproduction output и documented triage flow.
+- Проверяемая exception metadata согласно TEST-03A.
+
+Out of Scope:
+
+- Исправление конкретного flaky теста, если он обнаружен.
+- Глобальное включение strict PHPUnit mode без отдельного аудита suite.
+
+DoR:
+
+- TEST-03A завершена.
+- TEST-01 isolation fixture остаётся зелёной.
+
+DoD:
+
+- Reverse/random repeat воспроизводимы локально и в CI.
+- Failure сохраняет seed и не становится зелёным через silent retry.
+- Runbook описывает owner/expiry/triage policy.
+
+AC:
+
+- Given order-dependent probe, when запускается isolation command, then command
+  завершается ошибкой и показывает воспроизводимый seed/order.
+- Given обычный suite, then reverse и seeded random repeat проходят без state
+  leakage.
+
+Dependencies:
+
+- TEST-03A.
+- TEST-01.
+
+Notes/Risks:
+
+- Repeat увеличивает CI time; измерение выполняется в существующем Coverage job,
+  пока не появится отдельное решение о required-check topology.
 
 ## E2. Domain invariants и error model
 
@@ -371,7 +786,7 @@ Success Criteria:
 Dependencies:
 
 - E1.
-- DG-M1, DG-M2, DG-M3 и DG-M6 для соответствующих задач.
+- DG-M1, DG-M2, DG-M3, DG-M6 и DG-M9 для соответствующих задач.
 
 Risks/Open Questions:
 
@@ -380,12 +795,66 @@ Risks/Open Questions:
 
 Tasking Guidance:
 
-- Сначала CORE-01—CORE-03, затем entity/client contracts.
-- Каждый production fix делается после соответствующего TEST-02 regression.
+- При создании или переразбиении execution tasks повторно применять
+  `$decompose-work` и сохранять все обязательные task attributes.
+- CORE-00 design может идти параллельно CORE-01—CORE-03; production CORE-04
+  начинается только после обоих потоков, client contract — после REL-00.
+- Каждый production fix начинается с соответствующего TEST-02A—TEST-02E
+  regression и поставляется с ним одним финально зелёным vertical PR.
+
+### CORE-00. Спроектировать entity validation strategy и rollout
+
+Status: todo
+
+Priority: P1
+
+Goal: превратить DG-M1/C и DG-M9/A в implementation-ready contract без
+неявного breaking rollout.
+
+Scope:
+
+- Единая validation boundary для Relation create/update и Connection update.
+- Default `WP_Post` existence/post-type resolver и extension strategy для
+  разрешённых non-post entities.
+- Domain errors/codes согласно DG-M3.
+- Поведение legacy rows, bulk/import flows и rollout/migration guidance.
+- Decision-ready описание публичных hooks/interfaces и downstream refinement
+  CORE-04.
+
+Out of Scope:
+
+- Production implementation CORE-04.
+- Перенос domain invariants внутрь каждого storage implementation.
+
+DoR:
+
+- DG-M1, DG-M3 и DG-M9 решены.
+
+DoD:
+
+- Validation contract перечисляет все поддерживаемые mutation entrypoints.
+- Extension и rollout semantics достаточно точны для тестовых AC CORE-04.
+- Material public extension choices оформлены как human decision gates.
+
+AC:
+
+- Given relation `page -> post`, when проектируется create/update validation,
+  then contract однозначно определяет missing, deleted и wrong-type endpoints.
+- Given custom entity adapter, then contract определяет регистрацию, результат и
+  error behavior без изменения storage SPI.
+
+Dependencies:
+
+- DG-M1, DG-M3, DG-M9.
+
+Notes/Risks:
+
+- Strict validation может отклонить legacy data/import flows; rollout должен
+  отделять чтение существующих rows от новых mutations.
 
 ### CORE-01. Валидировать relation definition
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P0
 
@@ -395,7 +864,9 @@ Scope:
 
 - Исправить повторную проверку `name` вместо `to`.
 - Required: `name`, `from`, `to`.
-- Валидировать allowed cardinality и, после DG-M2, allowed type.
+- Валидировать allowed cardinality.
+- Не добавлять новую validation или behavioral semantics для legacy `type`:
+  v1 продолжает принимать/сериализовать его как deprecated no-op.
 - Проверить duplicate relation name и defaults.
 
 Out of Scope:
@@ -404,7 +875,8 @@ Out of Scope:
 
 DoR:
 
-- TEST-02 содержит regression для missing `to`.
+- TEST-02A находится в `review`: red воспроизведён и зафиксирован в том же
+  утверждённом vertical batch.
 - DG-M2 решён.
 
 DoD:
@@ -412,7 +884,7 @@ DoD:
 - Полная validation matrix покрыта unit/integration tests.
 - Missing parameter message перечисляет только реально отсутствующие поля без
   дублей.
-- Неизвестные enum values дают документированный exception/code.
+- Неизвестные cardinality values дают документированный exception/code.
 
 AC:
 
@@ -421,10 +893,12 @@ AC:
 - Given duplicate name, when relation регистрируется повторно, then возвращается
   стабильный `RelationWrongData` contract.
 - Given валидный minimal query, then применяются документированные defaults.
+- Given legacy `type` передан в v1 relation definition, then он принимается и
+  сериализуется как deprecated metadata, не меняя validation или traversal.
 
 Dependencies:
 
-- TEST-02.
+- TEST-02A (`review` с red evidence достаточно для paired vertical batch).
 - DG-M2.
 
 Notes/Risks:
@@ -452,8 +926,9 @@ Out of Scope:
 
 DoR:
 
-- TEST-02 cardinality tests добавлены и воспроизводят дефект.
-- Семантика из issue #33 подтверждена владельцем.
+- TEST-02B и TEST-02C находятся в `review`: red воспроизведён и зафиксирован в
+  том же утверждённом vertical batch.
+- Семантика из issue #33 соответствует утверждённой AC matrix этой задачи.
 
 DoD:
 
@@ -472,7 +947,8 @@ AC:
 
 Dependencies:
 
-- TEST-02.
+- TEST-02B, TEST-02C (`review` с red evidence достаточно для paired vertical
+  batch).
 - CORE-01 для валидных enum values.
 
 Notes/Risks:
@@ -482,7 +958,7 @@ Notes/Risks:
 
 ### CORE-03. Зафиксировать duplicatable, closurable и error precedence
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P0
 
@@ -531,7 +1007,7 @@ Notes/Risks:
 
 ### CORE-04. Реализовать endpoint entity validation
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P1
 
@@ -540,9 +1016,11 @@ type contract.
 
 Scope:
 
-- Реализовать DG-M1 для create и update.
+- Реализовать DG-M1 для create и всех поддерживаемых update paths.
 - Tests для missing/deleted/wrong-type endpoints.
 - Extension hook/strategy, если выбран вариант C.
+- Провести high-level mutations через общий validation path согласно DG-M9;
+  direct storage writes остаются SPI и не являются consumer API.
 
 Out of Scope:
 
@@ -552,7 +1030,8 @@ Out of Scope:
 DoR:
 
 - DG-M1 решён.
-- Определён backward-compatibility/rollout plan.
+- DG-M9 решён.
+- CORE-00 завершила extension и backward-compatibility/rollout contract.
 
 DoD:
 
@@ -571,6 +1050,8 @@ AC:
 Dependencies:
 
 - DG-M1.
+- DG-M9.
+- CORE-00.
 - CORE-03.
 
 Notes/Risks:
@@ -578,52 +1059,107 @@ Notes/Risks:
 - Строгая проверка может быть breaking для consumers, использующих IDs не из
   `wp_posts`.
 
-### CORE-05. Защитить multi-client isolation и table-name collisions
+### CORE-05. Зафиксировать client naming и migration contract
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P1
 
-Goal: обещанная README изоляция клиентов сохраняется для всех допустимых имён.
+Goal: определить canonical client identifier, table-name mapping и legacy
+migration до изменения production naming behavior.
 
 Scope:
 
-- Реализовать DG-M6 для hardening release.
-- Tests двух клиентов с разными relations/data.
-- Нормализация, collision detection, length и empty-name validation.
-- Документировать table naming.
+- Применить REL-00 inventory к collision examples и существующим identifiers.
+- Canonical alphabet/case, empty-name и maximum-byte-length rules с учётом
+  `$wpdb->prefix` и MySQL identifier limit.
+- Поведение имён, нормализующихся в одинаковый table postfix.
+- Backward-compatible handling/migration для legacy underscores и иных имён.
+- Decision-ready contract и test matrix для CORE-06/DB-06.
 
 Out of Scope:
 
+- Production validation/table-name changes.
 - Shared-table migration, если выбран table-per-client.
 
 DoR:
 
 - DG-M6 решён.
-- Известны ограничения имён существующих consumers.
+- REL-00 завершил inventory существующих client names.
 
 DoD:
 
-- Разные допустимые client names не разделяют данные неожиданно.
-- Коллизирующие normalized names отклоняются или разрешаются утверждённым
-  детерминированным способом.
-- Empty/overlong name не создаёт опасную таблицу.
+- Для каждого raw/canonical/colliding/overlong case определён result/error и
+  migration consequence.
+- Material compatibility/migration choices оформлены как human decision gates.
+- CORE-06 и DB-06 можно перевести в execution-ready после решений.
 
 AC:
 
-- Given два клиента, when каждый создаёт связь, then ни один не видит и не
-  удаляет данные другого.
-- Given имена, нормализующиеся одинаково, then система не молча использует одну
-  таблицу.
+- Given `my-client` и `my_client`, when применяется contract, then однозначно
+  определено, являются ли они одним client или collision error, и как защищены
+  существующие tables.
+- Given длинный WordPress prefix, then maximum client length рассчитывается для
+  полного DB identifier, а не только postfix.
 
 Dependencies:
 
 - DG-M6.
 - TEST-01.
+- REL-00.
 
 Notes/Risks:
 
 - Любое изменение table postfix может потребовать migration существующих tables.
+
+### CORE-06. Реализовать multi-client isolation и table-name rules
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: обещанная README изоляция клиентов сохраняется для всех утверждённых имён
+и не допускает silent normalized collisions.
+
+Scope:
+
+- Реализовать утверждённый CORE-05 canonical/migration contract.
+- Tests двух клиентов с разными relations/data.
+- Collision, empty, length и legacy compatibility scenarios.
+- Документировать фактический table naming.
+
+Out of Scope:
+
+- Shared-table migration.
+- Naming policy, не утверждённая в CORE-05.
+
+DoR:
+
+- CORE-05 завершён и возникающие human gates утверждены.
+- TEST-01 завершена.
+
+DoD:
+
+- Разные допустимые client names не разделяют данные неожиданно.
+- Collision/empty/overlong inputs дают утверждённый result/error до опасного SQL.
+- Legacy compatibility/migration tests и документация соответствуют contract.
+
+AC:
+
+- Given два допустимых разных клиента, when каждый создаёт и удаляет связь, then
+  данные другого не читаются и не изменяются.
+- Given коллидирующие normalized names, then система не молча использует одну
+  table pair как два разных client identity.
+
+Dependencies:
+
+- CORE-05.
+- TEST-01.
+
+Notes/Risks:
+
+- Любая table rename/copy операция требует отдельного destructive migration
+  review и rollback; она не подразумевается этой задачей автоматически.
 
 ## E3. Storage, query и data integrity
 
@@ -657,8 +1193,115 @@ Risks/Open Questions:
 
 Tasking Guidance:
 
-- DB-01 и DB-02 можно выполнять первыми; delete и transaction задачи требуют
-  отдельного review из-за риска потери данных.
+- При создании или переразбиении execution tasks повторно применять
+  `$decompose-work` и сохранять все обязательные task attributes.
+- SPI-01 и DB-00 можно выполнять как ранние contract tasks; DB-01 и DB-02 —
+  первые production slices. Delete и transaction задачи требуют отдельного
+  review из-за риска потери данных.
+
+### SPI-01. Зафиксировать storage SPI и mutation boundary
+
+Status: waiting_dependency
+
+Priority: P0
+
+Goal: превратить DG-M9/A в проверяемый extension contract до domain и
+transaction refactoring.
+
+Scope:
+
+- Разделить consumer domain API и storage implementer SPI в документации.
+- Зафиксировать обязательные storage operations, inputs, results и errors.
+- Определить capability signaling для atomic compound operations DG-M7.
+- Инвентаризировать Factory replacement contract и conformance test fixture.
+- Уточнить dependencies/AC CORE-04, DB-05 и REL-02.
+
+Out of Scope:
+
+- Breaking PHP visibility change `Client::getStorage()`.
+- Production refactor domain mutations.
+- Реализация транзакций DB-05.
+
+DoR:
+
+- DG-M7 и DG-M9 решены.
+- REL-00 завершил inventory фактического direct storage/custom storage usage.
+
+DoD:
+
+- Storage SPI contract описывает compatibility promise для implementers и явно
+  исключает direct writes из consumer domain API.
+- Transaction capability и unsupported behavior определены достаточно точно для
+  DB-05.
+- Conformance test plan имеет проверяемые scenarios.
+
+AC:
+
+- Given custom storage implementer, when он читает contract, then понимает
+  обязательные методы, result/error semantics и atomic capability expectations.
+- Given обычный consumer, then documentation направляет mutation через Relation
+  или Connection domain API, а не через direct storage write.
+
+Dependencies:
+
+- DG-M7, DG-M9.
+- REL-00.
+
+Notes/Risks:
+
+- Storage — публичная extension SPI, поэтому изменения abstract signatures могут
+  быть breaking даже при запрете direct consumer mutations.
+
+### DB-00. Исследовать DB compatibility и transaction capabilities
+
+Status: todo
+
+Priority: P1
+
+Goal: определить поддерживаемые MySQL/MariaDB versions и engines, на которых
+выполнима атомарность DG-M7 и воспроизводим schema recovery.
+
+Scope:
+
+- Текущие CI/container DB versions и WordPress compatibility expectations.
+- MySQL/MariaDB version matrix для blocking и optional checks.
+- Transactional engine detection, existing non-transactional tables и migration
+  consequences.
+- Nested transaction/savepoint risks для `$wpdb` callers.
+- Decision-ready recommendation для DB-05, DB-06 и REL-01.
+
+Out of Scope:
+
+- Изменение production schema или engine.
+- Реализация transaction wrapper.
+
+DoR:
+
+- INFRA-03 завершена.
+- DG-M7 решён.
+
+DoD:
+
+- Версии/engines и blocking status описаны с воспроизводимыми probes.
+- Unsupported и existing-table behavior имеют recommendation и alternatives.
+- Material migration/support choices оформлены как human decision gate.
+
+AC:
+
+- Given каждая рекомендованная DB combination, when планируется DB-05/DB-06,
+  then известны transaction и schema capabilities и команда проверки.
+- Given non-transactional existing table, then документ не предполагает silent
+  atomicity и описывает migration/error alternatives.
+
+Dependencies:
+
+- INFRA-03.
+- DG-M7.
+
+Notes/Risks:
+
+- Выбор blocking DB matrix и engine migration остаётся owner decision после
+  исследования.
 
 ### DB-01. Исправить поиск по `both` и покрыть query matrix
 
@@ -682,7 +1325,8 @@ Out of Scope:
 
 DoR:
 
-- TEST-02 содержит падающий `both` regression.
+- TEST-02E находится в `review`: red воспроизведён и зафиксирован в том же
+  утверждённом vertical batch.
 
 DoD:
 
@@ -699,7 +1343,7 @@ AC:
 
 Dependencies:
 
-- TEST-02.
+- TEST-02E (`review` с red evidence достаточно для paired vertical batch).
 
 Notes/Risks:
 
@@ -730,6 +1374,7 @@ DoR:
 
 - TEST-01 завершена.
 - CORE-02 определяет update invariants.
+- REST-00B утвердил shared update semantics для omitted/null/falsy/no-op.
 
 DoD:
 
@@ -749,13 +1394,63 @@ Dependencies:
 
 - TEST-01.
 - CORE-02 для update endpoint invariants.
+- REST-00B.
 
 Notes/Risks:
 
 - Таблица объявляет `meta_value NOT NULL`, тогда как object model допускает null;
   контракт нужно зафиксировать тестом и при необходимости schema change.
 
-### DB-03. Покрыть все явные delete paths и meta cascade
+### DB-03A. Зафиксировать delete result и failure contract
+
+Status: todo
+
+Priority: P0
+
+Goal: определить rows-affected, not-found, invalid-input и partial-failure
+semantics до тестирования/refactor всех delete variants.
+
+Scope:
+
+- Инвентаризация storage и Relation detach delete paths.
+- Result semantics для single/multiple IDs, directed pair, object side и no-op.
+- Invalid/empty identifiers, conflicting direction flags и relation filter.
+- Domain errors/codes и граница атомарности DG-M7.
+- Decision-ready matrix для DB-03B и REST delete responses.
+
+Out of Scope:
+
+- Production delete changes.
+- Transactions DB-05.
+- WordPress `deleted_post` cascade DB-04.
+
+DoR:
+
+- DG-M3 и DG-M7 решены.
+
+DoD:
+
+- Каждый delete variant имеет однозначный success/no-op/error result.
+- Partial failures не маскируются как rows-affected success.
+- Material public compatibility choices оформлены как human decision gates.
+
+AC:
+
+- Given no matching row, invalid ID или conflicting flags, when читается matrix,
+  then caller result/error определён отдельно для каждого случая.
+- Given несколько matching connections, then contract определяет, что именно
+  считает возвращаемое rows-affected значение.
+
+Dependencies:
+
+- DG-M3, DG-M7.
+
+Notes/Risks:
+
+- Текущее `$wpdb->rows_affected` после второго SQL statement не обязательно
+  отражает количество логически удалённых connections.
+
+### DB-03B. Покрыть все явные delete paths и meta cascade
 
 Status: waiting_dependency
 
@@ -780,7 +1475,8 @@ Out of Scope:
 DoR:
 
 - TEST-01 обеспечивает isolation.
-- Согласовано ожидаемое rows-affected поведение.
+- DB-03A contract утверждён.
+- CORE-06 завершил multi-client isolation contract.
 
 DoD:
 
@@ -800,7 +1496,8 @@ AC:
 Dependencies:
 
 - TEST-01.
-- CORE-05 для cross-client assertions.
+- DB-03A.
+- CORE-06 для cross-client assertions.
 
 Notes/Risks:
 
@@ -827,7 +1524,7 @@ Out of Scope:
 
 DoR:
 
-- DB-03 завершена.
+- DB-03B завершена.
 - DG-M1 определяет поддерживаемые entities.
 
 DoD:
@@ -844,7 +1541,7 @@ AC:
 
 Dependencies:
 
-- DB-03.
+- DB-03B.
 - DG-M1.
 
 Notes/Risks:
@@ -854,7 +1551,7 @@ Notes/Risks:
 
 ### DB-05. Сделать составные storage operations атомарными
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P1
 
@@ -873,8 +1570,9 @@ Out of Scope:
 DoR:
 
 - DG-M7 решён.
-- DB-02 и DB-03 задают корректные success semantics.
-- Определены поддерживаемые DB engines.
+- DG-M9 решён.
+- SPI-01 и DB-00 завершены, owner утвердил возникающие DB/migration gates.
+- DB-02 и DB-03B задают корректные success semantics.
 
 DoD:
 
@@ -892,7 +1590,9 @@ AC:
 Dependencies:
 
 - DG-M7.
-- DB-02, DB-03.
+- DG-M9.
+- SPI-01, DB-00.
+- DB-02, DB-03B.
 
 Notes/Risks:
 
@@ -924,6 +1624,9 @@ DoR:
 
 - INFRA-03 и compatibility policy доступны.
 - DG-M6 решён.
+- DB-00 определил поддерживаемую DB matrix.
+- Владелец утвердил DB matrix и migration/error policy, предложенные DB-00.
+- CORE-06 реализовал и проверил table naming rules.
 
 DoD:
 
@@ -944,6 +1647,8 @@ Dependencies:
 
 - INFRA-03.
 - DG-M6.
+- DB-00.
+- CORE-06.
 
 Notes/Risks:
 
@@ -986,12 +1691,111 @@ Risks/Open Questions:
 
 Tasking Guidance:
 
-- Сначала REST-01 harness, затем REST-02 update defect, после чего CRUD/errors,
-  permissions, meta и filters.
+- При создании или переразбиении execution tasks повторно применять
+  `$decompose-work` и сохранять все обязательные task attributes.
+- REST-00A/REST-00B contracts и REST-01 harness могут идти параллельно. Затем
+  REST-02 update defect, после чего CRUD/errors, permissions, meta и filters.
+
+### REST-00A. Зафиксировать domain error → HTTP mapping
+
+Status: todo
+
+Priority: P0
+
+Goal: превратить DG-M3/A в полную таблицу стабильных v1 error responses до
+REST-03 и OpenAPI.
+
+Scope:
+
+- Инвентаризация domain exceptions/codes, включая 301—304 и not-found cases.
+- Отдельный HTTP status для validation, conflict/invariant, not found,
+  permission и storage failures.
+- Backward-compatible v1 error body и serialization через WordPress REST.
+- Decision-ready mapping table и test matrix для REST-03.
+
+Out of Scope:
+
+- Реализация handlers или REST-03 tests.
+- Замена numeric domain codes строковыми identifiers.
+
+DoR:
+
+- DG-M3 и DG-M4 решены.
+
+DoD:
+
+- Каждая известная domain error имеет body code и независимый HTTP status.
+- Numeric 301—304 нигде не трактуются как redirect statuses.
+- Material mapping choices готовы для owner approval.
+
+AC:
+
+- Given invariant code 301—304, when строится REST error, then mapping однозначно
+  задаёт 4xx status и сохраняет domain code в body.
+- Given unknown/storage failure, then contract не выдаёт misleading success или
+  redirect response.
+
+Dependencies:
+
+- DG-M3, DG-M4.
+
+Notes/Risks:
+
+- Точные HTTP statuses являются публичным REST contract и требуют утверждения
+  перед production implementation.
+
+### REST-00B. Зафиксировать connection partial-update semantics
+
+Status: todo
+
+Priority: P0
+
+Goal: определить shared PHP/storage/REST поведение omitted, explicit null, falsy
+и no-op update до DB-02, TEST-02D и REST-02.
+
+Scope:
+
+- Инвентаризация текущих PHP, storage и REST update paths.
+- Различия POST/PUT/PATCH для connection fields и meta.
+- Omitted field, explicit null, empty string, zero и empty collection.
+- Preserve/replace semantics и результат no-op update.
+- Совместимость существующих REST route args/defaults и PHP object update.
+- Decision-ready contract и downstream test matrix.
+
+Out of Scope:
+
+- Production update fix.
+- Новый REST response representation.
+
+DoR:
+
+- DG-M4 решён.
+
+DoD:
+
+- Для каждого method/value state определено persisted и response behavior.
+- DB-02, TEST-02D и REST-02 имеют однозначные AC без скрытых defaults.
+- Material compatibility choices оформлены как human decision gate.
+
+AC:
+
+- Given существующий title и omitted title, when PATCH меняет order, then
+  contract однозначно определяет сохранение title и order `0`.
+- Given explicit null или empty meta, then contract различает preserve, clear и
+  invalid input.
+
+Dependencies:
+
+- DG-M4.
+
+Notes/Risks:
+
+- Текущие route defaults могут превращать omitted в explicit value; design
+  должен опираться на full dispatch, а не только handler calls.
 
 ### REST-01. Создать end-to-end REST test harness
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -1002,7 +1806,10 @@ Scope:
 - `rest_api_init`, route discovery и `rest_get_server()->dispatch()`.
 - Authenticated/unauthenticated users и nonce-independent unit context.
 - Helpers для URL, payload и response assertions.
-- Сверка route/method inventory с Postman collection.
+- Изоляция `$GLOBALS['wp_rest_server']`, чтобы callbacks не сохраняли client из
+  предыдущего test.
+- Сверка четырёх custom path patterns/двенадцати method-callback combinations с
+  Postman collection; namespace root классифицируется как WordPress-generated.
 
 Out of Scope:
 
@@ -1017,7 +1824,8 @@ DoD:
 
 - Harness демонстрирует request validation, callback, permission и response
   serialization.
-- Все объявленные routes обнаруживаются.
+- Все четыре custom routes и двенадцать method/callback combinations
+  обнаруживаются без зависимости от handler-array order.
 - Direct handler test остаётся только там, где он проверяет отдельную unit logic.
 
 AC:
@@ -1026,6 +1834,9 @@ AC:
   ожидаемые routes/methods присутствуют.
 - Given невалидный required arg, then WordPress validation отклоняет request до
   handler.
+- Given unauthenticated request, then permission callback возвращает REST denial;
+  given administrator, then representative existing connection сериализуется
+  через полный dispatch.
 
 Dependencies:
 
@@ -1035,6 +1846,10 @@ Notes/Risks:
 
 - Namespace root в Postman может быть автоматически предоставлен WordPress и не
   должен ошибочно считаться отдельным custom route.
+- `EDITABLE` регистрирует POST/PUT/PATCH, тогда как Postman перечисляет не все
+  варианты; REST-01 фиксирует drift, но не меняет route contract.
+- Update args/defaults, create `title` и DELETE meta drift принадлежат
+  REST-00B/REST-02/REST-05, а не harness task.
 
 ### REST-02. Исправить fatal error при update connection
 
@@ -1047,7 +1862,7 @@ Goal: обычный update payload без `title` не читает неини�
 
 Scope:
 
-- Перенести TEST-02 regression в REST harness.
+- Реализовать TEST-02D regression в REST harness.
 - Определить defaults/preserve semantics для omitted fields.
 - Проверить POST/PUT/PATCH methods, разрешённые `EDITABLE`.
 - Проверить `order=0` вместе с DB-02.
@@ -1058,9 +1873,10 @@ Out of Scope:
 
 DoR:
 
-- TEST-02 содержит reproduction.
+- TEST-02D находится в `review`: red воспроизведён и зафиксирован в том же
+  утверждённом vertical batch.
 - REST-01 завершена.
-- Согласована semantics partial update для omitted fields.
+- REST-00B утвердил semantics partial update для omitted/null/falsy fields.
 
 DoD:
 
@@ -1076,8 +1892,9 @@ AC:
 
 Dependencies:
 
-- TEST-02.
+- TEST-02D (`review` с red evidence достаточно для paired vertical batch).
 - REST-01.
+- REST-00B.
 - DB-02.
 
 Notes/Risks:
@@ -1086,7 +1903,7 @@ Notes/Risks:
 
 ### REST-03. Покрыть connection CRUD и error mapping
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P0
 
@@ -1108,7 +1925,8 @@ Out of Scope:
 DoR:
 
 - DG-M3 и DG-M4 решены.
-- REST-01, REST-02, CORE-03 и DB-03 завершены.
+- REST-00A mapping утверждён.
+- REST-01, REST-02, CORE-03 и DB-03B завершены.
 
 DoD:
 
@@ -1128,7 +1946,8 @@ AC:
 Dependencies:
 
 - DG-M3, DG-M4.
-- REST-01, REST-02, CORE-03, DB-03.
+- REST-00A.
+- REST-01, REST-02, CORE-03, DB-03B.
 
 Notes/Risks:
 
@@ -1203,7 +2022,7 @@ Out of Scope:
 
 DoR:
 
-- REST-01 и DB-02/DB-03 завершены.
+- REST-01 и DB-02/DB-03B завершены.
 
 DoD:
 
@@ -1221,7 +2040,7 @@ AC:
 Dependencies:
 
 - REST-01.
-- DB-02, DB-03.
+- DB-02, DB-03B.
 
 Notes/Risks:
 
@@ -1229,7 +2048,7 @@ Notes/Risks:
 
 ### REST-06. Реализовать filters relation list из issue #21
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P1
 
@@ -1250,6 +2069,8 @@ Out of Scope:
 DoR:
 
 - DG-M4 решён.
+- API-01 утвердил границу connection filters issue #21 и issue #20 entity
+  representation.
 - DB-01 завершена.
 - Для combinations определена AND/OR semantics.
 
@@ -1269,6 +2090,7 @@ AC:
 Dependencies:
 
 - DG-M4.
+- API-01.
 - DB-01.
 - REST-03.
 
@@ -1277,92 +2099,126 @@ Notes/Risks:
 - Pagination и deterministic ordering понадобятся при больших relation lists;
   при необходимости создать отдельный follow-up issue.
 
-## E5. Незавершённый API, open issues и документация
+## E5. Незавершённый API, related entities и документация
 
-Outcome: пустые public methods и открытые API/documentation issues имеют
-реализованный контракт либо явное deprecation/deferred решение.
+Outcome: пустой `load()` имеет формальный deprecation path, а REST issue #20
+получает исследованный и реализованный related-entity contract, не
+предопределённый старой пустой сигнатурой `getPosts()`.
 
 Scope:
 
-- `getPosts`, `load`, relation `type` traversal.
-- Entity representation issue #20.
+- Deprecation `Connection::load()`.
+- Отдельный design issue #20: connection filters, explicit traversal side,
+  entity filters, permissions, ordering/pagination и representation.
+- Bulk entity resolution без N+1 после утверждения контракта.
+- Opt-in REST representation согласно DG-M4.
 - OpenAPI issue #27.
 - Dashboard issue #28 как отдельная инициатива.
 
 Out of Scope:
 
 - Реализация dashboard frontend в hardening release.
+- Использование deprecated `relation.type` для traversal.
+- Реализация `getPosts()` до утверждения issue #20 contract.
 
 Success Criteria:
 
 - В public API нет молча пустых методов.
+- Issue #20 отделяет selection connections от resolution/representation
+  entities и закрыт проверенным REST contract.
+- Default REST v1 response shape не меняется.
 - OpenAPI соответствует dispatch tests.
 - Каждый open issue закрыт, запланирован отдельно или осознанно deferred.
 
 Dependencies:
 
-- E2, E3 и E4; DG-M2, DG-M4, DG-M5.
+- E2, E3 и E4; DG-M1, DG-M2, DG-M4, DG-M5 и DG-M9.
 
 Risks/Open Questions:
 
-- Entity expansion может создать N+1 queries и изменить response size/shape.
+- Entity expansion может создать N+1 queries, раскрыть недоступные posts или
+  изменить response size/shape.
+- Фильтрация entities после pagination connections создаёт неполные страницы;
+  pipeline должен быть определён до implementation.
+- Существующая сигнатура `getPosts(direction)` может оказаться недостаточной и
+  не является заранее утверждённым публичным контрактом.
 
 Tasking Guidance:
 
-- Сначала принять gates, затем API-01/API-02; OpenAPI создаётся из стабильного
-  REST contract, dashboard получает отдельный discovery epic.
+- При создании или переразбиении execution tasks повторно применять
+  `$decompose-work` и сохранять все обязательные task attributes.
+- Сначала API-01 design issue #20, затем отдельные API-03/API-04 implementation
+  tasks после утверждения возникающих public-contract gates.
+- API-02 deprecation не зависит от issue #20 и может выполняться отдельно.
+- OpenAPI создаётся из стабильного REST contract, dashboard получает отдельный
+  discovery epic.
 
-### API-01. Реализовать traversal и получение WP entities
+### API-01. Исследовать и зафиксировать contract issue #20
 
-Status: needs_design
+Status: todo
 
 Priority: P1
 
-Goal: закрыть issue #20 и сделать `ConnectionCollection::getPosts()` реальным,
-предсказуемым API без N+1 behavior.
+Goal: определить, как consumer выбирает connections и получает связанные
+WordPress entities через REST, не сводя задачу к одному direction parameter или
+к существующему пустому `getPosts()`.
 
 Scope:
 
-- Реализовать DG-M2 и часть DG-M5 про `getPosts()`.
-- `from`, `to`, `both` traversal semantics.
-- Missing/deleted posts, ordering и duplicate IDs.
-- Bulk-loading и opt-in REST representation согласно DG-M4.
+- Сценарии anchor `from`/`to`, целевой стороны и двустороннего traversal.
+- Граница connection filters issue #21 и entity-level filters.
+- AND/OR semantics для комбинаций `from`, `to` и `both` filters issue #21.
+- Варианты response representation при сохранении default REST v1 shape.
+- Ordering, pagination/total, duplicates и missing/deleted endpoints.
+- Permissions/context для private, draft и недоступных posts.
+- Query-count/performance expectations и adapter boundary для non-post entities.
+- Решение, реализуется, заменяется или deprecated существующий `getPosts()`.
+- Decision-ready ADR/contract с примерами запросов/ответов без production change.
 
 Out of Scope:
 
-- Non-post entities без adapter из DG-M1.
-- Dashboard UI.
+- Реализация PHP или REST handlers.
+- Проектирование dashboard.
+- Возвращение raw `WP_Post` без REST preparation и permission checks.
 
 DoR:
 
-- DG-M1, DG-M2, DG-M4 и DG-M5 решены.
-- DB-01 и REST-06 завершены.
+- DG-M1, DG-M2, DG-M4 и DG-M9 решены.
+- Issues #20 и #21 доступны как traceability source.
 
 DoD:
 
-- `getPosts()` больше не пуст.
-- Issue #20 закрыт либо REST часть выделена в v2 task.
-- Performance проверяется query-count test для коллекции.
+- Contract разделяет connection selection, endpoint projection и entity
+  filtering/representation.
+- Combinations `from`/`to`/`both` имеют однозначную AND/OR semantics для REST-06.
+- Для response shape, pagination, ordering, duplicates, missing entities и
+  permissions есть decision-ready recommendation и credible alternatives.
+- Все material public API choices оформлены как явные human decision gates.
+- API-03 и API-04 можно уточнить до execution-ready состояния после решений.
 
 AC:
 
-- Given connection collection, when запрашиваются `from` posts, then возвращены
-  соответствующие существующие posts в документированном порядке.
-- Given deleted endpoint, then поведение skip/null/error соответствует contract.
-- Given REST opt-in expansion, then default v1 shape не меняется.
+- Given consumer хочет получить `to` posts определённого `from`, when читается
+  contract, then однозначны anchor filter, target side, entity filters, порядок,
+  pagination и response shape.
+- Given default v1 request без opt-in representation, then response остаётся
+  массивом connections с numeric endpoint IDs.
+- Given недоступный current user post, then contract не допускает его раскрытие
+  через related-entity response.
 
 Dependencies:
 
-- DG-M1, DG-M2, DG-M4, DG-M5.
-- DB-01, REST-06.
+- DG-M1, DG-M2, DG-M4, DG-M9.
+- GitHub issues #20 и #21.
 
 Notes/Risks:
 
-- Не загружать каждый post отдельным SQL query.
+- Design task сама готова к исполнению; implementation остаётся waiting до
+  утверждения обнаруженных public-contract gates.
 
 ### API-02. Решить судьбу `Connection::load()`
 
-Status: needs_design
+Status: waiting_dependency
 
 Priority: P2
 
@@ -1370,10 +2226,10 @@ Goal: public method не остаётся молча пустым.
 
 Scope:
 
-- Реализовать или deprecated/remove согласно DG-M5.
-- Если реализуется: входной identity, refresh semantics, not-found behavior,
-  client requirement и tests.
-- Если deprecated: warning, migration docs и removal version.
+- Объявить deprecated согласно DG-M5 без добавления нового runtime behavior.
+- Инвентаризировать использование метода в доступных consumers.
+- Документировать relation query flow как замену и removal version.
+- Добавить contract test/documentation check для deprecation.
 
 Out of Scope:
 
@@ -1382,28 +2238,127 @@ Out of Scope:
 DoR:
 
 - DG-M5 решён.
-- Инвентаризировано использование метода consumers.
+- REL-00 завершил consumer usage inventory.
 
 DoD:
 
-- Метод имеет тестируемое поведение либо формальный deprecation path.
+- Метод имеет формальный, тестируемый deprecation path.
 - README/API docs не обещают отсутствующее поведение.
 
 AC:
 
-- Given принято implement решение, when существующий connection загружается,
-  then object refreshes all fields/meta; not-found возвращает утверждённую ошибку.
-- Given deprecation решение, then вызов сообщает deprecation и документирует
-  поддерживаемую замену.
+- Given consumer видит `load()`, when читает public API documentation, then
+  указаны deprecated status, поддерживаемая замена и removal major version.
+- Given текущая major version, when legacy code вызывает метод, then не получает
+  придуманного нового load/refresh поведения.
 
 Dependencies:
 
 - DG-M5.
-- Consumer usage audit.
+- REL-00.
 
 Notes/Risks:
 
-- Реализация без чёткого identity lifecycle продублирует storage API.
+- Согласно DG-M5 deprecation остаётся documentation/PHPDoc-only в текущей major
+  version; runtime notice не добавляется, чтобы не ломать consumers, которые
+  превращают notices в exceptions.
+
+### API-03. Реализовать bulk resolution связанных entities
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: предоставить утверждённый PHP-level resolver endpoint IDs без N+1 и
+решить судьбу `ConnectionCollection::getPosts()` согласно API-01.
+
+Scope:
+
+- Реализовать утверждённые target-side, order, duplicate и missing semantics.
+- Bulk-load WordPress entities и проверить query count.
+- Поддержать adapter boundary DG-M1 для разрешённых non-post entities.
+- Реализовать либо deprecated `getPosts()` в соответствии с утверждённым ADR.
+
+Out of Scope:
+
+- REST response formatting.
+- Новые entity types без утверждённого adapter.
+
+DoR:
+
+- API-01 завершена, material gates утверждены.
+- DB-01 и REST-06 завершены.
+
+DoD:
+
+- Resolver contract покрыт unit/integration tests.
+- Коллекция разрешается ограниченным числом queries без запроса на каждый item.
+- Пустой `getPosts()` больше не остаётся молча неработающим API.
+
+AC:
+
+- Given несколько connections с повторяющимися endpoint IDs, when выполняется
+  resolution, then ordering/duplicates соответствуют утверждённому contract.
+- Given missing или недоступный adapter endpoint, then поведение соответствует
+  утверждённому missing/error contract.
+
+Dependencies:
+
+- API-01.
+- DB-01, REST-06.
+
+Notes/Risks:
+
+- Реализация не должна заставлять storage отвечать за entity permissions.
+
+### API-04. Реализовать opt-in REST representation issue #20
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: закрыть issue #20 permission-aware представлением связанных entities без
+изменения default REST v1 response.
+
+Scope:
+
+- Реализовать утверждённый opt-in request/response contract.
+- Использовать REST-06 connection filters и API-03 bulk resolver.
+- Применить entity filters, permissions/context, ordering и pagination contract.
+- Добавить full-dispatch tests, performance assertions и OpenAPI input.
+
+Out of Scope:
+
+- Breaking изменение default v1 relation response.
+- Dashboard UI.
+
+DoR:
+
+- API-01 contract и gates утверждены.
+- API-03, REST-03 и REST-06 завершены.
+
+DoD:
+
+- Issue #20 закрыт проверенными REST scenarios.
+- Default response остаётся обратно совместимым.
+- Недоступные entities не раскрываются, N+1 отсутствует.
+
+AC:
+
+- Given заданный `from` и opt-in target `to`, when request выполняется, then
+  возвращается утверждённое представление только разрешённых matching entities.
+- Given тот же request без opt-in, then возвращается прежний connection payload.
+- Given entity filters и pagination, then items и totals соответствуют contract.
+
+Dependencies:
+
+- API-01, API-03.
+- REST-03, REST-06.
+
+Notes/Risks:
+
+- Entity filtering и pagination должны выполняться в утверждённом порядке, иначе
+  страницы и totals будут вводить consumer в заблуждение.
 
 ### DOC-01. Создать OpenAPI contract из проверенных REST routes
 
@@ -1416,7 +2371,8 @@ Goal: закрыть issue #27 машинно-проверяемой специ�
 Scope:
 
 - Paths, methods, params, request/response schemas, auth и errors.
-- Examples для CRUD, meta и filters.
+- Examples для CRUD, meta, filters и утверждённого opt-in issue #20 contract.
+- `relation.type` отмечен deprecated no-op в v1 и не описан как traversal control.
 - CI validation OpenAPI syntax и drift check с route inventory, где возможно.
 
 Out of Scope:
@@ -1427,6 +2383,7 @@ Out of Scope:
 DoR:
 
 - REST-03—REST-06 завершены.
+- API-04 завершена.
 - DG-M4 решён.
 
 DoD:
@@ -1446,6 +2403,7 @@ Dependencies:
 
 - DG-M4.
 - REST-03, REST-04, REST-05, REST-06.
+- API-04.
 
 Notes/Risks:
 
@@ -1529,8 +2487,63 @@ Risks/Open Questions:
 
 Tasking Guidance:
 
-- Compatibility tests можно готовить раньше, но release checklist закрывать
-  только после всех blocking эпиков.
+- При создании или переразбиении execution tasks повторно применять
+  `$decompose-work` и сохранять все обязательные task attributes.
+- REL-00 inventory выполняется ранним foundation batch и разблокирует naming,
+  deprecation и SPI work. Остальные compatibility tests можно готовить раньше,
+  но release checklist закрывать только после всех blocking эпиков.
+
+### REL-00. Инвентаризировать public consumers и compatibility surface
+
+Status: todo
+
+Priority: P0
+
+Goal: собрать доступные evidence использования client names, `load()`, direct
+storage, hooks/factories и relation definitions до compatibility-sensitive fixes.
+
+Scope:
+
+- README/wiki/examples, GitHub code search и доступные public dependent repos.
+- Использование нестандартных client identifiers, `Connection::load()`,
+  `getStorage()` mutations, custom storage и lifecycle hooks.
+- Traceability evidence с датой/источником и явные ограничения поиска.
+- Compatibility inputs для CORE-05, API-02, SPI-01 и REL-02.
+
+Out of Scope:
+
+- Гарантия обнаружения private consumers.
+- Изменение production API или публикация migration.
+
+DoR:
+
+- GitHub read access доступен.
+- DG-M5, DG-M6 и DG-M9 решены.
+
+DoD:
+
+- Inventory artifact перечисляет найденные patterns и отсутствие evidence там,
+  где использование не найдено.
+- Для каждого compatibility-sensitive task указаны ограничения и migration risk.
+- Секреты/tokens не попадают в artifact или git history.
+
+AC:
+
+- Given найденный consumer нестандартного client name или storage SPI, when
+  планируется соответствующий fix, then source и compatibility consequence
+  доступны исполнителю.
+- Given private usage нельзя проверить, then это явно записано как residual risk,
+  а не трактуется как доказанное отсутствие consumers.
+
+Dependencies:
+
+- DG-M5, DG-M6, DG-M9.
+- GitHub read access.
+
+Notes/Risks:
+
+- Public search даёт lower bound; migration notes всё равно должны учитывать
+  неизвестные private installations.
 
 ### REL-01. Проверить полную compatibility matrix
 
@@ -1555,7 +2568,7 @@ DoR:
 
 - INFRA-03 завершена.
 - E2—E4 blocking tasks завершены.
-- Владелец утвердил DB matrix.
+- DB-00 завершён, владелец утвердил DB matrix.
 
 DoD:
 
@@ -1572,6 +2585,7 @@ AC:
 Dependencies:
 
 - INFRA-03.
+- DB-00.
 - Blocking задачи E2—E4.
 
 Notes/Risks:
@@ -1593,16 +2607,20 @@ Scope:
 - Factory success/error paths для storage, REST API и logger replacements.
 - Lifecycle hooks creating/created/find/delete/meta/logging.
 - Callback arguments, order и client-specific/global variants.
+- Зафиксировать storage как SPI согласно DG-M9: compatibility для implementers
+  сохраняется, прямые writes не документируются как consumer domain API.
 - Backward-compatibility inventory.
 
 Out of Scope:
 
 - Добавление новых extension systems.
+- Breaking visibility change `Client::getStorage()` в текущей major version.
 
 DoR:
 
 - Core/storage/REST contracts стабильны.
-- Известны публично используемые hooks consumers.
+- REL-00 завершил consumer inventory.
+- SPI-01 завершён.
 
 DoD:
 
@@ -1621,7 +2639,8 @@ AC:
 Dependencies:
 
 - E2, E3, E4 blocking tasks.
-- Consumer usage audit.
+- DG-M9.
+- REL-00, SPI-01.
 
 Notes/Risks:
 
@@ -1683,13 +2702,13 @@ Notes/Risks:
 
 | Источник/наблюдение | План |
 |---|---|
-| Confirmed: `1-m`/`m-1` violations | TEST-02, CORE-02 |
-| Confirmed: relation без `to` | TEST-02, CORE-01 |
-| Confirmed: REST update uninitialized `title` | TEST-02, REST-02 |
-| Confirmed: broken `both` placeholder | TEST-02, DB-01 |
+| Confirmed: `1-m`/`m-1` violations | TEST-02B, TEST-02C, CORE-02 |
+| Confirmed: relation без `to` | TEST-02A, CORE-01 |
+| Confirmed: REST update uninitialized `title` | TEST-02D, REST-02 |
+| Confirmed: broken `both` placeholder | TEST-02E, DB-01 |
 | Open [#31 error code tests](https://github.com/hokoo/wpConnections/issues/31) | CORE-03, REST-03 |
 | Open [#21 REST filters](https://github.com/hokoo/wpConnections/issues/21) | REST-06 |
-| Open [#20 entities/getPosts](https://github.com/hokoo/wpConnections/issues/20) | API-01 |
+| Open [#20 entities/getPosts](https://github.com/hokoo/wpConnections/issues/20) | API-01, API-03, API-04, DOC-01 |
 | Open [#27 OpenAPI](https://github.com/hokoo/wpConnections/issues/27) | DOC-01 |
 | Open [#28 dashboard](https://github.com/hokoo/wpConnections/issues/28) | PROD-01 deferred initiative |
 | Closed [#13 order zero](https://github.com/hokoo/wpConnections/issues/13) | DB-02 |
@@ -1697,9 +2716,11 @@ Notes/Risks:
 | Closed [#33 cardinality](https://github.com/hokoo/wpConnections/issues/33) | CORE-02; reopen/follow-up |
 | Closed [#35 permissions](https://github.com/hokoo/wpConnections/issues/35) | REST-04 |
 | Closed [#45 dbDelta/schema](https://github.com/hokoo/wpConnections/issues/45) | DB-06 |
-| Untested delete/meta cascade | DB-03, DB-04, DB-05 |
+| Untested delete/meta cascade | DB-03A, DB-03B, DB-04, DB-05 |
 | Untested multi-client promise | CORE-05 |
-| Empty `Connection::load()` | API-02 |
-| `type` has no behavior | DG-M2, CORE-01, API-01 |
+| Empty `Connection::load()` | DG-M5, API-02 |
+| `type` has no behavior | DG-M2, CORE-01, DOC-01 |
+| Direct storage mutation bypasses domain invariants | DG-M9, CORE-04, DB-05, REL-02 |
+| Open issue #20 related entities | API-01, API-03, API-04, DOC-01 |
 | Missing route-level REST tests | REST-01—REST-05 |
-| Missing coverage in CI | INFRA-04, TEST-03 |
+| Missing coverage/quality policy in CI | INFRA-04, TEST-03A, TEST-03B, TEST-03C |
