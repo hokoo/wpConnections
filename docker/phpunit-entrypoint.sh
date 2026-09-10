@@ -121,9 +121,9 @@ run_composer_install() {
         --with "ramsey/collection:${RAMSEY_VERSION}" \
         --prefer-dist \
         --no-interaction
-    elif [ -d vendor ]; then
-      echo "vendor/ already exists, skipping composer install"
     else
+      # Composer install is idempotent: it synchronizes a bind-mounted vendor/
+      # with composer.lock without changing the resolved dependency versions.
       composer install --no-interaction --prefer-dist
     fi
   else

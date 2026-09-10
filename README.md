@@ -108,6 +108,11 @@ make tests.run
 
 Behind the scenes this calls the `phpunit` service defined in `local-dev/docker-compose.yml` and aggregates the same entrypoint checks that GitHub Actions runs separately. The service no longer depends on any other containers: the entrypoint installs Composer dependencies when needed, spins up MariaDB only for WP integration tests, and configures the WordPress test library on demand.
 
+`make tests.run` is the fast development loop: it reuses the existing test image,
+while an idempotent `composer install` synchronizes the bind-mounted `vendor/`
+directory with `composer.lock` before PHPUnit starts. Repeated runs with an
+up-to-date lock file do not download the dependencies again.
+
 You can also run individual checks from the project root:
 
 ```bash
@@ -115,6 +120,22 @@ make tests.phpunit
 make tests.integration
 make lint.phpcs
 ```
+
+Rebuild the test image after changing `Dockerfile.phpunit` or its build inputs:
+
+```bash
+make tests.build
+```
+
+For a clean verification, rebuild the image without Docker layer cache and then
+run both test suites:
+
+```bash
+make tests.clean
+```
+
+The underlying no-cache build is also available separately as
+`make tests.rebuild`.
 
 `make tests.init` is only needed for direct, non-Docker WordPress PHPUnit runs that rely on a local `wordpress-develop` checkout. The default local and CI paths use `Dockerfile.phpunit`.
 
