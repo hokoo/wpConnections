@@ -436,7 +436,7 @@ Verification:
 
 ### TEST-02A. Зафиксировать missing-`to` relation regression
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -477,6 +477,13 @@ Notes/Risks:
 
 - Regression task не мержится отдельно с красным required CI; она поставляется
   одним зелёным vertical batch с CORE-01.
+- Red evidence 2026-09-10 на неизменённом production-коде:
+  `docker run --rm -v /tmp/wpconnections-core01:/srv/web
+  wpconnections-final-clean:latest test:integration --filter
+  test_rejects_relation_missing_only_to` — ожидаемый fail `1 test / 1 assertion`:
+  relation зарегистрировалась без `to`, поэтому `MissingParameters` не возник.
+- Green evidence после CORE-01 той же командой: `1 test / 2 assertions`, passed;
+  exception содержит ровно `["to"]` и сообщение `Missing required fields: to `.
 
 ### TEST-02B. Зафиксировать cardinality `1-m` regression
 
@@ -729,7 +736,7 @@ Verification:
 
 ### TEST-03B. Автоматизировать PR baseline и RC coverage profiles
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -779,9 +786,21 @@ Notes/Risks:
 - Сравнение threshold выполняется exact integer counts, чтобы округление не
   скрывало regression.
 
+Verification:
+
+- Default `test:coverage` сохранил PR no-regression profile и accepted baseline
+  `365/786`; explicit `test:coverage:rc`/`make tests.coverage.rc` требует 70% по
+  exact integer counts.
+- Synthetic cases: PR baseline pass `0`, PR regression `1`, RC ниже/ровно/выше
+  70% — `1/0/0`, malformed input — configuration exit `2`.
+- Реальный PR profile прошёл на `549/786 (69,85%)` и сообщил RC not ready;
+  direct RC profile ожидаемо завершился checker policy exit `1`, а
+  `make tests.coverage.rc` передал этот failure как non-zero target без изменения
+  baseline.
+
 ### TEST-03C. Автоматизировать isolation и flaky policy
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -827,6 +846,21 @@ Notes/Risks:
 
 - Repeat увеличивает CI time; измерение выполняется в существующем Coverage job,
   пока не появится отдельное решение о required-check topology.
+
+Verification:
+
+- `make tests.isolation ISOLATION_SEED=20260910` прошёл reverse и seeded-random
+  phases по два повтора: unit `8 tests / 14 assertions` на phase, integration
+  `20 / 138` на phase; seed и точная reproduction command напечатаны.
+- Warm-image isolation run на PHP 8.1 / WordPress 6.7 занял `8,06 s`; существующий
+  `Coverage PHP 8.1.34 / WordPress 6.7.7` required-check name не изменён.
+- Synthetic order-dependent probe завершился ошибкой на первом failing phase и
+  сохранил в output order/repeat/seed; silent retry отсутствует.
+- Machine-readable exception registry проверяет точные TEST-03A fields,
+  incomplete/expired records дают configuration exit `2`, active critical
+  exception блокирует RC policy exit `1`.
+- Полный suite `4/7 + 10/69`, combined coverage `14/76`, PR gate `549/786` и
+  PHPCS `35/35` прошли.
 
 ## E2. Domain invariants и error model
 
@@ -922,7 +956,7 @@ Notes/Risks:
 
 ### CORE-01. Валидировать relation definition
 
-Status: waiting_dependency
+Status: completed
 
 Priority: P0
 
@@ -972,6 +1006,21 @@ Dependencies:
 Notes/Risks:
 
 - Ужесточение validation может выявить некорректные definitions у consumers.
+- `Client::registerRelation()` проверяет обязательные `name`, `from`, `to`
+  единым проходом и допускает только `1-1`, `1-m`, `m-1`, `m-m`; unknown value
+  возвращает `RelationWrongData` code `400` с offending value.
+- Legacy `type=from|to|both` остаётся сериализуемым no-op: physical
+  `from -> to` create/query direction от него не зависит.
+
+Verification:
+
+- Targeted relation matrix: `21 tests / 52 assertions`; missing-field matrix,
+  cardinality allowlist/rejections, duplicate contract, defaults и legacy type.
+- Full default run: unit `4 / 7`, integration `31 / 121`; compatibility floor
+  PHP 8.1.34 / WordPress 6.7.7: integration `31 / 121`.
+- Reverse `--repeat=2` и random seed `20260910 --repeat=2`: `62 / 242` каждый.
+- Combined coverage: `35 / 128`, gate passed at `568/787 (72.17%)` against
+  baseline `365/786`; PHPCS passed `35/35`.
 
 ### CORE-02. Исправить и полностью проверить cardinality
 
@@ -2317,7 +2366,7 @@ Verification:
 
 ### API-02. Решить судьбу `Connection::load()`
 
-Status: todo
+Status: completed
 
 Priority: P2
 
@@ -2361,6 +2410,20 @@ Notes/Risks:
 - Согласно DG-M5 deprecation остаётся documentation/PHPDoc-only в текущей major
   version; runtime notice не добавляется, чтобы не ломать consumers, которые
   превращают notices в exceptions.
+- PHPDoc и `docs/deprecations.md` фиксируют no-op до удаления в 2.0.0 и
+  направляют consumer к `Relation::findConnections()`; README ссылается на
+  migration guide. `ConnectionCollection::getPosts()` явно остаётся вне API-02.
+- REL-00 не нашла публичных вызовов `load()`, но private usage остаётся
+  residual risk.
+
+Verification:
+
+- Unit contract проверяет `@deprecated`, removal target/replacement и то, что
+  вызов в текущей major version возвращает `null`, не меняя connection.
+- `make tests.phpunit`: 6 tests / 14 assertions; `make tests.run`: unit 6/14,
+  integration 10/69; `make lint.phpcs`: 35/35 files.
+- `make tests.coverage`: 16 tests / 83 assertions; 549/786 statements (69,85%),
+  approved exact baseline 365/786 пройден.
 
 ### API-03. Реализовать bulk resolution связанных entities
 

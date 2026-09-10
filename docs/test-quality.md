@@ -182,7 +182,7 @@ Every exception or quarantine record must contain all of these stable fields:
 | Field | Required value |
 | --- | --- |
 | `id` | Unique `TQ-EX-NNN` identifier. |
-| `scenario_ids` | A non-empty list of affected critical IDs, or `none` for a non-critical test. |
+| `scenario_ids` | A non-empty JSON array of affected critical IDs, or `["none"]` for a non-critical test. |
 | `test` | Exact test path and method/filter. |
 | `owner` | Named person or team responsible for removal. |
 | `reason` | Reproduced failure and why immediate repair is unsafe or blocked. |
@@ -192,18 +192,17 @@ Every exception or quarantine record must contain all of these stable fields:
 | `scope` | Exact command, lane, seed, or test exclusion; broad suite exclusions are invalid. |
 | `approved_by` | Repository merge owner who accepted the temporary non-RC risk. |
 
-The canonical active-exception registry is the table below. `None` means there
-are no accepted exceptions. A record becomes active only when all fields are
-present and the approving change is merged. It must be removed when its exit
-condition is met and may not be renewed by editing only the date.
-
-| ID | Scenario IDs | Test | Owner | Reason | Issue | Expires on | Exit condition | Scope | Approved by |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| None | — | — | — | — | — | — | — | — | — |
+The canonical active-exception registry is
+[`test-quality-exceptions.json`](../test-quality-exceptions.json). Its schema-1
+`exceptions` array contains objects with exactly the fields above; an empty
+array means there are no accepted exceptions. A record becomes active only
+when all fields are present and the approving change is merged. It must be
+removed when its exit condition is met and may not be renewed by editing only
+the date.
 
 An expired or incomplete record fails the exception policy. Any active record
-whose `scenario_ids` is not `none` blocks the release-candidate profile even if
-coverage is at least 70%. A non-critical exception still requires explicit
+whose `scenario_ids` is not `["none"]` blocks the release-candidate profile even
+if coverage is at least 70%. A non-critical exception still requires explicit
 release review under REL-03.
 
 When diagnosing an order-dependent failure, record the commit, matrix lane,
@@ -226,3 +225,7 @@ explicitly printed seed. The same seed must be accepted for local reproduction.
 There is no silent retry-to-green path. Its exception validation uses the exact
 field names and active-registry rules above, and it must not rename existing
 required GitHub checks without a branch-protection review.
+
+The executable commands and exit-code contract are maintained in the
+[CI runbook](ci-runbook.md). This document remains the policy source; the
+runbook does not redefine the critical scenarios or exception fields.

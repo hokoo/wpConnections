@@ -12,6 +12,7 @@ env:
   PHP_VERSION: "8.1.34"
   WP_VERSION: "6.7.7"
   COVERAGE_IMAGE: wpconnections-coverage
+  ISOLATION_SEED: "20260910"
 
 jobs:
   coverage:
@@ -35,6 +36,19 @@ jobs:
           docker run --rm -v "$PWD:/srv/web" \
             ${{ env.COVERAGE_IMAGE }} \
             test:coverage
+
+      - name: Verify quality policy tools
+        run: |
+          docker run --rm -v "$PWD:/srv/web" \
+            ${{ env.COVERAGE_IMAGE }} \
+            test:quality-tools
+
+      - name: Run reverse and seeded-random isolation checks
+        run: |
+          docker run --rm -v "$PWD:/srv/web" \
+            -e TEST_RANDOM_SEED=${{ env.ISOLATION_SEED }} \
+            ${{ env.COVERAGE_IMAGE }} \
+            test:isolation
 
       - name: Publish coverage summary
         if: ${{ always() && hashFiles('build/coverage/coverage-summary.md') != '' }}
