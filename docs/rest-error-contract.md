@@ -64,16 +64,14 @@ machine-readable reason separate from the integer code.
 | `ConnectionWrongData` | `301` | A self-connection violates `closurable=false`. | Domain identifier is currently emitted with HTTP 500; it must not become HTTP 301. |
 | `ConnectionWrongData` | `302` | A create/update violates relation cardinality. | Domain identifier is currently emitted with HTTP 500; it must not become HTTP 302. |
 | `ConnectionWrongData` | `303` | A duplicate violates `duplicatable=false`. | Domain identifier is currently emitted with HTTP 500; it must not become HTTP 303. |
-| `ConnectionWrongData` | `304` | `Connection::update()` is invoked on an aggregate with an empty ID. The current REST meta update handler reaches this method after `findConnections()->first()`, but default `WPStorage` hydrates the database row ID and excludes rows without `ID`, so a successful non-empty default lookup normally cannot trigger the guard. | A custom adapter can expose the error by returning a malformed/empty-ID aggregate. Whether adapters or the domain own valid ID/client hydration is pending `DG-SPI-02`; code `304` must never become HTTP 304. |
+| `ConnectionWrongData` | `304` | `Connection::update()` is invoked on an aggregate with an empty ID. The current REST meta update handler reaches this method after `findConnections()->first()`, but default `WPStorage` hydrates the database row ID and excludes rows without `ID`, so a successful non-empty default lookup normally cannot trigger the guard. | Approved `DG-SPI-02/A` makes valid ID/client hydration domain-owned; malformed custom data still cannot make code `304` an HTTP 304. |
 | `RelationWrongData` | `400` | Invalid/duplicate relation definition at client registration. | No current request handler registers relations, so this is not a normal per-request REST error. The integer is a domain code, not an implied HTTP status. |
 | `ClientRegisterFail` | default `4` | Storage/logger/REST factory or route registration fails during client bootstrap. | This normally occurs outside request handling and must not be mistaken for user validation code `4`. |
 | non-library `Throwable` | varies | Runtime hook/adapter failures and native typed-property errors are not caught by current handlers. | Full dispatch can terminate without a `WP_REST_Response`. |
 
-Future entity-resolution failures are deliberately absent from this code table.
-Their domain codes and public compatibility are owned by pending `DG-ENT-03` in
-the merged `CORE-00` contract; approving that gate is a prerequisite to adding
-exact entity rows here. REST error work must consume that result rather than
-create a second entity-error taxonomy.
+Entity-resolution domain codes `305`—`310` are approved by `DG-ENT-03/A` in the
+merged `CORE-00` contract. Their exact HTTP mapping remains pending
+DG-RESTERR-01 and must consume that taxonomy rather than create a second one.
 
 ## Observed full-dispatch matrix
 
@@ -121,7 +119,7 @@ claiming owner approval.
 | `MissingParameters` and known request/domain validation represented by generic code `300` | `400` | Preserve the numeric domain code and compatible non-sensitive message; add status/domain metadata. A code-`300` storage fault is excluded from this row. |
 | Invariant `301` closurable, `302` cardinality, or `303` duplicate | `409` | Preserve the numeric domain code and compatible message; add status/domain metadata. |
 | Empty-ID aggregate `304` reached by the current REST meta update handler through custom/malformed hydration | `400` | Preserve numeric domain code `304` and compatible message; add status/domain metadata. Default `WPStorage` successful lookup hydrates a non-empty ID, so implementation and tests must consume the adapter/domain ownership selected by `DG-SPI-02`, not invent a new route or claim this as normal default-adapter behavior. |
-| Entity validation/resolution | Pending `DG-ENT-03` | Consume the approved entity domain code, then add an explicit REST mapping; do not infer status from its number. |
+| Entity validation/resolution codes `305`—`310` | Pending `DG-RESTERR-01` | Consume the approved entity domain code, then add an explicit REST mapping; do not infer status from its number. |
 | Known storage failure | `500` | String code `wp_connections_internal_error`, message `An internal error occurred.`, and `data={"status":500}`. No SQL, table, stack, adapter message, or public correlation ID. The accepted `DG-SPI-03` signal remains attributable in server diagnostics. |
 | Any remaining unknown `Throwable` | `500` | The same exact string code, message, and `data.status` as a storage failure; retain the cause only in server diagnostics. |
 
@@ -149,7 +147,7 @@ from the decoded body:
 | Not found | Unknown relation; absent connection through GET, DELETE, and meta mutation. |
 | Validation | Domain missing endpoint; at least one non-storage code-`300` case. |
 | Bootstrap-only | Missing relation fields through `Client::registerRelation()` are classified outside current dispatch; add REST assertions only if a future explicit route makes them reachable. |
-| Invariants | Request-reachable codes `301`, `302`, and `303`. The current meta update handler also reaches `Connection::update()`, but default `WPStorage` hydrates a non-empty ID after a successful lookup; exercise `304` through full dispatch only if the approved `DG-SPI-02` hydration contract permits a custom/malformed empty-ID result. Every dispatch assertion proves a 4xx non-redirect status. |
+| Invariants | Request-reachable codes `301`, `302`, and `303`. The current meta update handler also reaches `Connection::update()`, but default `WPStorage` hydrates a non-empty ID after a successful lookup; exercise `304` through full dispatch with a custom/malformed empty-ID result while preserving approved `DG-SPI-02/A` domain ownership. Every dispatch assertion proves a 4xx non-redirect status. |
 | Storage | Create/add-meta failure, connection-delete failure, meta-delete failure, update failure, and a `get_results()` read failure that currently collapses to an empty result. Under the accepted SPI signal none may serialize as success or not-found. |
 | Unknown | A non-library exception and a native `Error`; both become the approved generic 500 without internal detail. |
 | Compatibility | Exact library-owned top-level code type, message, `data.status`, optional domain metadata, and native WordPress code/data shapes selected by the gates. Native message text is asserted only as pinned-runtime evidence, not as a cross-version/locale library promise. |
@@ -185,9 +183,9 @@ mapping must honor `DG-M3` without deriving HTTP status from the number.
 
 **Compatibility impact:** A and B change current HTTP 500 responses for known
 domain failures. A gives clients standard status semantics while preserving the
-numeric body identifier. Under every option, `301`--`304` remain body/domain
-codes and are never redirect statuses. A future entity row cannot be finalized
-until `DG-ENT-03` is approved.
+numeric body identifier. Under every option, `301`--`310` remain body/domain
+codes and are never redirect statuses. Entity codes are approved by
+DG-ENT-03/A; their HTTP rows remain part of this pending REST mapping decision.
 
 **Blocked tasks:** `REST-03`, the error portions of `REST-05`, `DOC-01`, and
 REST error compatibility coverage in `REL-02`.
@@ -306,8 +304,8 @@ for `DG-SPI-03` and the applicable `DG-UPDATE-04`/`DG-UPDATE-05` decision.
 
 ## Coordination and approval sequence
 
-1. Resolve the merged `CORE-00` gate `DG-ENT-03` before adding exact entity
-   error codes/statuses. REST-00A does not own or pre-approve them.
+1. Consume approved `DG-ENT-03/A` codes `305`—`310` when adding exact entity
+   statuses. REST-00A does not redefine them.
 2. Resolve `DG-SPI-03` before implementing storage-failure mapping. A numeric
    code-`300` catch-all is not an adequate substitute.
 3. Resolve `DG-UPDATE-04` and `DG-UPDATE-05` before classifying mutation

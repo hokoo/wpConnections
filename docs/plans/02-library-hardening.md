@@ -6,8 +6,8 @@ Milestone M0 достигнут 2026-09-10: инфраструктурная в�
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
 активен; Batch 1—5 завершены. В Batch 5 production slice CORE-03 завершён и
 issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
-discovery. Batch 6 определён со статусом `waiting_dependency`; его production
-verticals не стартуют без явно перечисленных owner decisions.
+discovery. DP-1—DP-3 утверждены владельцем 2026-09-11; Batch 6 активен,
+TEST-02F/CORE-07 и CORE-04 выполняются параллельно, CORE-06 поставлен следующим.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -214,7 +214,7 @@ implementers. Сужение PHP visibility или новый command service в
 
 ### DG-QMETA-01. Восстанавливать ли удалённый `IQuery` contract для `Query\Meta`
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** PR #26/commit `2b7bacc` удалил `Abstracts\IQuery` и
 `IQueryTrait` вместе с PATCH/PUT-флагом `isUpdate` из актуального query flow, но
@@ -242,12 +242,12 @@ create-with-meta/selective-delete flows, не меняя storage/REST semantics.
 возрождают публично достижимые методы, поведение которых не определено текущей
 архитектурой.
 
-**Блокирует:** CORE-07 production fix. TEST-02F red evidence и остальные задачи
-Batch 4 от решения не зависят.
+**Последствия решения:** CORE-07 production fix разрешён; TEST-02F поставляется
+с ним одним red-to-green vertical.
 
 ### DG-UPDATE-01. Развести public PHP update paths и REST methods
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** public `Relation::updateConnection(Query\Connection)` до commit
 `2b7bacc` был sparse/PATCH-like, но теперь storage читает его как полный объект;
@@ -279,11 +279,12 @@ mapping, а не только исправить handler.
 значение Relation method, но создаёт две разные PHP/REST orchestration semantics.
 C закрепляет потерю omitted fields как public contract.
 
-**Блокирует:** TEST-02D, DB-02, REST-02 и REST-03 update matrix.
+**Последствия решения:** TEST-02D становится `todo`; DB-02, REST-02 и REST-03
+используют выбранную method matrix после своих остальных dependencies.
 
 ### DG-UPDATE-02. Значение omitted, null, empty и zero для scalar fields
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** текущий код смешивает отсутствие field с `null`, а местами — с
 любым falsy value. Это уже ломало `order=0` в issue #13. Объект и таблица
@@ -309,7 +310,8 @@ replacement-compatible; запросы, передававшие невалид�
 или order, начнут получать validation error вместо неявной подстановки или
 частичной записи.
 
-**Блокирует:** TEST-02D, DB-02, REST-02 и OpenAPI field schemas.
+**Последствия решения:** TEST-02D и downstream DB-02/REST-02/OpenAPI используют
+утверждённую field-state matrix.
 
 ### DG-UPDATE-03. Где и как обновлять connection metadata
 
@@ -406,7 +408,7 @@ reopening DG-M4.
 **Блокирует:** REST-05 и DOC-01.
 ### DG-SPI-01. Какой update payload пересекает Storage SPI
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** abstract и `WPStorage` формально принимают один и тот же
 `Abstracts\Connection`, поэтому `Query\Connection` является допустимым subtype.
@@ -427,13 +429,13 @@ reopening DG-M4.
 adapters, которые проверяли `Query\Connection`; B сохраняет текущий caller shape,
 но расширяет обязанности implementers; C является breaking SPI.
 
-**Блокирует:** TEST-02D, CORE-04, DB-02, REST-02 и REL-02 production/conformance.
-REST-00B cross-reference этот gate как decision-ready design input; CORE-02 не
-является владельцем исправления.
+**Последствия решения:** TEST-02D и CORE-04 разрешены своими остальными
+dependencies; DB-02, REST-02 и REL-02 используют fully materialized SPI input.
+CORE-02 не является владельцем исправления.
 
 ### DG-SPI-02. Кто назначает create ID и client context при hydration
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** `createConnection()` возвращает ID, но `WPStorage` также молча
 записывает его в query; `findConnections()` молча помещает `Client` в hydrated
@@ -454,7 +456,8 @@ objects зависят от результата.
 наблюдающим mutated query; B навсегда переносит WordPress object lifecycle во
 все adapters; C breaking.
 
-**Блокирует:** DB-02, CORE-04, DB-05 и REL-02.
+**Последствия решения:** CORE-04 реализует domain-owned ID/client hydration;
+DB-02, DB-05 и REL-02 используют тот же contract после остальных dependencies.
 
 ### DG-SPI-03. Non-update results и adapter failure contract
 
@@ -560,7 +563,7 @@ DG-M7; C расширяет public hook API.
 
 ### DG-SPI-07. Legacy concrete storage introspection
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** public consumers получают/reconstruct `WPStorage` table names через
 `getStorage()`, но table identity не является portable SPI, а direct writes уже
@@ -578,9 +581,8 @@ DG-M7; C расширяет public hook API.
 **Compatibility impact:** A откладывает visibility reduction; B ломает non-table
 adapters; C ломает подтверждённые public maintenance/orphan-cleanup flows.
 
-**Блокирует:** CORE-06, REL-02, DOC-01 и REL-03 implementation/migration.
-CORE-05 использует gate как compatibility input и может завершить собственный
-decision-ready naming contract.
+**Последствия решения:** CORE-06 сохраняет legacy concrete introspection;
+REL-02, DOC-01 и REL-03 должны предоставить conformance и migration guidance.
 
 ## Реестр решений
 
@@ -604,24 +606,24 @@ decision-ready naming contract.
 | [DG-API20-07](../api-01-related-entities-contract.md#dg-api20-07-entity-authorization-and-rest-context) | pending; recommendation B | repository owner/security | — | API-04 authorization/context waits |
 | [DG-API20-08](../api-01-related-entities-contract.md#dg-api20-08-fate-of-connectioncollectiongetposts) | pending; recommendation B | repository owner | — | API-03/getPosts compatibility path waits |
 | [DG-API20-09](../api-01-related-entities-contract.md#dg-api20-09-resolver-query-budget) | pending; recommendation B | repository owner | — | API-03/API-04 query budget waits |
-| DG-QMETA-01 | pending; recommendation A | repository owner | — | CORE-07 waiting human |
-| DG-UPDATE-01 | pending; recommendation A | repository owner | — | TEST-02D/DB-02/REST-02 ждут method semantics |
-| DG-UPDATE-02 | pending; recommendation A | repository owner | — | Scalar omission/null/falsy matrix не утверждена |
+| DG-QMETA-01 | approved A | repository owner | 2026-09-11 | TEST-02F + CORE-07 started in Batch 6 |
+| DG-UPDATE-01 | approved A | repository owner | 2026-09-11 | Sparse PHP/PATCH; replacement Connection/PUT/legacy POST |
+| DG-UPDATE-02 | approved A | repository owner | 2026-09-11 | Field-specific omitted/null/empty/zero semantics |
 | DG-UPDATE-03 | pending; recommendation A | repository owner | — | Metadata update boundary не утверждена |
 | DG-UPDATE-04 | pending; recommendation A | repository owner | — | SPI/domain/REST result semantics не утверждена |
 | DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
-| DG-SPI-01 | pending; recommendation A | repository owner | — | REST-00B coordinates; update production/conformance tasks wait |
-| DG-SPI-02 | pending; recommendation A | repository owner | — | Create ID/hydration ownership; DB-02/CORE-04/DB-05/REL-02 wait |
+| DG-SPI-01 | approved A | repository owner | 2026-09-11 | Domain sends fully materialized update state to SPI |
+| DG-SPI-02 | approved A | repository owner | 2026-09-11 | Domain owns create ID/client hydration; signatures retained |
 | DG-SPI-03 | pending; recommendation A | repository owner | — | DB-03A/REST-00A coordinate; DB-03B-B/REST/atomic production waits |
 | DG-SPI-04 | pending; recommendation A | repository owner | — | DB-00 refines feasibility; DB-05/REL-02 wait |
 | DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
 | DG-SPI-06 | pending; recommendation A | repository owner | — | Commit-aware mutation hooks; DB-05/REL-02 wait |
-| DG-SPI-07 | pending; recommendation A | repository owner | — | CORE-05 coordinates; concrete introspection migration waits |
-| [`DG-ENT-01`](../entity-validation-contract.md#dg-ent-01) | pending; recommendation A | repository owner | — | CORE-04; уточняет DB-04 |
-| [`DG-ENT-02`](../entity-validation-contract.md#dg-ent-02) | pending; recommendation A | repository owner | — | CORE-04/ENT-EXT-01; coordination API-03 |
-| [`DG-ENT-03`](../entity-validation-contract.md#dg-ent-03) | pending; recommendation A | repository owner | — | CORE-04, REST-03, DOC-01; REST-00A/REL-02 coordination |
-| [`DG-ENT-04`](../entity-validation-contract.md#dg-ent-04) | pending; recommendation A | repository owner | — | CORE-04; alignment REST-00B/REST-02/DB-02/REL-03 |
-| [`DG-ENT-05`](../entity-validation-contract.md#dg-ent-05) | pending; recommendation A | repository owner | — | CORE-04; relation identity alignment CORE-02/REST-00B/REST-02/DB-02/REL-03 |
+| DG-SPI-07 | approved A | repository owner | 2026-09-11 | Legacy concrete table introspection retained in v1 |
+| [`DG-ENT-01`](../entity-validation-contract.md#dg-ent-01) | approved A | repository owner | 2026-09-11 | Any extant exact-type `WP_Post` is a valid endpoint |
+| [`DG-ENT-02`](../entity-validation-contract.md#dg-ent-02) | approved A | repository owner | 2026-09-11 | Typed client-scoped non-post resolver registry |
+| [`DG-ENT-03`](../entity-validation-contract.md#dg-ent-03) | approved A | repository owner | 2026-09-11 | Stable 305—310 reasons; entity validation precedes existing invariants/hooks |
+| [`DG-ENT-04`](../entity-validation-contract.md#dg-ent-04) | approved A | repository owner | 2026-09-11 | Full effective state validated; repair/bypass API deferred |
+| [`DG-ENT-05`](../entity-validation-contract.md#dg-ent-05) | approved A | repository owner | 2026-09-11 | Persisted owning relation is immutable |
 | [`DG-DB-01`](../db-compatibility-contract.md#dg-db-01) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 wait for DB matrix |
 | [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | pending; recommendation A | repository owner | — | InnoDB preflight/migration for DB-05/DB-06/REL-01 |
 | [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | pending; recommendation A | repository owner | — | DB-05/REL-02 nested transaction conformance waits |
@@ -636,12 +638,12 @@ decision-ready naming contract.
 | [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | pending; recommendation A | repository owner | — | DB-03B-A/DB-04/REST-03/REL-02 wait |
 | [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | pending; recommendation A | repository owner | — | REST-03 waits; DOC-01 refinement |
 | [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | pending; recommendation A | repository owner | — | DB-04 waits; REL-03/DOC-01 refinement |
-| [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | pending; recommendation A | repository owner | — | Raw/canonical client identity; CORE-06/DB-06/REL-02/DOC-01/REL-03 wait |
-| [`DG-NAME-02`](../client-naming-contract.md#dg-name-02) | pending; recommendation A | repository owner | — | Two-phase registration error/timing; CORE-06/REST-03/REL-02/DOC-01/REL-03 wait; DB-06 refines via CORE-06 |
-| [`DG-NAME-03`](../client-naming-contract.md#dg-name-03) | pending; recommendation A | repository owner | — | Physical collision ownership; CORE-06/DB-06/DB-03B-A/REL-02/REL-03 wait |
-| [`DG-NAME-04`](../client-naming-contract.md#dg-name-04) | pending; recommendation A | repository owner | — | Full identifier budget; CORE-06/DB-06/REL-01/REL-03 wait |
-| [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | pending; recommendation A | repository owner | — | Legacy adoption/migration; CORE-06/DB-06/REL-02/REL-03 wait |
-| [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | pending; recommendation A | repository owner | — | WordPress site-prefix lifecycle; CORE-06/DB-06/DB-04/REL-02/REL-03 wait |
+| [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | approved A | repository owner | 2026-09-11 | Compatibility normalization plus safe canonical identity |
+| [`DG-NAME-02`](../client-naming-contract.md#dg-name-02) | approved A | repository owner | 2026-09-11 | Two-phase `ClientRegisterFail` code 4 boundary |
+| [`DG-NAME-03`](../client-naming-contract.md#dg-name-03) | approved A | repository owner | 2026-09-11 | Legacy postfix retained with atomic site-local ownership claim |
+| [`DG-NAME-04`](../client-naming-contract.md#dg-name-04) | approved A | repository owner | 2026-09-11 | Reject overlong complete identifiers; no implicit hash/truncate |
+| [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | approved A | repository owner | 2026-09-11 | Explicit in-place adoption; no automatic destructive migration |
+| [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
 
 Для DG-ENT-01—DG-ENT-05, DG-RESTERR-01—DG-RESTERR-04,
 DG-DELETE-01—DG-DELETE-06 и DG-NAME-01—DG-NAME-06 связанные contracts являются
@@ -881,14 +883,14 @@ Entry criteria:
 - Batch 4 завершён после independent QA и последовательного merge CORE-02,
   REST-00B, SPI-01 и CORE-00.
 - CORE-02, TEST-02B и TEST-02C имеют completed status; issue #33 закрыт.
-- TEST-02F red evidence независимо проверен и записан; CORE-07 остаётся
-  `waiting_dependency`, пока DG-QMETA-01 pending.
+- TEST-02F red evidence независимо проверен и записан; на момент активации
+  Batch 5 CORE-07 оставался `waiting_dependency`, пока DG-QMETA-01 был pending.
 - Canonical entity-validation, storage-SPI и partial-update artifacts, а также
   DG-ENT-01—DG-ENT-05, DG-SPI-01—DG-SPI-07 и DG-UPDATE-01—DG-UPDATE-05 доступны
   в `master`.
 - Итоговый Batch 4 `master` `0db202e` имеет 17/17 successful check-runs; все
   Batch 5 workstreams обновляются на этот strict base перед merge.
-- Активация не утверждает ни один pending human decision gate.
+- Активация Batch 5 не утверждала ни один pending human decision gate.
 
 Execution model:
 
@@ -944,8 +946,11 @@ Exit criteria:
   versions, engines, implicit DDL commits, nested transactions/savepoints и
   existing non-transactional tables; DB-05/DB-06/REL-01 не разблокируются без
   owner-approved DB/SPI gates.
-- CORE-05 содержит raw/canonical/collision/empty/overlong/legacy migration
-  matrix и pending gates; CORE-06 и DB-06 остаются `waiting_dependency`.
+- На момент Batch 5 closeout CORE-05 содержала
+  raw/canonical/collision/empty/overlong/legacy migration matrix, а naming gates
+  ещё были pending. DG-NAME-01—06/A и DG-SPI-07/A утверждены 2026-09-11;
+  CORE-06 теперь ждёт завершения пересекающейся CORE-04, DB-06 сохраняет свои
+  остальные зависимости.
 - Все пять artifacts/verticals прошли independent QA, traceability checks и
   применимые protected CI, затем последовательно смержены.
 - Ни один pending DG не утверждён неявно; completion design tasks означает
@@ -970,7 +975,7 @@ Verification:
 
 ### Batch 6. Query-meta recovery, entity validation и client isolation
 
-Status: waiting_dependency
+Status: active
 
 Goal: после явного утверждения минимальных decision packets выполнить первые
 три независимые production verticals без неявного принятия последующих REST,
@@ -978,33 +983,37 @@ delete, transaction или issue #20 contracts.
 
 Decision packets:
 
-| Packet | Gates | Рекомендуемые варианты | Разблокирует |
+| Packet | Gates | Статус и вариант | Разблокирует |
 |---|---|---|---|
-| DP-1 Query Meta | DG-QMETA-01 | A | TEST-02F + CORE-07 |
-| DP-2 Domain mutation | DG-UPDATE-01/02, DG-SPI-01/02, DG-ENT-01—05 | все A | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
-| DP-3 Client bootstrap | DG-NAME-01—06, DG-SPI-07 | все A | CORE-06; naming/migration preflight |
-| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | все A | DB-02/DB-05/DB-06 и failure contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | все A | DB-03B-A/DB-03B-B/DB-04 |
-| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | все A | REST-03—REST-05 exact wire contract |
-| DP-7 Issue #21 selector | DG-API20-01 | B | REST-06 |
-| DP-8 Issue #20 expansion | DG-API20-02—09 | B/A/B/B/A/B/B/B | API-03/API-04/DOC-01 |
-| DP-9 Factory compatibility | DG-SPI-05 | A | REL-02/release documentation |
+| DP-1 Query Meta | DG-QMETA-01 | approved A, 2026-09-11 | TEST-02F + CORE-07 |
+| DP-2 Domain mutation | DG-UPDATE-01/02, DG-SPI-01/02, DG-ENT-01—05 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
+| DP-3 Client bootstrap | DG-NAME-01—06, DG-SPI-07 | approved all A, 2026-09-11 | CORE-06; naming/migration preflight |
+| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | pending; все A recommended | DB-02/DB-05/DB-06 и failure contracts |
+| DP-5 Delete | DG-DELETE-01—04/06 | pending; все A recommended | DB-03B-A/DB-03B-B/DB-04 |
+| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | pending; все A recommended | REST-03—REST-05 exact wire contract |
+| DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
+| DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
+| DP-9 Factory compatibility | DG-SPI-05 | pending; A recommended | REL-02/release documentation |
 
 Entry criteria:
 
 - Batch 5 завершён; PR #67—#71 merged последовательно, каждый имеет 17/17
   required checks и independent QA PASS.
-- DP-1, DP-2 и DP-3 утверждены по каждому отдельному gate и записаны в
-  canonical bodies и central registry.
+- DP-1, DP-2 и DP-3 утверждены вариантом A по каждому отдельному gate владельцем
+  2026-09-11 и записаны в canonical bodies и central registry.
 - DP-4—DP-9 не считаются неявно утверждёнными и не блокируют три задачи этого
   batch, если не перечислены в их собственных dependencies.
 - TEST-02F red evidence остаётся вне `master` до paired green CORE-07 PR.
 
 Tasks:
 
-- TEST-02F + CORE-07 — один red-to-green query-meta compatibility vertical.
-- CORE-04 — endpoint entity validation и extension boundary.
-- CORE-06 — client naming, collision, migration-preflight и multisite isolation.
+- TEST-02F + CORE-07 — `in_progress`, один red-to-green query-meta compatibility
+  vertical.
+- CORE-04 — `in_progress`, endpoint entity validation и extension boundary.
+- CORE-06 — `waiting_dependency`, client naming, collision, migration-preflight и multisite
+  isolation; стартует после CORE-04.
+- TEST-02D вне Batch 6 переведён в `todo`: его gate dependencies выполнены, но
+  red test поставляется paired с REST-02 после готовности DB-02.
 
 Execution model:
 
@@ -1290,7 +1299,7 @@ Notes/Risks:
 
 ### TEST-02D. Зафиксировать REST update без `title`
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -1388,7 +1397,7 @@ Notes/Risks:
 
 ### TEST-02F. Зафиксировать `Query\Meta` autoload fatal
 
-Status: review
+Status: in_progress
 
 Priority: P0
 
@@ -1417,7 +1426,8 @@ DoD:
 
 - Оба paths наблюдались красными из-за отсутствующего `IQueryTrait`, а не
   fixture/storage failure.
-- Tests зелёные вместе с CORE-07 в одном final vertical PR после решения gate.
+- Tests зелёные вместе с CORE-07 в одном final vertical PR по утверждённому
+  DG-QMETA-01/A.
 - Red/green evidence и затронутые critical scenario IDs записаны.
 
 AC:
@@ -1431,8 +1441,8 @@ Dependencies:
 
 Notes/Risks:
 
-- TEST-02F может получить red evidence до решения DG-QMETA-01, но не мержится
-  красным отдельно; paired CORE-07 остаётся `waiting_dependency`.
+- DG-QMETA-01/A утверждён; TEST-02F и paired CORE-07 находятся `in_progress` и
+  не мержатся красными отдельно.
 - Затронуты `STORE-CREATE-01`, `STORE-META-01`, `REST-CRUD-01` и
   `REST-META-01`; этот узкий test не заменяет полные downstream matrices.
 - Red-only commit `3f50f77` содержит только unit/integration regressions и эту
@@ -1441,9 +1451,8 @@ Notes/Risks:
   exit `255` с точной причиной `Trait "iTRON\wpConnections\IQueryTrait" not
   found` в `src/Query/Meta.php:9`. Integration успевает успешно поднять
   WordPress/MariaDB, но падает до storage mutation.
-- Ветка намеренно не публикуется и не мержится красной. Перед paired CORE-07
-  tests будут перенесены/rebased на актуальный strict base и поставлены одним
-  зелёным vertical PR после решения DG-QMETA-01.
+- Red-only ветка намеренно не публиковалась. Tests перенесены в paired CORE-07
+  vertical на актуальном strict base и будут поставлены одним зелёным PR.
 
 ### TEST-03A. Зафиксировать test quality и critical-scenario contract
 
@@ -1738,10 +1747,10 @@ Notes/Risks:
   delete/meta-delete/`deleted_post` cleanup paths, отделяет domain validation от
   Storage SPI и задаёт точные `ENT-VAL-01`/`ENT-EXT-01` scenarios для refinement
   CORE-04.
-- DG-ENT-01—DG-ENT-05 остаются pending: рекомендации о `WP_Post` lifecycle,
-  public non-post resolver, domain errors/hook precedence, update/rollout и
-  relation identity не являются принятыми API. Поэтому завершение design task
-  CORE-00 не разблокирует CORE-04, которая остаётся `waiting_dependency`.
+- DG-ENT-01—DG-ENT-05 были утверждены вариантом A владельцем 2026-09-11:
+  `WP_Post` lifecycle, typed client-scoped non-post resolver, domain errors/hook
+  precedence, strict update rollout и immutable relation identity теперь
+  являются implementation inputs для активной CORE-04.
 - Verification 2026-09-10: source/REL-00/critical-registry traceability и
   relative links проверены; task/gate IDs уникальны; `git diff --check` и
   secrets/out-of-scope diff checks проходят. Docs-only change сохраняет
@@ -1987,7 +1996,7 @@ Notes/Risks:
 
 ### CORE-04. Реализовать endpoint entity validation
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P1
 
@@ -1998,7 +2007,8 @@ Scope:
 
 - Реализовать DG-M1 для create и всех поддерживаемых update paths.
 - Tests для missing/deleted/wrong-type endpoints.
-- Extension hook/strategy, если выбран вариант C.
+- Typed client-scoped resolver registry и structured resolution result согласно
+  утверждённому DG-ENT-02/A.
 - Провести high-level mutations через общий validation path согласно DG-M9;
   direct storage writes остаются SPI и не являются consumer API.
 - Сохранить cleanup boundary: explicit connection/meta deletes и `deleted_post`
@@ -2008,7 +2018,7 @@ Scope:
 Out of Scope:
 
 - Возврат полных entities через REST.
-- Поддержка произвольных entity types без отдельного adapter.
+- Поддержка произвольных entity types без зарегистрированного resolver.
 
 DoR:
 
@@ -2074,7 +2084,7 @@ Scope:
 Out of Scope:
 
 - Production validation/table-name changes.
-- Shared-table migration, если выбран table-per-client.
+- Shared-table migration; утверждённый DG-M6 сохраняет table-per-client.
 
 DoR:
 
@@ -2110,9 +2120,8 @@ Coordination inputs:
   [`docs/db-compatibility-contract.md`](../db-compatibility-contract.md)
   подтверждают exact MySQL 8.0.46/MariaDB 10.11.16 probes и 64-character limit
   полного table identifier; это evidence, а не утверждение DG-DB-01—DG-DB-04.
-- Pending DG-SPI-07 определяет v1 concrete table introspection. Он не блокирует
-  decision-ready CORE-05 artifact, но остаётся dependency implementation и
-  migration documentation.
+- DG-SPI-07/A утверждён владельцем 2026-09-11 и сохраняет v1 concrete table
+  introspection как legacy compatibility surface с migration documentation.
 
 Notes/Risks:
 
@@ -2122,8 +2131,9 @@ Notes/Risks:
   formulas, two-phase adapter boundary, observed public mappings,
   collision/empty/unsafe/overlong/multisite matrix и non-destructive legacy
   adoption/copy/dual-read alternatives.
-- DG-NAME-01—DG-NAME-06 остаются pending с recommendation A; завершение CORE-05
-  означает decision-ready design, но не разрешает production/schema/API change.
+- DG-NAME-01—DG-NAME-06 утверждены вариантом A владельцем 2026-09-11;
+  production/schema/API changes выполняются только в CORE-06 и её downstream
+  tasks.
 - Fixed-floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0: unit `6 / 14`,
   integration `67 / 345`, PHPCS `36 / 36`; structural links/anchors/gate-shape,
   duplicate-ID, secret и `git diff --check` проверки зелёные.
@@ -2147,10 +2157,11 @@ Scope:
 Out of Scope:
 
 - Shared-table migration.
-- Naming policy, не утверждённая в CORE-05.
+- Любая naming policy вне утверждённых DG-NAME-01—DG-NAME-06/A.
 
 DoR:
 
+- CORE-04 завершена и смержена; branch rebased на её результат.
 - CORE-05 завершён.
 - TEST-01 завершена.
 - DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-04, DG-NAME-05 и DG-NAME-06
@@ -2172,6 +2183,7 @@ AC:
 
 Dependencies:
 
+- CORE-04.
 - CORE-05.
 - TEST-01.
 - DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-04, DG-NAME-05, DG-NAME-06.
@@ -2184,7 +2196,7 @@ Notes/Risks:
 
 ### CORE-07. Восстановить материализацию `Query\Meta`
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P0
 
@@ -2196,19 +2208,20 @@ Scope:
 - Реализовать утверждённый DG-QMETA-01 compatibility path.
 - Сохранить public class name, наследование от `Abstracts\Meta`, `GSInterface`
   и `Query\MetaCollection::$collectionType`.
-- Удалить безопасный мёртвый `IQuery` import из `ClientRestApi`, если выбран A.
+- Удалить безопасный мёртвый `IQuery` import из `ClientRestApi` согласно
+  утверждённому DG-QMETA-01/A.
 - Поставить TEST-02F unit/integration regressions тем же vertical PR.
 
 Out of Scope:
 
 - Изменение storage, REST handlers/error mapping или meta semantics.
 - Полная DB-02/REST-05 matrix.
-- Восстановление `isUpdate` без утверждённого gate.
+- Восстановление `isUpdate`, исключённое утверждённым DG-QMETA-01/A.
 
 DoR:
 
 - DG-QMETA-01 утверждён владельцем.
-- TEST-02F находится в `review` с red evidence в том же vertical batch.
+- TEST-02F находится `in_progress` с red evidence в том же vertical batch.
 
 DoD:
 
@@ -2227,7 +2240,7 @@ AC:
 Dependencies:
 
 - DG-QMETA-01.
-- TEST-02F (`review` с red evidence достаточно для paired vertical batch).
+- TEST-02F (`in_progress`; red evidence достаточно для paired vertical batch).
 
 Notes/Risks:
 
@@ -2332,13 +2345,14 @@ Notes/Risks:
 - Formal PHP type у abstract/default `updateConnection()` совпадает, но public
   callers создают semantic mismatch: `Relation` передаёт допустимый subtype
   `Query\Connection` с uninitialized patch fields, а `WPStorage` читает full
-  replacement. Решение вынесено в pending DG-SPI-01; CORE-02 его не исправляет.
+  replacement. Решение утверждено как DG-SPI-01/A; CORE-02 его не исправляет,
+  implementation принадлежит CORE-04/DB-02/REST-02.
 - Shared changed/no-op/not-found/storage-failure decision принадлежит
   REST-00B как `DG-UPDATE-04`; SPI artifact только связывает conformance с этим
   gate и не дублирует решение.
-- DG-SPI-01—DG-SPI-07 остаются pending. Completion означает готовность design
-  artifact к owner decision, а не разрешение production/API/signature changes;
-  зависимые production tasks сохраняют `waiting_dependency`.
+- DG-SPI-01, DG-SPI-02 и DG-SPI-07 утверждены вариантом A владельцем
+  2026-09-11; DG-SPI-03—DG-SPI-06 остаются pending. Production tasks меняют
+  статус только после выполнения остальных explicit dependencies.
 
 Verification:
 
@@ -3040,7 +3054,7 @@ Notes/Risks:
 - Canonical artifact: [REST v1 error contract discovery](../rest-error-contract.md).
 - DG-RESTERR-01—DG-RESTERR-04 остаются pending. Completion означает готовность
   discovery/decision package, а не неявное утверждение recommendation A.
-- Future entity rows consume pending DG-ENT-03 from the merged CORE-00 contract;
+- Future entity rows consume approved DG-ENT-03/A from the merged CORE-00 contract;
   storage mapping consumes DG-SPI-03; mutation success/no-op classification
   consumes DG-UPDATE-04 and DG-UPDATE-05. REST-00A не дублирует их ownership.
 - Full-dispatch probe on source snapshot `752362b` recorded WordPress native
@@ -3054,7 +3068,7 @@ Notes/Risks:
   meta update handler reaches `Connection::update()` after
   `findConnections()->first()`, but default `WPStorage` hydrates a non-empty
   database ID on a successful lookup, so code `304` normally cannot fire there;
-  custom/malformed empty-ID hydration remains governed by pending `DG-SPI-02`.
+  custom/malformed empty-ID hydration follows approved `DG-SPI-02/A`.
   Relation-registration `MissingParameters` remains bootstrap-only because no
   current REST handler reaches `Client::registerRelation()`. Structural
   task/gate checks, relative
@@ -3115,8 +3129,9 @@ Notes/Risks:
   [`docs/rest-partial-update-contract.md`](../rest-partial-update-contract.md)
   инвентаризирует
   PHP/domain/storage/REST paths, историю commits `7f800b8`/`2b7bacc`, issues
-  #13/#22 и Postman drift; method, scalar, metadata и result choices вынесены в
-  pending DG-UPDATE-01—DG-UPDATE-05 с downstream acceptance matrix.
+  #13/#22 и Postman drift; DG-UPDATE-01/02 утверждены вариантом A, а metadata и
+  result choices DG-UPDATE-03—DG-UPDATE-05 остаются pending с downstream
+  acceptance matrix.
 - Задача завершает discovery/design, но не разблокирует implementation до
   явного утверждения соответствующих gates владельцем.
 
