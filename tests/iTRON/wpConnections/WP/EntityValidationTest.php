@@ -10,6 +10,13 @@ use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\EntityResolution;
 use iTRON\wpConnections\EntityResolverInterface;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use iTRON\wpConnections\Exceptions\ConnectionEndpointInvalid;
+use iTRON\wpConnections\Exceptions\ConnectionEndpointNotFound;
+use iTRON\wpConnections\Exceptions\ConnectionEndpointResolverFail;
+use iTRON\wpConnections\Exceptions\ConnectionEndpointTypeMismatch;
+use iTRON\wpConnections\Exceptions\ConnectionEndpointTypeUnsupported;
+use iTRON\wpConnections\Exceptions\ConnectionNotFound;
+use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Meta;
 use iTRON\wpConnections\MetaCollection;
@@ -21,7 +28,10 @@ class EntityValidationRecordingStorage extends Storage
 {
 	public static array $created = [];
 	public static array $updated = [];
+	public static array $added_meta = [];
+	public static array $removed_meta = [];
 	public static ?ConnectionCollection $found = null;
+	public static bool $update_result = true;
 	private Client $client;
 
 	public function __construct( Client $client )
@@ -38,7 +48,10 @@ class EntityValidationRecordingStorage extends Storage
 	{
 		self::$created = [];
 		self::$updated = [];
+		self::$added_meta = [];
+		self::$removed_meta = [];
 		self::$found   = null;
+		self::$update_result = true;
 	}
 
 	public function createConnection( ConnectionQuery $connection_query ): int
@@ -52,7 +65,7 @@ class EntityValidationRecordingStorage extends Storage
 	{
 		self::$updated[] = clone $connection;
 
-		return true;
+		return self::$update_result;
 	}
 
 	public function deleteSpecificConnections( $connection_ids ): int
@@ -84,14 +97,32 @@ class EntityValidationRecordingStorage extends Storage
 
 	public function addConnectionMeta( int $object_id, MetaCollection $meta_collection ): void
 	{
+		self::$added_meta[] = [ $object_id, clone $meta_collection ];
 	}
 
 	public function removeConnectionMeta( int $object_id, MetaQueryCollection $meta_query )
 	{
+		self::$removed_meta[] = [ $object_id, clone $meta_query ];
+
 		return 0;
 	}
 }
 
+/**
+ * CORE-04 critical-scenario evidence mapping:
+ *
+ * - ENT-VAL-01: post/CPT create, effective-state update, legacy cleanup.
+ * - ENT-EXT-01 / CLIENT-ISO-01 / FACTORY-EXT-01: typed resolver and storage boundary.
+ * - CARD-MUT-01: entity-before-closure/duplicate/cardinality precedence.
+ * - ERR-CODE-01: stable 305-310 domain errors and physical-side order.
+ * - REST-ERROR-01: full-dispatch create/update delegation without HTTP remapping.
+ * - HOOK-CONTRACT-01: initial rejection emits no hook; transformed candidates
+ *   are conditionally revalidated and never emit a false created hook.
+ *
+ * CLIENT/FACTORY/REST/HOOK rows are scoped contributions; their remaining
+ * registry expectations stay with the other delivery tasks named in
+ * docs/test-quality.md.
+ */
 class EntityValidationTest extends WPConnectionsTestCase
 {
 	public function tear_down()
@@ -248,6 +279,210 @@ class EntityValidationTest extends WPConnectionsTestCase
 		self::assertCount( 0, $relation->findConnections() );
 	}
 
+	public function test_creating_hook_cannot_change_relation_identity(): void
+	{
+		$client   = $this->recording_client( 'entity-hook-relation' );
+		$relation = $this->register_relation_on( $client, 'entity-hook-owner', 'page', 'post' );
+		$created_calls = 0;
+		$creating = static function ( ConnectionQuery $query ): void {
+			$query->relation = 'entity-hook-other';
+		};
+		$created = static function () use ( &$created_calls ): void {
+			$created_calls++;
+		};
+		add_action( 'wpConnections/relation/creating', $creating );
+		add_action( 'wpConnections/relation/created', $created );
+
+		try {
+			$this->assert_connection_error(
+				310,
+				'Connection relation identity mismatch: expected entity-hook-owner, got entity-hook-other.',
+				function () use ( $relation ): void {
+					$relation->createConnection(
+						new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
+					);
+				}
+			);
+		} finally {
+			remove_action( 'wpConnections/relation/creating', $creating );
+			remove_action( 'wpConnections/relation/created', $created );
+		}
+
+		self::assertSame( 0, $created_calls );
+		self::assertCount( 0, EntityValidationRecordingStorage::$created );
+	}
+
+	public function test_creating_hook_revalidates_changed_endpoints_without_double_resolving_unchanged_state(): void
+	{
+		$client = $this->recording_client( 'entity-hook-endpoints' );
+		$resolver = new class() implements EntityResolverInterface {
+			public array $calls = [];
+
+			public function getSupportedEntityTypes(): array
+			{
+				return [ 'core04_hook_from', 'core04_hook_to' ];
+			}
+
+			public function resolve( int $entity_id, string $entity_type ): EntityResolution
+			{
+				$this->calls[] = $entity_type . ':' . $entity_id;
+
+				if ( 99 === $entity_id ) {
+					return EntityResolution::missing();
+				}
+
+				return EntityResolution::accepted();
+			}
+		};
+		$client->registerEntityResolver( $resolver );
+		$relation = $this->register_relation_on(
+			$client,
+			'entity-hook-endpoints',
+			'core04_hook_from',
+			'core04_hook_to',
+			[ 'duplicatable' => true ]
+		);
+
+		$title_only = static function ( ConnectionQuery $query ): void {
+			$query->title = 'Transformed title';
+		};
+		add_action( 'wpConnections/relation/creating', $title_only );
+		try {
+			$created = $relation->createConnection( new ConnectionQuery( 1, 2 ) );
+		} finally {
+			remove_action( 'wpConnections/relation/creating', $title_only );
+		}
+
+		self::assertSame( 'Transformed title', $created->title );
+		self::assertSame( [ 'core04_hook_from:1', 'core04_hook_to:2' ], $resolver->calls );
+
+		$change_endpoint = static function ( ConnectionQuery $query ): void {
+			$query->from = 3;
+		};
+		add_action( 'wpConnections/relation/creating', $change_endpoint );
+		try {
+			$changed = $relation->createConnection( new ConnectionQuery( 1, 4 ) );
+		} finally {
+			remove_action( 'wpConnections/relation/creating', $change_endpoint );
+		}
+
+		self::assertSame( 3, $changed->from );
+		self::assertSame(
+			[
+				'core04_hook_from:1',
+				'core04_hook_to:2',
+				'core04_hook_from:1',
+				'core04_hook_to:4',
+				'core04_hook_from:3',
+				'core04_hook_to:4',
+			],
+			$resolver->calls
+		);
+
+		$reject_endpoint = static function ( ConnectionQuery $query ): void {
+			$query->to = 99;
+		};
+		add_action( 'wpConnections/relation/creating', $reject_endpoint );
+		try {
+			$this->assert_connection_error(
+				306,
+				'Connection endpoint entity not found: to=99.',
+				static function () use ( $relation ): void {
+					$relation->createConnection( new ConnectionQuery( 5, 6 ) );
+				}
+			);
+		} finally {
+			remove_action( 'wpConnections/relation/creating', $reject_endpoint );
+		}
+
+		self::assertCount( 2, EntityValidationRecordingStorage::$created );
+	}
+
+	public function test_creating_hook_endpoint_changes_recheck_all_existing_invariants(): void
+	{
+		$closure_relation = $this->register_relation(
+			'entity-hook-closure',
+			'post',
+			'post',
+			[ 'duplicatable' => true ]
+		);
+		$make_closure = static function ( ConnectionQuery $query ): void {
+			$query->to = $query->from;
+		};
+		add_action( 'wpConnections/relation/creating', $make_closure );
+		try {
+			$this->assert_connection_error(
+				301,
+				'Closurable not allowed by relation settings.',
+				function () use ( $closure_relation ): void {
+					$closure_relation->createConnection(
+						new ConnectionQuery( $this->post_ids[0], $this->post_ids[1] )
+					);
+				}
+			);
+		} finally {
+			remove_action( 'wpConnections/relation/creating', $make_closure );
+		}
+
+		$other_page = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$duplicate_relation = $this->register_relation( 'entity-hook-duplicate', 'page', 'post' );
+		$duplicate_relation->createConnection(
+			new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
+		);
+		$make_duplicate = function ( ConnectionQuery $query ): void {
+			$query->from = $this->page_ids[0];
+			$query->to   = $this->post_ids[0];
+		};
+		add_action( 'wpConnections/relation/creating', $make_duplicate );
+		try {
+			$this->assert_connection_error(
+				303,
+				'Duplicatable violation.',
+				function () use ( $duplicate_relation, $other_page ): void {
+					$duplicate_relation->createConnection(
+						new ConnectionQuery( $other_page, $this->post_ids[1] )
+					);
+				}
+			);
+		} finally {
+			remove_action( 'wpConnections/relation/creating', $make_duplicate );
+		}
+
+		$cardinality_relation = $this->register_relation(
+			'entity-hook-cardinality',
+			'page',
+			'post',
+			[
+				'cardinality'  => '1-m',
+				'duplicatable' => true,
+			]
+		);
+		$cardinality_relation->createConnection(
+			new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
+		);
+		$occupy_to = function ( ConnectionQuery $query ): void {
+			$query->to = $this->post_ids[0];
+		};
+		add_action( 'wpConnections/relation/creating', $occupy_to );
+		try {
+			$this->assert_connection_error(
+				302,
+				'Cardinality violation.',
+				function () use ( $cardinality_relation, $other_page ): void {
+					$cardinality_relation->createConnection(
+						new ConnectionQuery( $other_page, $this->post_ids[1] )
+					);
+				}
+			);
+		} finally {
+			remove_action( 'wpConnections/relation/creating', $occupy_to );
+		}
+
+		self::assertCount( 0, $closure_relation->findConnections() );
+		self::assertCount( 1, $duplicate_relation->findConnections() );
+		self::assertCount( 1, $cardinality_relation->findConnections() );
+	}
+
 	public function test_rest_create_delegates_to_the_same_domain_validator(): void
 	{
 		$this->set_up_rest_server();
@@ -308,6 +543,128 @@ class EntityValidationTest extends WPConnectionsTestCase
 		} finally {
 			$this->tear_down_rest_server();
 		}
+	}
+
+	public function test_rest_meta_update_validates_legacy_state_while_cleanup_skips_resolution(): void
+	{
+		$resolver = new class() implements EntityResolverInterface {
+			public array $calls = [];
+
+			public function getSupportedEntityTypes(): array
+			{
+				return [ 'core04_legacy_from', 'core04_legacy_to' ];
+			}
+
+			public function resolve( int $entity_id, string $entity_type ): EntityResolution
+			{
+				$this->calls[] = $entity_type . ':' . $entity_id;
+
+				return EntityResolution::missing();
+			}
+		};
+		$this->client->registerEntityResolver( $resolver );
+		$relation = $this->register_relation(
+			'entity-rest-legacy',
+			'core04_legacy_from',
+			'core04_legacy_to'
+		);
+		$legacy = new ConnectionQuery( 801, 802 );
+		$legacy->set( 'relation', $relation->name );
+		$legacy_id = $this->client->getStorage()->createConnection( $legacy );
+		$meta = new MetaCollection();
+		$meta->add( new Meta( 'legacy', 'original' ) );
+		$this->client->getStorage()->addConnectionMeta( $legacy_id, $meta );
+
+		$this->set_up_rest_server();
+		$this->authenticate_as_administrator();
+		$connection_route = $this->get_rest_route(
+			'/relation/' . $relation->name . '/' . $legacy_id
+		);
+
+		try {
+			$update_response = $this->dispatch_rest_request(
+				'PATCH',
+				$connection_route . '/meta',
+				[ 'meta' => [ [ 'key' => 'legacy', 'value' => 'changed' ] ] ]
+			);
+			$update_data = $update_response->get_data();
+			self::assertSame( 306, $update_data['code'] ?? null );
+			self::assertSame(
+				'Connection endpoint entity not found: from=801.',
+				$update_data['message'] ?? null
+			);
+			self::assertSame( [ 'core04_legacy_from:801' ], $resolver->calls );
+			$persisted = $this->find_connection( $relation, $legacy_id );
+			self::assertSame( [ 'legacy' => [ 'original' ] ], $persisted->meta->toArray() );
+
+			$meta_delete_response = $this->dispatch_rest_request(
+				'DELETE',
+				$connection_route . '/meta'
+			);
+			self::assertSame( [ 'deleted' => 1 ], $meta_delete_response->get_data() );
+			self::assertSame( [ 'core04_legacy_from:801' ], $resolver->calls );
+			self::assertSame(
+				[],
+				$this->find_connection( $relation, $legacy_id )->meta->toArray()
+			);
+
+			$delete_response = $this->dispatch_rest_request( 'DELETE', $connection_route );
+			self::assertSame( [ 'deleted' => true ], $delete_response->get_data() );
+			self::assertSame( [ 'core04_legacy_from:801' ], $resolver->calls );
+			self::assertCount( 0, $relation->findConnections() );
+		} finally {
+			$this->tear_down_rest_server();
+		}
+	}
+
+	public function test_deleted_post_cascade_cleans_legacy_row_without_endpoint_resolution(): void
+	{
+		global $wpdb;
+
+		$resolver = new class() implements EntityResolverInterface {
+			public array $calls = [];
+
+			public function getSupportedEntityTypes(): array
+			{
+				return [ 'core04_cascade' ];
+			}
+
+			public function resolve( int $entity_id, string $entity_type ): EntityResolution
+			{
+				$this->calls[] = $entity_type . ':' . $entity_id;
+
+				return EntityResolution::failed();
+			}
+		};
+		$this->client->registerEntityResolver( $resolver );
+		$relation = $this->register_relation(
+			'entity-cascade-legacy',
+			'core04_cascade',
+			'core04_cascade'
+		);
+		$deleted_post_id = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$legacy = new ConnectionQuery( $deleted_post_id, 902 );
+		$legacy->set( 'relation', $relation->name );
+		$legacy_id = $this->client->getStorage()->createConnection( $legacy );
+		$meta = new MetaCollection();
+		$meta->add( new Meta( 'legacy', 'cascade' ) );
+		$this->client->getStorage()->addConnectionMeta( $legacy_id, $meta );
+
+		wp_delete_post( $deleted_post_id, true );
+
+		self::assertSame( [], $resolver->calls );
+		self::assertCount( 0, $relation->findConnections() );
+		$storage = $this->client->getStorage();
+		self::assertSame(
+			'0',
+			$wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM ' . $wpdb->prefix . $storage->get_meta_table()
+					. ' WHERE connection_id = %d',
+					$legacy_id
+				)
+			)
+		);
 	}
 
 	public function test_entity_failure_precedes_duplicate_and_cardinality(): void
@@ -397,23 +754,33 @@ class EntityValidationTest extends WPConnectionsTestCase
 		self::assertSame( $this->post_ids[0], $persisted->to );
 	}
 
-	public function test_direct_default_zero_write_is_outside_tracked_sparse_presence(): void
+	public function test_direct_zero_writes_are_supplied_invalid_and_do_not_persist(): void
 	{
-		$relation   = $this->register_relation( 'entity-direct-zero', 'page', 'post' );
-		$connection = $relation->createConnection(
-			new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
-		);
-		$update       = new ConnectionQuery();
-		$update->from = 0;
-		$update->set( 'id', $connection->id );
-		$update->set( 'title', 'Tracked field' );
+		$relation = $this->register_relation( 'entity-direct-zero', 'page', 'post' );
+		$create   = new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] );
+		$create->set( 'title', 'Original' );
+		$connection = $relation->createConnection( $create );
 
-		self::assertFalse( $update->isProvided( 'from' ) );
-		self::assertTrue( $relation->updateConnection( $update ) );
+		foreach ( [ 'from', 'to' ] as $field ) {
+			$update           = new ConnectionQuery();
+			$update->{$field} = 0;
+			$update->set( 'id', $connection->id );
+			$update->set( 'title', 'Must not persist' );
+
+			self::assertTrue( $update->isProvided( $field ) );
+			$this->assert_connection_error(
+				305,
+				"Invalid connection endpoint ID: {$field}=0.",
+				static function () use ( $relation, $update ): void {
+					$relation->updateConnection( $update );
+				}
+			);
+		}
 
 		$persisted = $this->find_connection( $relation, $connection->id );
 		self::assertSame( $this->page_ids[0], $persisted->from );
-		self::assertSame( 'Tracked field', $persisted->title );
+		self::assertSame( $this->post_ids[0], $persisted->to );
+		self::assertSame( 'Original', $persisted->title );
 	}
 
 	public function test_relation_update_requires_identity_before_loading_effective_state(): void
@@ -435,6 +802,70 @@ class EntityValidationTest extends WPConnectionsTestCase
 
 		$persisted = $this->find_connection( $relation, $connection->id );
 		self::assertNotSame( 'must not select an arbitrary row', $persisted->title );
+	}
+
+	public function test_both_update_entrypoints_report_missing_positive_id_without_writes(): void
+	{
+		$client   = $this->recording_client( 'entity-update-missing' );
+		$relation = $this->register_relation_on( $client, 'entity-update-missing', 'page', 'post' );
+		$query    = new ConnectionQuery();
+		$query->set( 'id', 999 );
+		$query->set( 'title', 'Must not persist' );
+
+		$this->assert_connection_not_found(
+			static function () use ( $relation, $query ): void {
+				$relation->updateConnection( $query );
+			}
+		);
+
+		$aggregate_query = new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] );
+		$aggregate_query->set( 'id', 999 );
+		$aggregate_query->set( 'relation', $relation->name );
+		$aggregate_query->set( 'title', 'Must not persist' );
+		$aggregate_query->set( 'order', 0 );
+		$aggregate = new Connection( $aggregate_query );
+		$aggregate->setClient( $client );
+
+		$this->assert_connection_not_found(
+			static function () use ( $aggregate ): void {
+				$aggregate->update();
+			}
+		);
+
+		self::assertCount( 0, EntityValidationRecordingStorage::$updated );
+		self::assertCount( 0, EntityValidationRecordingStorage::$removed_meta );
+		self::assertCount( 0, EntityValidationRecordingStorage::$added_meta );
+	}
+
+	public function test_recording_adapter_preserves_changed_and_no_op_update_signatures(): void
+	{
+		$client   = $this->recording_client( 'entity-update-results' );
+		$relation = $this->register_relation_on( $client, 'entity-update-results', 'page', 'post' );
+		$stored_query = new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] );
+		$stored_query->set( 'id', 701 );
+		$stored_query->set( 'relation', $relation->name );
+		$stored_query->set( 'title', 'Stored title' );
+		$stored_query->set( 'order', 4 );
+		$stored = new Connection( $stored_query );
+		EntityValidationRecordingStorage::$found = new ConnectionCollection( [ $stored ] );
+
+		$changed = new ConnectionQuery();
+		$changed->set( 'id', 701 );
+		$changed->set( 'title', 'Changed title' );
+		self::assertTrue( $relation->updateConnection( $changed ) );
+
+		EntityValidationRecordingStorage::$update_result = false;
+		$no_op = new ConnectionQuery();
+		$no_op->set( 'id', 701 );
+		self::assertFalse( $relation->updateConnection( $no_op ) );
+
+		$stored->setClient( $client );
+		$stored->meta->add( new Meta( 'marker', 'preserved' ) );
+		self::assertNull( $stored->update() );
+
+		self::assertCount( 3, EntityValidationRecordingStorage::$updated );
+		self::assertCount( 1, EntityValidationRecordingStorage::$removed_meta );
+		self::assertCount( 1, EntityValidationRecordingStorage::$added_meta );
 	}
 
 	public function test_connection_update_rejects_invalid_full_state_without_mutating_storage(): void
@@ -522,6 +953,18 @@ class EntityValidationTest extends WPConnectionsTestCase
 		$read = $this->find_connection( $relation, $legacy_id );
 		self::assertSame( 999999991, $read->from );
 		self::assertSame( $this->client, $read->getClient() );
+		$read->title = 'aggregate must not persist';
+		$this->assert_connection_error(
+			306,
+			'Connection endpoint entity not found: from=999999991.',
+			static function () use ( $read ): void {
+				$read->update();
+			}
+		);
+
+		$persisted = $this->find_connection( $relation, $legacy_id );
+		self::assertNotSame( 'aggregate must not persist', $persisted->title );
+		self::assertSame( [ 'legacy' => [ 'cleanup' ] ], $persisted->meta->toArray() );
 
 		$update = new ConnectionQuery();
 		$update->set( 'id', $legacy_id );
@@ -607,13 +1050,19 @@ class EntityValidationTest extends WPConnectionsTestCase
 			$this->resolver( [ 'core04_throw' ], [], true )
 		);
 		$relation = $this->register_relation_on( $client, 'entity-throw', 'core04_throw', 'core04_throw' );
-		$this->assert_connection_error(
-			309,
-			'Connection endpoint resolver failed: from=core04_throw#1.',
+		$exception = $this->capture_exception(
 			static function () use ( $relation ): void {
 				$relation->createConnection( new ConnectionQuery( 1, 2 ) );
 			}
 		);
+		self::assertSame( ConnectionEndpointResolverFail::class, get_class( $exception ) );
+		self::assertSame( 309, $exception->getCode() );
+		self::assertSame(
+			'Connection endpoint resolver failed: from=core04_throw#1.',
+			$exception->getMessage()
+		);
+		self::assertInstanceOf( \RuntimeException::class, $exception->getPrevious() );
+		self::assertSame( 'Resolver detail must remain internal.', $exception->getPrevious()->getMessage() );
 		self::assertCount( 0, EntityValidationRecordingStorage::$created );
 	}
 
@@ -700,6 +1149,18 @@ class EntityValidationTest extends WPConnectionsTestCase
 
 		$hydrated = $this->find_connection( $relation, 701 );
 		self::assertSame( $client, $hydrated->getClient() );
+
+		$rejected = new ConnectionQuery();
+		$rejected->set( 'id', 701 );
+		$rejected->set( 'from', $this->post_ids[1] );
+		$this->assert_connection_error(
+			307,
+			'Connection endpoint type mismatch: from expected page, got post.',
+			static function () use ( $relation, $rejected ): void {
+				$relation->updateConnection( $rejected );
+			}
+		);
+		self::assertCount( 0, EntityValidationRecordingStorage::$updated );
 
 		$update = new ConnectionQuery();
 		$update->set( 'id', 701 );
@@ -805,10 +1266,30 @@ class EntityValidationTest extends WPConnectionsTestCase
 	private function assert_connection_error( int $code, string $message, callable $operation ): void
 	{
 		$exception = $this->capture_exception( $operation );
+		$exact_classes = [
+			305 => ConnectionEndpointInvalid::class,
+			306 => ConnectionEndpointNotFound::class,
+			307 => ConnectionEndpointTypeMismatch::class,
+			308 => ConnectionEndpointTypeUnsupported::class,
+			309 => ConnectionEndpointResolverFail::class,
+			310 => ConnectionRelationMismatch::class,
+		];
 
 		self::assertInstanceOf( ConnectionWrongData::class, $exception );
+		if ( isset( $exact_classes[ $code ] ) ) {
+			self::assertSame( $exact_classes[ $code ], get_class( $exception ) );
+		}
 		self::assertSame( $code, $exception->getCode() );
 		self::assertSame( $message, $exception->getMessage() );
+	}
+
+	private function assert_connection_not_found( callable $operation ): void
+	{
+		$exception = $this->capture_exception( $operation );
+
+		self::assertSame( ConnectionNotFound::class, get_class( $exception ) );
+		self::assertSame( 2, $exception->getCode() );
+		self::assertSame( 'Connection not found.', $exception->getMessage() );
 	}
 
 	private function assert_client_error( string $message, callable $operation ): void

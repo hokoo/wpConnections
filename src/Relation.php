@@ -48,7 +48,26 @@ class Relation extends Abstracts\Relation
         // Create connection
         $connectionQuery->set('relation', $this->name);
 
+        $validatedRelation = $connectionQuery->relation;
+        $validatedFrom = $connectionQuery->from;
+        $validatedTo = $connectionQuery->to;
+
         do_action('wpConnections/relation/creating', $connectionQuery);
+
+        if ($validatedRelation !== $connectionQuery->relation) {
+            throw new ConnectionRelationMismatch(
+                $validatedRelation,
+                $connectionQuery->relation
+            );
+        }
+
+        if (
+            $validatedFrom !== $connectionQuery->from
+            || $validatedTo !== $connectionQuery->to
+        ) {
+            $this->getClient()->assertConnectionEndpoints($this, $connectionQuery);
+            $this->assertConnectionInvariants($connectionQuery);
+        }
 
         $connectionId = $this->getClient()->getStorage()->createConnection($connectionQuery);
         $connectionQuery->set('id', $connectionId);
