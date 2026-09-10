@@ -6,6 +6,7 @@ use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 
 class Relation extends Abstracts\Relation
 {
+    use CardinalityValidation;
     use ClientInterface;
     use GSInterface;
 
@@ -57,29 +58,7 @@ class Relation extends Abstracts\Relation
         }
 
         // Cardinality check
-        $cardinality = explode('-', $this->cardinality);
-        $output = $cardinality[0];
-        $input = $cardinality[1];
-
-        if ('1' === $output) {
-            $query = new Query\Connection($connectionQuery->get('to'));
-            $query->set('relation', $this->name);
-
-            $check_output = $this->findConnections($query);
-            if (! $check_output->isEmpty()) {
-                throw new Exceptions\ConnectionWrongData('Cardinality violation.', 302);
-            }
-        }
-
-        if ('1' === $input) {
-            $query = new Query\Connection(0, $connectionQuery->get('from'));
-            $query->set('relation', $this->name);
-
-            $check_input = $this->findConnections($query);
-            if (! $check_input->isEmpty()) {
-                throw new Exceptions\ConnectionWrongData('Cardinality violation.', 302);
-            }
-        }
+        $this->assertCardinality($this, $connectionQuery);
 
         // Create connection
         $connectionQuery->set('relation', $this->name);
@@ -98,6 +77,7 @@ class Relation extends Abstracts\Relation
 
     public function updateConnection(Query\Connection $connectionQuery): bool
     {
+        $this->assertCardinality($this, $connectionQuery);
         $connectionQuery->set('relation', $this->name);
         return $this->getClient()->getStorage()->updateConnection($connectionQuery);
     }
