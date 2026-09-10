@@ -161,10 +161,14 @@ Before merge, the pull request should show all of these green:
 - `Coverage / Coverage PHP 8.1.34 / WordPress 6.7.7`;
 - `PHP Code Styles / php-cs`.
 
-This repository documentation does not configure GitHub branch protection.
-The merge owner must manually compare the visible checks with the list above
-and confirm that none are missing, skipped, cancelled, or stale for the pull
-request head commit. `WP Trunk Canary` is not in the blocking list.
+Repository files cannot configure GitHub branch protection by themselves. The
+`master` branch is expected to use strict required status checks for all 17 jobs
+listed above, with administrator enforcement and force-push/deletion disabled.
+The merge owner must verify both the protection settings and the visible checks,
+including that none are missing, skipped, cancelled, or stale for the pull
+request head commit. `WP Trunk Canary` is not in the blocking list. When a
+pinned matrix value or job name changes, update branch protection as part of the
+same compatibility-policy change so obsolete contexts do not block future PRs.
 
 INFRA-05 (CI caching and runtime optimization) is intentionally deferred and
 non-blocking. Until that follow-up is implemented, successful clean builds and

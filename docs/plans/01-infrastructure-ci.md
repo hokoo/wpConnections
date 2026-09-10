@@ -25,7 +25,7 @@ dependency/version matrix, coverage collection, документация и merg
 
 ## Рекомендуемый порядок
 
-`INFRA-01 -> gates I1-I5 -> INFRA-02/03/04 -> INFRA-06 -> INFRA-07 -> DG-I6 -> INFRA-09 -> INFRA-08`
+`INFRA-01 -> gates I1-I5 -> INFRA-02/03/04 -> INFRA-06 -> INFRA-07 -> DG-I6 -> INFRA-09 -> DG-I7 -> INFRA-08`
 
 `INFRA-02`, `INFRA-03` и `INFRA-04` можно выполнять параллельно после решений
 gate. `INFRA-05` вынесена в отдельный follow-up после merge и не блокирует
@@ -143,6 +143,30 @@ patch без изменений `src`: audit становится чистым, 
 
 **Блокирует:** `INFRA-09` и финальное решение `INFRA-08`.
 
+### DG-I7. Защита ветки `master`
+
+**Вопрос:** как обеспечить обязательное прохождение CI перед изменением
+`master`, если branch protection в репозитории ещё не настроена?
+
+- A: включить strict branch protection для всех 17 ожидаемых job contexts,
+  применить её к администраторам и запретить force-push/delete; обязательный
+  сторонний review не вводить.
+- B: оставить `master` без защиты и использовать ручной merge checklist.
+- C: сначала добавить стабильные aggregate jobs, затем защищать ветку по
+  четырём постоянным context names.
+
+**Рекомендация:** A. Она немедленно делает уже проверенный CI contract
+обязательным и не расширяет текущий PR дополнительной оркестрацией. Версии в
+matrix закреплены, поэтому изменение context names должно выполняться как
+явная часть будущего изменения compatibility policy. C остаётся допустимым
+follow-up для упрощения сопровождения branch protection.
+
+**Решение 2026-09-10:** A. До merge включить strict required checks для 10 unit,
+5 WordPress integration, coverage и PHPCS jobs; включить enforcement для
+администраторов, запретить force-push/delete и не требовать стороннего approval.
+
+**Блокирует:** `INFRA-08`.
+
 ## Реестр решений
 
 | Gate | Решение | Владелец | Дата | Следствие |
@@ -153,6 +177,7 @@ patch без изменений `src`: audit становится чистым, 
 | DG-I4 | approved B | repository owner | 2026-09-10 | Report + no-regression baseline gate |
 | DG-I5 | approved A | repository owner | 2026-09-10 | Compose v2 only |
 | DG-I6 | approved A | repository owner | 2026-09-10 | Исправить lint toolchain до merge |
+| DG-I7 | approved A | repository owner | 2026-09-10 | Strict protection: 17 required checks, admin enforcement, no force-push/delete |
 
 ## Execution tasks
 
@@ -598,7 +623,7 @@ Notes/Risks:
 
 ### INFRA-08. Завершить PR #48 и установить milestone M0
 
-Status: waiting_external
+Status: in_progress
 
 Priority: P0
 
@@ -608,6 +633,7 @@ Scope:
 
 - Resolve всех выбранных blocking задач текущей ветки.
 - Финальный clean-checkout run.
+- Настройка одобренной защиты `master` по DG-I7.
 - Review, снятие draft, merge и post-merge проверка `master`.
 - Актуализация статусов планов.
 
@@ -619,6 +645,7 @@ DoR:
 
 - DG-I1 решён.
 - DG-I6 решён; `INFRA-09` завершена либо явно отложена принятым решением.
+- DG-I7 решён.
 - Все задачи, включённые решением DG-I1 в scope PR, имеют `completed` или
   `review` без blocking замечаний.
 - Required checks зелёные.
@@ -626,6 +653,7 @@ DoR:
 DoD:
 
 - PR #48 merged в `master`.
+- `master` защищён 17 обязательными CI contexts согласно DG-I7.
 - Required checks проходят на merge commit.
 - Milestone M0 отмечен в `docs/plans/README.md`.
 - Первая задача основного плана переведена из `waiting_dependency` в `todo`.
@@ -634,6 +662,8 @@ AC:
 
 - Given merge commit на `master`, when запускается documented clean command,
   then unit, integration, PHPCS и coverage завершаются согласно policy.
+- Given попытка изменить `master`, when любой обязательный context отсутствует
+  или завершился неуспешно, then branch protection не разрешает изменение.
 - Given основной план, then ни одна функциональная задача больше не зависит от
   незамерженной CI-ветки.
 
@@ -641,16 +671,14 @@ Dependencies:
 
 - INFRA-01.
 - Все задачи, выбранные DG-I1 как blocking.
+- DG-I7.
 - Owner review и разрешение на merge.
 
 Notes/Risks:
 
-- Merge — внешнее изменение состояния и выполняется только после явного решения
-  владельца репозитория.
-- Локальный scope одобренных DG-I1—DG-I5 завершён. Сначала требуется решение
-  DG-I6; после него ожидаются разрешение на push, результаты GitHub Actions для
-  нового HEAD, настройка Coverage/новых matrix names как required checks и
-  отдельное разрешение владельца на merge.
+- Владелец одобрил DG-I7, снятие draft и merge 2026-09-10.
+- Branch protection на момент принятия DG-I7 отсутствовала; её настройка и
+  post-merge CI являются оставшимися внешними шагами задачи.
 
 ## Execution evidence 2026-09-10
 
@@ -668,10 +696,11 @@ Notes/Risks:
 | Composer security audit | 0 advisories после PHPCS/WPCS update |
 | Final clean checkout | fresh Docker build; 47 lock packages installed; `test:all` passed |
 | Independent epic QA | `pass_with_notes`; blocking defects и missing AC не обнаружены |
+| GitHub PR checks на `16fe912` | 17/17 passed; PR `MERGEABLE` и `CLEAN` |
 
 Известные наблюдения: PHP 8.4/8.5 показывают существующие deprecation notices;
 `composer validate --strict` возвращает warning status из-за устаревшего SPDX
 identifier `GPL-2.0+` и unbound constraint `psr/log >=1.1`. Две обнаруженные
 audit advisory закрыты одобренным DG-I6 и `INFRA-09`. Эти notes не требуют
-risk acceptance для локального infra outcome; live GitHub checks и required
-check configuration проверяются после разрешённого push.
+risk acceptance для локального infra outcome. Live GitHub checks подтверждены;
+required-check configuration выполняется по одобренному DG-I7.
