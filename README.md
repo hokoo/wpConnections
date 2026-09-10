@@ -6,6 +6,7 @@
 <!-- TOC -->
 * [Why wpConnection?](#why-wpconnection)
 * [Quick Start](#ok-what-should-i-do-to-start-using)
+* [Deprecations](#deprecations)
 * [WIKI](https://github.com/hokoo/wpConnections/wiki)
 <!-- TOC -->
 
@@ -76,6 +77,13 @@ $qc->set( 'to', $post_id_to );
 
 $wpc_client->getRelation( 'post-to-page' )->createConnection( $qc );
 ```
+
+## Deprecations
+
+`Connection::load()` is a deprecated legacy no-op and will be removed in
+2.0.0. Use `Relation::findConnections()` to query existing connections. It
+remains callable without a runtime notice during the current 1.x-compatible
+line. See the [deprecation and migration guide](docs/deprecations.md).
 
 Since you have initialized new client, its REST API endpoints are available.
 
