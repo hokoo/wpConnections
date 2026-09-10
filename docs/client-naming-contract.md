@@ -1,7 +1,6 @@
 # Client identity, table naming, and migration contract
 
-Status: decision-ready design artifact for `CORE-05`; every recommendation in a
-pending gate remains unapproved behavior.
+Status: approved decision contract for `CORE-06`; implementation queued
 
 Source snapshot: `d1750731d7e94f4e3349600431a33bf6954d3106`.
 
@@ -10,15 +9,16 @@ Research date: 2026-09-11.
 ## Purpose and authority
 
 This document separates the public logical client identity from the default
-`WPStorage` table identity, records the compatibility evidence, and presents the
-remaining naming and migration choices to the repository owner. It is the
+`WPStorage` table identity, records the compatibility evidence, and fixes the
+approved naming and migration contract for implementation. It is the
 canonical decision body for DG-NAME-01 through DG-NAME-06. The decision
 registry in [`docs/plans/02-library-hardening.md`](plans/02-library-hardening.md)
 is the canonical record of status, owner, date, and selected option.
 
-Nothing in this document changes production code, creates or renames a table,
-writes an ownership record, or approves a recommendation. CORE-06 and DB-06
-remain blocked until the applicable gates are approved.
+Nothing in this document by itself changes production code, creates or renames
+a table, or writes an ownership record. The repository owner approved option A
+for DG-NAME-01 through DG-NAME-06 on 2026-09-11; CORE-06 is queued after the
+current CORE-04 vertical, while later tasks retain their other dependencies.
 
 Approved DG-M6 is the fixed outer boundary: v1 hardening keeps one connections
 table and one metadata table per client. A shared table with a `client` column
@@ -62,10 +62,10 @@ The metadata table is always the stricter length case.
 ## Observed normalization matrix
 
 The following probe ran the repository's current code with its floor WordPress
-environment. “Candidate” describes only the observed current result, not an
-approved future acceptance rule.
+environment. The final column records the approved DG-NAME-01/A disposition;
+it does not claim that current production code already enforces that outcome.
 
-| Raw input | Current logical name | Current table postfix | Candidate classification under DG-NAME-01 A |
+| Raw input | Current logical name | Current table postfix | Approved DG-NAME-01/A disposition |
 | --- | --- | --- | --- |
 | `my-client` | `my-client` | `my_client` | valid legacy-compatible name |
 | `my_client` | `my_client` | `my_client` | valid alone; physical collision with `my-client` |
@@ -73,26 +73,27 @@ approved future acceptance rule.
 | `café` | `cafe` | `cafe` | accepted normalized ASCII alias |
 | `hello/world` | `hello-world` | `hello_world` | accepted normalized alias |
 | `a.b` | `a-b` | `a_b` | accepted normalized alias |
-| `Клиент` | `%d0%ba%d0%bb%d0%b8%d0%b5%d0%bd%d1%82` | same percent form | unsafe candidate: `%` reaches unquoted SQL identifier text |
-| `a%2Fb` | `a%2fb` | `a%2fb` | unsafe candidate |
-| `!!!` | empty string | empty string | empty-after-normalization candidate |
+| `Клиент` | `%d0%ba%d0%bb%d0%b8%d0%b5%d0%bd%d1%82` | same percent form | reject: `%` reaches unquoted SQL identifier text |
+| `a%2Fb` | `a%2fb` | `a%2fb` | reject as unsafe after normalization |
+| `!!!` | empty string | empty string | reject as empty after normalization |
 
 Raw aliases that yield one logical name are already the same REST/hook/client
 identity. In contrast, `my-client` and `my_client` remain different logical
 identities but silently select the same physical pair today.
 
-The proposed canonical alphabet in DG-NAME-01 A is lower-case ASCII
+The approved canonical alphabet in DG-NAME-01/A is lower-case ASCII
 `[a-z0-9_-]`. For that alphabet, byte length and character length are equal.
 The raw input is never a database identifier and therefore has no separate
 database length budget; the canonical logical name, postfix, and both complete
 physical identifiers do.
 
-No SQL-keyword blacklist is needed for the candidate rule: the fixed table
+No SQL-keyword blacklist is needed for the approved rule: the fixed table
 prefix prevents a client name from being the complete keyword. Empty results,
 percent escapes, path separators, dots, whitespace, quotes/backticks, control
 characters, and anything outside the canonical alphabet are unsafe or reserved
-as canonical names. Whether compatibility normalization may transform those raw
-characters before the canonical check is DG-NAME-01's choice.
+as canonical names. Under DG-NAME-01/A compatibility normalization may
+transform raw aliases first, but the resulting canonical value must pass the
+approved non-empty ASCII check.
 
 ## Compatibility evidence and history
 
@@ -118,16 +119,16 @@ table. Private consumers, custom migration code, manually renamed tables, and
 deployments pinned to old commits remain unknown.
 
 REL-00 also proves that physical naming is observable in consumer maintenance
-code. Pending DG-SPI-07 separately decides whether `Client::getStorage()` and
+code. Approved DG-SPI-07/A separately decides that `Client::getStorage()` and
 the concrete table getters remain available as legacy v1 introspection. This
-contract does not promote table getters into the portable Storage SPI and does
-not approve DG-SPI-07.
+contract does not promote table getters into the portable Storage SPI. CORE-05
+did not itself approve DG-SPI-07; the owner approved it on 2026-09-11.
 
 ## Two-phase validation boundary
 
 Logical identity and concrete table identity cannot be validated in one phase:
 the storage factory filter must first select an adapter before the library knows
-whether SQL tables exist at all. The recommended DG-NAME-02/A flow is:
+whether SQL tables exist at all. The approved DG-NAME-02/A flow is:
 
 1. `Client` validates raw input, computes the canonical logical name once, and
    applies DG-NAME-01 before `Client::init()` invokes any factory. Rejection here
@@ -147,9 +148,10 @@ whether SQL tables exist at all. The recommended DG-NAME-02/A flow is:
    adapter that deliberately reuses the concrete `WPStorage` table lifecycle is
    covered by the same concrete preflight and later REL-02 conformance.
 
-This sequencing does not change the public storage-factory filter signature or
-approve pending DG-SPI-05/DG-SPI-07. CORE-06 may place the second phase in a
-private `WPStorage` helper; no new portable Storage capability is introduced.
+This sequencing does not change the public storage-factory filter signature,
+approve pending DG-SPI-05, or alter approved DG-SPI-07. CORE-06 may place the
+second phase in a private `WPStorage` helper; no new portable Storage capability
+is introduced.
 
 ## Database identifier budget
 
@@ -214,40 +216,40 @@ the postfix or data.
 
 ## Migration state matrix
 
-This matrix records the required planning outcome. The selected action remains
-conditional on DG-NAME-02 through DG-NAME-06.
+This matrix records the required planning outcome under approved
+DG-NAME-02/A—DG-NAME-06/A.
 
 | Detected state | Required safe disposition | Prohibited implicit action |
 | --- | --- | --- |
 | No table and no owner record | After name, length, site, and collision preflight, claim and create only under the approved lifecycle. | Creating tables before collision validation. |
-| Complete legacy pair, no owner record, one declared logical candidate | Report the pair and require the approved adoption proof/attestation before recording ownership. Continue in-place only if DG-NAME-05 permits it. | Guessing ownership merely because the suffix matches. |
+| Complete legacy pair, no owner record, one declared logical candidate | Report the pair and require explicit administrator attestation before recording ownership, then continue in place under DG-NAME-05/A. | Guessing ownership merely because the suffix matches. |
 | Complete pair and matching owner record | Use in place after schema and site-prefix checks. | Renaming or copying on ordinary client initialization. |
 | Complete pair and conflicting owner record | Fail before registration/SQL and show both logical identities. | Sharing the pair or replacing the owner record. |
 | Two different logical names map to one unclaimed pair | Treat as ambiguous even if only one is active now; require an operator mapping/split plan. | Letting initialization order choose the owner. |
 | Only one table of the pair exists | Report partial schema; defer repair to DB-06 and the approved DB lifecycle. | Creating the missing half as a side effect of naming detection. |
 | Unsafe, empty, or overlong current logical name | Keep read-only diagnostic/export access in an explicit migration tool; reject normal initialization under the approved policy. | Interpolating it into SQL or silently truncating it. |
 | Custom non-table Storage selected | Apply the approved logical client-name rule and skip every `WPStorage` postfix, length, table, collision, ownership, and site-prefix check. | Requiring SQL table getters or default-adapter physical rules from every Storage adapter. |
-| Client object observed after a site-prefix switch | Follow DG-NAME-06's selected bind/follow/network policy before any access. | Treating `$wpdb`'s recalculated table property as proof that install, schema, collision, or ownership preflight ran for the new site. |
+| Client object observed after a site-prefix switch | Reject access under DG-NAME-06/A; construct a fresh client bound to the effective blog prefix. | Treating `$wpdb`'s recalculated table property as proof that install, schema, collision, or ownership preflight ran for the new site. |
 
 Every migration alternative is non-destructive by default: it may inventory,
 claim, copy, verify, or change a pointer, but it may not drop, truncate, rename,
 overwrite, or delete the old tables. Any eventual cleanup is a separate,
 explicit administrator operation with backup and rollback review.
 
-### Migration alternatives that must remain available to the owner
+### Approved migration path and separately gated follow-ups
 
-- **In-place adoption:** preserve the legacy pair and add an ownership claim
+- **Approved v1 — in-place adoption:** preserve the legacy pair and add an ownership claim
   after explicit mapping. This is the smallest compatibility change but cannot
   split a pair that two clients already used.
-- **Copy, verify, then cut over:** create a new collision-free pair under an
+- **Separate future approval — copy, verify, then cut over:** create a new collision-free pair under an
   approved new mapping, copy IDs and rows, compare schemas/counts/checksums, and
   switch one client only after verification. Keep the source pair read-only for
   rollback. This needs a distinct physical mapping from DG-NAME-03.
-- **Bounded dual-read migration:** write only to the approved destination, read
+- **Not approved for v1 — bounded dual-read migration:** write only to the approved destination, read
   destination first and legacy source second for a declared time/version, and
   report duplicate IDs/conflicts. Dual-write is excluded unless a later design
   proves atomicity under DG-M7 and the pending DB/SPI transaction gates.
-- **Offline export/split:** for an already shared ambiguous pair, require an
+- **Explicit recovery follow-up — offline export/split:** for an already shared ambiguous pair, require an
   administrator to assign rows to clients outside normal request handling,
   import each verified subset, and preserve the untouched source as rollback.
 
@@ -256,7 +258,7 @@ merge data, or make a shared table the steady state.
 
 ## Future implementation and test hand-off
 
-After owner decisions, CORE-06 owns production validation and the critical
+Under the approved decisions, CORE-06 owns production validation and the critical
 `CLIENT-NAME-01` / `CLIENT-ISO-01` scenarios from
 [`docs/test-quality.md`](test-quality.md). DB-06 owns schema lifecycle on the
 approved DB matrix. REL-02 owns public hooks/factory compatibility and the
@@ -266,20 +268,22 @@ At minimum, the future matrix must cover:
 
 | Area | Cases and assertions | Primary task |
 | --- | --- | --- |
-| Raw/canonical | observed valid names; upper-case/space/accent aliases; non-string; punctuation-only; percent-encoded Unicode; slash/dot; exact error class/code/message selected by DG-NAME-02 | CORE-06 |
-| Logical identity | raw aliases resolve to one logical REST/hook identity; `my-client` and `my_client` remain distinct logical candidates | CORE-06 / REL-02 |
+| Raw/canonical | observed valid names; upper-case/space/accent aliases; non-string; punctuation-only; percent-encoded Unicode; slash/dot; approved `ClientRegisterFail`, code `4`, and stable DG-NAME-02/A messages | CORE-06 |
+| Logical identity | raw aliases resolve to one logical REST/hook identity; `my-client` and `my_client` remain distinct logical identities | CORE-06 / REL-02 |
 | Physical collision | unclaimed, same-owner, conflicting-owner, and concurrent claim; factory selection may occur, but no table registration or connection/meta-table DDL/DML occurs before a rejected claim | CORE-06 |
 | Length | boundary at 64 and rejection at 65 for both tables; default, long, and zero-budget WordPress prefixes; byte equals character for approved ASCII | CORE-06 / DB-06 |
 | Legacy mapping | `cf7-telegram -> cf7_telegram`, `cf7-vk -> cf7_vk`, `neural_seo -> neural_seo`; complete, partial, ambiguous, and explicitly adopted pairs | CORE-06 / DB-06 |
 | Isolation | two independent clients exercise read/create/update/every delete path without cross-client connection or metadata access | CORE-06 / DB-03B-A / DB-03B-B |
-| Migration | dry-run inventory; no mutation in dry run; copy verification/conflict handling/rollback for whichever migration option is approved | DB-06 / REL-03 |
-| Multisite | construction/use under one blog, `switch_to_blog()`, callback execution, and fresh per-blog client behavior selected by DG-NAME-06 | CORE-06 / REL-02 |
+| Migration | DG-NAME-05/A dry-run inventory, explicit attestation, non-destructive in-place adoption, and rejection of ambiguous/shared pairs; a later copy/cutover remains separate work | DB-06 / REL-03 |
+| Multisite | construction/use under one blog, `switch_to_blog()`, callback execution, rejection of the bound object, and fresh per-blog client behavior under DG-NAME-06/A | CORE-06 / REL-02 |
 | Custom Storage | logical naming behavior is tested without assuming SQL tables; table introspection follows DG-SPI-07 only for concrete `WPStorage` | CORE-06 / REL-02 |
 
-## Pending decision gates
+## Approved decision gates
 
 <a id="dg-name-01"></a>
 ### DG-NAME-01 — raw input and canonical logical identity
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** `Client` currently applies `sanitize_title()` without validating
 type, an empty result, percent escapes, or the characters subsequently placed in
@@ -307,10 +311,12 @@ current result is empty or contains `%`; private consumers using such values
 must migrate. B also breaks benign aliases such as `MY CLIENT` and `café`. C
 changes REST paths, hooks, table mapping, and migration complexity.
 
-**Blocked tasks:** CORE-06, DB-06, REL-02, DOC-01 and REL-03.
+**Implementation consequences:** CORE-06, DB-06, REL-02, DOC-01 and REL-03.
 
 <a id="dg-name-02"></a>
 ### DG-NAME-02 — registration failure surface and timing
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** naming rejection needs an attributable public result, but logical
 validation must happen before storage selection while physical length,
@@ -350,7 +356,7 @@ use. B expands the public error taxonomy and can break code expecting code 4. C
 makes safety dependent on third-party callbacks and changes construction
 semantics.
 
-**Blocked tasks:** CORE-06, REST-03, REL-02, DOC-01 and REL-03.
+**Implementation consequences:** CORE-06, REST-03, REL-02, DOC-01 and REL-03.
 
 **Nonblocking refinement:** DB-06 does not add DG-NAME-02 to its direct DoR or
 Dependencies. It already waits for CORE-06 and reuses that implementation to
@@ -359,6 +365,8 @@ or DML.
 
 <a id="dg-name-03"></a>
 ### DG-NAME-03 — physical postfix and collision ownership
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** distinct logical identities such as `my-client` and `my_client`
 currently map to one table pair. No table column or registry records which
@@ -387,10 +395,12 @@ share an already claimed pair and adds a site option on first safe claim. B
 changes table names for new clients and needs a migration tool. C changes public
 REST routes, hooks, capabilities, and logical identity and would be breaking.
 
-**Blocked tasks:** CORE-06, DB-06, DB-03B-A, REL-02 and REL-03.
+**Implementation consequences:** CORE-06, DB-06, DB-03B-A, REL-02 and REL-03.
 
 <a id="dg-name-04"></a>
 ### DG-NAME-04 — complete physical identifier length
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** the database limit applies to the complete table name, while the
 effective WordPress prefix varies by installation and multisite blog. Silent
@@ -416,10 +426,12 @@ proceed to failing or unsafe SQL; they need the migration tooling selected by
 DG-NAME-05. B changes physical names and makes the registry mandatory for
 lookup. C is lossy and creates a new collision class.
 
-**Blocked tasks:** CORE-06, DB-06, REL-01 and REL-03.
+**Implementation consequences:** CORE-06, DB-06, REL-01 and REL-03.
 
 <a id="dg-name-05"></a>
 ### DG-NAME-05 — legacy adoption and non-destructive migration
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** existing legacy table pairs predate an ownership registry and may
 already be shared by colliding names. The suffix and row data cannot prove the
@@ -450,10 +462,12 @@ block writes on ambiguous installations, but leaves data and names unchanged.
 B requires additional storage and downtime/cutover coordination. C prolongs two
 read paths and can expose historical conflicts to callers.
 
-**Blocked tasks:** CORE-06, DB-06, REL-02 and REL-03.
+**Implementation consequences:** CORE-06, DB-06, REL-02 and REL-03.
 
 <a id="dg-name-06"></a>
 ### DG-NAME-06 — WordPress prefix and multisite lifecycle
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** the current object stores unprefixed names, while both ordinary DML
 and the custom dynamic `$wpdb` table property follow the current blog prefix:
@@ -482,12 +496,12 @@ object across blog switches; they must instantiate per blog. B adds runtime
 preflight and hook lifecycle complexity. C redirects existing multisite data to
 network-global tables and is a breaking data-isolation change.
 
-**Blocked tasks:** CORE-06, DB-06, DB-04, REL-02 and REL-03.
+**Implementation consequences:** CORE-06, DB-06, DB-04, REL-02 and REL-03.
 
 ## Decision consequences
 
-The six gates are independent owner decisions but their implementations must be
-coherent:
+The six approved A decisions remain independently traceable, but their
+implementations must be coherent:
 
 - any selected mapping still creates exactly one pair per client under DG-M6;
 - DG-NAME-02 supplies the two-phase failure surface used by rejected outcomes in
@@ -497,7 +511,7 @@ coherent:
   or copied; no option silently shares it;
 - DG-NAME-04 always budgets both complete identifiers using the site scope from
   DG-NAME-06;
-- pending DG-SPI-07 governs only concrete table introspection and migration
+- approved DG-SPI-07/A governs only concrete table introspection and migration
   compatibility; it does not turn SQL names into a portable adapter contract;
 - DB-00 PR #68's 64-character result is feasibility evidence, not approval of
   any database support, engine, transaction, or schema-recovery gate;
@@ -506,6 +520,6 @@ coherent:
   that a rejected concrete preflight performs no table registration, DDL, or
   DML. Its direct naming gates remain DG-NAME-01 and DG-NAME-03—DG-NAME-06.
 
-CORE-05 is complete when this artifact and its registry entries are merged.
-That completion means the owner can decide the gates; it does not authorize
-CORE-06 or DB-06 production work.
+CORE-05 completed the design artifact and registry entries. The repository owner
+approved DG-NAME-01—DG-NAME-06/A and DG-SPI-07/A on 2026-09-11; production work
+remains owned by CORE-06 and its downstream tasks.

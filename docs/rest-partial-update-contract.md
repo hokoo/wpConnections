@@ -1,6 +1,7 @@
 # Connection update contract discovery
 
-Status: decision-ready; no production behavior is changed by this document.
+Status: partial approved decision contract; DG-UPDATE-01 and DG-UPDATE-02
+approved A, while DG-UPDATE-03 through DG-UPDATE-05 remain pending
 
 Date: 2026-09-10
 
@@ -14,9 +15,10 @@ needed before `TEST-02D`, `DB-02`, `REST-02`, and the broader REST CRUD work can
 be implemented without accidentally making an old defect part of the public
 contract.
 
-The contract is intentionally decision-ready rather than approved. The five
-material choices are recorded as `DG-UPDATE-01` through `DG-UPDATE-05` in the
-main execution plan.
+The five material choices are recorded as `DG-UPDATE-01` through
+`DG-UPDATE-05` in the main execution plan. The repository owner approved option
+A for DG-UPDATE-01 and DG-UPDATE-02 on 2026-09-11; the remaining three choices
+are still decision-ready rather than approved.
 
 ## Evidence and compatibility baseline
 
@@ -90,16 +92,16 @@ Relevant repository evidence:
 There are three externally visible operations, even though they currently
 converge on one storage call.
 
-| Operation | Available state | Recommended role (pending `DG-UPDATE-01`) | Compatibility constraint |
+| Operation | Available state | Approved role (`DG-UPDATE-01/A`) | Compatibility constraint |
 |---|---|---|---|
 | `Connection::update()` | A loaded concrete aggregate, including metadata | Replace the aggregate with its complete in-memory state | Existing method is `void` and documented as overwrite/replace |
 | `Relation::updateConnection(Query\Connection)` | A query-shaped set of requested scalar fields | Sparse scalar update | Existing public return is `bool`; historical default behavior was partial |
 | REST `/relation/{relation}/{id}` | Request method plus exact parameter presence | PATCH or replacement after loading/validating the target | Default v1 response shape and legacy documented POST must remain compatible |
 
-These roles are not accepted by this document. In particular, restoring sparse
-behavior to the public `Relation::updateConnection(Query\Connection)` path is a
-material compatibility choice: it differs from the current post-`2b7bacc`
-complete write even though it matches the older query contract. Option B in
+These roles are accepted by DG-UPDATE-01/A. Restoring sparse behavior to the
+public `Relation::updateConnection(Query\Connection)` path is a material
+compatibility choice: it differs from the current post-`2b7bacc` complete write
+even though it matches the older query contract. Rejected option B in
 `DG-UPDATE-01` instead keeps that public PHP method replacement-oriented and
 implements REST PATCH by loading/merging before the domain call; option C keeps
 the currently conflated replacement behavior everywhere.
@@ -108,26 +110,26 @@ The storage SPI should persist already normalized domain intent. It must not
 infer REST method semantics or independently reimplement relation invariants.
 That boundary is shared with `SPI-01` and approved `DG-M9`.
 
-## Proposed PHP path matrix
+## Approved PHP path matrix
 
-This is recommendation A in `DG-UPDATE-01`, not an approved public contract.
+This is the approved A contract from `DG-UPDATE-01`.
 
 | PHP path | Recommended input meaning | Metadata meaning | Result |
 |---|---|---|---|
 | `Relation::updateConnection(Query\Connection)` | Sparse scalar update: initialized/supplied fields change and omitted fields preserve persisted state | No metadata mutation | `bool` according to `DG-UPDATE-04` |
 | `Connection::update()` | Complete aggregate replacement after validating the object's effective relation/endpoints | Replace metadata exactly; empty collection clears | Existing `void`; changed and valid no-op return normally |
 
-If option A is approved, both operations still reach storage as normalized,
+Under approved option A, both operations still reach storage as normalized,
 fully initialized state under the update-payload decision owned by `SPI-01`;
 “sparse” describes the public Relation input, not an obligation for every
 storage adapter. The domain layer must load, merge and validate before the SPI
 call. No new public parameter or return type is implied.
 
-## Proposed scalar state matrix
+## Approved scalar state matrix
 
-This matrix is the recommended contract subject to `DG-UPDATE-01` and
-`DG-UPDATE-02`. “Replacement” below means REST `PUT`, the legacy REST `POST`
-alias, and the complete scalar portion of `Connection::update()`.
+This matrix is the approved A contract from `DG-UPDATE-01` and `DG-UPDATE-02`.
+“Replacement” below means REST `PUT`, the legacy REST `POST` alias, and the
+complete scalar portion of `Connection::update()`.
 
 | Field/state | Sparse update / REST PATCH | Replacement / REST PUT and POST | Rationale |
 |---|---|---|---|
@@ -155,9 +157,9 @@ must not guess. Whether that normalization reuses the existing query type or
 introduces an internal command is an implementation detail unless it changes a
 public signature.
 
-## Proposed REST method matrix
+## Approved REST method matrix
 
-This matrix is the recommended option in `DG-UPDATE-01`.
+This matrix is the approved option A in `DG-UPDATE-01`.
 
 | Method | Scalar mode | Required request fields | Successful v1 shape |
 |---|---|---|---|

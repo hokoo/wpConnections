@@ -1,6 +1,6 @@
 # CORE-00: entity validation and extension contract
 
-Status: proposed; design complete, human decisions pending
+Status: approved decision contract for `CORE-04`; implementation in progress
 
 Date: 2026-09-10
 
@@ -13,14 +13,14 @@ scenarios [`ENT-VAL-01` and `ENT-EXT-01`](test-quality.md#relation-definition-en
 
 This document defines where endpoint validation belongs, inventories every
 current high-level mutation entrypoint, and refines CORE-04 into verifiable
-work. It does not approve a new public resolver API, new domain error, hook
-timing, update merge rule, rollout policy or relation-identity rule.
+work. On 2026-09-11 the repository owner approved option A for DG-ENT-01 through
+DG-ENT-05, including the resolver API, domain errors, hook ordering, strict
+effective-state rollout and immutable relation identity described below.
 
-The constraints inherited from DG-M1, DG-M3 and DG-M9 are normative. Every
-remaining material choice is a pending `DG-ENT-*` gate below. Recommended
-behavior and example signatures are proposals only: CORE-04 must remain
-`waiting_dependency` until the repository owner records all five decisions in
-the main plan.
+The constraints inherited from DG-M1, DG-M3 and DG-M9 are normative. The five
+`DG-ENT-*` choices below are now approved implementation requirements. Example
+signatures remain non-normative implementation sketches unless the production
+change explicitly adds them to the public API.
 
 This document is the canonical body for DG-ENT-01 through DG-ENT-05. The main
 plan's linked registry is canonical for their recorded decision/status, owner
@@ -69,14 +69,14 @@ No current endpoint-bearing create/update path calls `get_post()`, compares
 
 | Entry point | Current input/delegation | Current checks | Gap and CORE-04 boundary |
 | --- | --- | --- | --- |
-| `Relation::createConnection(Query\Connection)` | Receives candidate `from`/`to`; sets the owning relation name; calls `Storage::createConnection()`; constructs a `Connection`. | Non-empty endpoints, closure, duplicate and cardinality checks run before the `relation/creating` action. | Validate both physical endpoint roles before storage. Ordering relative to required/closure/duplicate/cardinality checks and the lifecycle action is conditional on DG-ENT-03. |
+| `Relation::createConnection(Query\Connection)` | Receives candidate `from`/`to`; sets the owning relation name; calls `Storage::createConnection()`; constructs a `Connection`. | Non-empty endpoints, closure, duplicate and cardinality checks run before the `relation/creating` action. | Validate identity, `from` and `to` before closure, duplicate and cardinality; emit the lifecycle action only after every approved check passes, per DG-ENT-03/A. |
 | `Relation::updateConnection(Query\Connection)` | Overwrites query `relation` with the receiver's name and passes the query object to `Storage::updateConnection()`. | No connection lookup, endpoint validation, closure, duplicate or cardinality check. Omitted-field semantics are not defined. | Apply the DG-ENT-04 effective-state/validation breadth and DG-ENT-05 relation-identity rule, coordinated with REST-00B; required validation must finish before storage. |
 | `Connection::update()` | Requires a non-zero connection ID; sends the mutable connection object to storage, then replaces metadata through separate calls. | Code `304` for an uninitialized object; no relation lookup or endpoint invariant. | Use the governing relation selected by DG-ENT-05 and the update breadth selected by DG-ENT-04 before the first storage/meta call. The caller's in-memory mutation cannot be rolled back; persisted row/meta must remain unchanged on rejection. |
 | `Relation::removeConnectionMeta(Query\Connection)` | Passes connection ID and meta selectors directly to `Storage::removeConnectionMeta()`; the receiver relation is not forwarded. | Storage rejects an empty object ID; Relation coerces the rows-affected result to `int`. It does not load or validate endpoint entities. | This is cleanup, not an endpoint-bearing create/update. It must be able to remove metadata from a legacy connection whose endpoint is missing or wrong-type. Ownership, selector and result/error rules belong to DB-03A/DB-03B-A/DB-03B-B and REST-05, not CORE-04 entity resolution. |
 | `Relation::detachConnections(Query\Connection)` | Selects the ID, `both`, directed pair, `from` or `to` branch and delegates to the corresponding storage delete method. | It does not resolve endpoint entities and currently converts caught `ConnectionWrongData` to `0`. | Do not require endpoint existence before delete: that would make dangling rows impossible to clean. DB-03A/DB-03B-A/DB-03B-B own selector, relation-isolation, result and orphan-meta behavior. |
 | REST create | `ClientRestApi::createConnection()` converts request parameters to `Query\Connection`, then delegates to `Relation::createConnection()`. | WordPress route args require integer `from` and `to`; permission and argument validation occur before the handler. | Keep REST thin. PHP callers can bypass route validation, so the domain boundary remains authoritative. |
 | REST connection update | The POST/PUT/PATCH `EDITABLE` route delegates to `Relation::updateConnection()`. | Route defaults/required fields and handler construction are incomplete; no entity check. | REST-00B defines omitted/null/falsy merge semantics. Apply the DG-ENT-04 validation breadth and DG-ENT-05 identity rule before storage; REST-00A/REST-03 coordinate error mapping. |
-| REST metadata update | Handler loads a `Connection`, changes metadata and calls `Connection::update()`. | Existing endpoint IDs are carried by the loaded object but are not revalidated. | Whether unchanged endpoints on every update must be revalidated is pending DG-ENT-04; the path may not bypass the selected rule. |
+| REST metadata update | Handler loads a `Connection`, changes metadata and calls `Connection::update()`. | Existing endpoint IDs are carried by the loaded object but are not revalidated. | Under approved DG-ENT-04/A, the complete effective state and both unchanged endpoints must be revalidated; the path may not bypass the rule. |
 | REST connection delete | `ClientRestApi::deleteConnection()` delegates a route connection ID to `Relation::detachConnections()`. | Permission/route ID checks precede the handler; no endpoint entity is resolved. A zero rows result becomes `ConnectionNotFound`. | Preserve deletion of a legacy/dangling connection without requiring either endpoint to exist. REST-03 and DB-03A/DB-03B-A/DB-03B-B own response/result and relation-isolation rules. |
 | REST metadata delete | `ClientRestApi::deleteConnectionMeta()` delegates connection ID/meta selectors to `Relation::removeConnectionMeta()`. | Permission/route handling precedes the handler; no endpoint entity is resolved. | Preserve selective/all metadata cleanup even when the connection has a missing or wrong-type endpoint. REST-05 and DB-03A/DB-03B-A/DB-03B-B own selector/result semantics. |
 | WordPress `deleted_post` cascade | `Client::init()` registers `Storage::deleteByObjectID()` directly on `deleted_post`. | The post is already deleted when the hook runs, so successful endpoint-existence validation is impossible. | This path must remove matching from/to rows and orphan metadata without an entity resolver. DB-04 owns hook lifecycle, client isolation and cascade evidence. |
@@ -114,7 +114,8 @@ For relation `page -> post`, the candidate in `connection.from` is always
 validated as `page` and `connection.to` as `post`. Deprecated `relation.type`
 cannot swap, omit or broaden either role.
 
-The minimum no-mutation guarantee is independent of the pending gates:
+The minimum no-mutation guarantee is shared by all alternatives and retained by
+the approved A contracts:
 
 - endpoint validation finishes before the first storage write;
 - a rejected create leaves no connection or metadata row;
@@ -125,19 +126,17 @@ The minimum no-mutation guarantee is independent of the pending gates:
 - validation may read the relation, connection and entity stores, but may not
   perform repair or deletion as a side effect.
 
-Only the validation-before-write/no-persisted-mutation guarantee above is
-unconditional. Which validation or invariant failure wins, the order of
-physical sides, and whether a pre-mutation lifecycle action is emitted for a
-rejected candidate are pending public choices in DG-ENT-03.
+The approved DG-ENT-03/A contract makes validation-before-write and
+no-persisted-mutation unconditional, fixes identity/from/to before existing
+invariants, and emits no pre-mutation lifecycle action for a rejected candidate.
 
 ### Endpoint matrix
 
-These outcomes follow DG-M1. Exact exception classes/codes, post-status
-eligibility and update post-state rules are pending gates.
+These outcomes follow DG-M1 and the approved DG-ENT-01—DG-ENT-05 A contracts.
 
 | Candidate for one physical side | Expected type | Required domain outcome before storage |
 | --- | --- | --- |
-| Endpoint omitted or `0` on create | relation-side type | Reject as missing required input; preserve the existing `MissingParameters` compatibility path unless DG-ENT-03 approves a replacement. |
+| Endpoint omitted or `0` on create | relation-side type | Reject as missing required input through the existing `MissingParameters` compatibility path; DG-ENT-03/A does not renumber it. |
 | Negative or otherwise invalid ID supplied through PHP | relation-side type | Reject as invalid endpoint input; do not coerce it to another entity. |
 | Positive ID has no resolvable entity or was hard-deleted | relation-side type | Reject as missing/deleted entity. Never create a dangling row. |
 | Existing `WP_Post` has a different `post_type` | relation-side type | Reject as wrong type and identify the physical `from` or `to` side. |
@@ -148,12 +147,12 @@ eligibility and update post-state rules are pending gates.
 
 Both sides are required to pass. A valid `from` never compensates for an invalid
 `to`, or vice versa. Self-connections still validate the ID independently
-against both declared side types; which failure is reported relative to the
-closure invariant follows DG-ENT-03.
+against both declared side types; DG-ENT-03/A reports endpoint validation before
+the closure invariant.
 
 ### Default WordPress post resolution
 
-The narrow default algorithm proposed in DG-ENT-01 is:
+The approved narrow default algorithm from DG-ENT-01/A is:
 
 1. require a positive integer endpoint ID;
 2. call `get_post($id)` in the current site context;
@@ -164,16 +163,16 @@ The narrow default algorithm proposed in DG-ENT-01 is:
 
 This supports ordinary posts and registered CPTs used by REL-00 consumers. It
 does not use current-user visibility, publication status or the REST controller
-as a persistence invariant. The treatment of `trash` and other stored statuses
-is intentionally pending DG-ENT-01. Multisite cross-blog resolution is out of
+as a persistence invariant. Under DG-ENT-01/A, `trash` and every other stored
+status remain valid until the post is hard-deleted. Multisite cross-blog resolution is out of
 scope: the resolver uses the current WordPress site unless a separately approved
 non-post/multisite adapter says otherwise.
 
 ## Non-post extension lifecycle
 
 DG-M1 requires an explicit non-post strategy, but does not choose its public PHP
-shape. DG-ENT-02 compares the credible options. The recommended narrow contract
-would have the following lifecycle if option A is approved:
+shape. DG-ENT-02 compares the credible options. The approved A contract has the
+following lifecycle:
 
 1. A resolver is registered on one `Client` during application bootstrap and
    before the client's first connection mutation.
@@ -204,9 +203,11 @@ interface EntityResolverInterface
 $client->registerEntityResolver($resolver);
 ```
 
-Names, signatures, the result object and late-registration behavior are not
-public commitments until DG-ENT-02 is approved. This mutation resolver is
-deliberately narrower than the batch filtering, authorization and REST
+The typed client-scoped registry, structured result states, unique type
+ownership and pre-mutation registration are public commitments under
+DG-ENT-02/A. Exact PHP names shown above remain implementation candidates until
+CORE-04 lands. This mutation resolver is deliberately narrower than the batch
+filtering, authorization and REST
 preparation adapter proposed by API-01. API-03 may compose the approved resolver
 with a richer adapter; CORE-04 must not silently freeze API-01's pending public
 surface.
@@ -215,11 +216,10 @@ surface.
 
 ### Effective update state
 
-What entity validation inspects on an update is conditional on DG-ENT-04. A
-full-state option must first assemble the effective persisted state; a
-transition option may choose narrower validation only by explicitly reopening
-the strict DG-M1 guarantee. Relation ownership is a separate DG-ENT-05 choice.
-REST omission/replace semantics remain owned by REST-00B.
+DG-ENT-04/A requires the complete effective persisted state and both endpoints
+on every update. DG-ENT-05/A separately makes the persisted owning relation
+immutable. REST omission/replace semantics remain owned by approved
+DG-UPDATE-01/02 and their REST-00B contract.
 
 | Path | State available now | State needed for validation |
 | --- | --- | --- |
@@ -256,12 +256,10 @@ rows. All rollout options therefore share these rules:
   wrong-type and unsupported-type rows. Automated repair, destructive cleanup
   and a privileged bypass require separate scope and approval.
 
-DG-ENT-04 decides the effective-state breadth and rollout. DG-ENT-05 separately
-decides which relation owns validation and whether identity may change. Options
-that narrow or phase strict update validation are not compatible refinements of
-DG-M1: they require the owner to reopen that approved decision. No option in
-either gate permits a rejected update to partially mutate the persisted row or
-metadata.
+Approved DG-ENT-04/A fixes strict full-effective-state rollout, and approved
+DG-ENT-05/A makes the persisted relation own validation with immutable identity.
+Narrower/phased validation would require reopening DG-M1. A rejected update may
+not partially mutate the persisted row or metadata.
 
 ## Decision gates
 
@@ -286,12 +284,12 @@ Compatibility impact: A adds no status-sensitive rejection but permits a
 connection to a trashed post until it is hard-deleted. B/C create new mutation
 failures and require relation configuration/migration rules.
 
-Status: pending repository-owner decision.
+Status: approved A by the repository owner on 2026-09-11.
 
-Blocks: CORE-04; the chosen lifecycle meaning refines DB-04 and documentation.
+Implementation consequences: CORE-04; the chosen lifecycle meaning refines
+DB-04 and documentation.
 
-Decision required: choose A, B or C and, for B/C, enumerate the accepted and
-rejected WordPress statuses.
+Decision recorded: A; publication status does not affect endpoint validity.
 
 <a id="dg-ent-02"></a>
 
@@ -318,13 +316,13 @@ Client registration method/interface but leaves existing constructors, factory
 filters and storage adapters unchanged. B adds a permanent hook contract. C
 expands the Factory SPI and couples CORE-04 to pending API-01 gates.
 
-Status: pending repository-owner decision.
+Status: approved A by the repository owner on 2026-09-11.
 
-Blocks: CORE-04 and ENT-EXT-01 evidence; API-03 must align rather than invent a
-second incompatible resolver.
+Implementation consequences: CORE-04 and ENT-EXT-01 evidence; API-03 must align
+rather than invent a second incompatible resolver.
 
-Decision required: choose A, B or C and approve registration timing, duplicate
-type ownership, structured result states and client isolation semantics.
+Decision recorded: A; registration precedes mutation, type ownership is unique
+per client, and the resolver returns structured states within client isolation.
 
 <a id="dg-ent-03"></a>
 
@@ -354,7 +352,7 @@ relation invariants and lifecycle hooks?
 Recommendation: **A**. Stable reasons are actionable for PHP and REST callers,
 early validation avoids persistence reads for impossible endpoint candidates,
 and current `creating` already runs only after existing checks. The ordering and
-hook behavior are part of this recommendation, not an unconditional rule.
+hook behavior are part of the approved A contract.
 
 Compatibility impact: A adds public exception classes/codes and changes which
 failure wins when an invalid entity also violates closure/duplicate/cardinality.
@@ -363,15 +361,15 @@ implemented under the recorded DG-M3/A decision. Existing codes `301`-`304` and
 `MissingParameters` code `4` are not renumbered by A/B; exact HTTP mapping
 remains a separate REST-00A decision.
 
-Status: pending repository-owner decision.
+Status: approved A by the repository owner on 2026-09-11.
 
-Blocks: CORE-04, REST-03 production mapping and DOC-01; lifecycle-hook evidence
-must be coordinated with REL-02. REST-00A may complete decision-ready exception
-inventory/mapping alternatives while this gate is pending, then refine its
-recommended mapping after the owner decides DG-ENT-03.
+Implementation consequences: CORE-04, REST-03 production mapping and DOC-01;
+lifecycle-hook evidence must be coordinated with REL-02. REST-00A consumes the
+approved domain taxonomy while its exact HTTP mapping remains governed by the
+pending DG-RESTERR gates.
 
-Decision required: choose A, B or C and explicitly approve code allocation,
-side order, precedence and whether rejected validation emits any lifecycle hook.
+Decision recorded: A, including codes 305—310, identity/from/to-before-existing-
+invariants precedence and no lifecycle hook for rejected validation.
 
 <a id="dg-ent-04"></a>
 
@@ -402,16 +400,17 @@ read-only.
 Compatibility impact: A adds a lookup to update paths and rejects updates of
 stale legacy rows. B/C reduce immediate disruption but are unavailable without
 changing DG-M1 and add temporal/configuration semantics. Relation mutability is
-not decided here; DG-ENT-05 owns it. None changes direct-storage source
+separately fixed as immutable by approved DG-ENT-05/A. None changes direct-storage source
 compatibility, and none promises safety for direct writes.
 
-Status: pending repository-owner decision.
+Status: approved A by the repository owner on 2026-09-11.
 
-Blocks: CORE-04; REST-00B/REST-02 and DB-02 must use the same effective-state
+Implementation consequences: CORE-04; REST-00B/REST-02 and DB-02 must use the
+same effective-state
 rule, while REL-03 owns release/preflight communication.
 
-Decision required: choose A, or explicitly reopen DG-M1/C before selecting B/C;
-also decide whether a 1.x repair/bypass API is explicitly in scope or deferred.
+Decision recorded: A; a 1.x repair/bypass API is deferred. Release work must
+provide read-only preflight guidance for legacy-invalid rows.
 
 <a id="dg-ent-05"></a>
 
@@ -448,19 +447,20 @@ temporarily while adding a major-version transition commitment. Every option
 continues to enforce DG-M1 endpoint validation and DG-M9 domain ownership before
 storage.
 
-Status: pending repository-owner decision.
+Status: approved A by the repository owner on 2026-09-11.
 
-Blocks: CORE-04; REST-00B/REST-02 and DB-02 must use the same identity rule,
+Implementation consequences: CORE-04; REST-00B/REST-02 and DB-02 must use the
+same identity rule,
 CORE-02 update invariants need matching evidence, and REL-03 owns compatibility
 communication.
 
-Decision required: choose A, B or C and, for B/C, approve target-relation
-selection, atomic move/conflict semantics and the 2.0 transition if applicable.
+Decision recorded: A; persisted owning relation is immutable and no implicit
+move operation is added.
 
 ## CORE-04 implementation refinement
 
-CORE-04 remains `waiting_dependency`. It becomes `todo` only after DG-ENT-01
-through DG-ENT-05 and any material follow-up gate from REST-00B are approved.
+CORE-04 is `in_progress`: DG-ENT-01 through DG-ENT-05 and the required
+REST-00B/SPI update gates were approved by the repository owner on 2026-09-11.
 CORE-02 must provide the shared create/update cardinality path; SPI-01 is a
 cross-review input but may not move entity resolution into storage.
 
@@ -476,7 +476,7 @@ cross-review input but may not move entity resolution into storage.
 - Implement the approved error, precedence, hook, effective-state and relation
   identity rules.
 - Add migration/release documentation for the approved rollout; do not add
-  automatic repair or a bypass unless DG-ENT-04 explicitly authorizes it.
+  automatic repair or a bypass, which DG-ENT-04/A explicitly defers.
 - Do not add endpoint resolution to `Relation::detachConnections()`,
   `Relation::removeConnectionMeta()`, their REST delegates or the `deleted_post`
   cascade. Add boundary evidence that these cleanup paths can remove
@@ -551,13 +551,13 @@ unit test alone is not ENT-EXT-01 evidence.
 - Critical scenario mapping and release/preflight notes are recorded without
   claiming incomplete tests as evidence.
 
-## Verification of this design artifact
+## Historical verification of this design artifact
 
-The CORE-00 review must verify:
+The CORE-00 design-only review verified at merge time that:
 
 - every source entrypoint above still matches the linked implementation;
-- all five gates remain explicitly pending and appear in the main registry;
-- CORE-04 remains waiting and no public signature is presented as approved;
+- all five gates were explicitly pending and appeared in the main registry;
+- CORE-04 remained waiting and no public signature was then presented as approved;
 - `ENT-VAL-01` and `ENT-EXT-01` expectations remain canonical in
   `docs/test-quality.md`;
 - relative links resolve and task/gate IDs are unique;
@@ -570,12 +570,13 @@ The CORE-00 review must verify:
 - Public search cannot exclude private non-post consumers or direct storage
   mutations.
 - Mutable public connection properties make effective-state validation harder;
-  the extra-read and relation-identity consequences depend on DG-ENT-04/05.
+  DG-ENT-04/A and DG-ENT-05/A require the extra read plus immutable relation,
+  client and endpoint identity checks.
 - Validation and storage are not one transaction with WordPress entity deletion;
   an endpoint can disappear after validation. DB-04/DB-05 own cascade and
   transaction behavior; CORE-04 must document this race rather than claim
   impossible cross-table atomicity.
-- If DG-ENT-04/A is approved, strict full-state validation exposes legacy
+- Because DG-ENT-04/A is approved, strict full-state validation exposes legacy
   dangling rows on their next high-level update.
-- A new public resolver/error surface is a long-lived compatibility commitment;
-  recommendations in this document cannot be implemented before approval.
+- The approved public resolver/error surface is a long-lived compatibility
+  commitment and requires conformance/migration documentation.

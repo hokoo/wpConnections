@@ -1,7 +1,7 @@
 # Storage SPI and mutation boundary
 
-Status: decision-ready design artifact for `SPI-01`; no production contract is
-accepted by this document where a decision gate is marked pending.
+Status: partial approved decision contract; DG-SPI-01, DG-SPI-02 and DG-SPI-07
+approved A, while DG-SPI-03 through DG-SPI-06 remain pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -9,8 +9,9 @@ Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
 This document is the canonical inventory and decision record for the storage
 extension boundary. It describes the source as it exists at the snapshot above,
-the already approved constraints from DG-M7 and DG-M9, and the decisions that
-must be made before production signatures or behavior change.
+the already approved constraints from DG-M7 and DG-M9, the A decisions recorded
+for DG-SPI-01/02/07 on 2026-09-11, and the decisions still required before other
+production signatures or behavior change.
 
 The words **current** and **observed** describe compatibility evidence, not a
 promise that defective behavior should be retained. A **recommended** option is
@@ -128,8 +129,8 @@ Reflection at the source snapshot confirms both declared parameters resolve to
 an instance of that type but has uninitialized `title` and `order` properties.
 
 CORE-02 may enforce cardinality around updates, but it must not repair this SPI
-contract incidentally. DG-SPI-01 must be decided together with REST-00B's method
-and value-state gates. The separate `DG-UPDATE-04` is the canonical shared gate
+contract incidentally. Approved DG-SPI-01/A is coordinated with REST-00B's
+approved method and value-state gates. The separate pending `DG-UPDATE-04` is the canonical shared gate
 for changed versus valid no-op versus not-found/storage-failure results.
 
 ## Factory replacement baseline
@@ -201,9 +202,11 @@ DG-SPI-06 decides commit-aware mutation hook semantics. REL-02 still owns the
 complete public/internal classification and compatibility tests; SPI-01 does
 not rename or remove hooks.
 
-## Pending decision gates
+## Decision gates
 
 ### DG-SPI-01 — update payload at the domain/SPI boundary
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** the abstract type accepts either materialized or query subclasses,
 but current callers require incompatible replacement and sparse-patch meanings.
@@ -225,10 +228,13 @@ to custom adapters; an adapter that currently inspects `Query\Connection` needs
 a compatibility fixture or bridge. B preserves the observed caller shape but
 makes every adapter reproduce REST/domain logic. C is an explicit breaking SPI.
 
-**Blocked/refined tasks:** REST-00B, TEST-02D, CORE-04, DB-02, REST-02, REL-02.
+**Implementation consequences:** REST-00B, TEST-02D, CORE-04, DB-02, REST-02,
+REL-02.
 CORE-02 is explicitly not the implementation owner.
 
 ### DG-SPI-02 — create ID and read hydration ownership
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** the abstract create method returns an ID, yet `WPStorage` also
 mutates the query's ID; reads attach `Client` inside the adapter. Neither hidden
@@ -249,7 +255,7 @@ obligation.
 the mutated query immediately after a direct SPI call. B freezes WordPress-
 specific object construction into every adapter. C is breaking.
 
-**Blocked/refined tasks:** DB-02, CORE-04, DB-05 and REL-02.
+**Implementation consequences:** DB-02, CORE-04, DB-05 and REL-02.
 
 ### DG-SPI-03 — non-update result and failure protocol
 
@@ -354,6 +360,8 @@ conflicts with the no-false-success requirement. C expands the public hook API.
 
 ### DG-SPI-07 — legacy concrete storage introspection
 
+**Status:** approved A by the repository owner on 2026-09-11.
+
 **Problem:** public consumers reach `WPStorage` table names through
 `getStorage()` or reconstruct them, but table names are not portable storage
 SPI and direct writes are excluded by DG-M9.
@@ -373,7 +381,7 @@ C breaks known maintenance/orphan-cleanup flows.
 migration docs. B breaks existing custom adapters. C breaks observed public
 consumers.
 
-**Blocked/refined tasks:** CORE-05/CORE-06, REL-02, DOC-01 and REL-03.
+**Implementation consequences:** CORE-05/CORE-06, REL-02, DOC-01 and REL-03.
 
 ## Conformance-test contract
 
@@ -388,7 +396,7 @@ behavior.
 | --- | --- | --- |
 | Factory selection | Default class and exact `Client` reach the filter; a valid replacement is constructed once and becomes `Client::getStorage()`. Missing, incompatible and unconstructable replacements follow the DG-SPI-05 error contract without partially initialized client hooks. | REL-02 |
 | Domain boundary | Invalid relation/cardinality/entity input performs zero adapter writes; valid input reaches one adapter only after common validation. A supported non-post entity strategy does not require storage-specific validation. | CORE-04 |
-| Update payload | Omitted/null/falsy REST states are resolved before the SPI call according to REST-00B and DG-SPI-01. The recording adapter receives the approved fully initialized or sparse shape, never an accidental mixture. | TEST-02D / DB-02 / REST-02 |
+| Update payload | Omitted/null/falsy REST states are resolved before the SPI call according to REST-00B and DG-SPI-01/A. The recording adapter receives one fully initialized materialized shape, never sparse input or an accidental mixture. | TEST-02D / DB-02 / REST-02 |
 | Update result | Changed, valid no-op, not-found and adapter failure remain distinguishable through the shared pending DG-UPDATE-04 contract; the SPI and REST assertions use the same fixture outcomes. | REST-00B / DB-02 / REST-02 |
 | Create identity/hydration | The returned ID, query observability and client attachment follow DG-SPI-02; a returned domain connection can subsequently update through the same selected adapter. | DB-02 / REL-02 |
 | Read | Empty success differs from adapter failure; ID priority and relation/from/to/both filtering keep DB-01 semantics; ordering remains unspecified until DG-API20-04. Returned duplicates/meta multiplicity survive adapter-neutral hydration. | REL-02; DB-01 is the behavior baseline |
@@ -408,8 +416,8 @@ behavior.
 - Treat adapter call recording as the proof that entity validation occurs before
   all high-level writes and is shared by PHP and REST domain paths.
 - Do not require a custom adapter to reproduce entity/cardinality rules.
-- Include `Connection::update()` and `Relation::updateConnection()` only after
-  DG-SPI-01 and REST-00B define the common update boundary.
+- Include `Connection::update()` and `Relation::updateConnection()` through the
+  approved DG-SPI-01/A and REST-00B materialized common update boundary.
 
 ### DB-05
 
@@ -442,7 +450,7 @@ behavior.
 - Current delete and metadata methods can expose partial state or misleading
   counts. This artifact records those defects; it does not authorize fixes
   before the result, transaction and hook gates are accepted.
-- The pending Query metadata autoload decision DG-QMETA-01 remains independent.
-  SPI conformance must not conceal it inside DB-02.
+- Approved DG-QMETA-01/A remains an independent Query metadata repair; SPI
+  conformance must not conceal it inside DB-02.
 - This task adds no production API, signature, factory behavior, hook behavior or
   test implementation.
