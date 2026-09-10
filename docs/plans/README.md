@@ -7,12 +7,13 @@
 
 1. Инфраструктурный план завершён: [PR #48](https://github.com/hokoo/wpConnections/pull/48)
    влит в `master` 2026-09-10.
-2. Актуализировать baseline на `master` и выполнять
-   [основной план стабилизации библиотеки](./02-library-hardening.md); после
-   завершения `TEST-01` следующие vertical regression slices —
-   `TEST-02A/CORE-01` и `TEST-02E/DB-01`.
-3. Функциональные исправления из основного плана не добавлять в PR #48: сначала
-   инфраструктура должна дать воспроизводимый test/coverage feedback loop.
+2. Batch 1—3 [основного плана](./02-library-hardening.md) завершены; PR
+   #51—#60 последовательно зафиксировали решения, test foundation/contracts,
+   первые production fixes и исполняемые quality gates.
+3. Выполнять активный Batch 4: cardinality vertical
+   `TEST-02B/TEST-02C/CORE-02` и docs/design contracts `CORE-00`, `SPI-01`,
+   `REST-00B`. Подтверждённый `TEST-02F/CORE-07` остаётся условным follow-on за
+   pending DG-QMETA-01.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -33,31 +34,34 @@
 
 ## Текущий baseline
 
-- Unit: 4 теста, 7 assertions, 7,70% строк.
-- WordPress integration: 5 тестов, 24 domain assertions.
-- Совместный прогон: 9 тестов, 31 assertion, 46,44% строк, 52,68% методов.
-- Наиболее слабые зоны: `ClientRestApi` — 6,49% строк; `Relation` — 50,00%;
-  `WPStorage` — 53,96%.
-- PR #48 merged коммитом `a978bd2`; все четыре post-merge workflow и 17 jobs
-  успешны на этом коммите.
+- Unit: 6 тестов, 14 assertions.
+- WordPress integration: 39 тестов, 169 assertions.
+- Совместный coverage run: 45 тестов, 183 assertions и `574/791` statements
+  (`72,57%`) на `master` `6d42300`.
+- Глобальный RC threshold 70% достигнут, но release candidate остаётся
+  неготовым до прохождения всех 39 critical scenarios.
+- Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
+  Composer-download HTTP 504 failures были pre-test transient и прошли selective
+  rerun.
 - `master` защищён: strict required checks для всех 17 jobs, enforcement для
   администраторов, force-push и удаление ветки запрещены.
-- `TEST-01` завершена и проверена; regression harness разбит на пять red-first
-  slices `TEST-02A`—`TEST-02E`, каждый из которых мержится только вместе со
-  своим production fix при зелёном CI.
+- `TEST-01`, `TEST-02A` и `TEST-02E` завершены. Regression harness теперь
+  содержит шесть red-first slices `TEST-02A`—`TEST-02F`; незавершённые slices
+  мержатся только вместе со своим production fix при зелёном CI.
 - DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
-- Временные диагностические тесты подтвердили дефекты cardinality `1-m` и
-  `m-1`, REST update без `title`, регистрации relation без `to` и поиска по
-  `both`. Эти тесты не являются частью репозитория; их перенос в штатный suite
-  включён в основной план.
+- DG-API20-01—DG-API20-09 и DG-QMETA-01 остаются pending и блокируют только
+  явно перечисленные downstream tasks.
+- Штатные regressions уже защищают missing-`to` и broken `both`; cardinality,
+  REST update без `title` и `Query\Meta` fatal выполняются следующими slices по
+  своим dependencies/gates.
 
 ## Контрольные точки
 
 - **M0 — Infrastructure ready — completed 2026-09-10:** выполнен DoD
   инфраструктурного плана, PR #48 влит в `master`, post-merge CI зелёный.
-- **M1 — Regression harness ready:** изолированные integration fixtures и пять
+- **M1 — Regression harness ready:** изолированные integration fixtures и шесть
   подтверждённых regression-тестов находятся в `master` вместе с fixes.
 - **M2 — Core invariants stable:** validation/cardinality/duplicatable/
   closurable исправлены и защищены матрицей тестов.
