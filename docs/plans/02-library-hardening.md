@@ -607,6 +607,16 @@ decision-ready naming contract.
 | DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
 | DG-SPI-06 | pending; recommendation A | repository owner | — | Commit-aware mutation hooks; DB-05/REL-02 wait |
 | DG-SPI-07 | pending; recommendation A | repository owner | — | CORE-05 coordinates; concrete introspection migration waits |
+| [`DG-ENT-01`](../entity-validation-contract.md#dg-ent-01) | pending; recommendation A | repository owner | — | CORE-04; уточняет DB-04 |
+| [`DG-ENT-02`](../entity-validation-contract.md#dg-ent-02) | pending; recommendation A | repository owner | — | CORE-04/ENT-EXT-01; coordination API-03 |
+| [`DG-ENT-03`](../entity-validation-contract.md#dg-ent-03) | pending; recommendation A | repository owner | — | CORE-04, REST-03, DOC-01; REST-00A/REL-02 coordination |
+| [`DG-ENT-04`](../entity-validation-contract.md#dg-ent-04) | pending; recommendation A | repository owner | — | CORE-04; alignment REST-00B/REST-02/DB-02/REL-03 |
+| [`DG-ENT-05`](../entity-validation-contract.md#dg-ent-05) | pending; recommendation A | repository owner | — | CORE-04; relation identity alignment CORE-02/REST-00B/REST-02/DB-02/REL-03 |
+
+Для DG-ENT-01—DG-ENT-05 связанный контракт является canonical decision body
+(problem, alternatives, recommendation и compatibility impact). Этот registry —
+canonical запись решения/status, владельца и даты. Implementation использует
+оба источника; рекомендация в contract сама по себе не меняет status в registry.
 
 ## Execution batches
 
@@ -1435,7 +1445,7 @@ Tasking Guidance:
 
 ### CORE-00. Спроектировать entity validation strategy и rollout
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -1486,6 +1496,20 @@ Notes/Risks:
 
 - Strict validation может отклонить legacy data/import flows; rollout должен
   отделять чтение существующих rows от новых mutations.
+- Decision-ready artifact: [`docs/entity-validation-contract.md`](../entity-validation-contract.md).
+  Он инвентаризирует endpoint-bearing PHP/REST updates и отдельные
+  delete/meta-delete/`deleted_post` cleanup paths, отделяет domain validation от
+  Storage SPI и задаёт точные `ENT-VAL-01`/`ENT-EXT-01` scenarios для refinement
+  CORE-04.
+- DG-ENT-01—DG-ENT-05 остаются pending: рекомендации о `WP_Post` lifecycle,
+  public non-post resolver, domain errors/hook precedence, update/rollout и
+  relation identity не являются принятыми API. Поэтому завершение design task
+  CORE-00 не разблокирует CORE-04, которая остаётся `waiting_dependency`.
+- Verification 2026-09-10: source/REL-00/critical-registry traceability и
+  relative links проверены; task/gate IDs уникальны; `git diff --check` и
+  secrets/out-of-scope diff checks проходят. Docs-only change сохраняет
+  подтверждённый `master` baseline: unit `6/14`, integration `39/169`, combined
+  `45/183`, statements `574/791 (72.57%)`.
 
 ### CORE-01. Валидировать relation definition
 
@@ -1705,6 +1729,9 @@ Scope:
 - Extension hook/strategy, если выбран вариант C.
 - Провести high-level mutations через общий validation path согласно DG-M9;
   direct storage writes остаются SPI и не являются consumer API.
+- Сохранить cleanup boundary: explicit connection/meta deletes и `deleted_post`
+  cascade не требуют существования endpoint entity и могут убрать legacy/orphan
+  state.
 
 Out of Scope:
 
@@ -1718,6 +1745,7 @@ DoR:
 - CORE-00 завершила extension и backward-compatibility/rollout contract.
 - DG-SPI-01 и DG-SPI-02 утверждены.
 - REST-00B завершена; DG-UPDATE-01 и DG-UPDATE-02 утверждены.
+- DG-ENT-01, DG-ENT-02, DG-ENT-03, DG-ENT-04 и DG-ENT-05 утверждены владельцем.
 
 DoD:
 
@@ -1738,6 +1766,7 @@ Dependencies:
 - DG-M1.
 - DG-M9.
 - DG-SPI-01, DG-SPI-02.
+- DG-ENT-01, DG-ENT-02, DG-ENT-03, DG-ENT-04, DG-ENT-05.
 - CORE-00.
 - CORE-03.
 - REST-00B.
