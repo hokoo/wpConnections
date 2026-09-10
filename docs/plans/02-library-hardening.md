@@ -1806,7 +1806,7 @@ Notes/Risks:
 
 ### REST-01. Создать end-to-end REST test harness
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -1861,6 +1861,12 @@ Notes/Risks:
   варианты; REST-01 фиксирует drift, но не меняет route contract.
 - Update args/defaults, create `title` и DELETE meta drift принадлежат
   REST-00B/REST-02/REST-05, а не harness task.
+- Реализован изолированный full-dispatch harness: четыре custom path patterns,
+  двенадцать method/callback combinations, Postman inventory, validation,
+  permission denial и authenticated serialization.
+- Verification 2026-09-10: targeted REST `5 tests / 45 assertions`; полный WP
+  integration на PHP 8.1 / WordPress 6.7 `10 / 69`; combined suite `14 / 76`;
+  coverage gate `549/786 (69,85%)`, `+23,41 pp`; PHPCS `35/35`.
 
 ### REST-02. Исправить fatal error при update connection
 
