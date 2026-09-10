@@ -37,7 +37,10 @@ access is required.
 | `make tests.run` | Run unit and WordPress integration suites | Fast local loop before a push |
 | `make tests.phpunit` | Run isolated unit tests from `phpunit.xml` | Changes that do not require WordPress bootstrap or MariaDB |
 | `make tests.integration` | Run WordPress integration tests from `php-wp-unit.xml` | Storage, WordPress hooks, database, and entity integration changes |
-| `make tests.coverage` | Run both suites in one instrumented process and apply the coverage gate | Before requesting review and after source/test changes |
+| `make tests.coverage` | Run both suites and apply the default PR no-regression profile | Before requesting review and after source/test changes |
+| `make tests.coverage.rc` | Run both suites and apply the explicit RC 70% profile | Release-candidate preparation only |
+| `make tests.isolation` | Run both suites in reverse/repeat and seeded-random/repeat order | Before review after test, fixture, hook, or global-state changes |
+| `make tests.quality-tools` | Run synthetic coverage, exception-policy, and order-dependent-runner probes | After changing quality-policy tooling |
 | `make lint.phpcs` | Run the PHP CodeSniffer rules from `phpcs.xml` | Before requesting review and after PHP changes |
 | `make tests.build` | Rebuild the Compose test image with normal Docker cache | Dockerfile or image-input changes |
 | `make tests.rebuild` | Rebuild the Compose test image without Docker cache | Diagnose image or Docker cache problems |
@@ -134,10 +137,19 @@ follow-up. Do not replace stable pins with a moving ref to make the canary pass.
 ## Coverage gate
 
 `make tests.coverage` produces combined unit and WordPress integration coverage
-and compares statement coverage with
+using the default pull-request profile and compares statement coverage with
 [`coverage-baseline.json`](../coverage-baseline.json). The accepted baseline is
 `365/786` statements (`46.44%` when displayed to two decimal places). The gate
 compares the exact covered/total ratio, so rounding cannot hide a regression.
+It also reports whether the same report reaches the RC target without failing a
+normal pull request merely because RC is not ready.
+
+`make tests.coverage.rc` is the separate, explicit release-candidate profile.
+It compares exact integer counts (`covered * 100 >= 70 * total`) and requires at
+least 70% statements. It also rejects an active critical-scenario exception.
+The accepted PR baseline remains `365/786`; do not change it to exercise the RC
+profile. Until product coverage reaches the target, a real RC invocation is
+expected to fail with a policy exit.
 
 Reports are written to `build/coverage/`:
 
@@ -151,6 +163,52 @@ the gate fails, run `make tests.coverage`, inspect `coverage-summary.md` and
 `coverage.txt`, and identify the uncovered source change. Change the baseline
 only when a reviewed source or test change intentionally establishes a new
 accepted ratio; never lower it only to turn the check green.
+
+The underlying coverage and exception-policy checkers, including direct
+container entrypoint commands, use these exit codes:
+
+- `0`: selected policy passed;
+- `1`: valid input, but the selected policy failed;
+- `2`: malformed input or invalid policy configuration.
+
+GNU Make reports any failed recipe using Make's own non-zero wrapper status;
+use the checker message or direct container command when the `1` versus `2`
+distinction is needed for automation.
+
+`make tests.quality-tools` exercises PR baseline pass/regression, RC reports
+below/equal/above 70%, malformed coverage input, exception metadata, RC critical
+exception blocking, and an intentionally order-dependent isolation probe.
+
+## Isolation, seeds, and test exceptions
+
+`make tests.isolation` runs the unit and WordPress integration suites in reverse
+order twice, then in random order twice. It prints the generated seed before any
+suite starts. Reproduce the exact random order with the command printed in the
+log, for example:
+
+```bash
+make tests.isolation ISOLATION_SEED=20260910
+```
+
+The first failing phase returns non-zero immediately. A later repeat or random
+phase never replaces that failure with a green result. The existing `Coverage`
+job runs the same isolation command with a visible fixed seed; this adds no new
+required-check name.
+
+The machine-readable exception registry is
+[`test-quality-exceptions.json`](../test-quality-exceptions.json). The canonical
+field definitions and critical-scenario rules remain in
+[`docs/test-quality.md`](test-quality.md). The validator requires the exact
+schema, including a named `owner` and hard `expires_on` date; incomplete,
+extra-field, malformed, or expired records are configuration errors. A valid
+active critical exception may document a temporary pull-request risk but always
+blocks the RC profile; a non-critical exception is still printed for explicit
+REL-03 release review.
+
+For an order-dependent failure, record the commit, matrix lane, suite, phase,
+repeat count, printed seed, first failing test, and logs in the tracking issue.
+After the fix, remove its registry entry and rerun both the original seed and a
+fresh generated seed.
 
 ## Expected pull-request checks
 
