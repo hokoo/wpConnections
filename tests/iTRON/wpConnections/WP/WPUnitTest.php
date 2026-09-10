@@ -2,74 +2,13 @@
 
 namespace iTRON\wpConnections\Tests\iTRON\wpConnections\WP;
 
-use iTRON\wpConnections\Client;
 use iTRON\wpConnections\ClientRestApi;
-use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Meta;
 use iTRON\wpConnections\Query\Connection;
-use iTRON\wpConnections\Query\Relation;
-use PHPUnit\Framework\TestCase;
 
-use Ramsey\Collection\Exception\OutOfBoundsException;
-
-use function PHPUnit\Framework\assertEquals;
-
-class WPUnitTest extends TestCase
+class WPUnitTest extends WPConnectionsTestCase
 {
-	protected Client $client;
-	protected array $post_ids;
-	protected array $page_ids;
-
-	protected function setUp(): void
-	{
-		// Create client
-		$this->client = new Client( CLIENT_NAME );
-		$relation = new Relation();
-		$relation->set( 'name', RELATION_0_NAME );
-		$relation->set( 'from', 'page' );
-		$relation->set( 'to', 'post' );
-		$relation->set( 'cardinality', 'm-m' );
-
-		$this->client->registerRelation( $relation );
-
-		$relation = new Relation();
-		$relation->set( 'name', RELATION_1_NAME );
-		$relation->set( 'from', 'page' );
-		$relation->set( 'to', 'post' );
-		$relation->set( 'cardinality', '1-m' );
-
-		$this->client->registerRelation( $relation );
-
-		// Create some posts and pages.
-		$this->post_ids[0] = wp_insert_post( [
-			'post_title' => 'Post 1',
-			'post_content' => 'Post 1 content',
-			'post_status' => 'publish',
-			'post_type' => 'post',
-		] );
-		$this->post_ids[1] = wp_insert_post( [
-			'post_title' => 'Post 2',
-			'post_content' => 'Post 2 content',
-			'post_status' => 'publish',
-			'post_type' => 'post',
-		] );
-		$this->page_ids[0] = wp_insert_post( [
-			'post_title' => 'Page 1',
-			'post_content' => 'Page 1 content',
-			'post_status' => 'publish',
-			'post_type' => 'page',
-		] );
-
-		self::assertIsInt( $this->post_ids[0] );
-		self::assertIsInt( $this->page_ids[0] );
-
-		// Echo the post and page IDs
-		echo PHP_EOL;
-		echo 'Post ID: ' . $this->post_ids[0] . PHP_EOL;
-		echo 'Page ID: ' . $this->page_ids[0] . PHP_EOL;
-	}
-
 	public function testCreateConnection()
 	{
 		$connection_query = new Connection(
@@ -94,7 +33,6 @@ class WPUnitTest extends TestCase
 		self::assertEquals( $connection_query->from, $connection->from );
 		self::assertEquals( $connection_query->to, $connection->to );
 
-		return $connection;
 	}
 
 	public function testFindConnections() {
@@ -133,10 +71,7 @@ class WPUnitTest extends TestCase
 		self::assertEquals( $connection->id, $found_connections->first()->id );
 	}
 
-	/**
-	 * @depends testCreateConnection
-	 */
-	public function testUpdateConnection( $connection )
+	public function testUpdateConnection()
 	{
 		$title = 'New test title';
 		$order = 10;

@@ -37,8 +37,4 @@ tests_add_filter( 'muplugins_loaded', function() {
 	$wpdb->query( $q );
 } );
 
-tests_add_filter( 'wpConnections/storage/installOnInit', function ( $installOnInit ) {
-	return true;
-}, 10, 1 );
-
 require_once $test_root . '/includes/bootstrap.php';
