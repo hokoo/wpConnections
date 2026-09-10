@@ -12,6 +12,7 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 	protected Client $client;
 	protected array $post_ids = [];
 	protected array $page_ids = [];
+	protected \WP_REST_Server $rest_server;
 
 	private array $wpdb_tables_before_client = [];
 
@@ -36,6 +37,61 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 		} finally {
 			parent::tear_down();
 		}
+	}
+
+	protected function set_up_rest_server(): void
+	{
+		$GLOBALS['wp_rest_server'] = null;
+		$this->rest_server = rest_get_server();
+	}
+
+	protected function tear_down_rest_server(): void
+	{
+		$GLOBALS['wp_rest_server'] = null;
+		wp_set_current_user( 0 );
+	}
+
+	protected function get_rest_route( string $suffix = '' ): string
+	{
+		return '/wp-connections/v1/client/' . $this->client->getName() . $suffix;
+	}
+
+	protected function dispatch_rest_request(
+		string $method,
+		string $route,
+		array $payload = []
+	): \WP_REST_Response
+	{
+		$request = new \WP_REST_Request( $method, $route );
+		$request->set_body_params( $payload );
+
+		return $this->rest_server->dispatch( $request );
+	}
+
+	protected function authenticate_as_administrator(): int
+	{
+		$user_id = self::factory()->user->create( [ 'role' => 'administrator' ] );
+		wp_set_current_user( $user_id );
+
+		return $user_id;
+	}
+
+	protected function authenticate_as_anonymous(): void
+	{
+		wp_set_current_user( 0 );
+	}
+
+	protected function assert_rest_error_response(
+		string $expected_code,
+		int $expected_status,
+		\WP_REST_Response $response
+	): void
+	{
+		$data = $response->get_data();
+
+		self::assertSame( $expected_status, $response->get_status() );
+		self::assertIsArray( $data );
+		self::assertSame( $expected_code, $data['code'] ?? null );
 	}
 
 	private function register_relations(): void
