@@ -1,0 +1,53 @@
+name: WP Integration Tests
+
+on:
+  push:
+    branches: [ "master", "main", "dev" ]
+  pull_request:
+    types: [synchronize, opened, reopened]
+
+permissions: {}
+
+jobs:
+  wp-integration:
+    name: WP Integration PHP ${{ matrix.php-version }} / WP ${{ matrix.wp-version }} / Ramsey ${{ matrix.ramsey-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php-version: "8.1.34"
+            wp-version: "6.7.7"
+            ramsey-version: "1.3.0"
+          - php-version: "8.2.33"
+            wp-version: "7.1.0"
+            ramsey-version: "1.3.0"
+          - php-version: "8.3.33"
+            wp-version: "7.1.0"
+            ramsey-version: "2.1.1"
+          - php-version: "8.4.25"
+            wp-version: "6.7.7"
+            ramsey-version: "2.1.1"
+          - php-version: "8.5.10"
+            wp-version: "7.1.0"
+            ramsey-version: "2.1.1"
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Build CI image
+        run: |
+          docker build \
+            --build-arg PHP_VERSION=${{ matrix.php-version }} \
+            --build-arg WP_VERSION=${{ matrix.wp-version }} \
+            -t wpconnections-ci:integration-php-${{ matrix.php-version }}-wp-${{ matrix.wp-version }}-ramsey-${{ matrix.ramsey-version }} \
+            -f Dockerfile.phpunit .
+
+      - name: Run WP integration tests
+        run: |
+          docker run --rm -v "$PWD:/srv/web" \
+            -e RAMSEY_VERSION='${{ matrix.ramsey-version }}' \
+            wpconnections-ci:integration-php-${{ matrix.php-version }}-wp-${{ matrix.wp-version }}-ramsey-${{ matrix.ramsey-version }} \
+            test:integration

@@ -1,7 +1,7 @@
 # WP Connections: post-to-post connections for WordPress
-[![PHP CS](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/phpunit.yml)
-[![PHP WordPress Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests.yml)
-[![Dockerfile Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml)
+[![PHP CS](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/php-cs.yml)
+[![Unit Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-unit-tests-docker.yml)
+[![WP Integration Tests](https://github.com/hokoo/wpConnections/actions/workflows/wp-integration-tests.yml/badge.svg)](https://github.com/hokoo/wpConnections/actions/workflows/wp-integration-tests.yml)
 
 <!-- TOC -->
 * [Why wpConnection?](#why-wpconnection)
@@ -85,7 +85,7 @@ Since you have initialized new client, its REST API endpoints are available.
 
 ### Prerequisites
 - Windows 10 or later (WSL2), or Linux, or MacOS
-- Docker Desktop, Docker Compose
+- Docker Desktop, Docker Compose v2
 - Make
 
 ### Installation
@@ -93,9 +93,9 @@ Since you have initialized new client, its REST API endpoints are available.
 2. Make sure you have `make` installed in your system. If not, run `sudo apt install make`.
 3. Make sure you have installed Docker Desktop with configured WSL2 support if you are using Windows.
 4. Add `127.0.0.1 wpconnections.local` to the hosts file (on the host machine).
-5. Run folowing command in the root directory to install the project:
+5. Run the following command in the root directory to install the project:
 ```bash
-bash ./local-dev/init.sh && make tests.init && make docker.up && make dev.install
+bash ./local-dev/init.sh && make docker.up && make dev.install
 ```
 
 ### Running the test suites
@@ -106,11 +106,87 @@ The project ships with a dedicated `Dockerfile.phpunit` image that bundles Compo
 make tests.run
 ```
 
-Behind the scenes this calls `docker compose` with the `phpunit` service defined in `local-dev/docker-compose.yml`. The service no longer depends on any other containers—the entrypoint spins up MariaDB and configures the WordPress test library on demand—so these commands can be executed anywhere Docker is available. You can also run the individual commands manually, for example:
+Behind the scenes this calls the `phpunit` service defined in `local-dev/docker-compose.yml` and aggregates the same entrypoint checks that GitHub Actions runs separately. The service no longer depends on any other containers: the entrypoint installs Composer dependencies when needed, spins up MariaDB only for WP integration tests, and configures the WordPress test library on demand.
+
+`make tests.run` is the fast development loop: it reuses the existing test image,
+while an idempotent `composer install` synchronizes the bind-mounted `vendor/`
+directory with `composer.lock` before PHPUnit starts. Repeated runs with an
+up-to-date lock file do not download the dependencies again. Before Composer
+runs, the local entrypoint verifies that the image matches the current
+Dockerfile, entrypoint, PHP input and WordPress input; a stale image fails with
+the exact rebuild commands to use.
+
+You can also run individual checks from the project root:
 
 ```bash
-docker compose -f local-dev/docker-compose.yml run --rm phpunit composer run phpunit
-docker compose -f local-dev/docker-compose.yml run --rm phpunit vendor/bin/phpunit -c php-wp-unit.xml
+make tests.phpunit
+make tests.integration
+make tests.coverage
+make lint.phpcs
 ```
 
-The same Dockerfile is also used by the optional GitHub Actions workflow defined in `.github/workflows/wp-unit-tests-docker.yml`, allowing you to compare its output against the long-standing `wp-unit-tests.yml` pipeline before switching over entirely. You can pin WordPress to a specific release by passing `--build-arg WP_VERSION=6.5.2` (or any other version number) when building the image.
+See [`docs/ci-runbook.md`](docs/ci-runbook.md) for the canonical CI matrix,
+local parity commands, coverage policy and failure-triage procedure.
+
+`make tests.coverage` builds a deterministic PHP 8.1.34 / WordPress 6.7.7
+image, runs the unit and WordPress integration suites in one instrumented
+process, and checks the resulting statement coverage against the repository
+baseline. The human-readable and machine-readable reports are written to
+`build/coverage/`. The baseline stores the exact covered/total ratio rather
+than a rounded percentage; update it only when a reviewed source or test change
+intentionally changes the accepted baseline.
+
+### Compatibility test matrix
+
+Blocking CI uses exact version pins. Unit tests run the full Cartesian matrix of
+PHP `8.1.34`, `8.2.33`, `8.3.33`, `8.4.25` and `8.5.10` against Ramsey
+Collection `1.3.0` and `2.1.1` (ten jobs). WordPress integration tests use this
+pairwise matrix:
+
+| PHP | WordPress | Ramsey Collection |
+| --- | --- | --- |
+| 8.1.34 | 6.7.7 | 1.3.0 |
+| 8.2.33 | 7.1.0 | 1.3.0 |
+| 8.3.33 | 7.1.0 | 2.1.1 |
+| 8.4.25 | 6.7.7 | 2.1.1 |
+| 8.5.10 | 7.1.0 | 2.1.1 |
+
+WordPress 6.7.7 is the pinned compatibility-floor lane, not a claim that this
+older branch is still maintained upstream. Production installations should
+follow the current WordPress security guidance. The exact stable pin is updated
+deliberately when the supported matrix changes.
+
+The scheduled `WP Trunk Canary` workflow runs WordPress `trunk` with PHP 8.5.10
+and Ramsey Collection 2.1.1. It is not a pull-request or required check: a
+failure is an upstream compatibility signal to triage, not a reason to make the
+pinned blocking jobs non-reproducible. It can also be started manually with
+`workflow_dispatch`.
+
+The `johnpbloch/wordpress` package in `require-dev` is retained as a development
+fixture. Docker integration tests load both core and the test library from the
+same pinned `wordpress-develop` archive, so that Composer fixture neither selects
+the Docker runtime nor defines this compatibility matrix.
+
+The supported local interface uses Compose v2 (`docker compose`) consistently.
+`make tests.integration` is the canonical WordPress integration-test target;
+the former `make tests.wpunit` alias has been removed.
+
+Rebuild the test image after changing `Dockerfile.phpunit` or its build inputs:
+
+```bash
+make tests.build
+```
+
+For a clean verification, rebuild the image without Docker layer cache and then
+run both test suites:
+
+```bash
+make tests.clean
+```
+
+The underlying no-cache build is also available separately as
+`make tests.rebuild`.
+
+`make tests.init` is only needed for direct, non-Docker WordPress PHPUnit runs that rely on a local `wordpress-develop` checkout. The default local and CI paths use `Dockerfile.phpunit`.
+
+The same Dockerfile is used by GitHub Actions workflows for unit tests and PHP code style checks. WordPress defaults to the exact stable pin `7.1.0`; another release must be an exact `x.y.z` tag passed with `--build-arg WP_VERSION=6.7.7`. The only symbolic input is `trunk`; ambiguous `latest` and the stale GitHub `master` branch are rejected.

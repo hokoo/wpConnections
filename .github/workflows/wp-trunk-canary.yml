@@ -1,0 +1,38 @@
+name: WP Trunk Canary
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  PHP_VERSION: "8.5.10"
+  WP_VERSION: trunk
+  RAMSEY_VERSION: "2.1.1"
+  CI_IMAGE: wpconnections-ci:wp-trunk-canary
+
+jobs:
+  wp-trunk-canary:
+    name: WP Trunk Canary PHP 8.5.10 / Ramsey 2.1.1
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Build CI image
+        run: |
+          docker build \
+            --build-arg PHP_VERSION=${{ env.PHP_VERSION }} \
+            --build-arg WP_VERSION=${{ env.WP_VERSION }} \
+            -t ${{ env.CI_IMAGE }} \
+            -f Dockerfile.phpunit .
+
+      - name: Run WP trunk integration tests
+        run: |
+          docker run --rm -v "$PWD:/srv/web" \
+            -e RAMSEY_VERSION='${{ env.RAMSEY_VERSION }}' \
+            ${{ env.CI_IMAGE }} \
+            test:integration

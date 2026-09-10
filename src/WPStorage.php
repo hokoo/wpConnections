@@ -51,38 +51,38 @@ class WPStorage extends Abstracts\Storage
         $this->install();
     }
 
-	private function install()
-	{
-		Database::install_table(
-			$this->get_connections_table(),
-			"
-	        `ID`        bigint(20) unsigned NOT NULL auto_increment,
-	        `relation`  varchar(255) NOT NULL,
-	        `from`      bigint(20) unsigned NOT NULL,
-	        `to`        bigint(20) unsigned NOT NULL,
-	        `order`     bigint(20) unsigned NULL default '0',
-	        `title`     varchar(63)  NULL default '',
-	        PRIMARY KEY  (`ID`),
-	        KEY `from` (`from`),
-	        KEY `to` (`to`),
-	        KEY `order` (`order`),
-	        KEY `relation` (`relation`)
-	        "
-		);
+    private function install()
+    {
+        Database::install_table(
+            $this->get_connections_table(),
+            "
+            `ID`        bigint(20) unsigned NOT NULL auto_increment,
+            `relation`  varchar(255) NOT NULL,
+            `from`      bigint(20) unsigned NOT NULL,
+            `to`        bigint(20) unsigned NOT NULL,
+            `order`     bigint(20) unsigned NULL default '0',
+            `title`     varchar(63)  NULL default '',
+            PRIMARY KEY  (`ID`),
+            KEY `from` (`from`),
+            KEY `to` (`to`),
+            KEY `order` (`order`),
+            KEY `relation` (`relation`)
+            "
+        );
 
-		Database::install_table(
-			$this->get_meta_table(),
-			"
-	        `meta_id`       bigint(20) unsigned NOT NULL auto_increment,
-	        `connection_id` bigint(20) unsigned NOT NULL default '0',
-	        `meta_key`      varchar(255) NOT NULL,
-	        `meta_value`    longtext     NOT NULL,
-	        PRIMARY KEY  (`meta_id`),
-	        KEY `connection_id` (`connection_id`),
-	        KEY `meta_key` (`meta_key`)
-	        "
-		);
-	}
+        Database::install_table(
+            $this->get_meta_table(),
+            "
+            `meta_id`       bigint(20) unsigned NOT NULL auto_increment,
+            `connection_id` bigint(20) unsigned NOT NULL default '0',
+            `meta_key`      varchar(255) NOT NULL,
+            `meta_value`    longtext     NOT NULL,
+            PRIMARY KEY  (`meta_id`),
+            KEY `connection_id` (`connection_id`),
+            KEY `meta_key` (`meta_key`)
+            "
+        );
+    }
 
 
     /**

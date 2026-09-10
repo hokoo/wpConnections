@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "metric": "statements",
+  "covered_statements": 365,
+  "total_statements": 786
+}

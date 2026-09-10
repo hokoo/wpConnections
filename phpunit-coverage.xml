@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	bootstrap="tests/wp_bootstrap.php"
+	colors="false"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="false"
+	convertWarningsToExceptions="false"
+	beStrictAboutTestsThatDoNotTestAnything="false"
+	xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd">
+	<php>
+		<const name="DOING_TESTS" value="1" />
+		<const name="CLIENT_NAME" value="client-test" />
+		<const name="RELATION_0_NAME" value="relation-0-test" />
+		<const name="RELATION_1_NAME" value="relation-1-test" />
+	</php>
+	<coverage includeUncoveredFiles="true">
+		<include>
+			<directory suffix=".php">src</directory>
+		</include>
+	</coverage>
+	<testsuites>
+		<testsuite name="Unit and WordPress integration coverage">
+			<directory suffix=".php">tests/iTRON/wpConnections/Tests</directory>
+			<directory suffix=".php">tests/iTRON/wpConnections/WP</directory>
+		</testsuite>
+	</testsuites>
+</phpunit>
