@@ -138,8 +138,8 @@ patch без изменений `src`: audit становится чистым, 
 и coverage сохраняют текущий результат. B оставляет исполняемые CI-инструменты с
 двумя high advisory; C меняет dev-tool contract и не закрывает PHPCS advisory.
 
-**Статус:** pending owner decision; исходное одобрение DG-I1—DG-I5 не
-распространяется на обнаруженный позднее gate автоматически.
+**Решение 2026-09-10:** A. Обновить PHPCS/WPCS и минимально мигрировать ruleset
+до merge; не принимать security risk и не менять `src` в этой задаче.
 
 **Блокирует:** `INFRA-09` и финальное решение `INFRA-08`.
 
@@ -152,7 +152,7 @@ patch без изменений `src`: audit становится чистым, 
 | DG-I3 | approved C | repository owner | 2026-09-10 | Blocking minimum/stable + non-blocking trunk canary |
 | DG-I4 | approved B | repository owner | 2026-09-10 | Report + no-regression baseline gate |
 | DG-I5 | approved A | repository owner | 2026-09-10 | Compose v2 only |
-| DG-I6 | pending; recommended A | repository owner | — | Security disposition перед merge |
+| DG-I6 | approved A | repository owner | 2026-09-10 | Исправить lint toolchain до merge |
 
 ## Execution tasks
 
@@ -528,7 +528,7 @@ Notes/Risks:
 
 ### INFRA-09. Закрыть high-severity advisory lint toolchain
 
-Status: needs_decision
+Status: completed
 
 Priority: P0
 
@@ -588,6 +588,9 @@ Notes/Risks:
 
 - Feasibility spike разрешил PHPCS `3.13.6`, WPCS `3.4.1`, PHPCSExtra `1.5.1`
   и PHPCSUtils `1.2.3`; остальные package versions не изменились.
+- Реализовано коммитом `7830ebb`; audit, PHPCS, обе test suites и coverage gate
+  прошли implementation verification.
+- Независимый epic-level QA подтвердил DoD/AC без blocking defects.
 - После update появляется неблокирующий vendor deprecation из старого
   PHPCompatibility 9.3.5; его modernization остаётся отдельным follow-up.
 - Источники: [PHPCS advisory](https://github.com/PHPCSStandards/PHP_CodeSniffer/security/advisories/GHSA-hmqg-cxww-wqhq),
@@ -595,7 +598,7 @@ Notes/Risks:
 
 ### INFRA-08. Завершить PR #48 и установить milestone M0
 
-Status: needs_decision
+Status: waiting_external
 
 Priority: P0
 
@@ -662,8 +665,13 @@ Notes/Risks:
 | PHPCS | passed; 35/35 files |
 | Compose v2 / clean rebuild | config valid; no-cache build и повторный fast run passed |
 | Local image freshness | current passed; stale/missing manifest и input mismatch завершились exit 78 до Composer |
+| Composer security audit | 0 advisories после PHPCS/WPCS update |
+| Final clean checkout | fresh Docker build; 47 lock packages installed; `test:all` passed |
+| Independent epic QA | `pass_with_notes`; blocking defects и missing AC не обнаружены |
 
 Известные наблюдения: PHP 8.4/8.5 показывают существующие deprecation notices;
 `composer validate --strict` возвращает warning status из-за устаревшего SPDX
 identifier `GPL-2.0+` и unbound constraint `psr/log >=1.1`. Две обнаруженные
-audit advisory вынесены в явный DG-I6 и не считаются молча принятым риском.
+audit advisory закрыты одобренным DG-I6 и `INFRA-09`. Эти notes не требуют
+risk acceptance для локального infra outcome; live GitHub checks и required
+check configuration проверяются после разрешённого push.
