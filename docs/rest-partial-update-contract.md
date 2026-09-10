@@ -254,7 +254,7 @@ removing ambiguity:
 |---|---|---|---|
 | Existing target changed | `true` | returns normally | 200, `{ "updated": true }` |
 | Existing target already equals desired state | `false` | returns normally | 200, `{ "updated": false }` |
-| Target does not exist in the selected client/relation | Domain not-found exception | Domain not-found exception | Mapped 404 error; never `{ "updated": false }` |
+| Target does not exist in the selected client/relation | Domain not-found exception | Domain not-found exception | Error, never `{ "updated": false }`; exact HTTP status/body remain pending `DG-RESTERR-01/02` |
 | Invalid field, entity, relation, or invariant | Domain validation exception before mutation | Same | Mapped 4xx error |
 | Storage failure | Storage/domain exception; rollback | Same | Mapped 5xx error |
 

@@ -8,8 +8,8 @@ clean test flow воспроизводим, coverage baseline доступен �
 issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
 discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
 владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 активен:
-TEST-02F/CORE-07 завершены, CORE-04 проходит локальную верификацию, CORE-06
-поставлен следующим.
+TEST-02F/CORE-07 завершены, CORE-04 полностью проверен локально и ожидает
+independent QA/merge, CORE-06 поставлен следующим после merge.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1048,8 +1048,8 @@ Tasks:
 
 - TEST-02F + CORE-07 — `completed`, один red-to-green query-meta compatibility
   vertical с сохранённым red evidence и зелёным paired fix.
-- CORE-04 — `in_progress`, implementation и remediation зелёные focused;
-  выполняется полный verification gate перед переводом в `completed`.
+- CORE-04 — `completed` локально: implementation, remediation и полный
+  verification gate зелёные; independent QA/merge остаются delivery gates.
 - CORE-06 — `waiting_dependency`, client naming, collision, migration-preflight и multisite
   isolation; стартует после CORE-04.
 - TEST-02D вне Batch 6 переведён в `todo`: его gate dependencies выполнены, но
@@ -1086,6 +1086,21 @@ Verification:
   `589/790 (74.56%)`, RC threshold ready.
 - Clean Compose lane PHP 8.1.34 / WordPress 7.1.0 / Ramsey Collection 1.3.0:
   unit `7 / 19`, integration `68 / 353`. PHPCS production: `36/36`, exit 0.
+- CORE-04 red-first commit `36bf8fd`: targeted integration `14 / 20`,
+  `12 failures + 1 error` against unchanged production. Green commits:
+  `374dabf` plus review remediation `38e1b48`; decision/docs commit `8efe079`.
+- CORE-04 fixed floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0: unit
+  `12 / 58`, integration `93 / 606`; focused query presence `5 / 39`, focused
+  entity validation `25 / 253`; PHPCS production `45/45`, exit 0.
+- CORE-04 combined coverage: `105 / 664`, current `817/951 (85.91%)`; exact PR
+  baseline `365/786 (46.44%)` unchanged, PR and explicit RC gates pass, active
+  exception registry empty.
+- Isolation seed `20260911`: reverse and seeded-random repeat-2 pass immediately,
+  unit `24 / 116` and integration `186 / 1212` in each phase. Compatibility:
+  all ten PHP 8.1.34—8.5.10 / Ramsey 1.3.0 and 2.1.1 unit lanes pass `12 / 58`;
+  all five blocking PHP/WP/Ramsey integration pairs pass `93 / 606`. Existing
+  dependency/WordPress dynamic-property deprecations on newer PHP are warnings,
+  not test failures.
 
 ## E1. Test foundation и regression harness
 
@@ -2053,7 +2068,7 @@ Notes/Risks:
 
 ### CORE-04. Реализовать endpoint entity validation
 
-Status: in_progress
+Status: completed
 
 Priority: P1
 
@@ -2137,6 +2152,34 @@ Notes/Risks:
   и direct reads остаются materialized.
 - Entity deletion может произойти между validation и write; DB-04/DB-05 владеют
   cascade/transaction race, CORE-04 не заявляет cross-table atomicity.
+
+Verification:
+
+- Red-first commit `36bf8fd` дал targeted integration `14 tests / 20 assertions /
+  12 failures + 1 error` только на ещё отсутствующем CORE-04 поведении. Production
+  реализован в `374dabf`, review gaps закрыты `38e1b48`, решения и contracts
+  синхронизированы в `8efe079`.
+- Focused: `ConnectionQueryPresenceTest` — `5 / 39`; `EntityValidationTest` —
+  `25 / 253`. Fixed floor: unit `12 / 58`, integration `93 / 606`.
+- Combined coverage `105 / 664`, current `817/951 (85.91%)`; exact PR ratio
+  `365/786 (46.44%)` не изменён, PR и RC gates зелёные, active exceptions `0`.
+  PHPCS production: `45/45`, exit 0.
+- Seed `20260911`: unit reverse/random repeat-2 `24 / 116`, integration
+  reverse/random repeat-2 `186 / 1212`, без retry. Unit compatibility зелёная
+  во всех 10 PHP 8.1.34—8.5.10 × Ramsey 1.3.0/2.1.1 lanes; integration зелёная
+  во всех пяти blocking PHP/WP/Ramsey pairs (`93 / 606` в каждой).
+- `ENT-VAL-01`: endpoint order/types, sparse/full update, zero-presence,
+  missing-ID, hook revalidation, REST create/update/meta и cleanup assertions
+  находятся в `EntityValidationTest`. `ENT-EXT-01`: structured outcomes,
+  unsupported/throwing resolver, registry lifecycle/client isolation и
+  domain-owned storage payload проверены там же.
+- `ERR-CODE-01` scoped evidence проверяет exact leaf exception classes 305—310
+  и previous exception chain; `CARD-MUT-01`/`HOOK-CONTRACT-01` scoped evidence
+  проверяет повторную closure/duplicate/cardinality validation и отсутствие
+  write/created hook при reject. Полное закрытие broad release scenarios остаётся
+  за их владельцами и не заявляется этим vertical.
+- Existing PHP/WordPress/dependency deprecations записаны отдельно от зелёного
+  результата. Protected CI/merge и независимая QA ещё обязательны.
 
 ### CORE-05. Зафиксировать client naming и migration contract
 
@@ -3211,9 +3254,9 @@ Notes/Risks:
   [`docs/rest-partial-update-contract.md`](../rest-partial-update-contract.md)
   инвентаризирует
   PHP/domain/storage/REST paths, историю commits `7f800b8`/`2b7bacc`, issues
-  #13/#22 и Postman drift; DG-UPDATE-01/02 утверждены вариантом A, а metadata и
-  result choices DG-UPDATE-03—DG-UPDATE-05 остаются pending с downstream
-  acceptance matrix.
+  #13/#22 и Postman drift; DG-UPDATE-01/02/02R и result gate DG-UPDATE-04
+  утверждены вариантом A, а metadata/REST-response choices DG-UPDATE-03 и
+  DG-UPDATE-05 остаются pending с downstream acceptance matrix.
 - Задача завершает discovery/design, но не разблокирует implementation до
   явного утверждения соответствующих gates владельцем.
 

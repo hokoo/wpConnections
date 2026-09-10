@@ -1,6 +1,6 @@
 # CORE-00: entity validation and extension contract
 
-Status: approved decision contract for `CORE-04`; implementation verification in progress
+Status: approved decision contract for `CORE-04`; implementation locally verified
 
 Date: 2026-09-10
 
@@ -559,7 +559,7 @@ revalidated whenever relation identity or physical endpoints change.
 
 ## CORE-04 implementation refinement
 
-CORE-04 is `in_progress`: DG-ENT-01 through DG-ENT-06 and the required
+CORE-04 is locally `completed`: DG-ENT-01 through DG-ENT-06 and the required
 REST-00B/SPI/update-result gates were approved by the repository owner on 2026-09-11.
 CORE-02 must provide the shared create/update cardinality path; SPI-01 is a
 cross-review input but may not move entity resolution into storage.
@@ -652,6 +652,14 @@ unit test alone is not ENT-EXT-01 evidence.
   supported compatibility lanes pass.
 - Critical scenario mapping and release/preflight notes are recorded without
   claiming incomplete tests as evidence.
+
+Local verification on 2026-09-11 satisfies this definition: focused query
+presence `5/39`, focused entity validation `25/253`, fixed-floor unit `12/58`
+and integration `93/606`, combined `105/664` with `817/951 (85.91%)` current
+coverage and the exact `365/786` PR ratio unchanged, PHPCS `45/45`, reverse and
+seeded-random repeat-2, all ten unit compatibility lanes and all five blocking
+integration pairs passed. Independent QA and protected merge checks remain
+delivery gates; this local status does not claim merge or release completion.
 
 ## Historical verification of this design artifact
 

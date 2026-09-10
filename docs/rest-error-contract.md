@@ -44,8 +44,9 @@ Primary source evidence:
   supplies the isolated, authenticated full-dispatch harness established by
   `REST-01`.
 - [`rest-partial-update-contract.md`](rest-partial-update-contract.md) owns
-  omitted/null/falsy and mutation-result choices `DG-UPDATE-04` and
-  `DG-UPDATE-05`; [`storage-spi-contract.md`](storage-spi-contract.md) owns
+  method roles (`DG-UPDATE-01`), scalar presence/null/falsy (`DG-UPDATE-02/02R`),
+  metadata (`DG-UPDATE-03`), mutation results (`DG-UPDATE-04`) and REST success
+  representation (`DG-UPDATE-05`); [`storage-spi-contract.md`](storage-spi-contract.md) owns
   read hydration in `DG-SPI-02` and storage failure signaling in `DG-SPI-03`.
 
 ## Current exception inventory
@@ -83,7 +84,7 @@ are current-state evidence, not desired behavior.
 | --- | --- | --- | --- |
 | Anonymous protected request | `401`, string code `rest_forbidden`, WordPress message, `data.status=401` | Authentication failure is generated before the handler. | `DG-RESTERR-03`; capability selection stays in `REST-04`. |
 | Authenticated subscriber denied | `403`, string code `rest_forbidden`, same WordPress message, `data.status=403` | WordPress differentiates unauthenticated and authenticated denial. | `DG-RESTERR-03`; capability selection stays in `REST-04`. |
-| Missing required route args | `400`, `rest_missing_callback_param`, `data.params` names `from` and `to` | Native pre-handler validation; handler/domain is not invoked. | `DG-RESTERR-03`; argument defaults/requiredness stay in `DG-UPDATE-04`. |
+| Missing required route args | `400`, `rest_missing_callback_param`, `data.params` names `from` and `to` | Native pre-handler validation; handler/domain is not invoked. | `DG-RESTERR-03`; update method/presence semantics consume approved `DG-UPDATE-01/02`, while executable route schema stays with `REST-02`. |
 | Wrong route arg types | `400`, `rest_invalid_param`, with per-field `rest_invalid_type` details | Native pre-handler validation. | `DG-RESTERR-03`. |
 | Unsupported method/path | `404`, `rest_no_route` | Native route matching. | `DG-RESTERR-03`. |
 | Unknown relation | `500`, numeric code `1`, current message, `data=null` | Semantically not-found, but no status is attached to `WP_Error`. | `DG-RESTERR-01`, `DG-RESTERR-02`. |
