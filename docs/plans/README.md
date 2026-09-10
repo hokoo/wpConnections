@@ -12,8 +12,8 @@
    первые production fixes и исполняемые quality gates. PR #66 активировал
    Batch 5, PR #67 завершил CORE-03 и закрыл issue #31.
 3. Выполнять активный Batch 5: CORE-03 завершён и issue #31 закрыт; DB-00
-   завершил decision-ready compatibility discovery. Текущие contract
-   workstreams — `REST-00A`, `DB-03A` и `CORE-05`. Подтверждённый
+   и REST-00A завершили decision-ready compatibility discovery. Текущие
+   contract workstreams — `DB-03A` и `CORE-05`. Подтверждённый
    `TEST-02F/CORE-07` остаётся за pending DG-QMETA-01.
 
 Инфраструктурный task list находится в
@@ -53,13 +53,15 @@
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
 - DG-API20-01—DG-API20-09, DG-QMETA-01, DG-UPDATE-01—DG-UPDATE-05,
-  DG-SPI-01—DG-SPI-07, DG-ENT-01—DG-ENT-05 и DG-DB-01—DG-DB-04 остаются pending
-  и блокируют только явно перечисленные downstream tasks. Полные тексты DG-ENT
-  и DG-DB находятся в [entity validation contract](../entity-validation-contract.md)
-  и [database compatibility contract](../db-compatibility-contract.md);
-  основной registry хранит canonical decision/status. REST-00B, SPI-01,
-  CORE-00 и DB-00 завершили decision-ready discovery; это не означает
-  неявного утверждения их рекомендаций.
+  DG-SPI-01—DG-SPI-07, DG-ENT-01—DG-ENT-05, DG-DB-01—DG-DB-04 и
+  DG-RESTERR-01—DG-RESTERR-04 остаются pending и блокируют только явно
+  перечисленные downstream tasks. Полные тексты находятся в
+  [entity validation contract](../entity-validation-contract.md),
+  [database compatibility contract](../db-compatibility-contract.md) и
+  [REST error contract](../rest-error-contract.md); основной registry хранит
+  canonical decision/status. REST-00A, REST-00B, SPI-01, CORE-00 и DB-00
+  завершили decision-ready discovery; это не означает неявного утверждения их
+  рекомендаций.
 - Штатные regressions уже защищают missing-`to`, broken `both` и полную
   cardinality matrix; REST update без `title` и `Query\Meta` fatal ожидают свои
   явно перечисленные решения/dependencies.

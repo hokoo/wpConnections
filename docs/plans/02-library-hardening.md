@@ -5,8 +5,8 @@
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
 активен; Batch 1—4 завершены. В Batch 5 production slice CORE-03 завершён и
-issue #31 закрыт; DB-00 завершил decision-ready compatibility discovery.
-REST-00A, DB-03A и CORE-05 остаются текущими contract workstreams.
+issue #31 закрыт; DB-00 и REST-00A завершили decision-ready compatibility
+discovery. DB-03A и CORE-05 остаются текущими contract workstreams.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -616,11 +616,16 @@ decision-ready naming contract.
 | [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | pending; recommendation A | repository owner | — | InnoDB preflight/migration for DB-05/DB-06/REL-01 |
 | [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | pending; recommendation A | repository owner | — | DB-05/REL-02 nested transaction conformance waits |
 | [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 schema lifecycle waits |
+| [DG-RESTERR-01](../rest-error-contract.md#dg-resterr-01) | pending; recommendation A | repository owner | — | Domain-to-HTTP taxonomy; REST-03/REST-05/DOC-01/REL-02 wait |
+| [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | pending; recommendation A | repository owner | — | Default v1 library error body; REST-03/REST-05/DOC-01/REL-02 wait |
+| [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | pending; recommendation A | repository owner | — | Native WordPress gateway shape; REST-03/REST-04/REST-05/DOC-01 wait |
+| [DG-RESTERR-04](../rest-error-contract.md#dg-resterr-04) | pending; recommendation A | repository owner | — | Safe storage/unknown boundary; REST-03/REST-05/DOC-01/REL-02 wait |
 
-Для DG-ENT-01—DG-ENT-05 связанный контракт является canonical decision body
-(problem, alternatives, recommendation и compatibility impact). Этот registry —
-canonical запись решения/status, владельца и даты. Implementation использует
-оба источника; рекомендация в contract сама по себе не меняет status в registry.
+Для DG-ENT-01—DG-ENT-05 и DG-RESTERR-01—DG-RESTERR-04 связанные contracts
+являются canonical decision bodies (problem, alternatives, recommendation и
+compatibility impact). Этот registry — canonical запись решения/status,
+владельца и даты. Implementation использует оба источника; рекомендация в
+contract сама по себе не меняет status в registry.
 
 Для DG-DB-01—DG-DB-04 canonical decision body находится в
 [`docs/db-compatibility-contract.md`](../db-compatibility-contract.md). Registry
@@ -2702,7 +2707,7 @@ Tasking Guidance:
 
 ### REST-00A. Зафиксировать domain error → HTTP mapping
 
-Status: in_progress
+Status: completed
 
 Priority: P0
 
@@ -2711,42 +2716,82 @@ REST-03 и OpenAPI.
 
 Scope:
 
-- Инвентаризация domain exceptions/codes, включая 301—304 и not-found cases.
-- Отдельный HTTP status для validation, conflict/invariant, not found,
-  permission и storage failures.
-- Backward-compatible v1 error body и serialization через WordPress REST.
-- Decision-ready mapping table и test matrix для REST-03.
+- Инвентаризация всех domain exceptions/codes и их фактической
+  request-reachability, включая 301—304, not-found и bootstrap-only failures.
+- Current-state matrix полного `WP_REST_Server::dispatch()` для native
+  validation/routing, permission, invariant, not-found, storage и unknown
+  failures.
+- Decision-ready HTTP taxonomy и backward-compatible v1 body/serialization
+  alternatives для REST-03/REST-04/REST-05.
+- Downstream test matrix и явная coordination boundary с entity, storage и
+  update contracts.
 
 Out of Scope:
 
 - Реализация handlers или REST-03 tests.
 - Замена numeric domain codes строковыми identifiers.
+- Утверждение HTTP/body choices, entity-error taxonomy, storage result protocol
+  или update/meta success semantics.
 
 DoR:
 
 - DG-M3 и DG-M4 решены.
+- REST-01 предоставляет изолированный full-dispatch harness.
 
 DoD:
 
-- Каждая известная domain error имеет body code и независимый HTTP status.
+- Каждая известная domain error и pre-handler/failure family отражена в
+  current-state matrix; proposed body/status mapping вынесен в pending gates.
 - Numeric 301—304 нигде не трактуются как redirect statuses.
-- Material mapping choices готовы для owner approval.
+- Material mapping choices имеют problem, alternatives, recommendation,
+  compatibility impact и blocked tasks для owner approval.
+- Canonical artifact связывает entity, SPI и update gate ownership, не
+  предрешая его.
 
 AC:
 
-- Given invariant code 301—304, when строится REST error, then mapping однозначно
-  задаёт 4xx status и сохраняет domain code в body.
-- Given unknown/storage failure, then contract не выдаёт misleading success или
-  redirect response.
+- Given invariant code 301—304, when owner оценивает mapping alternatives, then
+  recommendation однозначно задаёт независимый 4xx status, сохраняет numeric
+  domain code в body и запрещает redirect interpretation.
+- Given unknown/storage failure, then recommendation не выдаёт misleading
+  success/not-found, не раскрывает database detail и сохраняет причину в
+  server-side diagnostics.
+- Given WordPress rejects route, args or permission before handler, then native
+  status/body evidence и compatibility choice зафиксированы отдельно от
+  library domain mapping.
 
 Dependencies:
 
 - DG-M3, DG-M4.
+- REST-01.
 
 Notes/Risks:
 
-- Точные HTTP statuses являются публичным REST contract и требуют утверждения
-  перед production implementation.
+- Canonical artifact: [REST v1 error contract discovery](../rest-error-contract.md).
+- DG-RESTERR-01—DG-RESTERR-04 остаются pending. Completion означает готовность
+  discovery/decision package, а не неявное утверждение recommendation A.
+- Future entity rows consume pending DG-ENT-03 from the merged CORE-00 contract;
+  storage mapping consumes DG-SPI-03; mutation success/no-op classification
+  consumes DG-UPDATE-04 and DG-UPDATE-05. REST-00A не дублирует их ownership.
+- Full-dispatch probe on source snapshot `752362b` recorded WordPress native
+  400/401/403/404, current library HTTP 500
+  with numeric codes `1`, `2`, `4`, `300`—`303`, raw database disclosure,
+  false-success/failure masking and escaped non-library `Throwable`. Temporary
+  probe (`test:integration --filter
+  test_records_current_full_dispatch_errors`: 1 test, 1 assertion) was not
+  retained. Post-rebase source audit at `b36fa85` includes CORE-03 and confirms
+  the same reachability boundaries plus read-failure-as-empty. The current REST
+  meta update handler reaches `Connection::update()` after
+  `findConnections()->first()`, but default `WPStorage` hydrates a non-empty
+  database ID on a successful lookup, so code `304` normally cannot fire there;
+  custom/malformed empty-ID hydration remains governed by pending `DG-SPI-02`.
+  Relation-registration `MissingParameters` remains bootstrap-only because no
+  current REST handler reaches `Client::registerRelation()`. Structural
+  task/gate checks, relative
+  link/anchor checks, secret scan and `git diff --check` pass. Post-rebase
+  fixed-floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0: unit `6 / 14`,
+  integration `67 / 345`; PHPCS `36/36`, exit 0 with the known ruleset
+  deprecation warning.
 
 ### REST-00B. Зафиксировать connection partial-update semantics
 
@@ -3044,8 +3089,10 @@ Out of Scope:
 DoR:
 
 - REST-01 и DB-02/DB-03B завершены.
+- REST-00A и REST-03 завершены.
 - CORE-07 устранил query-meta materialization fatal для selective DELETE.
 - DG-UPDATE-03, DG-UPDATE-04 и DG-UPDATE-05 утверждены.
+- DG-SPI-03 и DG-RESTERR-01—DG-RESTERR-04 утверждены.
 
 DoD:
 
@@ -3063,13 +3110,20 @@ AC:
 Dependencies:
 
 - REST-01.
+- REST-00A, REST-03.
 - CORE-07.
 - DB-02, DB-03B.
 - DG-UPDATE-03, DG-UPDATE-04, DG-UPDATE-05.
+- DG-SPI-03.
+- DG-RESTERR-01, DG-RESTERR-02, DG-RESTERR-03, DG-RESTERR-04.
 
 Notes/Risks:
 
 - Текущий DELETE route не описывает `meta` в собственных args.
+- DG-RESTERR-02 применяется к REST-05 missing-connection и другим numeric domain
+  errors. Классифицированный storage failure использует отдельный exact
+  non-domain shape DG-RESTERR-04; WordPress-native pre-handler errors сохраняют
+  DG-RESTERR-03 shape.
 
 ### REST-06. Реализовать filters relation list из issue #21
 
