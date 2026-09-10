@@ -271,7 +271,7 @@ At minimum, the future matrix must cover:
 | Physical collision | unclaimed, same-owner, conflicting-owner, and concurrent claim; factory selection may occur, but no table registration or connection/meta-table DDL/DML occurs before a rejected claim | CORE-06 |
 | Length | boundary at 64 and rejection at 65 for both tables; default, long, and zero-budget WordPress prefixes; byte equals character for approved ASCII | CORE-06 / DB-06 |
 | Legacy mapping | `cf7-telegram -> cf7_telegram`, `cf7-vk -> cf7_vk`, `neural_seo -> neural_seo`; complete, partial, ambiguous, and explicitly adopted pairs | CORE-06 / DB-06 |
-| Isolation | two independent clients exercise read/create/update/every delete path without cross-client connection or metadata access | CORE-06 / DB-03B |
+| Isolation | two independent clients exercise read/create/update/every delete path without cross-client connection or metadata access | CORE-06 / DB-03B-A / DB-03B-B |
 | Migration | dry-run inventory; no mutation in dry run; copy verification/conflict handling/rollback for whichever migration option is approved | DB-06 / REL-03 |
 | Multisite | construction/use under one blog, `switch_to_blog()`, callback execution, and fresh per-blog client behavior selected by DG-NAME-06 | CORE-06 / REL-02 |
 | Custom Storage | logical naming behavior is tested without assuming SQL tables; table introspection follows DG-SPI-07 only for concrete `WPStorage` | CORE-06 / REL-02 |
@@ -387,7 +387,7 @@ share an already claimed pair and adds a site option on first safe claim. B
 changes table names for new clients and needs a migration tool. C changes public
 REST routes, hooks, capabilities, and logical identity and would be breaking.
 
-**Blocked tasks:** CORE-06, DB-06, DB-03B, REL-02 and REL-03.
+**Blocked tasks:** CORE-06, DB-06, DB-03B-A, REL-02 and REL-03.
 
 <a id="dg-name-04"></a>
 ### DG-NAME-04 — complete physical identifier length

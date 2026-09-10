@@ -119,15 +119,15 @@ the scenario remains pending for release-candidate purposes.
 | `STORE-CREATE-01` | Creating a connection with metadata commits all connection/meta rows or rolls them all back after an injected intermediate failure. | DB-02 / DB-05 |
 | `STORE-UPDATE-01` | Updating endpoints, title, order (including `0`), and metadata preserves omitted fields and is fully rolled back after an injected intermediate failure. | DB-02 / DB-05 |
 | `STORE-META-01` | Append, replace, selective delete, and delete-all metadata preserve duplicate keys and allowed falsy values, with no partial result after failure. | DB-02 / DB-05 |
-| `STORE-DELETE-ID-01` | Single- and multiple-ID deletion removes exactly the selected connections and their metadata; invalid and not-found inputs follow the approved result/error contract. | DB-03A / DB-03B / DB-05 |
-| `STORE-DELETE-DIR-01` | Directed-pair deletion removes every matching duplicate and its metadata without changing an unrelated direction, relation, or client. | DB-03A / DB-03B / DB-05 |
-| `STORE-DELETE-OBJECT-01` | Object deletion for both/from-only/to-only and relation-filtered variants removes all and only matching rows and metadata; conflicting flags are rejected safely. | DB-03A / DB-03B / DB-05 |
-| `STORE-DELETE-ATOMIC-01` | An injected failure between connection and metadata deletion rolls back the complete ID, directed-pair, or object delete operation and emits no false success result or hook. | DB-03B / DB-05 |
+| `STORE-DELETE-ID-01` | Single- and multiple-ID deletion removes exactly the selected connections and their metadata; invalid and not-found inputs follow the approved result/error contract. | DB-03A / DB-03B-A / DB-05 |
+| `STORE-DELETE-DIR-01` | Directed-pair deletion removes every matching duplicate and its metadata without changing an unrelated direction, relation, or client. | DB-03A / DB-03B-A / DB-05 |
+| `STORE-DELETE-OBJECT-01` | Object deletion for both/from-only/to-only and relation-filtered variants removes all and only matching rows and metadata; conflicting flags are rejected safely. | DB-03A / DB-03B-A / DB-05 |
+| `STORE-DELETE-ATOMIC-01` | An injected failure between connection and metadata deletion rolls back the complete ID, directed-pair, or object delete operation and emits no false success result or hook. | DB-03B-B / DB-05 |
 | `STORE-TX-CAP-01` | Unsupported transactional storage is detected before a compound mutation and returns the approved explicit error rather than silently using best effort. | SPI-01 / DB-00 / DB-05 |
 | `SCHEMA-INSTALL-01` | Clean and repeated installation creates or preserves both client tables and required indexes without losing data. | DB-06 |
 | `SCHEMA-RECOVER-01` | Removing either or both client tables is recovered by the bounded retry path, after which the requested operation succeeds. | DB-06 |
 | `SCHEMA-FAIL-01` | An unrecoverable schema error returns the original informative failure without an infinite retry or partial schema/data state. | DB-06 |
-| `CLIENT-ISO-01` | Read, create, update, and every delete path for one client cannot observe or mutate another client's connection or metadata rows. | CORE-06 / DB-03B |
+| `CLIENT-ISO-01` | Read, create, update, and every delete path for one client cannot observe or mutate another client's connection or metadata rows. | CORE-06 / DB-03B-A / DB-03B-B |
 | `CLIENT-NAME-01` | Empty, colliding, and overlong normalized client names are handled by the approved rule before unsafe SQL; valid and legacy names retain their documented table identities. | CORE-05 / CORE-06 |
 
 ### REST v1
