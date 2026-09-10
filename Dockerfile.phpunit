@@ -1,17 +1,16 @@
 # syntax=docker/dockerfile:1
 # Universal image for running wpConnections PHPUnit suites with embedded services
-ARG PHP_VERSION=8.2
-ARG WP_VERSION=latest
+ARG PHP_VERSION=8.2.33
+ARG WP_VERSION=7.1.0
 FROM php:${PHP_VERSION}-cli
 
-ARG WP_VERSION=latest
+ARG WP_VERSION=7.1.0
 
 LABEL maintainer="wpConnections"
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     PATH="/root/.composer/vendor/bin:${PATH}" \
     WP_VERSION=${WP_VERSION} \
-    WP_CORE_DIR=/opt/wordpress \
     WP_DEVELOP_DIR=/opt/wordpress-develop \
     WP_TESTS_DIR=/opt/wordpress-develop/tests/phpunit \
     MYSQL_DATA_DIR=/tmp/mysql-data \
@@ -19,6 +18,21 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     DB_HOST=127.0.0.1 \
     DB_NAME=wordpress_test \
     DB_USER=wordpress
+
+RUN case "${WP_VERSION}" in \
+        trunk) \
+            ;; \
+        latest|master) \
+            echo "WP_VERSION=${WP_VERSION} is ambiguous or stale; use an exact x.y.z tag or trunk" >&2; \
+            exit 64; \
+            ;; \
+        *) \
+            if ! printf '%s' "${WP_VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
+                echo "WP_VERSION must be an exact x.y.z tag or trunk; got ${WP_VERSION}" >&2; \
+                exit 64; \
+            fi; \
+            ;; \
+    esac
 
 RUN set -eux; \
     apt-get update; \
@@ -45,18 +59,26 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN set -eux; \
     rm -rf "${WP_DEVELOP_DIR}"; \
     mkdir -p "${WP_DEVELOP_DIR}"; \
-    if [ "${WP_VERSION}" = "latest" ]; then \
-        WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/heads/master.tar.gz"; \
-        WP_TESTS_REF="master"; \
-    else \
-        WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/tags/${WP_VERSION}.tar.gz"; \
-        WP_TESTS_REF="${WP_VERSION}"; \
-    fi; \
+    case "${WP_VERSION}" in \
+        trunk) \
+            WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.tar.gz"; \
+            WP_TESTS_REF="trunk"; \
+            ;; \
+        *) \
+            WP_TESTS_ARCHIVE="https://github.com/WordPress/wordpress-develop/archive/refs/tags/${WP_VERSION}.tar.gz"; \
+            WP_TESTS_REF="${WP_VERSION}"; \
+            ;; \
+    esac; \
+    echo "Installing wordpress-develop ref ${WP_TESTS_REF}"; \
     curl -fsSL "$WP_TESTS_ARCHIVE" -o /tmp/wordpress-develop.tar.gz; \
     tar -xzf /tmp/wordpress-develop.tar.gz -C "${WP_DEVELOP_DIR}" --strip-components=1; \
     rm /tmp/wordpress-develop.tar.gz; \
     if [ ! -f "${WP_DEVELOP_DIR}/wp-tests-config-sample.php" ]; then \
         echo "Missing wp-tests-config-sample.php in extracted WordPress tests archive" >&2; \
+        exit 1; \
+    fi; \
+    if [ ! -f "${WP_DEVELOP_DIR}/src/wp-includes/version.php" ]; then \
+        echo "Missing WordPress runtime version file in extracted tests archive" >&2; \
         exit 1; \
     fi; \
     cp "${WP_DEVELOP_DIR}/wp-tests-config-sample.php" "${WP_DEVELOP_DIR}/wp-tests-config.php"

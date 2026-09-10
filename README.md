@@ -122,6 +122,9 @@ make tests.coverage
 make lint.phpcs
 ```
 
+See [`docs/ci-runbook.md`](docs/ci-runbook.md) for the canonical CI matrix,
+local parity commands, coverage policy and failure-triage procedure.
+
 `make tests.coverage` builds a deterministic PHP 8.1.34 / WordPress 6.7.7
 image, runs the unit and WordPress integration suites in one instrumented
 process, and checks the resulting statement coverage against the repository
@@ -129,6 +132,37 @@ baseline. The human-readable and machine-readable reports are written to
 `build/coverage/`. The baseline stores the exact covered/total ratio rather
 than a rounded percentage; update it only when a reviewed source or test change
 intentionally changes the accepted baseline.
+
+### Compatibility test matrix
+
+Blocking CI uses exact version pins. Unit tests run the full Cartesian matrix of
+PHP `8.1.34`, `8.2.33`, `8.3.33`, `8.4.25` and `8.5.10` against Ramsey
+Collection `1.3.0` and `2.1.1` (ten jobs). WordPress integration tests use this
+pairwise matrix:
+
+| PHP | WordPress | Ramsey Collection |
+| --- | --- | --- |
+| 8.1.34 | 6.7.7 | 1.3.0 |
+| 8.2.33 | 7.1.0 | 1.3.0 |
+| 8.3.33 | 7.1.0 | 2.1.1 |
+| 8.4.25 | 6.7.7 | 2.1.1 |
+| 8.5.10 | 7.1.0 | 2.1.1 |
+
+WordPress 6.7.7 is the pinned compatibility-floor lane, not a claim that this
+older branch is still maintained upstream. Production installations should
+follow the current WordPress security guidance. The exact stable pin is updated
+deliberately when the supported matrix changes.
+
+The scheduled `WP Trunk Canary` workflow runs WordPress `trunk` with PHP 8.5.10
+and Ramsey Collection 2.1.1. It is not a pull-request or required check: a
+failure is an upstream compatibility signal to triage, not a reason to make the
+pinned blocking jobs non-reproducible. It can also be started manually with
+`workflow_dispatch`.
+
+The `johnpbloch/wordpress` package in `require-dev` is retained as a development
+fixture. Docker integration tests load both core and the test library from the
+same pinned `wordpress-develop` archive, so that Composer fixture neither selects
+the Docker runtime nor defines this compatibility matrix.
 
 The supported local interface uses Compose v2 (`docker compose`) consistently.
 `make tests.integration` is the canonical WordPress integration-test target;
@@ -152,4 +186,4 @@ The underlying no-cache build is also available separately as
 
 `make tests.init` is only needed for direct, non-Docker WordPress PHPUnit runs that rely on a local `wordpress-develop` checkout. The default local and CI paths use `Dockerfile.phpunit`.
 
-The same Dockerfile is used by GitHub Actions workflows for unit tests and PHP code style checks. You can pin WordPress to a specific release by passing `--build-arg WP_VERSION=6.5.2` (or any other version number) when building the image.
+The same Dockerfile is used by GitHub Actions workflows for unit tests and PHP code style checks. WordPress defaults to the exact stable pin `7.1.0`; another release must be an exact `x.y.z` tag passed with `--build-arg WP_VERSION=6.7.7`. The only symbolic input is `trunk`; ambiguous `latest` and the stale GitHub `master` branch are rejected.

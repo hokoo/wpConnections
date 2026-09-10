@@ -5,7 +5,7 @@ DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_NAME="${DB_NAME:-wordpress_test}"
 DB_USER="${DB_USER:-wordpress}"
 DB_PASSWORD="${DB_PASSWORD:-wordpress}"
-WP_CORE_DIR="${WP_CORE_DIR:-/opt/wordpress}"
+WP_VERSION="${WP_VERSION:-unknown}"
 WP_DEVELOP_DIR="${WP_DEVELOP_DIR:-/opt/wordpress-develop}"
 WP_TESTS_DIR="${WP_TESTS_DIR:-/opt/wordpress-develop/tests/phpunit}"
 MYSQL_SOCKET="${MYSQL_SOCKET:-/run/mysqld/mysqld.sock}"
@@ -37,6 +37,32 @@ log_section() {
   echo "========================================"
   echo ">>> $1"
   echo "========================================"
+}
+
+log_runtime_versions() {
+  local wordpress_version_file="${WP_DEVELOP_DIR}/src/wp-includes/version.php"
+  local wordpress_runtime_version="unknown"
+  local ramsey_runtime_version="unknown"
+
+  if [ -f "${wordpress_version_file}" ]; then
+    wordpress_runtime_version="$(
+      php -r 'include $argv[1]; echo isset($wp_version) ? $wp_version : "unknown";' \
+        "${wordpress_version_file}"
+    )"
+  fi
+
+  if [ -f vendor/composer/installed.php ]; then
+    ramsey_runtime_version="$(
+      php -r '$installed = require $argv[1]; echo $installed["versions"]["ramsey/collection"]["pretty_version"] ?? "unknown";' \
+        vendor/composer/installed.php
+    )"
+  fi
+
+  log_section "Runtime versions"
+  echo "PHP runtime: $(php -r 'echo PHP_VERSION;')"
+  echo "WordPress requested ref: ${WP_VERSION}"
+  echo "WordPress runtime: ${wordpress_runtime_version}"
+  echo "Ramsey Collection runtime: ${ramsey_runtime_version}"
 }
 
 start_database() {
@@ -107,7 +133,6 @@ prepare_wp_tests() {
   sed -i "s/yourusernamehere/${DB_USER}/" "${CONFIG_FILE}"
   sed -i "s/yourpasswordhere/${DB_PASSWORD}/" "${CONFIG_FILE}"
   sed -i "s|localhost|${DB_HOST}|1" "${CONFIG_FILE}"
-  sed -i "s|dirname( __FILE__ ) . '/../../'|'${WP_CORE_DIR}/'|" "${CONFIG_FILE}"
 
   export WP_TESTS_DIR DB_HOST DB_NAME DB_USER DB_PASSWORD
   WP_ENV_READY=1
@@ -129,6 +154,8 @@ run_composer_install() {
   else
     echo "composer.json not found in ${WORKDIR}, skipping composer install"
   fi
+
+  log_runtime_versions
 }
 
 run_phpunit() {
