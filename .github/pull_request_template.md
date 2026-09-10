@@ -19,6 +19,37 @@
 - [ ] I did not change `coverage-baseline.json`; or the new exact ratio is an intentional, reviewed result of source/test changes.
 - [ ] A WordPress trunk-only failure is tracked separately and is not presented as a passing stable lane.
 
+## Critical-scenario evidence
+
+<!--
+Use the trigger map and IDs in the test-quality contract:
+https://github.com/hokoo/wpConnections/blob/master/docs/test-quality.md
+Do not leave the IDs/evidence blank: write "none — <reason>" when no critical
+behavior is affected.
+-->
+
+- Affected critical scenario IDs:
+- Test evidence (`path::method` or stable filter, command/lane, result):
+- [ ] I reviewed the critical-component trigger map.
+- [ ] Every affected critical scenario has relevant automated test evidence, regardless of the global coverage result.
+- [ ] REST evidence uses full `WP_REST_Server` dispatch when route, permission, serialization, or HTTP behavior is affected.
+
+### Temporary exception or quarantine
+
+<!--
+Write "none" or provide every field. An exception cannot replace a required
+critical-scenario test, and an active critical exception blocks an RC.
+-->
+
+- Exception ID (`TQ-EX-NNN`):
+- Scenario IDs (or `none` only for a non-critical test):
+- Exact test and quarantine scope:
+- Owner:
+- Reason and reproduction evidence:
+- Tracking issue:
+- Expiry date (`YYYY-MM-DD`) and exit condition:
+- Approved by:
+
 ## Notes for reviewers
 
 <!-- Include risks, omitted checks, follow-ups, and evidence reviewers need. -->
