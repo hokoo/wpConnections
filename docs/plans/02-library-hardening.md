@@ -6,8 +6,8 @@ Milestone M0 достигнут 2026-09-10: инфраструктурная в�
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
 активен; Batch 1—5 завершены. В Batch 5 production slice CORE-03 завершён и
 issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
-discovery. DP-1—DP-3 утверждены владельцем 2026-09-11; Batch 6 активен,
-TEST-02F/CORE-07 и CORE-04 выполняются параллельно, CORE-06 поставлен следующим.
+discovery. DP-1—DP-3 утверждены владельцем 2026-09-11; Batch 6 активен:
+TEST-02F/CORE-07 завершены, CORE-04 выполняется, CORE-06 поставлен следующим.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1007,8 +1007,8 @@ Entry criteria:
 
 Tasks:
 
-- TEST-02F + CORE-07 — `in_progress`, один red-to-green query-meta compatibility
-  vertical.
+- TEST-02F + CORE-07 — `completed`, один red-to-green query-meta compatibility
+  vertical с сохранённым red evidence и зелёным paired fix.
 - CORE-04 — `in_progress`, endpoint entity validation и extension boundary.
 - CORE-06 — `waiting_dependency`, client naming, collision, migration-preflight и multisite
   isolation; стартует после CORE-04.
@@ -1017,7 +1017,8 @@ Tasks:
 
 Execution model:
 
-- CORE-07/TEST-02F и CORE-04 могут стартовать параллельно после DP-1/DP-2.
+- CORE-07/TEST-02F завершены после DP-1; CORE-04 продолжает выполняться после
+  DP-2.
 - CORE-06 стартует после merge/rebase CORE-04: обе задачи меняют client/factory
   registration boundary.
 - Каждый vertical получает отдельный implementation worker, independent QA,
@@ -1032,6 +1033,17 @@ Exit criteria:
 - Fixed-floor/full/coverage/PHPCS и применимые compatibility lanes зелёные;
   каждый merge имеет independent QA и 17/17 required checks.
 - Readiness sweep определяет Batch 7 без неявного принятия DP-4—DP-9.
+
+Verification:
+
+- TEST-02F + CORE-07: production/test commit `5ea31e8` rebased на `master`
+  `c846e23`; ранее зафиксированный red-only commit `3f50f77` сохраняет оба
+  ожидаемых missing-trait fatal до fix.
+- Explicit floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0:
+  unit `7 / 19`, integration `68 / 353`; combined coverage `75 / 372`, PR gate
+  `589/790 (74.56%)`, RC threshold ready.
+- Clean Compose lane PHP 8.1.34 / WordPress 7.1.0 / Ramsey Collection 1.3.0:
+  unit `7 / 19`, integration `68 / 353`. PHPCS production: `36/36`, exit 0.
 
 ## E1. Test foundation и regression harness
 
@@ -1397,7 +1409,7 @@ Notes/Risks:
 
 ### TEST-02F. Зафиксировать `Query\Meta` autoload fatal
 
-Status: in_progress
+Status: completed
 
 Priority: P0
 
@@ -1441,8 +1453,8 @@ Dependencies:
 
 Notes/Risks:
 
-- DG-QMETA-01/A утверждён; TEST-02F и paired CORE-07 находятся `in_progress` и
-  не мержатся красными отдельно.
+- DG-QMETA-01/A утверждён; TEST-02F и paired CORE-07 завершены одним зелёным
+  vertical и не поставлялись красными отдельно.
 - Затронуты `STORE-CREATE-01`, `STORE-META-01`, `REST-CRUD-01` и
   `REST-META-01`; этот узкий test не заменяет полные downstream matrices.
 - Red-only commit `3f50f77` содержит только unit/integration regressions и эту
@@ -1452,7 +1464,10 @@ Notes/Risks:
   found` в `src/Query/Meta.php:9`. Integration успевает успешно поднять
   WordPress/MariaDB, но падает до storage mutation.
 - Red-only ветка намеренно не публиковалась. Tests перенесены в paired CORE-07
-  vertical на актуальном strict base и будут поставлены одним зелёным PR.
+  vertical на актуальном strict base и подготовлены к поставке одним зелёным
+  PR.
+- Green evidence на PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0:
+  unit `7 / 19`, integration `68 / 353`; coverage `589/790 (74.56%)`.
 
 ### TEST-03A. Зафиксировать test quality и critical-scenario contract
 
@@ -2196,7 +2211,7 @@ Notes/Risks:
 
 ### CORE-07. Восстановить материализацию `Query\Meta`
 
-Status: in_progress
+Status: completed
 
 Priority: P0
 
@@ -2221,7 +2236,7 @@ Out of Scope:
 DoR:
 
 - DG-QMETA-01 утверждён владельцем.
-- TEST-02F находится `in_progress` с red evidence в том же vertical batch.
+- TEST-02F завершена с red/green evidence в том же vertical batch.
 
 DoD:
 
@@ -2240,15 +2255,18 @@ AC:
 Dependencies:
 
 - DG-QMETA-01.
-- TEST-02F (`in_progress`; red evidence достаточно для paired vertical batch).
+- TEST-02F (`completed` в paired vertical batch).
 
 Notes/Risks:
 
 - Git tags отсутствуют; public exposure в tagged release не доказан. Private
   usage старых `isUpdate()`/`setIsUpdate()` остаётся residual compatibility
-  risk и является причиной human gate.
+  risk; он принят утверждённым DG-QMETA-01/A.
 - DB-02 зависит от CORE-07, чтобы широкая meta matrix не маскировала class-load
   defect локальными fixture workarounds.
+- Green evidence на PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0:
+  unit `7 / 19`, integration `68 / 353`; coverage `589/790 (74.56%)`; PHPCS
+  production `36/36`.
 
 ## E3. Storage, query и data integrity
 

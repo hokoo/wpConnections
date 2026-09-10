@@ -14,8 +14,8 @@
 3. Batch 5 завершён и закрыт PR #72 на `master` `5b60682`. CORE-03 закрыл issue #31, а DB-00,
    REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Batch 6
    активирован после утверждения DP-1—DP-3 владельцем 2026-09-11:
-   TEST-02F/CORE-07 и CORE-04 выполняются параллельно, CORE-06 поставлен
-   следующим после CORE-04.
+   TEST-02F/CORE-07 завершены, CORE-04 выполняется, CORE-06 поставлен следующим
+   после CORE-04.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -36,11 +36,11 @@
 
 ## Текущий baseline
 
-- Unit: 6 тестов, 14 assertions.
-- WordPress integration: 67 тестов, 345 assertions.
-- Совместный coverage run: 73 теста, 359 assertions и `588/790` statements
-  (`74,43%`) установлен CORE-03 и подтверждён protected CI Batch 5/closeout на
-  `master` `5b60682`.
+- Unit: 7 тестов, 19 assertions.
+- WordPress integration: 68 тестов, 353 assertions.
+- Совместный coverage run: 75 тестов, 372 assertions и `589/790` statements
+  (`74.56%`) подтверждён CORE-07 vertical на PHP 8.1.34 / WordPress 6.7.7 /
+  Ramsey Collection 1.3.0 после rebase на `master` `c846e23`.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
@@ -48,10 +48,11 @@
   rerun.
 - `master` защищён: strict required checks для всех 17 jobs, enforcement для
   администраторов, force-push и удаление ветки запрещены.
-- `TEST-01`, `TEST-02A`, `TEST-02B`, `TEST-02C` и `TEST-02E` завершены.
-  `TEST-02F` имеет независимо проверенное red evidence и находится
-  `in_progress`: по утверждённому DG-QMETA-01/A он выполняется paired с CORE-07
-  и будет смержен только в зелёном состоянии.
+- `TEST-01`, `TEST-02A`, `TEST-02B`, `TEST-02C`, `TEST-02E` и `TEST-02F`
+  завершены. `TEST-02F` и `CORE-07` завершены одним paired vertical по
+  утверждённому DG-QMETA-01/A: независимо проверенное red evidence сохранено,
+  unit `7/19`, integration `68/353`, coverage `589/790 (74.56%)` и PHPCS
+  `36/36` зелёные.
 - `CORE-03` завершён PR #67: merge `b36fa85`, 17/17 required checks успешны,
   issue #31 закрыт; стабильные ошибки 301—304 и missing-endpoint matrix покрыты.
 - DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
@@ -81,9 +82,9 @@
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
   `deleted_post` recovery. DB-03B-A/DB-03B-B/DB-04/REST-03 остаются waiting до
   решений.
-- Штатные regressions уже защищают missing-`to`, broken `both` и полную
-  cardinality matrix; Query-meta fatal находится в активном CORE-07 vertical,
-  а REST update без `title` ожидает оставшиеся явно перечисленные dependencies.
+- Штатные regressions уже защищают missing-`to`, broken `both`, полную
+  cardinality matrix и Query-meta materialization; REST update без `title`
+  ожидает оставшиеся явно перечисленные dependencies.
 
 ## Контрольные точки
 
