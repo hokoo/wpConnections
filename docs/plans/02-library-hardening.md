@@ -614,7 +614,7 @@ Notes/Risks:
 
 ### TEST-02E. Зафиксировать поиск по `both`
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -654,6 +654,13 @@ Dependencies:
 Notes/Risks:
 
 - Regression task поставляется одним зелёным vertical batch с DB-01.
+- Red evidence 2026-09-10 на неизменённом `WPStorage`: два data-provider cases
+  `both=from` и `both=to` завершились `2 failures / 2 assertions`; оба вернули
+  `[]` вместо connection ID и сформировали SQL
+  `WHERE c.relation = 'relation-0-test' AND ` с MariaDB syntax error.
+- Green evidence 2026-09-10 после парного DB-01 fix: тот же filter завершился
+  `OK (2 tests, 6 assertions)` на PHP 8.1.34 / WordPress 6.7.7 без
+  `wpdb::prepare` warning и с пустым `$wpdb->last_error` для обеих сторон.
 
 ### TEST-03A. Зафиксировать test quality и critical-scenario contract
 
@@ -1366,7 +1373,7 @@ Notes/Risks:
 
 ### DB-01. Исправить поиск по `both` и покрыть query matrix
 
-Status: waiting_dependency
+Status: completed
 
 Priority: P0
 
@@ -1409,6 +1416,18 @@ Dependencies:
 Notes/Risks:
 
 - Этот path понадобится issue #21, если REST filter поддержит `both`.
+- Ordering намеренно остаётся unspecified до решения DG-API20-04: DB-01 не
+  добавляет глобальный `ORDER BY`, а identity/multiplicity и repeated-meta
+  assertions canonicalized и не зависят от порядка строк.
+- Green evidence 2026-09-10: DB-01 class — `8 tests / 48 assertions`; reverse
+  order с `--repeat=2` — `16 / 96`; полный `test:all` — unit `4 / 7` и
+  integration `18 / 117`; полный integration reverse/repeat — `36 / 234`.
+- Compatibility evidence: тот же DB-01 class на PHP 8.2.33 / WordPress 7.1.0 —
+  `8 / 48`; вывод содержит только уже известную dynamic-property deprecation в
+  `GSInterface.php`, не относящуюся к DB-01.
+- Quality evidence: fresh-image `test:coverage` — `22 tests / 124 assertions`,
+  gate passed с `555/790 (70.25%)` против baseline `365/786 (46.44%)`;
+  `cs:phpcs` — `35/35`, exit 0, с известным ruleset deprecation warning.
 
 ### DB-02. Защитить create/update и meta regressions
 

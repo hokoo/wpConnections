@@ -278,7 +278,7 @@ class WPStorage extends Abstracts\Storage
         $where = [];
 
         if (is_numeric($id = $params->get('id')) && ! empty($id)) {
-            $_where = "c.ID = {$id}";
+            $_where = $wpdb->prepare("c.ID = %d", $id);
             $_where .= $params->exists_relation() ? $wpdb->prepare(" AND c.relation = '%s'", $params->get('relation')) : '';
             $where [] = $_where;
         } else {
@@ -295,7 +295,11 @@ class WPStorage extends Abstracts\Storage
             }
 
             if ($params->exists_both()) {
-                $where [] = $wpdb->prepare("( c.from = $1%d OR c.to = $1%d )", $params->get('both'));
+                $where [] = $wpdb->prepare(
+                    "( c.from = %d OR c.to = %d )",
+                    $params->get('both'),
+                    $params->get('both')
+                );
             }
         }
 
