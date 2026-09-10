@@ -1785,7 +1785,7 @@ Verification:
 
 ### CORE-03. Зафиксировать duplicatable, closurable и error precedence
 
-Status: in_progress
+Status: review
 
 Priority: P0
 
@@ -1797,11 +1797,15 @@ Scope:
 - Tests и contracts для codes 301, 302, 303, 304.
 - Duplicate check прежде cardinality, regression issue #29.
 - Self-connection при `closurable=false/true`.
-- Missing endpoints и update connection без ID.
+- Missing endpoints и update connection без ID, включая точные exception
+  type/code/message и список действительно отсутствующих параметров.
 
 Out of Scope:
 
 - HTTP status mapping, который выполняется в REST-03.
+- Endpoint entity-validation/rollout CORE-04.
+- Изменение public API, Storage SPI, signatures или добавление новых error
+  semantics сверх утверждённого DG-M3 и существующего `MissingParameters`.
 
 DoR:
 
@@ -1814,14 +1818,19 @@ DoD:
 - Code/message/type assertions присутствуют для каждой ошибки.
 - Сценарий, нарушающий несколько invariants, возвращает утверждённый priority
   error.
+- Missing-only endpoint failure перечисляет только реально отсутствующую
+  сторону, не мутирует storage и сохраняет `MissingParameters` code `4`.
 
 AC:
 
 - Given duplicate, одновременно нарушающий cardinality, when создаётся связь,
   then domain code равен 303.
 - Given запрещённая self-connection, then code равен 301.
+- Given `closurable=true`, when создаётся self-connection, then она сохраняется.
 - Given cardinality violation без duplicate, then code равен 302.
 - Given update объекта без ID, then code равен 304.
+- Given отсутствует только `from` или только `to`, when создаётся связь, then
+  `MissingParameters` содержит только эту сторону и точное совместимое message.
 
 Dependencies:
 
@@ -1831,6 +1840,33 @@ Dependencies:
 Notes/Risks:
 
 - Messages можно улучшать, но стабильность должна опираться на code/type.
+- GitHub evidence 2026-09-10: open issue
+  [#31](https://github.com/hokoo/wpConnections/issues/31) требует tests для
+  error codes; closed issue
+  [#29](https://github.com/hokoo/wpConnections/issues/29) описывает ошибочный
+  cardinality-before-duplicate result. Исторические commits `6c4f671` и
+  `c3b4e70` уже переместили duplicate check первым, поэтому production порядок
+  не менялся в CORE-03.
+- Production и regression готовы для закрытия issue #31; GitHub issue остаётся
+  delivery-owner шагом после merge, поэтому задача сохраняет `review`, пока
+  этот DoD не подтверждён.
+- Red-first commit `b6eab2c`: targeted `ConnectionErrorContractTest` на
+  неизменённом production — `8 tests / 30 assertions / 2 failures`; missing-only
+  `from` и `to` оба фактически возвращали `Missing required fields: from to `.
+  Tests codes `301`—`304`, duplicate-before-cardinality и разрешённого
+  self-connection уже были зелёными.
+- Минимальный fix собирает только пустые `from`/`to` перед существующим
+  `MissingParameters`; exception classes, numeric codes/messages, public
+  signatures, HTTP mapping и SPI не менялись.
+- Green evidence: targeted `8 / 34`; fixed-floor PHP 8.1.34 / WordPress 6.7.7 /
+  Ramsey 1.3.0 — unit `6 / 14`, integration `67 / 345`; isolation seed
+  `20260910`, reverse/random repeat-2 — unit `12 / 28`, integration `134 / 690`
+  в каждой фазе; combined coverage `73 / 359`, PR gate `588/790 (74.43%)`, RC
+  threshold ready; PHPCS production `36/36`.
+- Blocking integration lanes PHP/WP/Ramsey `8.2.33/7.1.0/1.3.0`,
+  `8.3.33/7.1.0/2.1.1`, `8.4.25/6.7.7/2.1.1` и
+  `8.5.10/7.1.0/2.1.1`: `67 / 345` в каждой. Известные pre-existing PHP 8.2+
+  dynamic-property и PHP 8.4+ dependency deprecations не являются failures.
 
 ### CORE-04. Реализовать endpoint entity validation
 
