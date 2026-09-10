@@ -722,7 +722,7 @@ Verification:
 
 ### TEST-03B. Автоматизировать PR baseline и RC coverage profiles
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -772,9 +772,21 @@ Notes/Risks:
 - Сравнение threshold выполняется exact integer counts, чтобы округление не
   скрывало regression.
 
+Verification:
+
+- Default `test:coverage` сохранил PR no-regression profile и accepted baseline
+  `365/786`; explicit `test:coverage:rc`/`make tests.coverage.rc` требует 70% по
+  exact integer counts.
+- Synthetic cases: PR baseline pass `0`, PR regression `1`, RC ниже/ровно/выше
+  70% — `1/0/0`, malformed input — configuration exit `2`.
+- Реальный PR profile прошёл на `549/786 (69,85%)` и сообщил RC not ready;
+  direct RC profile ожидаемо завершился checker policy exit `1`, а
+  `make tests.coverage.rc` передал этот failure как non-zero target без изменения
+  baseline.
+
 ### TEST-03C. Автоматизировать isolation и flaky policy
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -820,6 +832,21 @@ Notes/Risks:
 
 - Repeat увеличивает CI time; измерение выполняется в существующем Coverage job,
   пока не появится отдельное решение о required-check topology.
+
+Verification:
+
+- `make tests.isolation ISOLATION_SEED=20260910` прошёл reverse и seeded-random
+  phases по два повтора: unit `8 tests / 14 assertions` на phase, integration
+  `20 / 138` на phase; seed и точная reproduction command напечатаны.
+- Warm-image isolation run на PHP 8.1 / WordPress 6.7 занял `8,06 s`; существующий
+  `Coverage PHP 8.1.34 / WordPress 6.7.7` required-check name не изменён.
+- Synthetic order-dependent probe завершился ошибкой на первом failing phase и
+  сохранил в output order/repeat/seed; silent retry отсутствует.
+- Machine-readable exception registry проверяет точные TEST-03A fields,
+  incomplete/expired records дают configuration exit `2`, active critical
+  exception блокирует RC policy exit `1`.
+- Полный suite `4/7 + 10/69`, combined coverage `14/76`, PR gate `549/786` и
+  PHPCS `35/35` прошли.
 
 ## E2. Domain invariants и error model
 

@@ -13,6 +13,7 @@ MYSQL_DATA_DIR="${MYSQL_DATA_DIR:-/tmp/mysql-data}"
 RAMSEY_VERSION="${RAMSEY_VERSION:-}"
 EXPECTED_PHP_VERSION="${EXPECTED_PHP_VERSION:-}"
 EXPECTED_WP_VERSION="${EXPECTED_WP_VERSION:-}"
+TEST_RANDOM_SEED="${TEST_RANDOM_SEED:-}"
 IMAGE_BUILD_MANIFEST="${IMAGE_BUILD_MANIFEST:-/usr/local/share/wpconnections-test-image/build-manifest}"
 CONFIG_SAMPLE="${WP_DEVELOP_DIR}/wp-tests-config-sample.php"
 CONFIG_FILE="${WP_DEVELOP_DIR}/wp-tests-config.php"
@@ -309,7 +310,18 @@ run_phpcs() {
   composer run phpcs
 }
 
+run_exception_policy() {
+  local profile="$1"
+
+  log_section "Test exception policy (${profile} profile)"
+  php docker/check-test-exceptions.php \
+    "--profile=${profile}" \
+    test-quality-exceptions.json
+}
+
 run_coverage() {
+  local profile="$1"
+  shift
   local coverage_dir="build/coverage"
   local clover_report="${coverage_dir}/clover.xml"
   local text_report="${coverage_dir}/coverage.txt"
@@ -321,6 +333,7 @@ run_coverage() {
   mkdir -p "${coverage_dir}"
   rm -f "${clover_report}" "${text_report}" "${json_summary}" "${markdown_summary}"
 
+  run_exception_policy "${profile}"
   run_composer_install
   prepare_wp_tests
 
@@ -333,6 +346,7 @@ run_coverage() {
     "$@" || phpunit_exit=$?
 
   php docker/check-coverage.php \
+    "--profile=${profile}" \
     "${clover_report}" \
     coverage-baseline.json \
     "${json_summary}" \
@@ -344,6 +358,42 @@ run_coverage() {
   fi
 
   return "${gate_exit}"
+}
+
+run_quality_tool_tests() {
+  log_section "Coverage policy synthetic tests"
+  bash docker/tests/check-coverage.sh
+
+  log_section "Test exception policy synthetic tests"
+  bash docker/tests/check-test-exceptions.sh
+
+  run_composer_install
+
+  log_section "Isolation runner synthetic probe"
+  bash docker/tests/check-isolation-runner.sh
+}
+
+run_isolation() {
+  local random_seed="${TEST_RANDOM_SEED}"
+
+  if [ -z "${random_seed}" ]; then
+    random_seed="$(php -r 'echo random_int(1, 2147483647);')"
+  fi
+
+  if [[ ! "${random_seed}" =~ ^[0-9]+$ ]]; then
+    echo "TEST_RANDOM_SEED must be a non-negative integer; got ${random_seed}" >&2
+    return 2
+  fi
+
+  log_section "Isolation verification"
+  echo "Reusable random seed: ${random_seed}"
+  echo "Reproduce locally: make tests.isolation ISOLATION_SEED=${random_seed}"
+
+  run_composer_install
+  bash docker/run-isolation.sh "unit" phpunit.xml "${random_seed}" "$@"
+
+  prepare_wp_tests
+  bash docker/run-isolation.sh "WordPress-integration" php-wp-unit.xml "${random_seed}" "$@"
 }
 
 run_all_tests() {
@@ -389,7 +439,22 @@ case "$CMD" in
 
   test:coverage)
     shift
-    run_coverage "$@"
+    run_coverage pr "$@"
+    ;;
+
+  test:coverage:rc)
+    shift
+    run_coverage rc "$@"
+    ;;
+
+  test:quality-tools)
+    shift
+    run_quality_tool_tests "$@"
+    ;;
+
+  test:isolation)
+    shift
+    run_isolation "$@"
     ;;
 
   cs:phpcs|phpcs)

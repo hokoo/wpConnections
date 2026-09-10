@@ -1,8 +1,9 @@
 COVERAGE_IMAGE := wpconnections-coverage:php8.1.34-wp6.7.7
 COVERAGE_PHP_VERSION := 8.1.34
 COVERAGE_WP_VERSION := 6.7.7
+ISOLATION_SEED ?=
 
-.PHONY: tests.init tests.run tests.phpunit tests.integration tests.coverage tests.build tests.rebuild tests.clean dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
+.PHONY: tests.init tests.run tests.phpunit tests.integration tests.coverage tests.coverage.rc tests.isolation tests.quality-tools tests.build tests.rebuild tests.clean dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
 
 tests.init:
 	cd ./local-dev/ && bash ./tests-init.sh
@@ -26,6 +27,27 @@ tests.coverage:
 		-t $(COVERAGE_IMAGE) \
 		-f Dockerfile.phpunit .
 	docker run --rm -v "$(CURDIR):/srv/web" $(COVERAGE_IMAGE) test:coverage
+
+tests.coverage.rc:
+	docker build \
+		--build-arg PHP_VERSION=$(COVERAGE_PHP_VERSION) \
+		--build-arg WP_VERSION=$(COVERAGE_WP_VERSION) \
+		-t $(COVERAGE_IMAGE) \
+		-f Dockerfile.phpunit .
+	docker run --rm -v "$(CURDIR):/srv/web" $(COVERAGE_IMAGE) test:coverage:rc
+
+tests.isolation:
+	cd ./local-dev/ && \
+	docker compose -p wpconnections run --rm \
+		-e TEST_RANDOM_SEED="$(ISOLATION_SEED)" phpunit test:isolation
+
+tests.quality-tools:
+	docker build \
+		--build-arg PHP_VERSION=$(COVERAGE_PHP_VERSION) \
+		--build-arg WP_VERSION=$(COVERAGE_WP_VERSION) \
+		-t $(COVERAGE_IMAGE) \
+		-f Dockerfile.phpunit .
+	docker run --rm -v "$(CURDIR):/srv/web" $(COVERAGE_IMAGE) test:quality-tools
 
 tests.build:
 	cd ./local-dev/ && \

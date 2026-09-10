@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 const EXIT_PASSED = 0;
-const EXIT_REGRESSION = 1;
+const EXIT_POLICY_FAILURE = 1;
 const EXIT_INVALID_INPUT = 2;
+const RC_MINIMUM_PERCENT = 70;
 
 /**
  * @return array{covered: int, total: int}
@@ -150,10 +151,13 @@ function write_markdown_summary(string $path, array $summary): void
     $baseline = $summary['baseline'];
     $result = $summary['status'] === 'passed' ? 'PASS' : 'FAIL';
     $delta = sprintf('%+.2f pp', $summary['delta_percentage_points']);
+    $profile = strtoupper((string) $summary['profile']);
+    $releaseCandidate = $summary['release_candidate'];
+    $releaseCandidateStatus = $releaseCandidate['coverage_ready'] ? 'READY' : 'NOT READY';
     $markdown = implode(PHP_EOL, [
         '## Coverage gate',
         '',
-        "**{$result}**",
+        "**{$result} ({$profile} profile)**",
         '',
         '| Metric | Covered | Total | Coverage |',
         '| --- | ---: | ---: | ---: |',
@@ -171,6 +175,11 @@ function write_markdown_summary(string $path, array $summary): void
         ),
         '',
         "Change: {$delta}",
+        sprintf(
+            'Release-candidate coverage: **%s** (minimum %d%% statements).',
+            $releaseCandidateStatus,
+            $releaseCandidate['minimum_percentage']
+        ),
         '',
     ]);
     write_report($path, $markdown);
@@ -194,8 +203,10 @@ function print_result(array $summary): void
     $current = $summary['current'];
     $baseline = $summary['baseline'];
     $status = strtoupper((string) $summary['status']);
+    $profile = strtoupper((string) $summary['profile']);
+    $releaseCandidate = $summary['release_candidate'];
 
-    printf("Coverage gate: %s\n", $status);
+    printf("Coverage gate (%s profile): %s\n", $profile, $status);
     printf(
         "Current statement coverage: %d/%d (%.2f%%)\n",
         $current['covered_statements'],
@@ -209,32 +220,76 @@ function print_result(array $summary): void
         $baseline['percentage']
     );
     printf("Change: %+.2f percentage points\n", $summary['delta_percentage_points']);
+    printf(
+        "Release candidate coverage: %s (minimum %d%% statements)\n",
+        $releaseCandidate['coverage_ready'] ? 'READY' : 'NOT READY',
+        $releaseCandidate['minimum_percentage']
+    );
 }
 
-if ($argc < 3 || $argc > 5) {
+/**
+ * @param list<string> $arguments
+ * @return array{profile: string, paths: list<string>}
+ */
+function parse_arguments(array $arguments): array
+{
+    $profile = 'pr';
+
+    if (isset($arguments[0]) && strncmp($arguments[0], '--profile=', 10) === 0) {
+        $profile = substr(array_shift($arguments), 10);
+    }
+
+    if (! in_array($profile, ['pr', 'rc'], true)) {
+        throw new RuntimeException("Unknown coverage profile: {$profile}");
+    }
+
+    if (count($arguments) < 2 || count($arguments) > 4) {
+        throw new RuntimeException(
+            'Usage: php docker/check-coverage.php [--profile=pr|rc] '
+            . '<clover.xml> <baseline.json> [summary.json] [summary.md]'
+        );
+    }
+
+    return [
+        'profile' => $profile,
+        'paths' => array_values($arguments),
+    ];
+}
+
+$arguments = array_slice($argv, 1);
+$reportDirectory = '.';
+$jsonPath = $reportDirectory . '/coverage-summary.json';
+$markdownPath = $reportDirectory . '/coverage-summary.md';
+$profile = 'pr';
+
+try {
+    $parsedArguments = parse_arguments($arguments);
+    $profile = $parsedArguments['profile'];
+    [$cloverPath, $baselinePath] = $parsedArguments['paths'];
+    $reportDirectory = dirname($cloverPath);
+    $jsonPath = $parsedArguments['paths'][2] ?? $reportDirectory . '/coverage-summary.json';
+    $markdownPath = $parsedArguments['paths'][3] ?? $reportDirectory . '/coverage-summary.md';
+} catch (Throwable $exception) {
     fwrite(
         STDERR,
-        "Usage: php docker/check-coverage.php <clover.xml> <baseline.json> [summary.json] [summary.md]\n"
+        "Coverage gate error: {$exception->getMessage()}\n"
     );
     exit(EXIT_INVALID_INPUT);
 }
 
-$cloverPath = $argv[1];
-$baselinePath = $argv[2];
-$reportDirectory = dirname($cloverPath);
-$jsonPath = $argv[3] ?? $reportDirectory . '/coverage-summary.json';
-$markdownPath = $argv[4] ?? $reportDirectory . '/coverage-summary.md';
-
 try {
     $current = read_clover_metrics($cloverPath);
     $baseline = read_baseline($baselinePath);
-    $passed = $current['covered'] * $baseline['total'] >= $baseline['covered'] * $current['total'];
+    $passesBaseline = $current['covered'] * $baseline['total'] >= $baseline['covered'] * $current['total'];
+    $passesReleaseCandidate = $current['covered'] * 100 >= RC_MINIMUM_PERCENT * $current['total'];
+    $passed = $profile === 'pr' ? $passesBaseline : $passesReleaseCandidate;
     $currentPercentage = percentage($current['covered'], $current['total']);
     $baselinePercentage = percentage($baseline['covered'], $baseline['total']);
     $summary = [
         'schema' => 1,
         'metric' => 'statements',
-        'status' => $passed ? 'passed' : 'regression',
+        'profile' => $profile,
+        'status' => $passed ? 'passed' : ($profile === 'pr' ? 'regression' : 'below_threshold'),
         'current' => [
             'covered_statements' => $current['covered'],
             'total_statements' => $current['total'],
@@ -246,16 +301,21 @@ try {
             'percentage' => $baselinePercentage,
         ],
         'delta_percentage_points' => round($currentPercentage - $baselinePercentage, 6),
+        'release_candidate' => [
+            'minimum_percentage' => RC_MINIMUM_PERCENT,
+            'coverage_ready' => $passesReleaseCandidate,
+        ],
     ];
 
     write_json_summary($jsonPath, $summary);
     write_markdown_summary($markdownPath, $summary);
     print_result($summary);
-    exit($passed ? EXIT_PASSED : EXIT_REGRESSION);
+    exit($passed ? EXIT_PASSED : EXIT_POLICY_FAILURE);
 } catch (Throwable $exception) {
     $summary = [
         'schema' => 1,
         'metric' => 'statements',
+        'profile' => $profile,
         'status' => 'error',
         'error' => $exception->getMessage(),
     ];
