@@ -147,6 +147,43 @@ run_phpcs() {
   composer run phpcs
 }
 
+run_coverage() {
+  local coverage_dir="build/coverage"
+  local clover_report="${coverage_dir}/clover.xml"
+  local text_report="${coverage_dir}/coverage.txt"
+  local json_summary="${coverage_dir}/coverage-summary.json"
+  local markdown_summary="${coverage_dir}/coverage-summary.md"
+  local phpunit_exit=0
+  local gate_exit=0
+
+  mkdir -p "${coverage_dir}"
+  rm -f "${clover_report}" "${text_report}" "${json_summary}" "${markdown_summary}"
+
+  run_composer_install
+  prepare_wp_tests
+
+  log_section "Combined unit and WordPress integration coverage"
+  phpdbg -qrr vendor/bin/phpunit \
+    -c phpunit-coverage.xml \
+    --coverage-clover "${clover_report}" \
+    --coverage-text="${text_report}" \
+    --colors=never \
+    "$@" || phpunit_exit=$?
+
+  php docker/check-coverage.php \
+    "${clover_report}" \
+    coverage-baseline.json \
+    "${json_summary}" \
+    "${markdown_summary}" || gate_exit=$?
+
+  if [ "${phpunit_exit}" -ne 0 ]; then
+    echo "Combined PHPUnit coverage run failed with exit code ${phpunit_exit}" >&2
+    return "${phpunit_exit}"
+  fi
+
+  return "${gate_exit}"
+}
+
 run_all_tests() {
   local phpunit_exit=0
   local wpunit_exit=0
@@ -184,6 +221,11 @@ case "$CMD" in
     shift
     run_composer_install
     run_wp_integration "$@"
+    ;;
+
+  test:coverage)
+    shift
+    run_coverage "$@"
     ;;
 
   cs:phpcs|phpcs)

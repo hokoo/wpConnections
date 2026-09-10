@@ -118,8 +118,17 @@ You can also run individual checks from the project root:
 ```bash
 make tests.phpunit
 make tests.integration
+make tests.coverage
 make lint.phpcs
 ```
+
+`make tests.coverage` builds a deterministic PHP 8.1.34 / WordPress 6.7.7
+image, runs the unit and WordPress integration suites in one instrumented
+process, and checks the resulting statement coverage against the repository
+baseline. The human-readable and machine-readable reports are written to
+`build/coverage/`. The baseline stores the exact covered/total ratio rather
+than a rounded percentage; update it only when a reviewed source or test change
+intentionally changes the accepted baseline.
 
 The supported local interface uses Compose v2 (`docker compose`) consistently.
 `make tests.integration` is the canonical WordPress integration-test target;
