@@ -70,8 +70,8 @@ class EntityValidationRecordingStorage extends Storage
 	}
 
 	public function deleteDirectedConnections(
-		int $from = null,
-		int $to = null,
+		?int $from = null,
+		?int $to = null,
 		string $relation = ''
 	): int {
 		return 0;
@@ -144,10 +144,43 @@ class EntityValidationTest extends WPConnectionsTestCase
 			}
 		);
 		$this->assert_connection_error(
+			305,
+			'Invalid connection endpoint ID: to=-2.',
+			function () use ( $relation ): void {
+				$relation->createConnection( new ConnectionQuery( $this->page_ids[0], -2 ) );
+			}
+		);
+		$this->assert_connection_error(
 			306,
 			'Connection endpoint entity not found: from=999999999.',
 			static function () use ( $relation ): void {
 				$relation->createConnection( new ConnectionQuery( 999999999, 999999998 ) );
+			}
+		);
+		$this->assert_connection_error(
+			306,
+			'Connection endpoint entity not found: to=999999998.',
+			function () use ( $relation ): void {
+				$relation->createConnection( new ConnectionQuery( $this->page_ids[0], 999999998 ) );
+			}
+		);
+
+		$deleted_page = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$deleted_post = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		wp_delete_post( $deleted_page, true );
+		wp_delete_post( $deleted_post, true );
+		$this->assert_connection_error(
+			306,
+			'Connection endpoint entity not found: from=' . $deleted_page . '.',
+			static function () use ( $relation, $deleted_page ): void {
+				$relation->createConnection( new ConnectionQuery( $deleted_page, 1 ) );
+			}
+		);
+		$this->assert_connection_error(
+			306,
+			'Connection endpoint entity not found: to=' . $deleted_post . '.',
+			function () use ( $relation, $deleted_post ): void {
+				$relation->createConnection( new ConnectionQuery( $this->page_ids[0], $deleted_post ) );
 			}
 		);
 		$this->assert_connection_error(
@@ -215,6 +248,68 @@ class EntityValidationTest extends WPConnectionsTestCase
 		self::assertCount( 0, $relation->findConnections() );
 	}
 
+	public function test_rest_create_delegates_to_the_same_domain_validator(): void
+	{
+		$this->set_up_rest_server();
+		$this->authenticate_as_administrator();
+
+		try {
+			$response = $this->dispatch_rest_request(
+				'POST',
+				$this->get_rest_route( '/relation/' . RELATION_0_NAME ),
+				[
+					'from' => $this->post_ids[0],
+					'to'   => $this->post_ids[1],
+				]
+			);
+			$data = $response->get_data();
+
+			self::assertSame( 307, $data['code'] ?? null );
+			self::assertSame(
+				'Connection endpoint type mismatch: from expected page, got post.',
+				$data['message'] ?? null
+			);
+			self::assertCount( 0, $this->client->getRelation( RELATION_0_NAME )->findConnections() );
+		} finally {
+			$this->tear_down_rest_server();
+		}
+	}
+
+	public function test_rest_update_delegates_to_the_same_effective_state_validator(): void
+	{
+		$relation   = $this->client->getRelation( RELATION_0_NAME );
+		$connection = $relation->createConnection(
+			new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
+		);
+		$this->set_up_rest_server();
+		$this->authenticate_as_administrator();
+
+		try {
+			$response = $this->dispatch_rest_request(
+				'PATCH',
+				$this->get_rest_route(
+					'/relation/' . RELATION_0_NAME . '/' . $connection->id
+				),
+				[
+					'from' => $this->post_ids[1],
+					'to'   => $this->post_ids[0],
+				]
+			);
+			$data = $response->get_data();
+
+			self::assertSame( 307, $data['code'] ?? null );
+			self::assertSame(
+				'Connection endpoint type mismatch: from expected page, got post.',
+				$data['message'] ?? null
+			);
+			$persisted = $this->find_connection( $relation, $connection->id );
+			self::assertSame( $this->page_ids[0], $persisted->from );
+			self::assertSame( $this->post_ids[0], $persisted->to );
+		} finally {
+			$this->tear_down_rest_server();
+		}
+	}
+
 	public function test_entity_failure_precedes_duplicate_and_cardinality(): void
 	{
 		$relation = $this->register_relation(
@@ -258,6 +353,25 @@ class EntityValidationTest extends WPConnectionsTestCase
 		self::assertSame( 9, $persisted->order );
 		self::assertSame( 'Changed', $persisted->title );
 		self::assertSame( [ 'marker' => [ 'preserved' ] ], $persisted->meta->toArray() );
+
+		$changed_from = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$changed_to   = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$from_update  = new ConnectionQuery();
+		$from_update->set( 'id', $connection->id );
+		$from_update->set( 'from', $changed_from );
+		self::assertTrue( $relation->updateConnection( $from_update ) );
+
+		$to_update = new ConnectionQuery();
+		$to_update->set( 'id', $connection->id );
+		$to_update->set( 'to', $changed_to );
+		self::assertTrue( $relation->updateConnection( $to_update ) );
+
+		$persisted = $this->find_connection( $relation, $connection->id );
+		self::assertSame( $changed_from, $persisted->from );
+		self::assertSame( $changed_to, $persisted->to );
+		self::assertSame( 9, $persisted->order );
+		self::assertSame( 'Changed', $persisted->title );
+		self::assertSame( [ 'marker' => [ 'preserved' ] ], $persisted->meta->toArray() );
 	}
 
 	public function test_relation_update_rejects_explicit_zero_and_preserves_persisted_state(): void
@@ -283,6 +397,46 @@ class EntityValidationTest extends WPConnectionsTestCase
 		self::assertSame( $this->post_ids[0], $persisted->to );
 	}
 
+	public function test_direct_default_zero_write_is_outside_tracked_sparse_presence(): void
+	{
+		$relation   = $this->register_relation( 'entity-direct-zero', 'page', 'post' );
+		$connection = $relation->createConnection(
+			new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
+		);
+		$update       = new ConnectionQuery();
+		$update->from = 0;
+		$update->set( 'id', $connection->id );
+		$update->set( 'title', 'Tracked field' );
+
+		self::assertFalse( $update->isProvided( 'from' ) );
+		self::assertTrue( $relation->updateConnection( $update ) );
+
+		$persisted = $this->find_connection( $relation, $connection->id );
+		self::assertSame( $this->page_ids[0], $persisted->from );
+		self::assertSame( 'Tracked field', $persisted->title );
+	}
+
+	public function test_relation_update_requires_identity_before_loading_effective_state(): void
+	{
+		$relation   = $this->register_relation( 'entity-update-id', 'page', 'post' );
+		$connection = $relation->createConnection(
+			new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
+		);
+		$update     = new ConnectionQuery();
+		$update->set( 'title', 'must not select an arbitrary row' );
+
+		$this->assert_connection_error(
+			304,
+			'Cannot update uninitialized connection',
+			static function () use ( $relation, $update ): void {
+				$relation->updateConnection( $update );
+			}
+		);
+
+		$persisted = $this->find_connection( $relation, $connection->id );
+		self::assertNotSame( 'must not select an arbitrary row', $persisted->title );
+	}
+
 	public function test_connection_update_rejects_invalid_full_state_without_mutating_storage(): void
 	{
 		$relation   = $this->register_relation( 'entity-aggregate-update', 'page', 'post' );
@@ -290,6 +444,7 @@ class EntityValidationTest extends WPConnectionsTestCase
 			new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] )
 		);
 		$connection->meta->add( new Meta( 'marker', 'preserved' ) );
+		$connection->order = 7;
 		$connection->update();
 		$connection->from  = $this->post_ids[1];
 		$connection->title = 'Rejected';
@@ -305,6 +460,23 @@ class EntityValidationTest extends WPConnectionsTestCase
 		$persisted = $this->find_connection( $relation, $connection->id );
 		self::assertSame( $this->page_ids[0], $persisted->from );
 		self::assertNotSame( 'Rejected', $persisted->title );
+		self::assertSame( 7, $persisted->order );
+		self::assertSame( [ 'marker' => [ 'preserved' ] ], $persisted->meta->toArray() );
+
+		$wrong_to         = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$connection->from = $this->page_ids[0];
+		$connection->to   = $wrong_to;
+		$this->assert_connection_error(
+			307,
+			'Connection endpoint type mismatch: to expected post, got page.',
+			static function () use ( $connection ): void {
+				$connection->update();
+			}
+		);
+
+		$persisted = $this->find_connection( $relation, $connection->id );
+		self::assertSame( $this->post_ids[0], $persisted->to );
+		self::assertSame( 7, $persisted->order );
 		self::assertSame( [ 'marker' => [ 'preserved' ] ], $persisted->meta->toArray() );
 	}
 
@@ -414,6 +586,7 @@ class EntityValidationTest extends WPConnectionsTestCase
 				$relation->createConnection( new ConnectionQuery( 13, 20 ) );
 			}
 		);
+		self::assertCount( 1, $relation->findConnections() );
 	}
 
 	public function test_unsupported_and_throwing_resolvers_fail_without_persistence(): void
@@ -427,6 +600,7 @@ class EntityValidationTest extends WPConnectionsTestCase
 				$unsupported->createConnection( new ConnectionQuery( 1, 2 ) );
 			}
 		);
+		self::assertCount( 0, $unsupported->findConnections() );
 
 		$client = $this->recording_client( 'entity-resolver-throws' );
 		$client->registerEntityResolver(
@@ -497,6 +671,15 @@ class EntityValidationTest extends WPConnectionsTestCase
 	{
 		$client   = $this->recording_client( 'entity-storage-boundary' );
 		$relation = $this->register_relation_on( $client, 'entity-storage', 'page', 'post' );
+		$this->assert_connection_error(
+			307,
+			'Connection endpoint type mismatch: from expected page, got post.',
+			function () use ( $relation ): void {
+				$relation->createConnection( new ConnectionQuery( $this->post_ids[0], $this->post_ids[1] ) );
+			}
+		);
+		self::assertCount( 0, EntityValidationRecordingStorage::$created );
+
 		$query    = new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] );
 		$created  = $relation->createConnection( $query );
 

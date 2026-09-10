@@ -3,6 +3,7 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
 
 class Relation extends Abstracts\Relation
 {
@@ -41,31 +42,16 @@ class Relation extends Abstracts\Relation
             throw $missingParameters;
         }
 
-        // Self-connection ability
-        if (! $this->closurable && $connectionQuery->get('from') === $connectionQuery->get('to')) {
-            throw new Exceptions\ConnectionWrongData('Closurable not allowed by relation settings.', 301);
-        }
-
-        // Duplicatable check
-        if (! $this->duplicatable) {
-            $query = new Query\Connection($connectionQuery->get('from'), $connectionQuery->get('to'));
-            $query->set('relation', $this->name);
-
-            $check_duplicatable = $this->findConnections($query);
-            if (!$check_duplicatable->isEmpty()) {
-                throw new Exceptions\ConnectionWrongData('Duplicatable violation.', 303);
-            }
-        }
-
-        // Cardinality check
-        $this->assertCardinality($this, $connectionQuery);
+        $this->getClient()->assertConnectionEndpoints($this, $connectionQuery);
+        $this->assertConnectionInvariants($connectionQuery);
 
         // Create connection
         $connectionQuery->set('relation', $this->name);
 
         do_action('wpConnections/relation/creating', $connectionQuery);
 
-        $this->getClient()->getStorage()->createConnection($connectionQuery);
+        $connectionId = $this->getClient()->getStorage()->createConnection($connectionQuery);
+        $connectionQuery->set('id', $connectionId);
 
         $connection = new Connection($connectionQuery);
         $connection->setClient($this->getClient());
@@ -77,9 +63,25 @@ class Relation extends Abstracts\Relation
 
     public function updateConnection(Query\Connection $connectionQuery): bool
     {
-        $this->assertCardinality($this, $connectionQuery);
-        $connectionQuery->set('relation', $this->name);
-        return $this->getClient()->getStorage()->updateConnection($connectionQuery);
+        if (empty($connectionQuery->get('id'))) {
+            throw new ConnectionWrongData('Cannot update uninitialized connection', 304);
+        }
+
+        $persisted = $this->getClient()->findConnection((int) $connectionQuery->get('id'));
+        if ($persisted->relation !== $this->name) {
+            throw new ConnectionRelationMismatch($persisted->relation, $this->name);
+        }
+
+        $candidate = clone $persisted;
+        foreach ([ 'from', 'to', 'title', 'order' ] as $field) {
+            if ($connectionQuery->isProvided($field)) {
+                $candidate->{$field} = $connectionQuery->get($field);
+            }
+        }
+
+        $this->assertUpdateCandidate($candidate);
+
+        return $this->getClient()->getStorage()->updateConnection($candidate);
     }
 
     /**
@@ -145,7 +147,9 @@ class Relation extends Abstracts\Relation
         $connectionQuery = $connectionQuery ?? new Query\Connection();
         $connectionQuery->set('relation', $this->name);
 
-        return $this->getClient()->getStorage()->findConnections($connectionQuery);
+        return $this->getClient()->hydrateConnections(
+            $this->getClient()->getStorage()->findConnections($connectionQuery)
+        );
     }
 
     public function hasConnectionID(int $connectionID): bool
@@ -153,5 +157,36 @@ class Relation extends Abstracts\Relation
         $connectionQuery = $connectionQuery ?? new Query\Connection();
         $connectionQuery->set('id', $connectionID);
         return ! $this->findConnections($connectionQuery)->isEmpty();
+    }
+
+    /**
+     * @internal Shared by both supported update entrypoints.
+     */
+    public function assertUpdateCandidate(Abstracts\Connection $connection): void
+    {
+        $this->getClient()->assertConnectionEndpoints($this, $connection);
+        $this->assertConnectionInvariants($connection);
+    }
+
+    private function assertConnectionInvariants(Abstracts\Connection $connection): void
+    {
+        if (! $this->closurable && $connection->from === $connection->to) {
+            throw new Exceptions\ConnectionWrongData('Closurable not allowed by relation settings.', 301);
+        }
+
+        if (! $this->duplicatable) {
+            $query = new Query\Connection($connection->from, $connection->to);
+            $duplicates = $this->findConnections($query);
+
+            foreach ($duplicates->getIterator() as $duplicate) {
+                if ((int) $connection->id === (int) $duplicate->id) {
+                    continue;
+                }
+
+                throw new Exceptions\ConnectionWrongData('Duplicatable violation.', 303);
+            }
+        }
+
+        $this->assertCardinality($this, $connection);
     }
 }
