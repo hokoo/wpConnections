@@ -5,16 +5,16 @@
 
 ## Порядок исполнения
 
-1. Завершить инфраструктурный план, который ведётся только в ветке
-   `codex/dockerfile-ci-transition`, и влить
-   [PR #48](https://github.com/hokoo/wpConnections/pull/48) в `master`.
-2. После merge актуализировать baseline на `master` и запустить
-   [основной план стабилизации библиотеки](./02-library-hardening.md).
+1. Инфраструктурный план завершён: [PR #48](https://github.com/hokoo/wpConnections/pull/48)
+   влит в `master` 2026-09-10.
+2. Актуализировать baseline на `master` и выполнять
+   [основной план стабилизации библиотеки](./02-library-hardening.md), начиная с
+   `TEST-01`.
 3. Функциональные исправления из основного плана не добавлять в PR #48: сначала
    инфраструктура должна дать воспроизводимый test/coverage feedback loop.
 
-Инфраструктурный task list намеренно не дублируется в `master`: его документ
-попадёт сюда только после merge PR #48.
+Инфраструктурный task list находится в
+[отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
 
 ## Правила ведения планов
 
@@ -37,7 +37,12 @@
 - Совместный прогон: 9 тестов, 41 assertion, 46,44% строк, 52,68% методов.
 - Наиболее слабые зоны: `ClientRestApi` — 6,49% строк; `Relation` — 50,00%;
   `WPStorage` — 53,96%.
-- PR #48: draft, merge state `CLEAN`, 17 CI checks успешны на текущем HEAD.
+- PR #48 merged коммитом `a978bd2`; все четыре post-merge workflow и 17 jobs
+  успешны на этом коммите.
+- `master` защищён: strict required checks для всех 17 jobs, enforcement для
+  администраторов, force-push и удаление ветки запрещены.
+- Первая исполняемая задача основного плана — `TEST-01` со статусом `todo`;
+  DG-M1—DG-M8 остаются нерешёнными.
 - Временные диагностические тесты подтвердили дефекты cardinality `1-m` и
   `m-1`, REST update без `title`, регистрации relation без `to` и поиска по
   `both`. Эти тесты не являются частью репозитория; их перенос в штатный suite
@@ -45,8 +50,8 @@
 
 ## Контрольные точки
 
-- **M0 — Infrastructure ready:** выполнен DoD инфраструктурного плана, PR #48
-  влит в `master`.
+- **M0 — Infrastructure ready — completed 2026-09-10:** выполнен DoD
+  инфраструктурного плана, PR #48 влит в `master`, post-merge CI зелёный.
 - **M1 — Regression harness ready:** изолированные integration fixtures и пять
   подтверждённых regression-тестов находятся в `master`.
 - **M2 — Core invariants stable:** validation/cardinality/duplicatable/

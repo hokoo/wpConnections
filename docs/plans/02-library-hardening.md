@@ -2,8 +2,9 @@
 
 ## Условие запуска
 
-План начинается только после milestone M0: инфраструктурная ветка влита в
-`master`, clean test flow воспроизводим, coverage baseline доступен в CI.
+Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
+clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
+активен; первой исполняемой задачей является `TEST-01`.
 
 ## Цель
 
@@ -189,7 +190,7 @@ Tasking Guidance:
 
 ### TEST-01. Изолировать WordPress integration fixtures
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -234,6 +235,7 @@ Notes/Risks:
 
 - Текущий класс наследует обычный PHPUnit `TestCase`; WordPress factory cleanup
   автоматически не применяется.
+- M0 и clean integration command подтверждены post-merge CI на `a978bd2`.
 
 ### TEST-02. Перенести подтверждённые defects в штатные regression tests
 
