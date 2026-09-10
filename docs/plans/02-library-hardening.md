@@ -4,9 +4,9 @@
 
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
-активен; Batch 1—4 завершены. В Batch 5 выполняется production slice CORE-03 и
-параллельные decision-ready contracts REST-00A, DB-03A и DB-00; CORE-05 —
-условный follow-on первого освободившегося design slot.
+активен; Batch 1—4 завершены. В Batch 5 production slice CORE-03 завершён и
+issue #31 закрыт; DB-00 завершил decision-ready compatibility discovery.
+REST-00A, DB-03A и CORE-05 остаются текущими contract workstreams.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -612,11 +612,20 @@ decision-ready naming contract.
 | [`DG-ENT-03`](../entity-validation-contract.md#dg-ent-03) | pending; recommendation A | repository owner | — | CORE-04, REST-03, DOC-01; REST-00A/REL-02 coordination |
 | [`DG-ENT-04`](../entity-validation-contract.md#dg-ent-04) | pending; recommendation A | repository owner | — | CORE-04; alignment REST-00B/REST-02/DB-02/REL-03 |
 | [`DG-ENT-05`](../entity-validation-contract.md#dg-ent-05) | pending; recommendation A | repository owner | — | CORE-04; relation identity alignment CORE-02/REST-00B/REST-02/DB-02/REL-03 |
+| [`DG-DB-01`](../db-compatibility-contract.md#dg-db-01) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 wait for DB matrix |
+| [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | pending; recommendation A | repository owner | — | InnoDB preflight/migration for DB-05/DB-06/REL-01 |
+| [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | pending; recommendation A | repository owner | — | DB-05/REL-02 nested transaction conformance waits |
+| [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 schema lifecycle waits |
 
 Для DG-ENT-01—DG-ENT-05 связанный контракт является canonical decision body
 (problem, alternatives, recommendation и compatibility impact). Этот registry —
 canonical запись решения/status, владельца и даты. Implementation использует
 оба источника; рекомендация в contract сама по себе не меняет status в registry.
+
+Для DG-DB-01—DG-DB-04 canonical decision body находится в
+[`docs/db-compatibility-contract.md`](../db-compatibility-contract.md). Registry
+выше остаётся canonical записью approval status/owner/date; завершение DB-00 не
+утверждает рекомендации.
 
 ## Execution batches
 
@@ -1785,7 +1794,7 @@ Verification:
 
 ### CORE-03. Зафиксировать duplicatable, closurable и error precedence
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -1840,16 +1849,16 @@ Dependencies:
 Notes/Risks:
 
 - Messages можно улучшать, но стабильность должна опираться на code/type.
-- GitHub evidence 2026-09-10: open issue
-  [#31](https://github.com/hokoo/wpConnections/issues/31) требует tests для
-  error codes; closed issue
+- GitHub evidence 2026-09-10: issue
+  [#31](https://github.com/hokoo/wpConnections/issues/31) с требованием tests
+  для error codes закрыт merge PR #67; closed issue
   [#29](https://github.com/hokoo/wpConnections/issues/29) описывает ошибочный
   cardinality-before-duplicate result. Исторические commits `6c4f671` и
   `c3b4e70` уже переместили duplicate check первым, поэтому production порядок
   не менялся в CORE-03.
-- Production и regression готовы для закрытия issue #31; GitHub issue остаётся
-  delivery-owner шагом после merge, поэтому задача сохраняет `review`, пока
-  этот DoD не подтверждён.
+- PR [#67](https://github.com/hokoo/wpConnections/pull/67) merged в
+  `b36fa85c62fc5984674a1bdf04b7648ff6065d8d` после 17/17 required checks;
+  issue #31 автоматически закрыт 2026-09-10, поэтому DoD подтверждён.
 - Red-first commit `b6eab2c`: targeted `ConnectionErrorContractTest` на
   неизменённом production — `8 tests / 30 assertions / 2 failures`; missing-only
   `from` и `to` оба фактически возвращали `Missing required fields: from to `.
@@ -2204,7 +2213,7 @@ Verification:
 
 ### DB-00. Исследовать DB compatibility и transaction capabilities
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -2252,6 +2261,28 @@ Notes/Risks:
 
 - Выбор blocking DB matrix и engine migration остаётся owner decision после
   исследования.
+- Canonical artifact:
+  [`docs/db-compatibility-contract.md`](../db-compatibility-contract.md), source
+  snapshot `0db202e7d4a794fd21d82d5305f51f40cb583b92`.
+- Текущий CI использует unpinned MariaDB из Debian внутри каждого PHP image, а
+  local-dev — floating `mysql:8`; это не является reproducible DB matrix.
+- Probes MySQL 8.0.46 и MariaDB 10.11.16 подтвердили InnoDB rollback/savepoints,
+  отсутствие rollback у MyISAM, implicit commit при втором `START TRANSACTION`
+  и DDL, наследование session default engine и общий 64-character table-name
+  limit. MySQL также не поддержал MariaDB-specific `@@in_transaction`.
+- DG-DB-01—DG-DB-04 остаются pending. Completion означает decision-ready
+  feasibility artifact; schema, CI, engine и production transaction behavior не
+  изменены.
+
+Verification:
+
+- Exact probe images/digests, последовательность SQL и observed result matrix
+  записаны в canonical artifact; disposable containers остановлены и удалены.
+- Repository inventory охватывает local Compose, все protected integration и
+  coverage workflows, table install/retry paths и все multi-statement storage
+  mutations.
+- Official WordPress, MySQL, MariaDB и dbDelta sources связаны непосредственно
+  с каждым compatibility conclusion; `git diff --check` проходит.
 
 ### DB-01. Исправить поиск по `both` и покрыть query matrix
 
@@ -2538,6 +2569,7 @@ DoR:
 - DG-M9 решён.
 - DG-UPDATE-03 и DG-UPDATE-04 решены.
 - DG-SPI-03, DG-SPI-04 и DG-SPI-06 решены.
+- DG-DB-01, DG-DB-02, DG-DB-03 и DG-DB-04 решены.
 - SPI-01 и DB-00 завершены, owner утвердил возникающие DB/migration gates.
 - DB-02 и DB-03B задают корректные success semantics.
 
@@ -2560,6 +2592,7 @@ Dependencies:
 - DG-M9.
 - DG-UPDATE-03, DG-UPDATE-04.
 - DG-SPI-03, DG-SPI-04, DG-SPI-06.
+- DG-DB-01, DG-DB-02, DG-DB-03, DG-DB-04.
 - SPI-01, DB-00.
 - DB-02, DB-03B.
 
@@ -2595,6 +2628,7 @@ DoR:
 - DG-M6 решён.
 - DB-00 определил поддерживаемую DB matrix.
 - Владелец утвердил DB matrix и migration/error policy, предложенные DB-00.
+- DG-DB-01, DG-DB-02 и DG-DB-04 утверждены.
 - CORE-06 реализовал и проверил table naming rules.
 
 DoD:
@@ -2616,6 +2650,7 @@ Dependencies:
 
 - INFRA-03.
 - DG-M6.
+- DG-DB-01, DG-DB-02, DG-DB-04.
 - DB-00.
 - CORE-06.
 
@@ -3602,6 +3637,7 @@ DoR:
 - INFRA-03 завершена.
 - E2—E4 blocking tasks завершены.
 - DB-00 завершён, владелец утвердил DB matrix.
+- DG-DB-01, DG-DB-02 и DG-DB-04 утверждены.
 
 DoD:
 
@@ -3618,6 +3654,7 @@ AC:
 Dependencies:
 
 - INFRA-03.
+- DG-DB-01, DG-DB-02, DG-DB-04.
 - DB-00.
 - Blocking задачи E2—E4.
 
@@ -3654,6 +3691,7 @@ DoR:
 - Core/storage/REST contracts стабильны.
 - REL-00 завершил consumer inventory.
 - SPI-01 завершён.
+- DG-DB-03 утверждён.
 - DG-SPI-05, DG-SPI-06 и DG-SPI-07 утверждены.
 
 DoD:
@@ -3674,6 +3712,7 @@ Dependencies:
 
 - E2, E3, E4 blocking tasks.
 - DG-M9.
+- DG-DB-03.
 - DG-SPI-05, DG-SPI-06, DG-SPI-07.
 - REL-00, SPI-01.
 
@@ -3741,7 +3780,7 @@ Notes/Risks:
 | Confirmed: relation без `to` | TEST-02A, CORE-01 |
 | Confirmed: REST update uninitialized `title` | TEST-02D, REST-02 |
 | Confirmed: broken `both` placeholder | TEST-02E, DB-01 |
-| Open [#31 error code tests](https://github.com/hokoo/wpConnections/issues/31) | CORE-03, REST-03 |
+| Closed [#31 error code tests](https://github.com/hokoo/wpConnections/issues/31) | CORE-03, REST-03 |
 | Open [#21 REST filters](https://github.com/hokoo/wpConnections/issues/21) | REST-06 |
 | Open [#20 entities/getPosts](https://github.com/hokoo/wpConnections/issues/20) | API-01, API-03, API-04, DOC-01 |
 | Open [#27 OpenAPI](https://github.com/hokoo/wpConnections/issues/27) | DOC-01 |

@@ -9,11 +9,12 @@
    влит в `master` 2026-09-10.
 2. Batch 1—4 [основного плана](./02-library-hardening.md) завершены; PR
    #51—#65 последовательно зафиксировали решения, test foundation/contracts,
-   первые production fixes и исполняемые quality gates.
-3. Выполнять активный Batch 5: production vertical `CORE-03` и decision-ready
-   contracts `REST-00A`, `DB-03A`, `DB-00`; `CORE-05` занимает первый
-   освободившийся design slot. Подтверждённый `TEST-02F/CORE-07` остаётся за
-   pending DG-QMETA-01.
+   первые production fixes и исполняемые quality gates. PR #66 активировал
+   Batch 5, PR #67 завершил CORE-03 и закрыл issue #31.
+3. Выполнять активный Batch 5: CORE-03 завершён и issue #31 закрыт; DB-00
+   завершил decision-ready compatibility discovery. Текущие contract
+   workstreams — `REST-00A`, `DB-03A` и `CORE-05`. Подтверждённый
+   `TEST-02F/CORE-07` остаётся за pending DG-QMETA-01.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -35,9 +36,9 @@
 ## Текущий baseline
 
 - Unit: 6 тестов, 14 assertions.
-- WordPress integration: 59 тестов, 311 assertions.
-- Совместный coverage run: 65 тестов, 325 assertions и `582/791` statements
-  (`73,58%`) на итоговом Batch 4 `master` `0db202e`.
+- WordPress integration: 67 тестов, 345 assertions.
+- Совместный coverage run: 73 теста, 359 assertions и `588/790` statements
+  (`74,43%`) на CORE-03 `master` `b36fa85`.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
@@ -52,12 +53,13 @@
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
 - DG-API20-01—DG-API20-09, DG-QMETA-01, DG-UPDATE-01—DG-UPDATE-05,
-  DG-SPI-01—DG-SPI-07 и DG-ENT-01—DG-ENT-05 остаются pending и блокируют только
-  явно перечисленные downstream tasks. Полный текст DG-ENT находится в
-  [entity validation contract](../entity-validation-contract.md); основной
-  registry хранит canonical decision/status. REST-00B, SPI-01 и CORE-00
-  завершили decision-ready discovery; это не означает неявного утверждения их
-  рекомендаций.
+  DG-SPI-01—DG-SPI-07, DG-ENT-01—DG-ENT-05 и DG-DB-01—DG-DB-04 остаются pending
+  и блокируют только явно перечисленные downstream tasks. Полные тексты DG-ENT
+  и DG-DB находятся в [entity validation contract](../entity-validation-contract.md)
+  и [database compatibility contract](../db-compatibility-contract.md);
+  основной registry хранит canonical decision/status. REST-00B, SPI-01,
+  CORE-00 и DB-00 завершили decision-ready discovery; это не означает
+  неявного утверждения их рекомендаций.
 - Штатные regressions уже защищают missing-`to`, broken `both` и полную
   cardinality matrix; REST update без `title` и `Query\Meta` fatal ожидают свои
   явно перечисленные решения/dependencies.
