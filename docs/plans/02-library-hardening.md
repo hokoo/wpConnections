@@ -4,8 +4,9 @@
 
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
-активен; `TEST-01` завершена, следующие regression slices — `TEST-02A` и
-`TEST-02E`.
+активен; Batch 3 завершён, текущий production slice —
+`TEST-02B`/`TEST-02C` + `CORE-02`, параллельно выполняются три contract-задачи
+Batch 4.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -210,6 +211,39 @@ implementers. Сужение PHP visibility или новый command service в
 
 **Блокирует:** CORE-04, DB-05 и REL-02.
 
+### DG-QMETA-01. Восстанавливать ли удалённый `IQuery` contract для `Query\Meta`
+
+**Статус:** pending human decision.
+
+**Проблема:** PR #26/commit `2b7bacc` удалил `Abstracts\IQuery` и
+`IQueryTrait` вместе с PATCH/PUT-флагом `isUpdate` из актуального query flow, но
+`Query\Meta` сохранил обе ссылки. Поэтому первая материализация
+`Query\Meta` завершается fatal error до domain/REST error handling. Неясно,
+считать ли старые `isUpdate()`/`setIsUpdate()` частью compatibility surface,
+хотя после 2024 года они не могли работать через этот класс.
+
+- A: удалить из `Query\Meta` остаточные interface/trait references и мёртвый
+  import в `ClientRestApi`; сохранить имя класса, наследование,
+  `GSInterface` и collection type.
+- B: восстановить удалённые interface/trait и `isUpdate` state только для
+  `Query\Meta`, хотя production flow больше не использует эту семантику.
+- C: добавить deprecated compatibility shim и план удаления в следующей major
+  version; применять только при подтверждённом внешнем использовании старых
+  методов.
+
+**Рекомендация:** A. Git history показывает неполную механическую очистку PR
+#26, а не намеренное удаление `Query\Meta`; возвращение неиспользуемого
+`isUpdate` создаст ложный public contract. Public inventory и repository search
+не нашли consumer evidence, но private consumers остаются неизвестны.
+
+**Compatibility impact:** A восстанавливает создание `Query\Meta` и
+create-with-meta/selective-delete flows, не меняя storage/REST semantics. B/C
+возрождают публично достижимые методы, поведение которых не определено текущей
+архитектурой.
+
+**Блокирует:** CORE-07 production fix. TEST-02F red evidence и остальные задачи
+Batch 4 от решения не зависят.
+
 ## Реестр решений
 
 | Gate | Решение | Владелец | Дата | Следствие |
@@ -223,6 +257,7 @@ implementers. Сужение PHP visibility или новый command service в
 | DG-M7 | approved A | repository owner | 2026-09-10 | Atomic compound operations или pre-mutation error |
 | DG-M8 | approved B | repository owner | 2026-09-10 | RC: 70% statements + all critical scenarios |
 | DG-M9 | approved A | repository owner | 2026-09-10 | Storage — SPI; invariants на domain boundary |
+| DG-QMETA-01 | pending; recommendation A | repository owner | — | CORE-07 waiting human |
 
 ## Execution batches
 
@@ -293,7 +328,7 @@ Verification:
 
 ### Batch 3. Automated guardrails и первые vertical fixes
 
-Status: planned
+Status: completed
 
 Tasks:
 
@@ -328,6 +363,82 @@ Exit criteria:
   REST-00A и REST-00B остаются первыми design workstreams; CORE-05 и DB-03A
   также готовы, но планируются с учётом доступного ownership.
 
+Verification:
+
+- API-02: PR #57; independent QA pass; 17/17 required checks pass.
+- TEST-02A + CORE-01: PR #58; independent QA pass; четыре dependency-download
+  HTTP 504 подтверждены по CI logs как pre-test infrastructure failures;
+  selective failed-job rerun дал 17/17 required checks pass.
+- TEST-03B + TEST-03C: PR #59; independent QA pass; после strict-base update
+  17/17 required checks pass, включая новый isolation step внутри прежнего
+  Coverage check.
+- TEST-02E + DB-01: PR #60; initial и remediation QA pass; новый глобальный
+  ordering contract удалён, чтобы не предрешать DG-API20-04; 17/17 required
+  checks pass.
+
+### Batch 4. Cardinality fix и три implementation-ready contracts
+
+Status: active
+
+Tasks:
+
+- TEST-02B + TEST-02C + CORE-02 — единый red-first vertical: сначала отдельно
+  воспроизвести инверсию `1-m` и `m-1`, затем исправить create/update
+  cardinality matrix для `1-1`, `1-m`, `m-1`, `m-m`.
+- CORE-00 — decision-ready entity-validation/extension/rollout contract без
+  production change и без неявного выбора нового public extension API.
+- SPI-01 — decision-ready storage implementer SPI, mutation boundary,
+  transaction capability и conformance-test contract без изменения signatures.
+- REST-00B — decision-ready omitted/null/falsy/no-op partial-update semantics,
+  основанные на полном REST dispatch, без handler fix.
+- TEST-02F + CORE-07 — подтверждённый `Query\Meta` autoload fatal: red-first
+  evidence готовится отдельно; production fix начинается только после
+  DG-QMETA-01 и занимает первый освободившийся execution slot.
+
+Entry criteria:
+
+- Batch 3 влит; TEST-01, CORE-01, REL-00 и REST-01 завершены.
+- Post-merge `master` SHA `6d42300` имеет 17/17 success: initial five
+  Composer-download HTTP 504 failures были pre-test transient и selective
+  rerun прошёл.
+- DG-M1, DG-M3, DG-M4, DG-M7 и DG-M9 утверждены.
+- TEST-02B/TEST-02C разблокированы CORE-01; их red evidence переводит обе
+  задачи в `review` и тем самым открывает paired CORE-02 в той же ветке.
+- Issue #33 однозначно задаёт ошибочный `1-m`; зеркальная `m-1` семантика уже
+  явно утверждена AC CORE-02 и не требует нового решения.
+
+Execution model:
+
+- Четыре стартовых изолированных workstreams с отдельным ownership: один
+  production vertical и три docs/design contracts; TEST-02F/CORE-07 — пятый
+  условный follow-on, не вытесняющий начатую работу.
+- В cardinality workstream оба regression tests сначала запускаются на
+  неизменённом production-коде; CORE-02 начинается только после сохранённого
+  red evidence и status review в этой же утверждённой ветке.
+- Contract workstreams инвентаризируют фактический код, hooks и compatibility
+  evidence. Любой новый public API/SPI, rollout/migration или REST semantic
+  choice оформляется как pending human decision gate, а не принимается внутри
+  PR.
+- CORE-02 не меняет public storage signatures: обнаруженное расхождение между
+  `Abstracts\Storage::updateConnection()` и фактическим вызовом
+  `Relation::updateConnection()` передаётся SPI-01 как decision-ready finding.
+- Каждый workstream проходит независимый QA. Production vertical выполняет
+  targeted matrix, full suite, isolation, coverage и compatibility lanes;
+  docs contracts проходят structural/traceability checks и protected CI.
+
+Exit criteria:
+
+- Все четыре cardinality enum имеют create/update allowed/forbidden evidence;
+  rejected update не меняет исходную connection, issue #33 защищён regression.
+- CORE-04, DB-05/REL-02 и TEST-02D/DB-02/REST-02 соответственно получают
+  однозначные downstream AC либо явно перечисленные pending gates.
+- `Query\Meta` fatal имеет red evidence; CORE-07 либо поставлен зелёным после
+  DG-QMETA-01, либо явно остаётся `waiting_dependency` без маскировки внутри
+  DB-02.
+- Новые gates собраны с полной проблематикой, alternatives, recommendation,
+  compatibility impact и списком заблокированных задач для решения владельца.
+- Все PR смержены последовательно после independent QA и 17/17 required checks.
+
 ## E1. Test foundation и regression harness
 
 Outcome: integration-тесты изолированы, воспроизводимы и способны надёжно
@@ -337,7 +448,7 @@ Scope:
 
 - WordPress-aware base test case и fixtures.
 - Очистка таблиц/постов между тестами.
-- Перенос пяти диагностических probes в штатный suite.
+- Перенос подтверждённых диагностических probes в штатный suite.
 - Coverage/test naming и quality rules.
 
 Out of Scope:
@@ -365,7 +476,7 @@ Tasking Guidance:
   `$decompose-work` и сохранять Status, Goal, Scope, Out of Scope, DoR, DoD, AC,
   Dependencies и Notes/Risks.
 - После TEST-01 выполнять TEST-03A и затем TEST-03B/TEST-03C независимо, а
-  TEST-02A—TEST-02E поставлять red-first vertical slices вместе с
+  TEST-02A—TEST-02F поставлять red-first vertical slices вместе с
   соответствующими production fixes.
 - Не переводить regression tasks в `completed`, пока тест не наблюдался красным
   на старом коде и зелёным после соответствующего исправления.
@@ -487,7 +598,7 @@ Notes/Risks:
 
 ### TEST-02B. Зафиксировать cardinality `1-m` regression
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -531,7 +642,7 @@ Notes/Risks:
 
 ### TEST-02C. Зафиксировать cardinality `m-1` regression
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -668,6 +779,56 @@ Notes/Risks:
 - Green evidence 2026-09-10 после парного DB-01 fix: тот же filter завершился
   `OK (2 tests, 6 assertions)` на PHP 8.1.34 / WordPress 6.7.7 без
   `wpdb::prepare` warning и с пустым `$wpdb->last_error` для обеих сторон.
+
+### TEST-02F. Зафиксировать `Query\Meta` autoload fatal
+
+Status: todo
+
+Priority: P0
+
+Goal: воспроизвести невозможность материализовать непустой query-meta до
+минимального compatibility fix CORE-07.
+
+Scope:
+
+- Unit regression: `Query\Connection->meta->fromArray()` с одной key/value
+  создаёт `Query\Meta` и сохраняет round-trip data.
+- Integration regression: relation create с одной metadata value сохраняет и
+  читает connection/meta через public domain flow.
+- Отдельная команда/filter и red transcript на неизменённом production-коде.
+
+Out of Scope:
+
+- Полная duplicate/falsy/replace/delete meta matrix DB-02/REST-05.
+- Production fix CORE-07 или изменение REST error mapping.
+
+DoR:
+
+- TEST-01 завершена.
+- Read-only spike подтвердил fatal и root cause в PR #26/commit `2b7bacc`.
+
+DoD:
+
+- Оба paths наблюдались красными из-за отсутствующего `IQueryTrait`, а не
+  fixture/storage failure.
+- Tests зелёные вместе с CORE-07 в одном final vertical PR после решения gate.
+- Red/green evidence и затронутые critical scenario IDs записаны.
+
+AC:
+
+- Given одна query metadata pair, when она материализуется прямо и через
+  create connection, then нет class/trait fatal и key/value читаются обратно.
+
+Dependencies:
+
+- TEST-01.
+
+Notes/Risks:
+
+- TEST-02F может получить red evidence до решения DG-QMETA-01, но не мержится
+  красным отдельно; paired CORE-07 остаётся `waiting_dependency`.
+- Затронуты `STORE-CREATE-01`, `STORE-META-01`, `REST-CRUD-01` и
+  `REST-META-01`; этот узкий test не заменяет полные downstream matrices.
 
 ### TEST-03A. Зафиксировать test quality и critical-scenario contract
 
@@ -901,7 +1062,7 @@ Tasking Guidance:
   `$decompose-work` и сохранять все обязательные task attributes.
 - CORE-00 design может идти параллельно CORE-01—CORE-03; production CORE-04
   начинается только после обоих потоков, client contract — после REL-00.
-- Каждый production fix начинается с соответствующего TEST-02A—TEST-02E
+- Каждый production fix начинается с соответствующего TEST-02A—TEST-02F
   regression и поставляется с ним одним финально зелёным vertical PR.
 
 ### CORE-00. Спроектировать entity validation strategy и rollout
@@ -915,7 +1076,9 @@ Goal: превратить DG-M1/C и DG-M9/A в implementation-ready contract �
 
 Scope:
 
-- Единая validation boundary для Relation create/update и Connection update.
+- Единая validation boundary для connection mutations через
+  `Relation::createConnection()`, `Relation::updateConnection()` и
+  `Connection::update()`.
 - Default `WP_Post` existence/post-type resolver и extension strategy для
   разрешённых non-post entities.
 - Domain errors/codes согласно DG-M3.
@@ -931,6 +1094,7 @@ Out of Scope:
 DoR:
 
 - DG-M1, DG-M3 и DG-M9 решены.
+- REL-00 завершил public consumer/compatibility inventory.
 
 DoD:
 
@@ -948,6 +1112,7 @@ AC:
 Dependencies:
 
 - DG-M1, DG-M3, DG-M9.
+- REL-00.
 
 Notes/Risks:
 
@@ -1072,6 +1237,9 @@ Notes/Risks:
 
 - Нужен migration/audit report для уже существующих нарушений перед включением
   строгого update поведения.
+- Не менять в этой задаче public storage parameter types: mismatch abstract SPI
+  и текущего Relation update flow исследует SPI-01; CORE-02 должен валидировать
+  cardinality до существующего storage boundary.
 
 ### CORE-03. Зафиксировать duplicatable, closurable и error precedence
 
@@ -1277,6 +1445,61 @@ Notes/Risks:
 
 - Любая table rename/copy операция требует отдельного destructive migration
   review и rollback; она не подразумевается этой задачей автоматически.
+
+### CORE-07. Восстановить материализацию `Query\Meta`
+
+Status: waiting_dependency
+
+Priority: P0
+
+Goal: устранить подтверждённый fatal, не возвращая молча удалённую query-update
+семантику.
+
+Scope:
+
+- Реализовать утверждённый DG-QMETA-01 compatibility path.
+- Сохранить public class name, наследование от `Abstracts\Meta`, `GSInterface`
+  и `Query\MetaCollection::$collectionType`.
+- Удалить безопасный мёртвый `IQuery` import из `ClientRestApi`, если выбран A.
+- Поставить TEST-02F unit/integration regressions тем же vertical PR.
+
+Out of Scope:
+
+- Изменение storage, REST handlers/error mapping или meta semantics.
+- Полная DB-02/REST-05 matrix.
+- Восстановление `isUpdate` без утверждённого gate.
+
+DoR:
+
+- DG-QMETA-01 утверждён владельцем.
+- TEST-02F находится в `review` с red evidence в том же vertical batch.
+
+DoD:
+
+- `Query\Meta` и непустой `Query\MetaCollection` autoload без fatal.
+- Create connection с одной metadata pair сохраняет и читает её обратно.
+- Public surface соответствует выбранному gate; unrelated meta behavior не
+  изменён.
+
+AC:
+
+- Given `new Query\Meta('key', 'value')`, when Composer autoload объявляет
+  класс, then объект создаётся без missing interface/trait fatal.
+- Given connection query с одной metadata pair, when relation создаёт и читает
+  connection, then пара сохранена без изменения handler/storage contracts.
+
+Dependencies:
+
+- DG-QMETA-01.
+- TEST-02F (`review` с red evidence достаточно для paired vertical batch).
+
+Notes/Risks:
+
+- Git tags отсутствуют; public exposure в tagged release не доказан. Private
+  usage старых `isUpdate()`/`setIsUpdate()` остаётся residual compatibility
+  risk и является причиной human gate.
+- DB-02 зависит от CORE-07, чтобы широкая meta matrix не маскировала class-load
+  defect локальными fixture workarounds.
 
 ## E3. Storage, query и data integrity
 
@@ -1502,6 +1725,7 @@ Out of Scope:
 DoR:
 
 - TEST-01 завершена.
+- CORE-07 устранил `Query\Meta` materialization fatal.
 - CORE-02 определяет update invariants.
 - REST-00B утвердил shared update semantics для omitted/null/falsy/no-op.
 
@@ -1522,6 +1746,7 @@ AC:
 Dependencies:
 
 - TEST-01.
+- CORE-07.
 - CORE-02 для update endpoint invariants.
 - REST-00B.
 
@@ -2158,6 +2383,7 @@ Out of Scope:
 DoR:
 
 - REST-01 и DB-02/DB-03B завершены.
+- CORE-07 устранил query-meta materialization fatal для selective DELETE.
 
 DoD:
 
@@ -2175,6 +2401,7 @@ AC:
 Dependencies:
 
 - REST-01.
+- CORE-07.
 - DB-02, DB-03B.
 
 Notes/Risks:
