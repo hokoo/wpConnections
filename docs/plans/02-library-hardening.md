@@ -763,7 +763,7 @@ Notes/Risks:
 
 ### TEST-02B. Зафиксировать cardinality `1-m` regression
 
-Status: todo
+Status: review
 
 Priority: P0
 
@@ -804,10 +804,15 @@ Dependencies:
 Notes/Risks:
 
 - Выполняется в одном зелёном vertical batch с TEST-02C и CORE-02.
+- Red evidence 2026-09-10 на неизменённом production-коде:
+  `docker compose -p wpconnections-core02 run --rm phpunit test:integration
+  --filter test_one_to_many_rejects_a_second_from_for_an_occupied_to` —
+  ожидаемый fail `1 test / 3 assertions`: relation допустила `B -> X` после
+  существующих `A -> X` и `A -> Y`.
 
 ### TEST-02C. Зафиксировать cardinality `m-1` regression
 
-Status: todo
+Status: review
 
 Priority: P0
 
@@ -849,6 +854,11 @@ Dependencies:
 Notes/Risks:
 
 - Выполняется в одном зелёном vertical batch с TEST-02B и CORE-02.
+- Red evidence 2026-09-10 на неизменённом production-коде:
+  `docker compose -p wpconnections-core02 run --rm phpunit test:integration
+  --filter test_many_to_one_rejects_a_second_to_for_an_occupied_from` —
+  ожидаемый fail `1 test / 3 assertions`: relation допустила `A -> Y` после
+  существующих `A -> X` и `B -> X`.
 
 ### TEST-02D. Зафиксировать REST update без `title`
 
