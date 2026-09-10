@@ -51,10 +51,13 @@
 - DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
-- DG-API20-01—DG-API20-09, DG-QMETA-01, DG-UPDATE-01—DG-UPDATE-05 и
-  DG-SPI-01—DG-SPI-07 остаются pending и блокируют только явно перечисленные
-  downstream tasks. REST-00B и SPI-01 завершили decision-ready discovery; это
-  не означает неявного утверждения их рекомендаций.
+- DG-API20-01—DG-API20-09, DG-QMETA-01, DG-UPDATE-01—DG-UPDATE-05,
+  DG-SPI-01—DG-SPI-07 и DG-ENT-01—DG-ENT-05 остаются pending и блокируют только
+  явно перечисленные downstream tasks. Полный текст DG-ENT находится в
+  [entity validation contract](../entity-validation-contract.md); основной
+  registry хранит canonical decision/status. REST-00B, SPI-01 и CORE-00
+  завершили decision-ready discovery; это не означает неявного утверждения их
+  рекомендаций.
 - Штатные regressions уже защищают missing-`to` и broken `both`; cardinality,
   REST update без `title` и `Query\Meta` fatal выполняются следующими slices по
   своим dependencies/gates.
