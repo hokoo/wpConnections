@@ -5,8 +5,8 @@
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
 активен; Batch 1—4 завершены. В Batch 5 production slice CORE-03 завершён и
-issue #31 закрыт; DB-00 и REST-00A завершили decision-ready compatibility
-discovery. DB-03A и CORE-05 остаются текущими contract workstreams.
+issue #31 закрыт; DB-00, REST-00A и DB-03A завершили decision-ready discovery.
+CORE-05 остаётся текущим contract workstream.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -620,8 +620,15 @@ decision-ready naming contract.
 | [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | pending; recommendation A | repository owner | — | Default v1 library error body; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | pending; recommendation A | repository owner | — | Native WordPress gateway shape; REST-03/REST-04/REST-05/DOC-01 wait |
 | [DG-RESTERR-04](../rest-error-contract.md#dg-resterr-04) | pending; recommendation A | repository owner | — | Safe storage/unknown boundary; REST-03/REST-05/DOC-01/REL-02 wait |
+| [DG-DELETE-01](../delete-result-contract.md#dg-delete-01--relation-ownership-and-selector-composition) | pending; recommendation A | repository owner | — | DB-03B/REST-03/REST-05/REL-02 wait; DOC-01 refinement |
+| [DG-DELETE-02](../delete-result-contract.md#dg-delete-02--logical-affected-count-semantics) | pending; recommendation A | repository owner | — | DB-03B/REST-03/REL-02 wait; DB-05 assertion refinement |
+| [DG-DELETE-03](../delete-result-contract.md#dg-delete-03--valid-no-match-and-partial-match-semantics) | pending; recommendation A | repository owner | — | DB-03B/REST-03/REL-02 wait; REST-00A mapping refinement |
+| [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | pending; recommendation A | repository owner | — | DB-03B/DB-04/REST-03/REL-02 wait |
+| [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | pending; recommendation A | repository owner | — | REST-03 waits; DOC-01 refinement |
+| [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | pending; recommendation A | repository owner | — | DB-04 waits; REL-03/DOC-01 refinement |
 
-Для DG-ENT-01—DG-ENT-05 и DG-RESTERR-01—DG-RESTERR-04 связанные contracts
+Для DG-ENT-01—DG-ENT-05, DG-RESTERR-01—DG-RESTERR-04 и
+DG-DELETE-01—DG-DELETE-06 связанные contracts
 являются canonical decision bodies (problem, alternatives, recommendation и
 compatibility impact). Этот registry — canonical запись решения/status,
 владельца и даты. Implementation использует оба источника; рекомендация в
@@ -2404,7 +2411,7 @@ Notes/Risks:
 
 ### DB-03A. Зафиксировать delete result и failure contract
 
-Status: in_progress
+Status: completed
 
 Priority: P0
 
@@ -2413,43 +2420,90 @@ semantics до тестирования/refactor всех delete variants.
 
 Scope:
 
-- Инвентаризация storage и Relation detach delete paths.
-- Result semantics для single/multiple IDs, directed pair, object side и no-op.
-- Invalid/empty identifiers, conflicting direction flags и relation filter.
-- Domain errors/codes и граница атомарности DG-M7.
-- Decision-ready matrix для DB-03B и REST delete responses.
+- Инвентаризация Abstract Storage, WPStorage, Relation, Connection, REST и
+  `deleted_post` delete paths, SQL, metadata cascade и hooks.
+- Result semantics для single/multiple IDs, directed pair, object side/direction,
+  relation scope, duplicates, partial match и valid no-match.
+- Invalid/empty/mixed identifiers, ambiguous domain selectors, conflicting
+  direction flags и exact-vs-pattern relation filter.
+- Logical affected-connection count отдельно от metadata/physical row counts.
+- Partial SQL failures и атомарная connection-plus-meta boundary approved DG-M7;
+  generic adapter failure/capability/hook policy остаются DG-SPI-03/04/06.
+- Decision-ready matrix для DB-03B, DB-04, REST-00A/REST-03 и REL-02.
 
 Out of Scope:
 
 - Production delete changes.
 - Transactions DB-05.
-- WordPress `deleted_post` cascade DB-04.
+- Реализация WordPress `deleted_post` cascade/recovery DB-04.
+- Metadata update/delete value semantics DB-02/REST-05.
+- Утверждение public result, REST, SPI, hook или recovery решений.
 
 DoR:
 
 - DG-M3 и DG-M7 решены.
+- SPI-01 завершил generic storage result/failure/capability/hook inventory.
 
 DoD:
 
-- Каждый delete variant имеет однозначный success/no-op/error result.
-- Partial failures не маскируются как rows-affected success.
-- Material public compatibility choices оформлены как human decision gates.
+- Canonical artifact отделяет observed behavior от conditional recommended
+  contract для каждого delete variant и public surface.
+- Single/multiple/directed/object-side/REST/cascade matrix определяет все
+  decision points для success, no-match, invalid input, count и failure.
+- Partial failure/atomicity requirements согласованы с approved DG-M7 и pending
+  DG-SPI-03/04/06 без дублирования generic SPI решений.
+- Material public compatibility choices оформлены как полноценные pending human
+  decision gates; downstream production остаётся waiting.
 
 AC:
 
 - Given no matching row, invalid ID или conflicting flags, when читается matrix,
-  then caller result/error определён отдельно для каждого случая.
+  then observed behavior, alternatives и recommended caller result/error
+  определены отдельно для каждого случая без неявного утверждения.
 - Given несколько matching connections, then contract определяет, что именно
-  считает возвращаемое rows-affected значение.
+  считает логический affected count для stored duplicates, duplicate input IDs,
+  self-connections и metadata multiplicity.
+- Given relation-scoped PHP/REST delete by ID, then cross-relation behavior и
+  direct client-wide SPI compatibility представлены отдельным gate.
+- Given failure между selector read, meta delete и connection delete, then
+  contract требует attributable error и approved DG-M7 atomic outcome, а не
+  misleading `0`/success.
+- Given реальный `deleted_post`, then contract отделяет атомарность connection/meta
+  cleanup от уже завершённого WordPress post deletion и передаёт recovery DB-04.
 
 Dependencies:
 
 - DG-M3, DG-M7.
+- SPI-01 для ownership/cross-reference DG-SPI-03, DG-SPI-04 и DG-SPI-06.
 
 Notes/Risks:
 
 - Текущее `$wpdb->rows_affected` после второго SQL statement не обязательно
   отражает количество логически удалённых connections.
+- Canonical artifact:
+  [`docs/delete-result-contract.md`](../delete-result-contract.md), source
+  snapshot `0db202e7d4a794fd21d82d5305f51f40cb583b92`.
+- Temporary fixed-floor probe подтвердил cross-relation ID deletion `1`, mixed
+  `[valid, invalid]` partial acceptance `1`, missing ID `0`, conflicting flags
+  `0` и attempt-only hook; probe не входит в repository tests.
+- DG-DELETE-01—DG-DELETE-06 остаются pending. Completion означает готовность
+  design artifact к owner decision, а не утверждение production/API/SPI/REST или
+  hook changes. DB-03B, DB-04 и REST-03 сохраняют `waiting_dependency`.
+- Public inventory нашёл direct
+  `getStorage()->deleteSpecificConnections()` consumer для orphan cleanup;
+  private consumers/hooks остаются неизвестным compatibility risk.
+
+Verification:
+
+- Source/history traceability охватывает 3/3 connection-delete SPI methods,
+  Relation dispatch, отсутствие Connection delete API, оба REST DELETE paths,
+  metadata cascade, `deleted_post` registration и все delete hook families.
+- Structural checks подтверждают шесть полных pending gate definitions, registry
+  anchors, обязательные task attributes и валидные relative repository links.
+- Post-rebase integrity на `b36fa85`: fixed-floor PHP 8.1.34 / WordPress 6.7.7 /
+  Ramsey 1.3.0: unit `6 / 14`, integration `67 / 345`; PHPCS `36/36`, exit 0
+  с известным ruleset deprecation warning. Docs-only diff не меняет
+  production/tests.
 
 ### DB-03B. Покрыть все явные delete paths и meta cascade
 
@@ -2477,6 +2531,7 @@ DoR:
 
 - TEST-01 обеспечивает isolation.
 - DB-03A contract утверждён.
+- DG-DELETE-01, DG-DELETE-02, DG-DELETE-03 и DG-DELETE-04 утверждены.
 - CORE-06 завершил multi-client isolation contract.
 
 DoD:
@@ -2498,6 +2553,7 @@ Dependencies:
 
 - TEST-01.
 - DB-03A.
+- DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04.
 - CORE-06 для cross-client assertions.
 
 Notes/Risks:
@@ -2527,6 +2583,7 @@ DoR:
 
 - DB-03B завершена.
 - DG-M1 определяет поддерживаемые entities.
+- DG-DELETE-04 и DG-DELETE-06 утверждены.
 
 DoD:
 
@@ -2544,6 +2601,7 @@ Dependencies:
 
 - DB-03B.
 - DG-M1.
+- DG-DELETE-04, DG-DELETE-06.
 
 Notes/Risks:
 
@@ -2990,6 +3048,8 @@ DoR:
 
 - DG-M3 и DG-M4 решены.
 - DG-UPDATE-01, DG-UPDATE-02 и DG-UPDATE-04 решены.
+- DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04 и DG-DELETE-05
+  утверждены.
 - REST-00A mapping утверждён.
 - REST-01, REST-02, CORE-03 и DB-03B завершены.
 
@@ -3012,6 +3072,7 @@ Dependencies:
 
 - DG-M3, DG-M4.
 - DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-04.
+- DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04, DG-DELETE-05.
 - REST-00A.
 - REST-01, REST-02, CORE-03, DB-03B.
 
@@ -3093,6 +3154,7 @@ DoR:
 - CORE-07 устранил query-meta materialization fatal для selective DELETE.
 - DG-UPDATE-03, DG-UPDATE-04 и DG-UPDATE-05 утверждены.
 - DG-SPI-03 и DG-RESTERR-01—DG-RESTERR-04 утверждены.
+- DG-DELETE-01 утверждён для relation ownership metadata DELETE.
 
 DoD:
 
@@ -3116,6 +3178,7 @@ Dependencies:
 - DG-UPDATE-03, DG-UPDATE-04, DG-UPDATE-05.
 - DG-SPI-03.
 - DG-RESTERR-01, DG-RESTERR-02, DG-RESTERR-03, DG-RESTERR-04.
+- DG-DELETE-01.
 
 Notes/Risks:
 
@@ -3747,6 +3810,7 @@ DoR:
 - SPI-01 завершён.
 - DG-DB-03 утверждён.
 - DG-SPI-05, DG-SPI-06 и DG-SPI-07 утверждены.
+- DG-DELETE-01, DG-DELETE-02, DG-DELETE-03 и DG-DELETE-04 утверждены.
 
 DoD:
 
@@ -3768,6 +3832,7 @@ Dependencies:
 - DG-M9.
 - DG-DB-03.
 - DG-SPI-05, DG-SPI-06, DG-SPI-07.
+- DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04.
 - REL-00, SPI-01.
 
 Notes/Risks:
