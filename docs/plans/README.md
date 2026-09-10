@@ -9,7 +9,8 @@
    влит в `master` 2026-09-10.
 2. Актуализировать baseline на `master` и выполнять
    [основной план стабилизации библиотеки](./02-library-hardening.md); после
-   завершения `TEST-01` следующей задачей является `TEST-02`.
+   завершения `TEST-01` следующие vertical regression slices —
+   `TEST-02A/CORE-01` и `TEST-02E/DB-01`.
 3. Функциональные исправления из основного плана не добавлять в PR #48: сначала
    инфраструктура должна дать воспроизводимый test/coverage feedback loop.
 
@@ -41,8 +42,12 @@
   успешны на этом коммите.
 - `master` защищён: strict required checks для всех 17 jobs, enforcement для
   администраторов, force-push и удаление ветки запрещены.
-- `TEST-01` завершена и проверена; следующая исполняемая задача — `TEST-02` со
-  статусом `todo`. DG-M1—DG-M8 остаются нерешёнными.
+- `TEST-01` завершена и проверена; regression harness разбит на пять red-first
+  slices `TEST-02A`—`TEST-02E`, каждый из которых мержится только вместе со
+  своим production fix при зелёном CI.
+- DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
+  `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
+  issue #20 вместе с filtering/traversal/representation contract.
 - Временные диагностические тесты подтвердили дефекты cardinality `1-m` и
   `m-1`, REST update без `title`, регистрации relation без `to` и поиска по
   `both`. Эти тесты не являются частью репозитория; их перенос в штатный suite
@@ -53,7 +58,7 @@
 - **M0 — Infrastructure ready — completed 2026-09-10:** выполнен DoD
   инфраструктурного плана, PR #48 влит в `master`, post-merge CI зелёный.
 - **M1 — Regression harness ready:** изолированные integration fixtures и пять
-  подтверждённых regression-тестов находятся в `master`.
+  подтверждённых regression-тестов находятся в `master` вместе с fixes.
 - **M2 — Core invariants stable:** validation/cardinality/duplicatable/
   closurable исправлены и защищены матрицей тестов.
 - **M3 — Storage stable:** поиск, update, delete, meta cascade и schema recovery
