@@ -11,10 +11,10 @@
    #51—#65 последовательно зафиксировали решения, test foundation/contracts,
    первые production fixes и исполняемые quality gates. PR #66 активировал
    Batch 5, PR #67 завершил CORE-03 и закрыл issue #31.
-3. Выполнять активный Batch 5: CORE-03 завершён и issue #31 закрыт; DB-00,
-   REST-00A и DB-03A завершили decision-ready discovery. Текущий contract
-   workstream — `CORE-05`. Подтверждённый
-   `TEST-02F/CORE-07` остаётся за pending DG-QMETA-01.
+3. Все workstreams Batch 5 завершены: CORE-03 закрыл issue #31, а DB-00,
+   REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Следующий
+   шаг — readiness sweep и решения владельца; `CORE-06`/`DB-06` ждут naming и
+   DB gates, а `TEST-02F/CORE-07` — DG-QMETA-01.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -49,19 +49,23 @@
 - `TEST-01`, `TEST-02A`, `TEST-02B`, `TEST-02C` и `TEST-02E` завершены.
   `TEST-02F` имеет независимо проверенное red evidence и остаётся `review`;
   failing tests мержатся только вместе с CORE-07 после решения DG-QMETA-01.
+- `CORE-03` завершён PR #67: merge `b36fa85`, 17/17 required checks успешны,
+  issue #31 закрыт; стабильные ошибки 301—304 и missing-endpoint matrix покрыты.
 - DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
 - DG-API20-01—DG-API20-09, DG-QMETA-01, DG-UPDATE-01—DG-UPDATE-05,
   DG-SPI-01—DG-SPI-07, DG-ENT-01—DG-ENT-05, DG-DB-01—DG-DB-04 и
-  DG-RESTERR-01—DG-RESTERR-04, DG-DELETE-01—DG-DELETE-06 остаются pending и
-  блокируют только явно перечисленные downstream tasks. Полные тексты находятся в
+  DG-RESTERR-01—DG-RESTERR-04, DG-DELETE-01—DG-DELETE-06 и
+  DG-NAME-01—DG-NAME-06 остаются pending и блокируют только явно перечисленные
+  downstream tasks. Полные тексты находятся в
   [entity validation contract](../entity-validation-contract.md),
-  [database compatibility contract](../db-compatibility-contract.md) и
-  [REST error contract](../rest-error-contract.md), а DG-DELETE — в
-  [delete result/failure contract](../delete-result-contract.md); основной
-  registry хранит canonical decision/status. REST-00A, REST-00B, SPI-01,
-  CORE-00, DB-00 и DB-03A
+  [database compatibility contract](../db-compatibility-contract.md),
+  [REST error contract](../rest-error-contract.md),
+  [delete result/failure contract](../delete-result-contract.md) и
+  [client naming contract](../client-naming-contract.md); основной registry
+  хранит canonical decision/status. REST-00A, REST-00B, SPI-01, CORE-00,
+  DB-00, DB-03A и CORE-05
   завершили decision-ready discovery; это не означает неявного утверждения их
   рекомендаций.
 - Canonical DB-03A

@@ -5,8 +5,9 @@
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
 активен; Batch 1—4 завершены. В Batch 5 production slice CORE-03 завершён и
-issue #31 закрыт; DB-00, REST-00A и DB-03A завершили decision-ready discovery.
-CORE-05 остаётся текущим contract workstream.
+issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
+discovery. Batch 5 готов к итоговому readiness sweep; зависимые production
+задачи не стартуют без явно перечисленных owner decisions.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -626,13 +627,19 @@ decision-ready naming contract.
 | [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | pending; recommendation A | repository owner | — | DB-03B/DB-04/REST-03/REL-02 wait |
 | [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | pending; recommendation A | repository owner | — | REST-03 waits; DOC-01 refinement |
 | [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | pending; recommendation A | repository owner | — | DB-04 waits; REL-03/DOC-01 refinement |
+| [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | pending; recommendation A | repository owner | — | Raw/canonical client identity; CORE-06/DB-06/REL-02/DOC-01/REL-03 wait |
+| [`DG-NAME-02`](../client-naming-contract.md#dg-name-02) | pending; recommendation A | repository owner | — | Two-phase registration error/timing; CORE-06/REST-03/REL-02/DOC-01/REL-03 wait; DB-06 refines via CORE-06 |
+| [`DG-NAME-03`](../client-naming-contract.md#dg-name-03) | pending; recommendation A | repository owner | — | Physical collision ownership; CORE-06/DB-06/DB-03B/REL-02/REL-03 wait |
+| [`DG-NAME-04`](../client-naming-contract.md#dg-name-04) | pending; recommendation A | repository owner | — | Full identifier budget; CORE-06/DB-06/REL-01/REL-03 wait |
+| [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | pending; recommendation A | repository owner | — | Legacy adoption/migration; CORE-06/DB-06/REL-02/REL-03 wait |
+| [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | pending; recommendation A | repository owner | — | WordPress site-prefix lifecycle; CORE-06/DB-06/DB-04/REL-02/REL-03 wait |
 
-Для DG-ENT-01—DG-ENT-05, DG-RESTERR-01—DG-RESTERR-04 и
-DG-DELETE-01—DG-DELETE-06 связанные contracts
-являются canonical decision bodies (problem, alternatives, recommendation и
-compatibility impact). Этот registry — canonical запись решения/status,
-владельца и даты. Implementation использует оба источника; рекомендация в
-contract сама по себе не меняет status в registry.
+Для DG-ENT-01—DG-ENT-05, DG-RESTERR-01—DG-RESTERR-04,
+DG-DELETE-01—DG-DELETE-06 и DG-NAME-01—DG-NAME-06 связанные contracts являются
+canonical decision bodies (problem, alternatives, recommendation и compatibility
+impact). Этот registry — canonical запись решения/status, владельца и даты.
+Implementation использует оба источника; рекомендация в contract сама по себе
+не меняет status в registry.
 
 Для DG-DB-01—DG-DB-04 canonical decision body находится в
 [`docs/db-compatibility-contract.md`](../db-compatibility-contract.md). Registry
@@ -1563,7 +1570,7 @@ Success Criteria:
 
 - Полная invariant matrix проходит тесты.
 - Закрытый issue #33 больше не воспроизводится.
-- Open issue #31 закрыт тестами стабильных codes.
+- Issue #31 закрыт тестами стабильных codes.
 
 Dependencies:
 
@@ -1835,7 +1842,7 @@ DoR:
 
 DoD:
 
-- Open issue #31 закрыт.
+- Issue #31 закрыт.
 - Code/message/type assertions присутствуют для каждой ошибки.
 - Сценарий, нарушающий несколько invariants, возвращает утверждённый priority
   error.
@@ -1955,7 +1962,7 @@ Notes/Risks:
 
 ### CORE-05. Зафиксировать client naming и migration contract
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -1966,10 +1973,14 @@ Scope:
 
 - Применить REL-00 inventory к collision examples и существующим identifiers.
 - Canonical alphabet/case, empty-name и maximum-byte-length rules с учётом
-  `$wpdb->prefix` и MySQL identifier limit.
+  `$wpdb->prefix` и подтверждённого MySQL/MariaDB identifier limit.
 - Поведение имён, нормализующихся в одинаковый table postfix.
 - Backward-compatible handling/migration для legacy underscores и иных имён.
 - Decision-ready contract и test matrix для CORE-06/DB-06.
+- Двухфазная boundary: adapter-neutral logical validation до factory;
+  `WPStorage` physical length/collision/ownership/site checks после выбора
+  adapter, но до table registration/DDL/DML. Custom non-table adapters не
+  получают SQL-table requirements.
 
 Out of Scope:
 
@@ -1986,7 +1997,8 @@ DoD:
 - Для каждого raw/canonical/colliding/overlong case определён result/error и
   migration consequence.
 - Material compatibility/migration choices оформлены как human decision gates.
-- CORE-06 и DB-06 можно перевести в execution-ready после решений.
+- Naming/migration часть CORE-06 и DB-06 является execution-ready после
+  решений; их остальные явно перечисленные dependencies сохраняются.
 
 AC:
 
@@ -2002,9 +2014,30 @@ Dependencies:
 - TEST-01.
 - REL-00.
 
+Coordination inputs:
+
+- DB-00 [PR #68](https://github.com/hokoo/wpConnections/pull/68), merge
+  `d1750731d7e94f4e3349600431a33bf6954d3106`, и canonical
+  [`docs/db-compatibility-contract.md`](../db-compatibility-contract.md)
+  подтверждают exact MySQL 8.0.46/MariaDB 10.11.16 probes и 64-character limit
+  полного table identifier; это evidence, а не утверждение DG-DB-01—DG-DB-04.
+- Pending DG-SPI-07 определяет v1 concrete table introspection. Он не блокирует
+  decision-ready CORE-05 artifact, но остаётся dependency implementation и
+  migration documentation.
+
 Notes/Risks:
 
 - Любое изменение table postfix может потребовать migration существующих tables.
+- Evidence: [`docs/client-naming-contract.md`](../client-naming-contract.md)
+  разделяет raw/logical/postfix/physical identities, фиксирует обе table-prefix
+  formulas, two-phase adapter boundary, observed public mappings,
+  collision/empty/unsafe/overlong/multisite matrix и non-destructive legacy
+  adoption/copy/dual-read alternatives.
+- DG-NAME-01—DG-NAME-06 остаются pending с recommendation A; завершение CORE-05
+  означает decision-ready design, но не разрешает production/schema/API change.
+- Fixed-floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0: unit `6 / 14`,
+  integration `67 / 345`, PHPCS `36 / 36`; structural links/anchors/gate-shape,
+  duplicate-ID, secret и `git diff --check` проверки зелёные.
 
 ### CORE-06. Реализовать multi-client isolation и table-name rules
 
@@ -2029,8 +2062,11 @@ Out of Scope:
 
 DoR:
 
-- CORE-05 завершён и возникающие human gates утверждены.
+- CORE-05 завершён.
 - TEST-01 завершена.
+- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-04, DG-NAME-05 и DG-NAME-06
+  утверждены владельцем.
+- DG-SPI-07 утверждён для concrete `WPStorage` introspection/migration surface.
 
 DoD:
 
@@ -2049,6 +2085,8 @@ Dependencies:
 
 - CORE-05.
 - TEST-01.
+- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-04, DG-NAME-05, DG-NAME-06.
+- DG-SPI-07.
 
 Notes/Risks:
 
@@ -2532,6 +2570,7 @@ DoR:
 - TEST-01 обеспечивает isolation.
 - DB-03A contract утверждён.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03 и DG-DELETE-04 утверждены.
+- DG-NAME-03 утверждён для physical collision ownership.
 - CORE-06 завершил multi-client isolation contract.
 
 DoD:
@@ -2554,6 +2593,7 @@ Dependencies:
 - TEST-01.
 - DB-03A.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04.
+- DG-NAME-03.
 - CORE-06 для cross-client assertions.
 
 Notes/Risks:
@@ -2584,6 +2624,7 @@ DoR:
 - DB-03B завершена.
 - DG-M1 определяет поддерживаемые entities.
 - DG-DELETE-04 и DG-DELETE-06 утверждены.
+- DG-NAME-06 утверждён для site-prefix lifecycle callback.
 
 DoD:
 
@@ -2602,6 +2643,7 @@ Dependencies:
 - DB-03B.
 - DG-M1.
 - DG-DELETE-04, DG-DELETE-06.
+- DG-NAME-06.
 
 Notes/Risks:
 
@@ -2693,6 +2735,9 @@ DoR:
 - Владелец утвердил DB matrix и migration/error policy, предложенные DB-00.
 - DG-DB-01, DG-DB-02 и DG-DB-04 утверждены.
 - CORE-06 реализовал и проверил table naming rules.
+- DG-NAME-01, DG-NAME-03, DG-NAME-04, DG-NAME-05 и DG-NAME-06 утверждены
+  владельцем. DG-NAME-02 реализован в CORE-06 и является refinement для
+  schema-side no-registration/no-DDL assertions, а не отдельным direct gate.
 
 DoD:
 
@@ -2714,6 +2759,7 @@ Dependencies:
 - INFRA-03.
 - DG-M6.
 - DG-DB-01, DG-DB-02, DG-DB-04.
+- DG-NAME-01, DG-NAME-03, DG-NAME-04, DG-NAME-05, DG-NAME-06.
 - DB-00.
 - CORE-06.
 
@@ -3050,6 +3096,7 @@ DoR:
 - DG-UPDATE-01, DG-UPDATE-02 и DG-UPDATE-04 решены.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04 и DG-DELETE-05
   утверждены.
+- DG-NAME-02 утверждён для attributable client-registration failures.
 - REST-00A mapping утверждён.
 - REST-01, REST-02, CORE-03 и DB-03B завершены.
 
@@ -3073,6 +3120,7 @@ Dependencies:
 - DG-M3, DG-M4.
 - DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-04.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04, DG-DELETE-05.
+- DG-NAME-02.
 - REST-00A.
 - REST-01, REST-02, CORE-03, DB-03B.
 
@@ -3562,6 +3610,7 @@ DoR:
 - REST-03—REST-06 завершены.
 - API-04 завершена.
 - DG-M4 решён.
+- DG-NAME-01 и DG-NAME-02 утверждены.
 
 DoD:
 
@@ -3579,6 +3628,7 @@ AC:
 Dependencies:
 
 - DG-M4.
+- DG-NAME-01, DG-NAME-02.
 - REST-03, REST-04, REST-05, REST-06.
 - API-04.
 
@@ -3755,6 +3805,7 @@ DoR:
 - E2—E4 blocking tasks завершены.
 - DB-00 завершён, владелец утвердил DB matrix.
 - DG-DB-01, DG-DB-02 и DG-DB-04 утверждены.
+- DG-NAME-04 утверждён для complete physical identifier boundary.
 
 DoD:
 
@@ -3772,6 +3823,7 @@ Dependencies:
 
 - INFRA-03.
 - DG-DB-01, DG-DB-02, DG-DB-04.
+- DG-NAME-04.
 - DB-00.
 - Blocking задачи E2—E4.
 
@@ -3811,6 +3863,7 @@ DoR:
 - DG-DB-03 утверждён.
 - DG-SPI-05, DG-SPI-06 и DG-SPI-07 утверждены.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03 и DG-DELETE-04 утверждены.
+- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-05 и DG-NAME-06 утверждены.
 
 DoD:
 
@@ -3833,6 +3886,7 @@ Dependencies:
 - DG-DB-03.
 - DG-SPI-05, DG-SPI-06, DG-SPI-07.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04.
+- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-05, DG-NAME-06.
 - REL-00, SPI-01.
 
 Notes/Risks:
@@ -3864,6 +3918,7 @@ DoR:
 - Все blocking tasks E1—E5 завершены.
 - REL-01 и REL-02 завершены.
 - DG-M8 quality target достигнут.
+- DG-NAME-01—DG-NAME-06 утверждены.
 
 DoD:
 
@@ -3886,6 +3941,7 @@ Dependencies:
 - REL-01, REL-02, DOC-01.
 - Все blocking задачи E1—E5.
 - DG-M8.
+- DG-NAME-01—DG-NAME-06.
 
 Notes/Risks:
 
