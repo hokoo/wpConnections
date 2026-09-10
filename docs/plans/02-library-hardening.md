@@ -2527,7 +2527,7 @@ Tasking Guidance:
 
 ### REL-00. Инвентаризировать public consumers и compatibility surface
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -2576,6 +2576,14 @@ Notes/Risks:
 
 - Public search даёт lower bound; migration notes всё равно должны учитывать
   неизвестные private installations.
+- Evidence: `docs/compatibility-inventory.md` на срезе 2026-09-10. Найдены три
+  независимых public consumer repository и один distribution mirror; два
+  consumer зависят от физических storage details, один выполняет direct
+  storage mutation, а два используют client-scoped capability filter.
+- Публичного использования `Connection::load()`, `ConnectionCollection::getPosts()`,
+  custom storage/factory replacement и relation/storage lifecycle callbacks не
+  найдено; это negative evidence с явно записанными ограничениями, а не
+  доказательство отсутствия private consumers.
 
 ### REL-01. Проверить полную compatibility matrix
 
