@@ -3,7 +3,6 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Abstracts\IArrayConvertable;
-use iTRON\wpConnections\Abstracts\IQuery;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
