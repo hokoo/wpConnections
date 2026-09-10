@@ -51,8 +51,10 @@
 - DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
-- DG-API20-01—DG-API20-09 и DG-QMETA-01 остаются pending и блокируют только
-  явно перечисленные downstream tasks.
+- DG-API20-01—DG-API20-09, DG-QMETA-01 и DG-UPDATE-01—DG-UPDATE-05 остаются
+  pending и блокируют только явно перечисленные downstream tasks. REST-00B
+  завершила discovery и записала update gates в основном плане; это не означает
+  их неявного утверждения.
 - Штатные regressions уже защищают missing-`to` и broken `both`; cardinality,
   REST update без `title` и `Query\Meta` fatal выполняются следующими slices по
   своим dependencies/gates.

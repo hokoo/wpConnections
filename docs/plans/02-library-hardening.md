@@ -244,6 +244,166 @@ create-with-meta/selective-delete flows, не меняя storage/REST semantics.
 **Блокирует:** CORE-07 production fix. TEST-02F red evidence и остальные задачи
 Batch 4 от решения не зависят.
 
+### DG-UPDATE-01. Развести public PHP update paths и REST methods
+
+**Статус:** pending human decision.
+
+**Проблема:** public `Relation::updateConnection(Query\Connection)` до commit
+`2b7bacc` был sparse/PATCH-like, но теперь storage читает его как полный объект;
+`Connection::update()` отдельно документирован как aggregate replacement.
+Одновременно `WP_REST_Server::EDITABLE` публикует `POST`, `PUT` и `PATCH` через
+один handler/schema: каждый method требует `from`/`to`, получает `order=0` и
+передаёт полный query-object. Нужно решить и public PHP semantics, и её REST
+mapping, а не только исправить handler.
+
+- A: `Relation::updateConnection(Query\Connection)` является sparse scalar
+  update, а `Connection::update()` — complete aggregate replacement; `PATCH`
+  использует sparse semantics, `PUT` выполняет replacement, `POST` остаётся
+  compatibility alias для PUT. Domain layer нормализует полное effective state
+  до Storage SPI.
+- B: оба PHP entrypoint считать replacement-oriented; REST `PATCH` отдельно
+  загружает и объединяет persisted state, затем вызывает replacement domain
+  path; `PUT`/`POST` остаются replacement.
+- C: сохранить текущую единую replacement semantics для обоих PHP paths и всех
+  POST/PUT/PATCH, устранив только fatal errors.
+
+**Рекомендация:** A. Она восстанавливает исторически задуманную sparse semantics
+там, где её ожидает PATCH, сохраняет единственный документированный legacy POST
+и придаёт PUT стандартный полный смысл без нового REST representation.
+
+**Compatibility impact:** A восстанавливает историческую sparse semantics
+публичного Relation method и меняет ошибочное destructive поведение PATCH, не
+ломая документированный POST; custom storage получает fully normalized input
+только после update-payload решения, принадлежащего SPI-01. B сохраняет текущее
+значение Relation method, но создаёт две разные PHP/REST orchestration semantics.
+C закрепляет потерю omitted fields как public contract.
+
+**Блокирует:** TEST-02D, DB-02, REST-02 и REST-03 update matrix.
+
+### DG-UPDATE-02. Значение omitted, null, empty и zero для scalar fields
+
+**Статус:** pending human decision.
+
+**Проблема:** текущий код смешивает отсутствие field с `null`, а местами — с
+любым falsy value. Это уже ломало `order=0` в issue #13. Объект и таблица
+допускают nullable title/order, route задаёт integer order, а endpoint IDs не
+могут быть нулевыми. Без field-specific contract невозможно проверить ни PHP,
+ни storage, ни REST одинаково.
+
+- A: PATCH сохраняет omitted field; replacement требует положительные
+  `from`/`to`, очищает omitted/explicit-null `title` в SQL null и ставит omitted
+  `order` в `0`; explicit empty title и order `0` сохраняются; null/negative/
+  boolean/empty-string order и null/zero endpoints отклоняются до mutation.
+- B: любой explicit null очищает nullable column, включая `order`; omission
+  всегда сохраняет прежнее значение даже при PUT/POST.
+- C: унифицировать все falsy values через defaults (`title=''`, `order=0`) и не
+  сохранять различие между omission, null и explicit empty/zero.
+
+**Рекомендация:** A. Она сохраняет issue #13, legacy replacement defaults и
+полезное различие `title=null`/`title=''`, но не вводит новое неясное значение
+nullable order. Presence определяется до storage и никогда не через `empty()`.
+
+**Compatibility impact:** A делает PATCH безопасным и оставляет POST
+replacement-compatible; запросы, передававшие невалидный null/falsy endpoint
+или order, начнут получать validation error вместо неявной подстановки или
+частичной записи.
+
+**Блокирует:** TEST-02D, DB-02, REST-02 и OpenAPI field schemas.
+
+### DG-UPDATE-03. Где и как обновлять connection metadata
+
+**Статус:** pending human decision.
+
+**Проблема:** scalar connection route не объявляет `meta` и фактически его не
+сохраняет, но create route и concrete `Connection::update()` работают с
+aggregate metadata. Отдельный `/meta` route уже обещает POST append, PATCH
+replace supplied keys и PUT replace-all, однако empty PUT сейчас может удалить
+данные и затем упасть при попытке добавить пустую collection.
+
+- A: scalar REST update не изменяет meta; REST clients используют `/meta` с
+  POST append, PATCH replace supplied keys и PUT replace-all (omitted/empty PUT
+  очищает). `Connection::update()` остаётся полным aggregate replacement, где
+  empty collection означает clear. Неизвестный `meta` на scalar v1 route не
+  становится mutation input и не рекламируется в OpenAPI.
+- B: разрешить `meta` и на scalar connection route, применяя к нему semantics
+  HTTP method, параллельно сохранив `/meta`.
+- C: перенести metadata update в connection route и начать deprecation
+  отдельного `/meta` subresource.
+
+**Рекомендация:** A. Она сохраняет существующую специализацию `/meta`, не
+добавляет скрытую составную mutation в scalar REST handler и совместима с
+документированным aggregate behavior PHP `Connection::update()`.
+
+**Compatibility impact:** A не расширяет advertised v1 mutation inputs;
+строгое отклонение неизвестного scalar-route `meta` откладывается до v2. B
+добавляет второй публичный путь к тем же данным и требует определить
+atomicity/precedence scalar+meta. C ломает существующий subresource.
+
+**Блокирует:** DB-02 metadata matrix, REST-05 и DB-05 update atomicity.
+
+### DG-UPDATE-04. Результат changed, no-op, not-found и storage failure
+
+**Статус:** pending human decision.
+
+**Проблема:** `$wpdb->update()` возвращает affected rows или `false`, но
+текущий `bool` contract схлопывает unchanged existing row, missing row и DB
+failure в одно `false`. REST поэтому не может отличить корректный no-op от
+ложного success response для отсутствующей или не записанной connection.
+
+- A: сохранить текущие signatures: `true` означает существующая connection
+  изменилась, `false` — существующая connection уже имела требуемое состояние;
+  not-found/invalid и storage failure выражаются разными exceptions. REST v1
+  оставляет `{updated: true|false}`, а ошибки маппятся отдельно.
+- B: ввести публичный result object/enum с changed/no-op/not-found/failed и
+  изменить return types domain API и Storage SPI.
+- C: сохранить нынешний ambiguous bool, где `false` может означать no-op,
+  отсутствие строки или failure.
+
+**Рекомендация:** A. Она делает outcomes однозначными без breaking signature
+change для custom storage и без изменения v1 success shape. Уже существующий
+`Connection::update(): void` возвращает нормально и для changed, и для valid
+no-op; новый return type возможен только в следующей major version.
+
+**Compatibility impact:** custom adapters должны бросать exception при storage
+failure и не выдавать missing target за no-op. B является явным public/SPI
+breaking change; C не позволяет выполнить error и atomicity contracts.
+
+**Блокирует:** DB-02, REST-02, REST-03, DB-05 и SPI conformance/implementation в
+REL-02. SPI-01 может завершить decision-ready inventory с pending cross-reference
+на этот gate; это не означает утверждения result semantics.
+
+### DG-UPDATE-05. Success/no-op response REST `/meta`
+
+**Статус:** pending human decision.
+
+**Проблема:** текущий handler кладёт PHP `Connection` object под ключ
+`updated`, а direct tests сравнивают объект до wire serialization. Full-dispatch
+probe показывает текущий default JSON: scalar connection fields сериализуются,
+но `meta` становится объектом с публичным `collectionType`, а не persisted meta
+array. Shape неудобен, однако approved DG-M4 требует сохранить default v1 и не
+позволяет молча канонизировать ответ.
+
+- A: сохранить exact current HTTP 200 `{updated: <legacy connection-object>}`
+  для changed и valid no-op, включая нынешнюю nested `meta.collectionType`
+  serialization; улучшение отложить до opt-in/v2 отдельной задачи.
+- B: сохранить exact current shape по умолчанию, но добавить отдельный explicit
+  opt-in representation с каноническими полями `id`, `title`, `relation`,
+  `from`, `to`, `order`, `meta`.
+- C: заменить default in place на canonical connection representation; этот
+  вариант требует явно переоткрыть и изменить уже approved DG-M4.
+
+**Рекомендация:** A для hardening release. Это единственный вариант без нового
+public input и без исключения из DG-M4. Full-dispatch tests должны отдельно
+зафиксировать changed/no-op для POST/PATCH/PUT; исправление representation
+следует планировать как opt-in или v2, а не маскировать внутри REST-05.
+
+**Compatibility impact:** A фиксирует как legacy даже неудачную wire
+serialization, но не ломает v1 consumers. B расширяет public REST contract и
+требует отдельного design/API task. C является breaking change и недоступен без
+reopening DG-M4.
+
+**Блокирует:** REST-05 и DOC-01.
+
 ## Реестр решений
 
 | Gate | Решение | Владелец | Дата | Следствие |
@@ -258,6 +418,11 @@ Batch 4 от решения не зависят.
 | DG-M8 | approved B | repository owner | 2026-09-10 | RC: 70% statements + all critical scenarios |
 | DG-M9 | approved A | repository owner | 2026-09-10 | Storage — SPI; invariants на domain boundary |
 | DG-QMETA-01 | pending; recommendation A | repository owner | — | CORE-07 waiting human |
+| DG-UPDATE-01 | pending; recommendation A | repository owner | — | TEST-02D/DB-02/REST-02 ждут method semantics |
+| DG-UPDATE-02 | pending; recommendation A | repository owner | — | Scalar omission/null/falsy matrix не утверждена |
+| DG-UPDATE-03 | pending; recommendation A | repository owner | — | Metadata update boundary не утверждена |
+| DG-UPDATE-04 | pending; recommendation A | repository owner | — | SPI/domain/REST result semantics не утверждена |
+| DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
 
 ## Execution batches
 
@@ -708,7 +873,7 @@ Out of Scope:
 DoR:
 
 - REST-01 завершена.
-- Утверждён partial-update contract для omitted/null/falsy fields.
+- DG-UPDATE-01 и DG-UPDATE-02 утверждены.
 
 DoD:
 
@@ -725,6 +890,7 @@ Dependencies:
 
 - REST-01.
 - REST-00B.
+- DG-UPDATE-01, DG-UPDATE-02.
 
 Notes/Risks:
 
@@ -1727,7 +1893,7 @@ DoR:
 - TEST-01 завершена.
 - CORE-07 устранил `Query\Meta` materialization fatal.
 - CORE-02 определяет update invariants.
-- REST-00B утвердил shared update semantics для omitted/null/falsy/no-op.
+- DG-UPDATE-01—DG-UPDATE-04 утверждены.
 
 DoD:
 
@@ -1749,6 +1915,7 @@ Dependencies:
 - CORE-07.
 - CORE-02 для update endpoint invariants.
 - REST-00B.
+- DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-03, DG-UPDATE-04.
 
 Notes/Risks:
 
@@ -1925,6 +2092,7 @@ DoR:
 
 - DG-M7 решён.
 - DG-M9 решён.
+- DG-UPDATE-03 и DG-UPDATE-04 решены.
 - SPI-01 и DB-00 завершены, owner утвердил возникающие DB/migration gates.
 - DB-02 и DB-03B задают корректные success semantics.
 
@@ -1945,6 +2113,7 @@ Dependencies:
 
 - DG-M7.
 - DG-M9.
+- DG-UPDATE-03, DG-UPDATE-04.
 - SPI-01, DB-00.
 - DB-02, DB-03B.
 
@@ -2100,7 +2269,7 @@ Notes/Risks:
 
 ### REST-00B. Зафиксировать connection partial-update semantics
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -2146,6 +2315,14 @@ Notes/Risks:
 
 - Текущие route defaults могут превращать omitted в explicit value; design
   должен опираться на full dispatch, а не только handler calls.
+- Evidence 2026-09-10:
+  [`docs/rest-partial-update-contract.md`](../rest-partial-update-contract.md)
+  инвентаризирует
+  PHP/domain/storage/REST paths, историю commits `7f800b8`/`2b7bacc`, issues
+  #13/#22 и Postman drift; method, scalar, metadata и result choices вынесены в
+  pending DG-UPDATE-01—DG-UPDATE-05 с downstream acceptance matrix.
+- Задача завершает discovery/design, но не разблокирует implementation до
+  явного утверждения соответствующих gates владельцем.
 
 ### REST-01. Создать end-to-end REST test harness
 
@@ -2236,7 +2413,7 @@ DoR:
 - TEST-02D находится в `review`: red воспроизведён и зафиксирован в том же
   утверждённом vertical batch.
 - REST-01 завершена.
-- REST-00B утвердил semantics partial update для omitted/null/falsy fields.
+- REST-00B завершена; DG-UPDATE-01, DG-UPDATE-02 и DG-UPDATE-04 утверждены.
 
 DoD:
 
@@ -2255,6 +2432,7 @@ Dependencies:
 - TEST-02D (`review` с red evidence достаточно для paired vertical batch).
 - REST-01.
 - REST-00B.
+- DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-04.
 - DB-02.
 
 Notes/Risks:
@@ -2285,6 +2463,7 @@ Out of Scope:
 DoR:
 
 - DG-M3 и DG-M4 решены.
+- DG-UPDATE-01, DG-UPDATE-02 и DG-UPDATE-04 решены.
 - REST-00A mapping утверждён.
 - REST-01, REST-02, CORE-03 и DB-03B завершены.
 
@@ -2306,6 +2485,7 @@ AC:
 Dependencies:
 
 - DG-M3, DG-M4.
+- DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-04.
 - REST-00A.
 - REST-01, REST-02, CORE-03, DB-03B.
 
@@ -2384,6 +2564,7 @@ DoR:
 
 - REST-01 и DB-02/DB-03B завершены.
 - CORE-07 устранил query-meta materialization fatal для selective DELETE.
+- DG-UPDATE-03, DG-UPDATE-04 и DG-UPDATE-05 утверждены.
 
 DoD:
 
@@ -2403,6 +2584,7 @@ Dependencies:
 - REST-01.
 - CORE-07.
 - DB-02, DB-03B.
+- DG-UPDATE-03, DG-UPDATE-04, DG-UPDATE-05.
 
 Notes/Risks:
 
