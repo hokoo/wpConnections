@@ -608,7 +608,7 @@ Notes/Risks:
 
 ### TEST-03A. Зафиксировать test quality и critical-scenario contract
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -660,9 +660,20 @@ Notes/Risks:
 - Высокий процент без branch/scenario coverage не гарантирует корректность
   cardinality или data integrity.
 
+Verification:
+
+- `docs/test-quality.md` содержит canonical trigger map и 39 уникальных
+  critical scenario IDs для всех утверждённых component families.
+- PR и RC profiles разделены: PR сохраняет exact monotonic baseline `365/786`,
+  RC требует не менее 70% statements и 100% passing critical scenarios.
+- PR template требует scenario-to-test evidence независимо от coverage и полную
+  exception metadata; active critical exception явно блокирует RC.
+- Structural contract check подтвердил 39/39 уникальных IDs, обязательные
+  exception fields и M8 targets; `git diff --check` прошёл.
+
 ### TEST-03B. Автоматизировать PR baseline и RC coverage profiles
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
@@ -713,7 +724,7 @@ Notes/Risks:
 
 ### TEST-03C. Автоматизировать isolation и flaky policy
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
