@@ -403,6 +403,183 @@ serialization, но не ломает v1 consumers. B расширяет public 
 reopening DG-M4.
 
 **Блокирует:** REST-05 и DOC-01.
+### DG-SPI-01. Какой update payload пересекает Storage SPI
+
+**Статус:** pending human decision.
+
+**Проблема:** abstract и `WPStorage` формально принимают один и тот же
+`Abstracts\Connection`, поэтому `Query\Connection` является допустимым subtype.
+Но `Relation::updateConnection()` передаёт sparse query с неинициализированными
+полями, тогда как `WPStorage` читает его как полностью materialized replacement.
+
+- A: в v1 сохранить signature, но domain layer до SPI загружает, объединяет,
+  валидирует и передаёт полностью инициализированный `Connection`.
+- B: обязать каждый adapter понимать sparse `Query\Connection` и самостоятельно
+  реализовать omitted/null/falsy patch semantics.
+- C: в следующей major version ввести отдельные patch/replace command DTO и SPI
+  methods, оставив v1 bridge.
+
+**Рекомендация:** A для hardening release, C — кандидат следующей major version.
+Это соответствует DG-M9 и не дублирует domain/REST invariants в adapters.
+
+**Compatibility impact:** A меняет фактическую форму аргумента для custom
+adapters, которые проверяли `Query\Connection`; B сохраняет текущий caller shape,
+но расширяет обязанности implementers; C является breaking SPI.
+
+**Блокирует:** TEST-02D, CORE-04, DB-02, REST-02 и REL-02 production/conformance.
+REST-00B cross-reference этот gate как decision-ready design input; CORE-02 не
+является владельцем исправления.
+
+### DG-SPI-02. Кто назначает create ID и client context при hydration
+
+**Статус:** pending human decision.
+
+**Проблема:** `createConnection()` возвращает ID, но `WPStorage` также молча
+записывает его в query; `findConnections()` молча помещает `Client` в hydrated
+items. Abstract contract не описывает ни один из side effects, хотя domain
+objects зависят от результата.
+
+- A: adapter возвращает ID/persistence data, а domain layer назначает ID/client
+  и создаёт domain `Connection` без обязательной мутации adapter inputs.
+- B: закрепить за всеми adapters текущую обязанность мутировать create query и
+  прикреплять `Client` к каждому hydrated object.
+- C: в следующей major version ввести adapter-neutral records/results и mapper,
+  сохранив v1 bridge.
+
+**Рекомендация:** A без изменения v1 signatures; C — более чистая будущая
+модель. Hidden object mutation не должна оставаться неявной обязанностью SPI.
+
+**Compatibility impact:** A заметен custom adapters/прямым SPI consumers,
+наблюдающим mutated query; B навсегда переносит WordPress object lifecycle во
+все adapters; C breaking.
+
+**Блокирует:** DB-02, CORE-04, DB-05 и REL-02.
+
+### DG-SPI-03. Non-update results и adapter failure contract
+
+**Статус:** pending human decision.
+
+**Проблема:** SPI смешивает ID, counts, collection, void и untyped meta-delete
+result; `WPStorage` чередует exceptions, `false`, `0`, empty collection и silent
+SQL failures. Failure нельзя надёжно отличить от valid no-match/no-op.
+
+- A: сохранить v1 signatures; create возвращает positive ID, read — collection,
+  deletes — nonnegative affected-connection count, add-meta — void, remove-meta —
+  фактический integer count до major signature change; adapter failure всегда
+  даёт стабильный domain exception, а `0`/empty остаются только для утверждённых
+  valid no-match/no-op cases.
+- B: сохранить текущую operation-specific неоднозначность и silent failures.
+- C: немедленно заменить mutation returns единым result object.
+
+**Рекомендация:** A. Она не ломает abstract signatures и делает failure
+проверяемым; delete meanings остаются за DB-03A, update result — только за общим
+DG-UPDATE-04 из REST-00B.
+
+**Compatibility impact:** A превращает часть silent/raw failures в exceptions и
+может выявить несовместимые adapters; B не позволяет выполнить DG-M7; C breaking.
+
+**Блокирует:** DB-03B, DB-05, REST-03 и REL-02 production/conformance. DB-03A и
+REST-00A могут завершить decision-ready contracts и согласуют с этим gate точные
+delete/error meanings.
+
+### DG-SPI-04. Форма transaction capability и orchestration
+
+**Статус:** pending human decision.
+
+**Проблема:** approved DG-M7 требует capability preflight и atomic compound
+operations, но Storage SPI не имеет capability discovery или transaction scope.
+
+- A: добавить optional transaction-capability interface с одной guarded atomic
+  callback/unit-of-work операцией; domain проверяет capability до mutation и
+  оркестрирует compound operation внутри неё.
+- B: добавить `supports`/`begin`/`commit`/`rollback` прямо в abstract Storage.
+- C: добавить отдельные atomic compound create/update/delete methods каждому
+  adapter.
+
+**Рекомендация:** A. Optional interface не заставляет старые adapters
+реализовывать новые abstract methods, mechanics остаются adapter-owned, а
+orchestration/invariants — domain-owned согласно DG-M9.
+
+**Compatibility impact:** A добавляет public optional SPI и переводит incapable
+adapters на approved pre-mutation error; B ломает все subclasses; C существенно
+расширяет SPI и дублирует domain semantics.
+
+**Блокирует:** DB-05 и REL-02 production/conformance. DB-00 независимо проверяет
+backend feasibility и уточняет этот gate до owner decision.
+
+### DG-SPI-05. Factory replacement construction и failures
+
+**Статус:** pending human decision.
+
+**Проблема:** storage filter документирует только class choice, но runtime также
+предполагает class-string, concrete `Storage` subtype, constructor с одним
+`Client` и безопасное раннее создание. Constructor `TypeError` сейчас может быть
+ошибочно представлен как inheritance failure.
+
+- A: сохранить filter и два callback arguments в v1; явно требовать concrete
+  `Storage` class, constructible с переданным `Client`, валидировать до `new` и
+  нормализовать selection/construction failure в attributable
+  `ClientRegisterFail`.
+- B: расширить существующий filter до class-string/object/callable factory.
+- C: в следующей major version ввести StorageFactory interface и новый filter с
+  migration period для старого.
+
+**Рекомендация:** A для v1, C — для следующей major. B делает существующий hook
+неоднозначным без version boundary.
+
+**Compatibility impact:** A сохраняет observed arguments/class-string path, но
+может изменить exact error message/chaining; B/C добавляют новые public shapes,
+а замена старого hook была бы breaking.
+
+**Блокирует:** REL-02 и release compatibility documentation.
+
+### DG-SPI-06. Значение mutation hooks при commit/rollback
+
+**Статус:** pending human decision.
+
+**Проблема:** часть текущих `after`/`deleted` hooks вызывается с raw failure или
+после только последнего non-atomic statement. DB-05 не может считать их
+committed-success hooks без явного compatibility решения.
+
+- A: сохранить names/argument order в v1; `before` означает attempt, а
+  success-named `after`/`deleted` испускаются один раз только после commit.
+- B: сохранить точный текущий timing и документировать, что `after`/`deleted` не
+  означает commit.
+- C: добавить transaction committed/rolled-back hooks и откладывать deprecation
+  неоднозначных hooks до следующей major version.
+
+**Рекомендация:** A, с C как будущим расширением. Это выполняет запрет DG-M7 на
+false success с минимальным hook-name churn.
+
+**Compatibility impact:** A меняет timing и подавляет success hook при failure;
+callbacks, использующие attempt-level timing, заметят изменение; B конфликтует с
+DG-M7; C расширяет public hook API.
+
+**Блокирует:** DB-05 и REL-02.
+
+### DG-SPI-07. Legacy concrete storage introspection
+
+**Статус:** pending human decision.
+
+**Проблема:** public consumers получают/reconstruct `WPStorage` table names через
+`getStorage()`, но table identity не является portable SPI, а direct writes уже
+исключены из поддерживаемого consumer API решением DG-M9.
+
+- A: сохранить `getStorage()` и оба table getter в v1 как legacy concrete
+  introspection; до deprecation дать high-level maintenance/orphan-cleanup
+  alternatives и migration notes.
+- B: сделать table getters обязательными abstract SPI methods.
+- C: deprecated/remove getters без замены.
+
+**Рекомендация:** A. Она учитывает наблюдаемых CF7 consumers, не притворяясь, что
+каждый adapter имеет SQL tables.
+
+**Compatibility impact:** A откладывает visibility reduction; B ломает non-table
+adapters; C ломает подтверждённые public maintenance/orphan-cleanup flows.
+
+**Блокирует:** CORE-06, REL-02, DOC-01 и REL-03 implementation/migration.
+CORE-05 использует gate как compatibility input и может завершить собственный
+decision-ready naming contract.
 
 ## Реестр решений
 
@@ -423,6 +600,13 @@ reopening DG-M4.
 | DG-UPDATE-03 | pending; recommendation A | repository owner | — | Metadata update boundary не утверждена |
 | DG-UPDATE-04 | pending; recommendation A | repository owner | — | SPI/domain/REST result semantics не утверждена |
 | DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
+| DG-SPI-01 | pending; recommendation A | repository owner | — | REST-00B coordinates; update production/conformance tasks wait |
+| DG-SPI-02 | pending; recommendation A | repository owner | — | Create ID/hydration ownership; DB-02/CORE-04/DB-05/REL-02 wait |
+| DG-SPI-03 | pending; recommendation A | repository owner | — | DB-03A/REST-00A coordinate; delete/REST/atomic production waits |
+| DG-SPI-04 | pending; recommendation A | repository owner | — | DB-00 refines feasibility; DB-05/REL-02 wait |
+| DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
+| DG-SPI-06 | pending; recommendation A | repository owner | — | Commit-aware mutation hooks; DB-05/REL-02 wait |
+| DG-SPI-07 | pending; recommendation A | repository owner | — | CORE-05 coordinates; concrete introspection migration waits |
 
 ## Execution batches
 
@@ -1532,6 +1716,8 @@ DoR:
 - DG-M1 решён.
 - DG-M9 решён.
 - CORE-00 завершила extension и backward-compatibility/rollout contract.
+- DG-SPI-01 и DG-SPI-02 утверждены.
+- REST-00B завершена; DG-UPDATE-01 и DG-UPDATE-02 утверждены.
 
 DoD:
 
@@ -1551,8 +1737,11 @@ Dependencies:
 
 - DG-M1.
 - DG-M9.
+- DG-SPI-01, DG-SPI-02.
 - CORE-00.
 - CORE-03.
+- REST-00B.
+- DG-UPDATE-01, DG-UPDATE-02.
 
 Notes/Risks:
 
@@ -1756,7 +1945,7 @@ Tasking Guidance:
 
 ### SPI-01. Зафиксировать storage SPI и mutation boundary
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -1806,6 +1995,28 @@ Notes/Risks:
 
 - Storage — публичная extension SPI, поэтому изменения abstract signatures могут
   быть breaking даже при запрете direct consumer mutations.
+- Canonical artifact: [`docs/storage-spi-contract.md`](../storage-spi-contract.md),
+  source snapshot `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
+- Formal PHP type у abstract/default `updateConnection()` совпадает, но public
+  callers создают semantic mismatch: `Relation` передаёт допустимый subtype
+  `Query\Connection` с uninitialized patch fields, а `WPStorage` читает full
+  replacement. Решение вынесено в pending DG-SPI-01; CORE-02 его не исправляет.
+- Shared changed/no-op/not-found/storage-failure decision принадлежит
+  REST-00B как `DG-UPDATE-04`; SPI artifact только связывает conformance с этим
+  gate и не дублирует решение.
+- DG-SPI-01—DG-SPI-07 остаются pending. Completion означает готовность design
+  artifact к owner decision, а не разрешение production/API/signature changes;
+  зависимые production tasks сохраняют `waiting_dependency`.
+
+Verification:
+
+- Source traceability охватывает 8/8 abstract operations и все соответствующие
+  `WPStorage` methods, Factory construction, direct domain callers и hooks.
+- Structural checks подтверждают полный gate shape, task attributes и валидные
+  relative repository links; `git diff --check` проходит.
+- Baseline PHP 8.1.34 / WordPress 6.7.7: unit `6 / 14`, integration `39 / 169`;
+  PHPCS `35/35`, exit 0 с известным ruleset deprecation warning. SPI-01 не
+  изменяет production, signatures или tests.
 
 ### DB-00. Исследовать DB compatibility и transaction capabilities
 
@@ -2142,6 +2353,7 @@ DoR:
 - DG-M7 решён.
 - DG-M9 решён.
 - DG-UPDATE-03 и DG-UPDATE-04 решены.
+- DG-SPI-03, DG-SPI-04 и DG-SPI-06 решены.
 - SPI-01 и DB-00 завершены, owner утвердил возникающие DB/migration gates.
 - DB-02 и DB-03B задают корректные success semantics.
 
@@ -2163,6 +2375,7 @@ Dependencies:
 - DG-M7.
 - DG-M9.
 - DG-UPDATE-03, DG-UPDATE-04.
+- DG-SPI-03, DG-SPI-04, DG-SPI-06.
 - SPI-01, DB-00.
 - DB-02, DB-03B.
 
@@ -3257,6 +3470,7 @@ DoR:
 - Core/storage/REST contracts стабильны.
 - REL-00 завершил consumer inventory.
 - SPI-01 завершён.
+- DG-SPI-05, DG-SPI-06 и DG-SPI-07 утверждены.
 
 DoD:
 
@@ -3276,6 +3490,7 @@ Dependencies:
 
 - E2, E3, E4 blocking tasks.
 - DG-M9.
+- DG-SPI-05, DG-SPI-06, DG-SPI-07.
 - REL-00, SPI-01.
 
 Notes/Risks:
