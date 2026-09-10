@@ -4,9 +4,9 @@
 
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
-активен; Batch 3 завершён, текущий production slice —
-`TEST-02B`/`TEST-02C` + `CORE-02`, параллельно выполняются три contract-задачи
-Batch 4.
+активен; Batch 1—4 завершены. В Batch 5 выполняется production slice CORE-03 и
+параллельные decision-ready contracts REST-00A, DB-03A и DB-00; CORE-05 —
+условный follow-on первого освободившегося design slot.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -737,7 +737,7 @@ Verification:
 
 ### Batch 4. Cardinality fix и три implementation-ready contracts
 
-Status: active
+Status: completed
 
 Tasks:
 
@@ -797,6 +797,117 @@ Exit criteria:
 - Новые gates собраны с полной проблематикой, alternatives, recommendation,
   compatibility impact и списком заблокированных задач для решения владельца.
 - Все PR смержены последовательно после independent QA и 17/17 required checks.
+
+Verification:
+
+- REST-00B: PR #62, independent remediation QA pass, 17/17 required checks;
+  canonical update contract и DG-UPDATE-01—DG-UPDATE-05 доступны в `master`.
+- TEST-02B + TEST-02C + CORE-02: PR #63, red-first commits сохранены, полный
+  create/update matrix зелёный, independent QA pass, 17/17 required checks;
+  issue #33 переоткрыт с evidence и закрыт merge commit.
+- SPI-01: PR #64, independent remediation QA pass и повторный QA после rebase,
+  17/17 required checks; DG-SPI-01—DG-SPI-07 доступны в `master`.
+- CORE-00: PR #65, independent remediation и post-rebase QA pass, 17/17
+  required checks; canonical entity contract и DG-ENT-01—DG-ENT-05 доступны в
+  `master`.
+- TEST-02F: red-only commit `3f50f77` независимо проверен. Unit и integration
+  targeted runs оба завершаются ожидаемым fatal об отсутствующем
+  `iTRON\wpConnections\IQueryTrait`; production не изменён, ветка не мержится
+  до paired CORE-07 после решения DG-QMETA-01.
+
+### Batch 5. Error contracts, delete/DB discovery и client naming
+
+Status: active
+
+Tasks:
+
+- CORE-03 — зафиксировать существующие domain errors 301—304,
+  duplicatable/closurable/cardinality precedence и missing-endpoint behavior;
+  закрыть issue #31 и добавить regression traceability для закрытого issue #29.
+- REST-00A — decision-ready domain error → HTTP mapping на полном WordPress REST
+  dispatch без handler или response changes.
+- DB-03A — decision-ready delete result/failure/affected-count/atomic-boundary
+  contract без production delete changes.
+- DB-00 — воспроизводимое исследование MySQL/MariaDB/engine/transaction/savepoint
+  capabilities без schema или CI policy changes.
+- CORE-05 — первый follow-on после освобождения design-слота: decision-ready
+  client naming, collision, identifier-length и legacy migration contract без
+  production table-name changes.
+
+Entry criteria:
+
+- Batch 4 завершён после independent QA и последовательного merge CORE-02,
+  REST-00B, SPI-01 и CORE-00.
+- CORE-02, TEST-02B и TEST-02C имеют completed status; issue #33 закрыт.
+- TEST-02F red evidence независимо проверен и записан; CORE-07 остаётся
+  `waiting_dependency`, пока DG-QMETA-01 pending.
+- Canonical entity-validation, storage-SPI и partial-update artifacts, а также
+  DG-ENT-01—DG-ENT-05, DG-SPI-01—DG-SPI-07 и DG-UPDATE-01—DG-UPDATE-05 доступны
+  в `master`.
+- Итоговый Batch 4 `master` `0db202e` имеет 17/17 successful check-runs; все
+  Batch 5 workstreams обновляются на этот strict base перед merge.
+- Активация не утверждает ни один pending human decision gate.
+
+Execution model:
+
+- Четыре стартовых независимых workstreams: CORE-03 владеет только existing
+  invariant/error production path; REST-00A — REST error mapping contract;
+  DB-03A — delete result/failure contract; DB-00 — DB compatibility и
+  transaction feasibility.
+- CORE-05 занимает первый освободившийся docs/design slot и остаётся частью
+  exit criteria Batch 5.
+- REST-00A, DB-03A, DB-00 и CORE-05 не меняют production/API/signatures. Каждый
+  material public choice оформляется как pending gate с problem, alternatives,
+  recommendation, compatibility impact и blocked tasks.
+- REST-00A cross-reference DG-ENT-03, DG-SPI-03 и DG-UPDATE-04/DG-UPDATE-05,
+  но не утверждает новые entity/update/storage errors или HTTP statuses.
+- DB-03A владеет delete-specific single/multiple/no-match/invalid/partial-failure
+  semantics; generic adapter failure, capability и hooks остаются за
+  DG-SPI-03/DG-SPI-04/DG-SPI-06.
+- DB-00 уточняет backend feasibility для DG-SPI-04 и предлагает, но не
+  утверждает, blocking/optional DB matrix и migration policy.
+- CORE-05 согласует concrete storage introspection с DG-SPI-07;
+  предварительные DB-00 identifier findings используются как input, но DB-00
+  не является hard dependency.
+- CORE-03 ограничивается существующими errors 301—304 и MissingParameters.
+  Precedence будущих entity-validation errors остаётся за DG-ENT-03. Любой
+  необходимый production fix сначала получает отдельное red evidence.
+- Ветки проходят independent QA и вливаются последовательно на strict base.
+  После каждого merge оставшиеся ветки обновляются и повторяют
+  пропорциональные проверки.
+
+Conditional follow-on:
+
+- CORE-05 начинается сразу после завершения первого из REST-00A, DB-03A или
+  DB-00.
+- Если DB-00 до финализации CORE-05 обнаруживает более строгий identifier-byte
+  limit или backend-specific naming constraint, CORE-05 включает его как input.
+- CORE-06 не начинается до owner approval возникающих naming/migration gates.
+
+Exit criteria:
+
+- CORE-03 покрывает type/code/message для 301—304, duplicate+cardinality → 303,
+  forbidden self-connection → 301, pure cardinality → 302 и update без ID →
+  304; missing endpoints охарактеризованы без неутверждённого изменения public
+  payload. Issue #31 закрыт, issue #29 связан с regression evidence.
+- REST-00A содержит полную current-state/full-dispatch mapping matrix для
+  validation, conflict/invariant, not-found, permission, storage и unknown
+  failures; numeric 301—304 не становятся HTTP redirects. Точные status/body
+  choices остаются pending; REST-03 остаётся `waiting_dependency`.
+- DB-03A различает single/multiple ID, directed pair, object-side, no-match,
+  invalid/empty/conflicting flags, duplicate rows, logical affected count,
+  partial SQL failure и hook timing. DB-03B остаётся `waiting_dependency` до
+  утверждения contract/gates.
+- DB-00 содержит воспроизводимые probes и evidence по выбранным MySQL/MariaDB
+  versions, engines, implicit DDL commits, nested transactions/savepoints и
+  existing non-transactional tables; DB-05/DB-06/REL-01 не разблокируются без
+  owner-approved DB/SPI gates.
+- CORE-05 содержит raw/canonical/collision/empty/overlong/legacy migration
+  matrix и pending gates; CORE-06 и DB-06 остаются `waiting_dependency`.
+- Все пять artifacts/verticals прошли independent QA, traceability checks и
+  применимые protected CI, затем последовательно смержены.
+- Ни один pending DG не утверждён неявно; completion design tasks означает
+  decision-ready artifact, а не готовность зависимой production implementation.
 
 ## E1. Test foundation и regression harness
 
@@ -1160,7 +1271,7 @@ Notes/Risks:
 
 ### TEST-02F. Зафиксировать `Query\Meta` autoload fatal
 
-Status: todo
+Status: review
 
 Priority: P0
 
@@ -1207,6 +1318,15 @@ Notes/Risks:
   красным отдельно; paired CORE-07 остаётся `waiting_dependency`.
 - Затронуты `STORE-CREATE-01`, `STORE-META-01`, `REST-CRUD-01` и
   `REST-META-01`; этот узкий test не заменяет полные downstream matrices.
+- Red-only commit `3f50f77` содержит только unit/integration regressions и эту
+  запись плана; production, fixtures и configuration не изменены.
+- Independent QA повторил оба targeted запуска: unit и integration завершаются
+  exit `255` с точной причиной `Trait "iTRON\wpConnections\IQueryTrait" not
+  found` в `src/Query/Meta.php:9`. Integration успевает успешно поднять
+  WordPress/MariaDB, но падает до storage mutation.
+- Ветка намеренно не публикуется и не мержится красной. Перед paired CORE-07
+  tests будут перенесены/rebased на актуальный strict base и поставлены одним
+  зелёным vertical PR после решения DG-QMETA-01.
 
 ### TEST-03A. Зафиксировать test quality и critical-scenario contract
 
@@ -1581,7 +1701,7 @@ Verification:
 
 ### CORE-02. Исправить и полностью проверить cardinality
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -1635,9 +1755,8 @@ Notes/Risks:
 - Общий internal guard проверяет create и оба существующих update entrypoint до
   storage mutation, исключая текущий положительный connection ID. Storage SPI,
   REST semantics, database indexes и duplicate/closure precedence не менялись.
-- Production и regression готовы для закрытия issue #33; GitHub issue остаётся
-  delivery-owner шагом, поэтому задача сохраняет `review`, пока этот DoD не
-  подтверждён.
+- Production и regressions влиты PR #63 (`cd2aca7`); issue #33 было переоткрыто
+  с reproduction evidence и автоматически закрыто merge 2026-09-10.
 
 Verification:
 
@@ -1666,7 +1785,7 @@ Verification:
 
 ### CORE-03. Зафиксировать duplicatable, closurable и error precedence
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P0
 
@@ -2213,7 +2332,7 @@ Notes/Risks:
 
 ### DB-03A. Зафиксировать delete result и failure contract
 
-Status: todo
+Status: in_progress
 
 Priority: P0
 
@@ -2512,7 +2631,7 @@ Tasking Guidance:
 
 ### REST-00A. Зафиксировать domain error → HTTP mapping
 
-Status: todo
+Status: in_progress
 
 Priority: P0
 
