@@ -4,7 +4,7 @@
 
 Milestone M0 достигнут 2026-09-10: инфраструктурная ветка влита в `master`,
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
-активен; первой исполняемой задачей является `TEST-01`.
+активен; `TEST-01` завершена, следующей исполняемой задачей является `TEST-02`.
 
 ## Цель
 
@@ -190,7 +190,7 @@ Tasking Guidance:
 
 ### TEST-01. Изолировать WordPress integration fixtures
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -233,13 +233,28 @@ Dependencies:
 
 Notes/Risks:
 
-- Текущий класс наследует обычный PHPUnit `TestCase`; WordPress factory cleanup
-  автоматически не применяется.
+- Suite переведён с обычного PHPUnit `TestCase` на общий
+  `WPConnectionsTestCase` поверх `WP_UnitTestCase`.
+- WordPress factory и transaction lifecycle очищают posts; client hooks
+  восстанавливаются WordPress test framework, client temporary tables и
+  `$wpdb` registry очищаются в `tear_down()` даже после failed test body.
 - M0 и clean integration command подтверждены post-merge CI на `a978bd2`.
+
+Verification:
+
+- `make tests.integration`: 5/5 tests, 24 domain assertions.
+- Reverse order с `--repeat=2`: 10/10 tests, 48 assertions.
+- Seeded random order с `--repeat=3`: 15/15 tests, 72 assertions.
+- Каждый из пяти integration tests прошёл отдельным `--filter` run.
+- Временный negative probe дал ожидаемый `F.`: после намеренно упавшего теста
+  следующий тест в том же процессе подтвердил нулевые connection/meta rows;
+  probe удалён и не входит в repository suite.
+- `make tests.run`, `make tests.coverage` и `make lint.phpcs` прошли; coverage
+  gate остался `365/786` statements (46,44%).
 
 ### TEST-02. Перенести подтверждённые defects в штатные regression tests
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -281,6 +296,8 @@ Dependencies:
 Notes/Risks:
 
 - Cardinality ожидания основаны на формулировке закрытого issue #33.
+- Задача разблокирована после завершения и проверки TEST-01; production fixes
+  по-прежнему остаются out of scope этого regression-only шага.
 
 ### TEST-03. Установить правила test quality и финальные thresholds
 
