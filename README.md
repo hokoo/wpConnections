@@ -78,6 +78,22 @@ $qc->set( 'to', $post_id_to );
 $wpc_client->getRelation( 'post-to-page' )->createConnection( $qc );
 ```
 
+### Endpoint validation compatibility
+
+High-level create and update operations require both endpoint IDs to resolve to
+the exact physical `from`/`to` WordPress post types declared by the relation.
+Custom non-post types require a client-scoped `EntityResolverInterface` before
+the client's first connection mutation. Direct storage calls remain a legacy
+SPI and do not receive these domain guarantees.
+
+Before upgrading an installation with existing data, run a read-only,
+client-by-client inventory for missing IDs, wrong post types and relation types
+without a registered resolver. Legacy-invalid rows remain readable and can be
+deleted, including through the REST cleanup delegates and `deleted_post`
+cascade, but cannot be updated through the domain API until repaired. The
+library performs no automatic scan, repair or destructive migration. See the
+[entity-validation contract and preflight guidance](docs/entity-validation-contract.md#release-and-read-only-preflight-guidance).
+
 ## Deprecations
 
 `Connection::load()` is a deprecated legacy no-op and will be removed in

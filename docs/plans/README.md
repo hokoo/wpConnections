@@ -14,8 +14,8 @@
 3. Batch 5 завершён и закрыт PR #72 на `master` `5b60682`. CORE-03 закрыл issue #31, а DB-00,
    REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Batch 6
    активирован после утверждения DP-1—DP-3 владельцем 2026-09-11:
-   TEST-02F/CORE-07 завершены, CORE-04 выполняется, CORE-06 поставлен следующим
-   после CORE-04.
+   TEST-02F/CORE-07 завершены; CORE-04 реализован локально и проходит полный
+   verification gate, CORE-06 поставлен следующим после его merge.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -58,10 +58,11 @@
 - DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
-- DP-1—DP-3 утверждены вариантом A владельцем 2026-09-11: DG-QMETA-01,
-  DG-UPDATE-01/02, DG-SPI-01/02/07, DG-ENT-01—DG-ENT-05 и
-  DG-NAME-01—DG-NAME-06. Pending остаются DG-API20-01—DG-API20-09,
-  DG-UPDATE-03—DG-UPDATE-05, DG-SPI-03—DG-SPI-06, DG-DB-01—DG-DB-04,
+- DP-1—DP-3 и review refinements утверждены вариантом A владельцем 2026-09-11:
+  DG-QMETA-01, DG-UPDATE-01/02/02R/04, DG-SPI-01/02/07,
+  DG-ENT-01—DG-ENT-06 и DG-NAME-01—DG-NAME-06. Pending остаются
+  DG-API20-01—DG-API20-09, DG-UPDATE-03/05, DG-SPI-03—DG-SPI-06,
+  DG-DB-01—DG-DB-04,
   DG-RESTERR-01—DG-RESTERR-04 и DG-DELETE-01—DG-DELETE-06; они блокируют только
   явно перечисленные downstream tasks. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
