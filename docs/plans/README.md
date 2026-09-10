@@ -11,9 +11,9 @@
    #51—#65 последовательно зафиксировали решения, test foundation/contracts,
    первые production fixes и исполняемые quality gates. PR #66 активировал
    Batch 5, PR #67 завершил CORE-03 и закрыл issue #31.
-3. Выполнять активный Batch 5: CORE-03 завершён и issue #31 закрыт; DB-00
-   и REST-00A завершили decision-ready compatibility discovery. Текущие
-   contract workstreams — `DB-03A` и `CORE-05`. Подтверждённый
+3. Выполнять активный Batch 5: CORE-03 завершён и issue #31 закрыт; DB-00,
+   REST-00A и DB-03A завершили decision-ready discovery. Текущий contract
+   workstream — `CORE-05`. Подтверждённый
    `TEST-02F/CORE-07` остаётся за pending DG-QMETA-01.
 
 Инфраструктурный task list находится в
@@ -54,14 +54,21 @@
   issue #20 вместе с filtering/traversal/representation contract.
 - DG-API20-01—DG-API20-09, DG-QMETA-01, DG-UPDATE-01—DG-UPDATE-05,
   DG-SPI-01—DG-SPI-07, DG-ENT-01—DG-ENT-05, DG-DB-01—DG-DB-04 и
-  DG-RESTERR-01—DG-RESTERR-04 остаются pending и блокируют только явно
-  перечисленные downstream tasks. Полные тексты находятся в
+  DG-RESTERR-01—DG-RESTERR-04, DG-DELETE-01—DG-DELETE-06 остаются pending и
+  блокируют только явно перечисленные downstream tasks. Полные тексты находятся в
   [entity validation contract](../entity-validation-contract.md),
   [database compatibility contract](../db-compatibility-contract.md) и
-  [REST error contract](../rest-error-contract.md); основной registry хранит
-  canonical decision/status. REST-00A, REST-00B, SPI-01, CORE-00 и DB-00
+  [REST error contract](../rest-error-contract.md), а DG-DELETE — в
+  [delete result/failure contract](../delete-result-contract.md); основной
+  registry хранит canonical decision/status. REST-00A, REST-00B, SPI-01,
+  CORE-00, DB-00 и DB-03A
   завершили decision-ready discovery; это не означает неявного утверждения их
   рекомендаций.
+- Canonical DB-03A
+  [delete result/failure contract](../delete-result-contract.md) отделяет
+  logical connection counts от metadata rows, relation-scoped domain/REST
+  deletion от legacy client-wide SPI и внутреннюю atomic boundary от
+  `deleted_post` recovery. DB-03B/DB-04/REST-03 остаются waiting до решений.
 - Штатные regressions уже защищают missing-`to`, broken `both` и полную
   cardinality matrix; REST update без `title` и `Query\Meta` fatal ожидают свои
   явно перечисленные решения/dependencies.
