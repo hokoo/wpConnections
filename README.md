@@ -85,7 +85,7 @@ Since you have initialized new client, its REST API endpoints are available.
 
 ### Prerequisites
 - Windows 10 or later (WSL2), or Linux, or MacOS
-- Docker Desktop, Docker Compose
+- Docker Desktop, Docker Compose v2
 - Make
 
 ### Installation
@@ -120,6 +120,10 @@ make tests.phpunit
 make tests.integration
 make lint.phpcs
 ```
+
+The supported local interface uses Compose v2 (`docker compose`) consistently.
+`make tests.integration` is the canonical WordPress integration-test target;
+the former `make tests.wpunit` alias has been removed.
 
 Rebuild the test image after changing `Dockerfile.phpunit` or its build inputs:
 
