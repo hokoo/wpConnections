@@ -738,7 +738,8 @@ Scope:
 
 Out of Scope:
 
-- Сделать текущие 46,44% равными 70%.
+- Довести product coverage до RC target 70%; эта задача автоматизирует policy,
+  а не закрывает coverage gaps.
 - Добавить новый required GitHub check без branch-protection review.
 - Isolation/flaky enforcement TEST-03C.
 
@@ -756,8 +757,8 @@ DoD:
 
 AC:
 
-- Given current 46,44% report, when работает PR mode, then gate проходит без
-  регрессии и сообщает RC not ready.
+- Given accepted baseline fixture `365/786` (46,44%), when работает PR mode,
+  then gate проходит без регрессии и сообщает RC not ready.
 - Given synthetic RC reports ниже/ровно/выше 70%, then результаты соответственно
   fail/pass/pass; malformed input даёт отдельный configuration error.
 
