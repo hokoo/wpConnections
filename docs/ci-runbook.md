@@ -49,6 +49,15 @@ This is idempotent and synchronizes the bind-mounted `vendor/` directory with
 suite starts and stops its own MariaDB process inside the test container. It
 does not depend on the `mysql` service in the local development stack.
 
+Local Compose runs bind-mount the current entrypoint and compare the current
+`Dockerfile.phpunit` and entrypoint SHA-256 values with a manifest baked into
+the image. They also compare the Compose PHP and WordPress inputs with the
+baked inputs and actual runtimes. A PHP minor input such as `8.1` accepts an
+`8.1.x` runtime. Any mismatch stops before Composer and PHPUnit and names
+`make tests.build` and `make tests.clean` as recovery commands. Direct CI
+containers omit the `EXPECTED_*` variables because every workflow builds its
+image immediately before running it.
+
 `make tests.integration` is the canonical integration command. The old
 `tests.wpunit` alias is intentionally not supported.
 
@@ -189,8 +198,9 @@ the complete visible check set take precedence over CI duration.
 
 ### Docker image or cache failures
 
-- Use `make tests.build` after changing `Dockerfile.phpunit` or copied entrypoint
-  files.
+- A `Test image freshness check failed` message means the local image predates
+  the baked manifest or no longer matches its Dockerfile, entrypoint, PHP or
+  WordPress input. Use `make tests.build` after an intentional input change.
 - Use `make tests.clean` for a no-cache rebuild plus both suites. A cache miss is
   a supported path and must produce the same result as a cached run.
 - If only one CI lane fails, reproduce that lane with its exact PHP, WordPress,

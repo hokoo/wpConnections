@@ -11,6 +11,9 @@ WP_TESTS_DIR="${WP_TESTS_DIR:-/opt/wordpress-develop/tests/phpunit}"
 MYSQL_SOCKET="${MYSQL_SOCKET:-/run/mysqld/mysqld.sock}"
 MYSQL_DATA_DIR="${MYSQL_DATA_DIR:-/tmp/mysql-data}"
 RAMSEY_VERSION="${RAMSEY_VERSION:-}"
+EXPECTED_PHP_VERSION="${EXPECTED_PHP_VERSION:-}"
+EXPECTED_WP_VERSION="${EXPECTED_WP_VERSION:-}"
+IMAGE_BUILD_MANIFEST="${IMAGE_BUILD_MANIFEST:-/usr/local/share/wpconnections-test-image/build-manifest}"
 CONFIG_SAMPLE="${WP_DEVELOP_DIR}/wp-tests-config-sample.php"
 CONFIG_FILE="${WP_DEVELOP_DIR}/wp-tests-config.php"
 
@@ -39,17 +42,149 @@ log_section() {
   echo "========================================"
 }
 
-log_runtime_versions() {
+get_wordpress_runtime_version() {
   local wordpress_version_file="${WP_DEVELOP_DIR}/src/wp-includes/version.php"
-  local wordpress_runtime_version="unknown"
+
+  if [ ! -f "${wordpress_version_file}" ]; then
+    printf 'unknown'
+    return
+  fi
+
+  php -r 'include $argv[1]; echo isset($wp_version) ? $wp_version : "unknown";' \
+    "${wordpress_version_file}"
+}
+
+fail_image_freshness_check() {
+  echo "Test image freshness check failed: $1" >&2
+  echo "Run 'make tests.build' to rebuild with cache, or 'make tests.clean' for a no-cache rebuild and full verification." >&2
+  return 78
+}
+
+validate_test_image() {
+  local manifest_schema=""
+  local manifest_dockerfile_sha256=""
+  local manifest_entrypoint_sha256=""
+  local manifest_php_version=""
+  local manifest_wp_version=""
+  local current_dockerfile_sha256=""
+  local current_entrypoint_sha256=""
+  local php_runtime_version=""
+  local wordpress_runtime_version=""
+  local wordpress_comparable_version=""
+  local key=""
+  local value=""
+
+  # Direct Docker/CI invocations do not opt into the local Compose freshness
+  # contract. Their images are built immediately before use by the workflows.
+  if [ -z "${EXPECTED_PHP_VERSION}" ] && [ -z "${EXPECTED_WP_VERSION}" ]; then
+    return
+  fi
+
+  if [ -z "${EXPECTED_PHP_VERSION}" ] || [ -z "${EXPECTED_WP_VERSION}" ]; then
+    fail_image_freshness_check \
+      "EXPECTED_PHP_VERSION and EXPECTED_WP_VERSION must either both be set or both be unset."
+    return
+  fi
+
+  if [ ! -f "${IMAGE_BUILD_MANIFEST}" ]; then
+    fail_image_freshness_check \
+      "the baked build manifest is missing, so this image predates freshness validation."
+    return
+  fi
+
+  while IFS='=' read -r key value; do
+    case "${key}" in
+      schema) manifest_schema="${value}" ;;
+      dockerfile_sha256) manifest_dockerfile_sha256="${value}" ;;
+      entrypoint_sha256) manifest_entrypoint_sha256="${value}" ;;
+      php_version) manifest_php_version="${value}" ;;
+      wp_version) manifest_wp_version="${value}" ;;
+    esac
+  done < "${IMAGE_BUILD_MANIFEST}"
+
+  if [ "${manifest_schema}" != "1" ] || \
+    [ -z "${manifest_dockerfile_sha256}" ] || \
+    [ -z "${manifest_entrypoint_sha256}" ] || \
+    [ -z "${manifest_php_version}" ] || \
+    [ -z "${manifest_wp_version}" ]; then
+    fail_image_freshness_check \
+      "the baked build manifest is incomplete or uses an unsupported schema."
+    return
+  fi
+
+  if [ ! -f "${WORKDIR}/Dockerfile.phpunit" ] || \
+    [ ! -f "${WORKDIR}/docker/phpunit-entrypoint.sh" ]; then
+    fail_image_freshness_check \
+      "current Dockerfile.phpunit or docker/phpunit-entrypoint.sh is not visible in ${WORKDIR}."
+    return
+  fi
+
+  current_dockerfile_sha256="$(sha256sum "${WORKDIR}/Dockerfile.phpunit" | cut -d ' ' -f 1)"
+  current_entrypoint_sha256="$(sha256sum "${WORKDIR}/docker/phpunit-entrypoint.sh" | cut -d ' ' -f 1)"
+
+  if [ "${current_dockerfile_sha256}" != "${manifest_dockerfile_sha256}" ]; then
+    fail_image_freshness_check \
+      "Dockerfile.phpunit differs from the version baked into the image."
+    return
+  fi
+
+  if [ "${current_entrypoint_sha256}" != "${manifest_entrypoint_sha256}" ]; then
+    fail_image_freshness_check \
+      "docker/phpunit-entrypoint.sh differs from the version baked into the image."
+    return
+  fi
+
+  if [ "${EXPECTED_PHP_VERSION}" != "${manifest_php_version}" ]; then
+    fail_image_freshness_check \
+      "expected PHP ${EXPECTED_PHP_VERSION}, but the image was built for ${manifest_php_version}."
+    return
+  fi
+
+  if [ "${EXPECTED_WP_VERSION}" != "${manifest_wp_version}" ] || \
+    [ "${EXPECTED_WP_VERSION}" != "${WP_VERSION}" ]; then
+    fail_image_freshness_check \
+      "expected WordPress ${EXPECTED_WP_VERSION}, but the image request is ${manifest_wp_version} (runtime environment: ${WP_VERSION})."
+    return
+  fi
+
+  php_runtime_version="$(php -r 'echo PHP_VERSION;')"
+  if [[ "${EXPECTED_PHP_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    if [[ "${php_runtime_version}" != "${EXPECTED_PHP_VERSION}."* ]]; then
+      fail_image_freshness_check \
+        "expected PHP ${EXPECTED_PHP_VERSION}.x, but the runtime is ${php_runtime_version}."
+      return
+    fi
+  elif [ "${php_runtime_version}" != "${EXPECTED_PHP_VERSION}" ]; then
+    fail_image_freshness_check \
+      "expected PHP ${EXPECTED_PHP_VERSION}, but the runtime is ${php_runtime_version}."
+    return
+  fi
+
+  wordpress_runtime_version="$(get_wordpress_runtime_version)"
+  if [ "${wordpress_runtime_version}" = "unknown" ]; then
+    fail_image_freshness_check \
+      "the WordPress runtime version cannot be read from the image."
+    return
+  fi
+
+  # wordpress-develop release tags report an intentional "-src" suffix.
+  # Strip only that known build-tree marker before comparing release numbers.
+  wordpress_comparable_version="${wordpress_runtime_version%-src}"
+
+  if [ "${EXPECTED_WP_VERSION}" != "trunk" ] && \
+    [ "${wordpress_comparable_version}" != "${EXPECTED_WP_VERSION}" ] && \
+    { [ "${EXPECTED_WP_VERSION}" != "${wordpress_comparable_version}.0" ]; }; then
+    fail_image_freshness_check \
+      "expected WordPress ${EXPECTED_WP_VERSION}, but the runtime is ${wordpress_runtime_version}."
+    return
+  fi
+}
+
+log_runtime_versions() {
+  local wordpress_runtime_version=""
   local ramsey_runtime_version="unknown"
 
-  if [ -f "${wordpress_version_file}" ]; then
-    wordpress_runtime_version="$(
-      php -r 'include $argv[1]; echo isset($wp_version) ? $wp_version : "unknown";' \
-        "${wordpress_version_file}"
-    )"
-  fi
+  wordpress_runtime_version="$(get_wordpress_runtime_version)"
 
   if [ -f vendor/composer/installed.php ]; then
     ramsey_runtime_version="$(
@@ -231,6 +366,8 @@ run_all_tests() {
 }
 
 CMD="${1:-test:all}"
+
+validate_test_image
 
 case "$CMD" in
   test:all)

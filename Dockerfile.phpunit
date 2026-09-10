@@ -4,6 +4,7 @@ ARG PHP_VERSION=8.2.33
 ARG WP_VERSION=7.1.0
 FROM php:${PHP_VERSION}-cli
 
+ARG PHP_VERSION=8.2.33
 ARG WP_VERSION=7.1.0
 
 LABEL maintainer="wpConnections"
@@ -85,8 +86,21 @@ RUN set -eux; \
 
 WORKDIR /srv/web
 
+COPY Dockerfile.phpunit /usr/local/share/wpconnections-test-image/Dockerfile.phpunit
+COPY docker/phpunit-entrypoint.sh /usr/local/share/wpconnections-test-image/phpunit-entrypoint.sh
 COPY docker/phpunit-entrypoint.sh /usr/local/bin/phpunit-entrypoint.sh
-RUN chmod +x /usr/local/bin/phpunit-entrypoint.sh
+RUN set -eu; \
+    manifest_dir=/usr/local/share/wpconnections-test-image; \
+    { \
+        printf 'schema=1\n'; \
+        printf 'dockerfile_sha256='; \
+        sha256sum "${manifest_dir}/Dockerfile.phpunit" | cut -d ' ' -f 1; \
+        printf 'entrypoint_sha256='; \
+        sha256sum "${manifest_dir}/phpunit-entrypoint.sh" | cut -d ' ' -f 1; \
+        printf 'php_version=%s\n' "${PHP_VERSION}"; \
+        printf 'wp_version=%s\n' "${WP_VERSION}"; \
+    } > "${manifest_dir}/build-manifest"; \
+    chmod +x /usr/local/bin/phpunit-entrypoint.sh
 
 ENTRYPOINT ["phpunit-entrypoint.sh"]
 CMD ["test:all"]

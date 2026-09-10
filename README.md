@@ -111,7 +111,10 @@ Behind the scenes this calls the `phpunit` service defined in `local-dev/docker-
 `make tests.run` is the fast development loop: it reuses the existing test image,
 while an idempotent `composer install` synchronizes the bind-mounted `vendor/`
 directory with `composer.lock` before PHPUnit starts. Repeated runs with an
-up-to-date lock file do not download the dependencies again.
+up-to-date lock file do not download the dependencies again. Before Composer
+runs, the local entrypoint verifies that the image matches the current
+Dockerfile, entrypoint, PHP input and WordPress input; a stale image fails with
+the exact rebuild commands to use.
 
 You can also run individual checks from the project root:
 
