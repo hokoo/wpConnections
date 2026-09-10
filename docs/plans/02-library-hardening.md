@@ -228,7 +228,7 @@ implementers. Сужение PHP visibility или новый command service в
 
 ### Batch 1. Активировать решения и нормализовать backlog
 
-Status: in_progress
+Status: completed
 
 Scope:
 
@@ -244,6 +244,14 @@ Exit criteria:
 - Каждая execution task имеет обязательные `$decompose-work` attributes.
 - Первый functional batch содержит только `todo` tasks с выполненным DoR.
 - Docs-only PR проходит checks и влит до functional branches.
+
+Verification:
+
+- Independent planning QA: pass, blocking findings отсутствуют.
+- 6/6 epics и 43/43 execution tasks имеют обязательные attributes; task IDs
+  уникальны, `git diff --check` проходит.
+- Baseline `make tests.run`: unit 4/7, integration 5/24.
+- Commit: `6a3a336` (`Activate library hardening decisions`).
 
 ### Batch 2. Green foundation и contract discovery
 
