@@ -45,6 +45,10 @@ gate. `INFRA-05` начинается после фиксации version matrix
 создаёт baseline для функциональных исправлений, не превращая PR в долгий
 проект по оптимизации CI.
 
+**Решение 2026-09-10:** B. Freshness, version policy, coverage baseline и
+Compose cleanup входят в PR #48; cache/build optimization остаётся отдельным
+follow-up и не блокирует merge.
+
 **Блокирует:** финальный scope `INFRA-02`—`INFRA-08`.
 
 ### DG-I2. Политика свежести локального запуска
@@ -61,6 +65,9 @@ gate. `INFRA-05` начинается после фиксации version matrix
 **Рекомендация:** B. Она сохраняет быстрый inner loop, но не допускает молчаливо
 устаревшее окружение. В CI всегда используется clean build.
 
+**Решение 2026-09-10:** B. Fast path остаётся командой по умолчанию; clean build
+и проверяемая синхронизация зависимостей становятся явной частью интерфейса.
+
 **Блокирует:** `INFRA-02`.
 
 ### DG-I3. WordPress compatibility policy
@@ -75,6 +82,9 @@ gate. `INFRA-05` начинается после фиксации version matrix
 **Рекомендация:** C. Blocking PR checks выполняются на минимальной и stable,
 mutable `master` запускается отдельно как canary и не ломает воспроизводимость
 обычных PR.
+
+**Решение 2026-09-10:** C. Minimum и stable являются blocking inputs, trunk —
+отдельным неблокирующим scheduled canary.
 
 **Блокирует:** `INFRA-03`, `INFRA-05` и финальную release matrix.
 
@@ -91,6 +101,9 @@ mutable `master` запускается отдельно как canary и не �
 критические зоны дополнительно контролируются обязательными scenario tests, а
 не только процентом.
 
+**Решение 2026-09-10:** B. CI публикует единый coverage report и запрещает
+снижение подтверждённого baseline; повышение порога идёт отдельными изменениями.
+
 **Блокирует:** `INFRA-04` и задачу quality gates основного плана.
 
 ### DG-I5. Docker Compose CLI
@@ -104,23 +117,26 @@ Compose v2 `docker compose`?
 **Рекомендация:** A, если все активные developer/CI environments имеют Compose
 v2; иначе B с датой удаления legacy path.
 
+**Решение 2026-09-10:** A. Поддерживаемый локальный интерфейс — Compose v2
+`docker compose`; legacy binary не сохраняется.
+
 **Блокирует:** `INFRA-06`.
 
 ## Реестр решений
 
 | Gate | Решение | Владелец | Дата | Следствие |
 |---|---|---|---|---|
-| DG-I1 | pending; recommended B | unassigned | — | Определяет scope PR #48 |
-| DG-I2 | pending; recommended B | unassigned | — | Определяет local freshness |
-| DG-I3 | pending; recommended C | unassigned | — | Определяет WP matrix |
-| DG-I4 | pending; recommended B | unassigned | — | Определяет coverage gate |
-| DG-I5 | pending; recommended A | unassigned | — | Определяет Compose command |
+| DG-I1 | approved B | repository owner | 2026-09-10 | INFRA-02/03/04/06 блокируют merge; INFRA-05 — follow-up |
+| DG-I2 | approved B | repository owner | 2026-09-10 | Fast default + explicit clean path |
+| DG-I3 | approved C | repository owner | 2026-09-10 | Blocking minimum/stable + non-blocking trunk canary |
+| DG-I4 | approved B | repository owner | 2026-09-10 | Report + no-regression baseline gate |
+| DG-I5 | approved A | repository owner | 2026-09-10 | Compose v2 only |
 
 ## Execution tasks
 
 ### INFRA-01. Принять текущий Docker CI transition
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -171,12 +187,12 @@ Verification:
 
 Notes/Risks:
 
-- На момент аудита эти проверки успешны; задача ожидает owner review.
+- Проверки выполнены успешно, а owner утвердил рекомендованный scope 2026-09-10.
 - Единственное изменение `src` в ветке — форматирование `WPStorage`.
 
 ### INFRA-02. Исключить устаревшие image и Composer dependencies
 
-Status: needs_design
+Status: todo
 
 Priority: P0
 
@@ -229,7 +245,7 @@ Notes/Risks:
 
 ### INFRA-03. Зафиксировать PHP, WordPress и Ramsey test matrix
 
-Status: needs_design
+Status: todo
 
 Priority: P0
 
@@ -279,7 +295,7 @@ Notes/Risks:
 
 ### INFRA-04. Добавить штатный coverage report и baseline gate
 
-Status: needs_design
+Status: todo
 
 Priority: P0
 
@@ -379,7 +395,7 @@ Notes/Risks:
 
 ### INFRA-06. Нормализовать Docker Compose и Make interface
 
-Status: needs_design
+Status: todo
 
 Priority: P1
 
@@ -522,4 +538,3 @@ Notes/Risks:
 
 - Merge — внешнее изменение состояния и выполняется только после явного решения
   владельца репозитория.
-
