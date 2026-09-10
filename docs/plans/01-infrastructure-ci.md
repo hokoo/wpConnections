@@ -4,10 +4,11 @@
 
 - Ветка: `codex/dockerfile-ci-transition`.
 - Pull request: [#48 Move CI checks toward Dockerfile workflow](https://github.com/hokoo/wpConnections/pull/48).
-- Base: `master`; текущая ветка на пять коммитов впереди и не отстаёт.
-- Уже реализовано: общий `Dockerfile.phpunit`, отдельные workflows для PHPCS,
-  unit и WordPress integration, единый command dispatcher, отдельные Make
-  targets, обновлённый README.
+- Base: `master`; исходный implementation diff PR был на пять коммитов впереди,
+  локальный HEAD дополнен execution-коммитами этого плана.
+- Исходная реализация PR состояла из пяти коммитов. Поверх неё локально завершён
+  согласованный hardening batch: freshness, version matrix, coverage gate,
+  Compose v2 cleanup и CI runbook.
 - Функциональные тесты и поведение библиотеки в этой ветке не меняются.
 
 ## Цель и границы
@@ -24,11 +25,11 @@ dependency/version matrix, coverage collection, документация и merg
 
 ## Рекомендуемый порядок
 
-`INFRA-01 -> gates I1-I4 -> INFRA-02/03/04/05 -> INFRA-06 -> INFRA-07 -> INFRA-08`
+`INFRA-01 -> gates I1-I5 -> INFRA-02/03/04 -> INFRA-06 -> INFRA-07 -> DG-I6 -> INFRA-09 -> INFRA-08`
 
 `INFRA-02`, `INFRA-03` и `INFRA-04` можно выполнять параллельно после решений
-gate. `INFRA-05` начинается после фиксации version matrix. Оптимизация не должна
-ослаблять clean-checkout проверку.
+gate. `INFRA-05` вынесена в отдельный follow-up после merge и не блокирует
+`INFRA-08`; оптимизация не должна ослаблять clean-checkout проверку.
 
 ## Decision gates
 
@@ -122,6 +123,26 @@ v2; иначе B с датой удаления legacy path.
 
 **Блокирует:** `INFRA-06`.
 
+### DG-I6. Уязвимый dev lint toolchain
+
+**Вопрос:** как закрыть две high-severity advisory, обнаруженные после
+выполнения утверждённого scope?
+
+- A: до merge обновить PHPCS до `3.13.6`, WPCS до `3.4.1` и выполнить
+  минимальную миграцию ruleset.
+- B: принять риск и вынести обновление в follow-up с владельцем и сроком.
+- C: удалить WPCS из dev dependencies.
+
+**Рекомендация:** A. Изолированный spike подтвердил узкий dependency-only
+patch без изменений `src`: audit становится чистым, а PHPCS, unit, integration
+и coverage сохраняют текущий результат. B оставляет исполняемые CI-инструменты с
+двумя high advisory; C меняет dev-tool contract и не закрывает PHPCS advisory.
+
+**Статус:** pending owner decision; исходное одобрение DG-I1—DG-I5 не
+распространяется на обнаруженный позднее gate автоматически.
+
+**Блокирует:** `INFRA-09` и финальное решение `INFRA-08`.
+
 ## Реестр решений
 
 | Gate | Решение | Владелец | Дата | Следствие |
@@ -131,6 +152,7 @@ v2; иначе B с датой удаления legacy path.
 | DG-I3 | approved C | repository owner | 2026-09-10 | Blocking minimum/stable + non-blocking trunk canary |
 | DG-I4 | approved B | repository owner | 2026-09-10 | Report + no-regression baseline gate |
 | DG-I5 | approved A | repository owner | 2026-09-10 | Compose v2 only |
+| DG-I6 | pending; recommended A | repository owner | — | Security disposition перед merge |
 
 ## Execution tasks
 
@@ -192,7 +214,7 @@ Notes/Risks:
 
 ### INFRA-02. Исключить устаревшие image и Composer dependencies
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -242,10 +264,14 @@ Notes/Risks:
 
 - Всегда выполнять `composer update` нельзя: это меняет lock и разрушает
   воспроизводимость. Для штатного path нужен `composer install`.
+- Реализовано коммитами `74ef965` и `03b9475`: fast path синхронизирует
+  зависимости через идемпотентный `composer install`, clean path делает
+  no-cache rebuild, а baked manifest до Composer проверяет Dockerfile,
+  entrypoint и ожидаемые PHP/WordPress inputs.
 
 ### INFRA-03. Зафиксировать PHP, WordPress и Ramsey test matrix
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -292,10 +318,14 @@ Notes/Risks:
 
 - Полный Cartesian matrix может быть дорогим; допустима pairwise-матрица с
   отдельным scheduled full run.
+- Реализовано коммитом `2a28bd5`: 10 unit lanes, 5 blocking pairwise
+  integration lanes и scheduled/manual WordPress `trunk` canary.
+- Compatibility floor закреплён на WordPress `6.7.7`, stable — на `7.1.0`;
+  symbolic `latest` и stale GitHub branch `master` отклоняются.
 
 ### INFRA-04. Добавить штатный coverage report и baseline gate
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -342,10 +372,12 @@ Notes/Risks:
 
 - Зафиксированный аудитом baseline — 46,44% строк; его нужно повторно измерить
   штатной командой перед включением gate.
+- Реализовано коммитом `1324f15`; штатный combined run подтвердил точное
+  значение `365/786` statements, которое сравнивается без округления.
 
 ### INFRA-05. Уменьшить стоимость и длительность CI без потери проверок
 
-Status: waiting_dependency
+Status: deferred
 
 Priority: P1
 
@@ -392,10 +424,12 @@ Dependencies:
 Notes/Risks:
 
 - Cache key обязан учитывать Dockerfile, lock, PHP, WordPress и Ramsey inputs.
+- DG-I1 оставляет эту задачу отдельным follow-up; она не входит в blocking scope
+  PR #48.
 
 ### INFRA-06. Нормализовать Docker Compose и Make interface
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -441,10 +475,12 @@ Notes/Risks:
 
 - Удаление legacy binary без проверки developer environments может нарушить
   локальный workflow.
+- Реализовано коммитом `a2a833e`; Compose v2 `2.26.1` и все documented targets
+  проверены без obsolete schema warning.
 
 ### INFRA-07. Создать CI runbook и contribution contract
 
-Status: waiting_dependency
+Status: completed
 
 Priority: P1
 
@@ -487,10 +523,79 @@ Dependencies:
 Notes/Risks:
 
 - Не дублировать команды в нескольких местах без единого source of truth.
+- Реализовано коммитом `79ead80`: source of truth — `docs/ci-runbook.md`, а PR
+  template содержит merge-readiness checklist.
+
+### INFRA-09. Закрыть high-severity advisory lint toolchain
+
+Status: needs_decision
+
+Priority: P0
+
+Goal: CI и локальный lint не должны исполнять версии dev tools с известными
+high-severity advisory.
+
+Scope:
+
+- Реализовать решение DG-I6.
+- При варианте A обновить `squizlabs/php_codesniffer` до `^3.13.6` и
+  `wp-coding-standards/wpcs` до `^3.4.1`.
+- Обновить `composer.lock` целевым dependency update.
+- Переименовать WPCS property `minimum_supported_wp_version` в
+  `minimum_wp_version`.
+
+Out of Scope:
+
+- PHPCS 4.x.
+- Миграция `phpcompatibility/php-compatibility` на следующий major.
+- Исправление PHP dynamic-property deprecations в `src`.
+
+DoR:
+
+- DG-I6 решён.
+- При варианте B назначены владелец, срок и явное risk acceptance.
+
+DoD:
+
+- При варианте A `composer audit --locked` не содержит advisory.
+- PHPCS, unit, WordPress integration и combined coverage не регрессируют.
+- Dependency diff ограничен lint toolchain и его обязательными transitive
+  packages.
+
+AC:
+
+- Given обновлённый lock, when выполняется `composer audit --locked`, then
+  advisory CVE-2026-67434 и CVE-2026-45293 отсутствуют.
+- Given WPCS 3.4.1 и PHPCS 3.13.6, when выполняется `cs:phpcs`, then все 35
+  source files проходят без violations.
+- Given security update, when выполняется combined coverage, then gate остаётся
+  на `365/786` или выше.
+
+Dependencies:
+
+- DG-I6.
+- INFRA-03 и INFRA-04.
+
+Verification:
+
+- `composer validate --strict --no-check-publish`
+- `composer audit --locked`
+- `make lint.phpcs`
+- `make tests.run`
+- `make tests.coverage`
+
+Notes/Risks:
+
+- Feasibility spike разрешил PHPCS `3.13.6`, WPCS `3.4.1`, PHPCSExtra `1.5.1`
+  и PHPCSUtils `1.2.3`; остальные package versions не изменились.
+- После update появляется неблокирующий vendor deprecation из старого
+  PHPCompatibility 9.3.5; его modernization остаётся отдельным follow-up.
+- Источники: [PHPCS advisory](https://github.com/PHPCSStandards/PHP_CodeSniffer/security/advisories/GHSA-hmqg-cxww-wqhq),
+  [WPCS advisory](https://github.com/WordPress/WordPress-Coding-Standards/security/advisories/GHSA-3pwp-g2mj-5p3v).
 
 ### INFRA-08. Завершить PR #48 и установить milestone M0
 
-Status: waiting_dependency
+Status: needs_decision
 
 Priority: P0
 
@@ -510,6 +615,7 @@ Out of Scope:
 DoR:
 
 - DG-I1 решён.
+- DG-I6 решён; `INFRA-09` завершена либо явно отложена принятым решением.
 - Все задачи, включённые решением DG-I1 в scope PR, имеют `completed` или
   `review` без blocking замечаний.
 - Required checks зелёные.
@@ -538,3 +644,26 @@ Notes/Risks:
 
 - Merge — внешнее изменение состояния и выполняется только после явного решения
   владельца репозитория.
+- Локальный scope одобренных DG-I1—DG-I5 завершён. Сначала требуется решение
+  DG-I6; после него ожидаются разрешение на push, результаты GitHub Actions для
+  нового HEAD, настройка Coverage/новых matrix names как required checks и
+  отдельное разрешение владельца на merge.
+
+## Execution evidence 2026-09-10
+
+| Проверка | Результат |
+|---|---|
+| Unit compatibility matrix | 10/10 lanes passed; 4 tests / 7 assertions каждая |
+| WordPress integration matrix | 5/5 lanes passed; 5 tests / 34 assertions каждая |
+| WordPress trunk canary | passed на `7.2-alpha-63166-src` |
+| Aggregate `test:all` | passed; unit 4/7 + integration 5/34 |
+| Combined coverage | passed; 9 tests / 41 assertions; `365/786` statements |
+| Coverage negative paths | regression exit 1; malformed input exit 2; artifacts сохранены |
+| PHPCS | passed; 35/35 files |
+| Compose v2 / clean rebuild | config valid; no-cache build и повторный fast run passed |
+| Local image freshness | current passed; stale/missing manifest и input mismatch завершились exit 78 до Composer |
+
+Известные наблюдения: PHP 8.4/8.5 показывают существующие deprecation notices;
+`composer validate --strict` возвращает warning status из-за устаревшего SPDX
+identifier `GPL-2.0+` и unbound constraint `psr/log >=1.1`. Две обнаруженные
+audit advisory вынесены в явный DG-I6 и не считаются молча принятым риском.
