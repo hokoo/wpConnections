@@ -40,7 +40,12 @@ class Connection extends Abstracts\Connection
     }
 
     /**
-     * Loads existing instance from DB
+     * Legacy no-op retained for backward compatibility.
+     *
+     * @deprecated 1.x This method never loaded state and will be removed in
+     *                 2.0.0. Query an existing connection through
+     *                 Relation::findConnections() instead.
+     * @see Relation::findConnections()
      */
     public function load()
     {

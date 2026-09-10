@@ -2320,7 +2320,7 @@ Verification:
 
 ### API-02. Решить судьбу `Connection::load()`
 
-Status: todo
+Status: completed
 
 Priority: P2
 
@@ -2364,6 +2364,20 @@ Notes/Risks:
 - Согласно DG-M5 deprecation остаётся documentation/PHPDoc-only в текущей major
   version; runtime notice не добавляется, чтобы не ломать consumers, которые
   превращают notices в exceptions.
+- PHPDoc и `docs/deprecations.md` фиксируют no-op до удаления в 2.0.0 и
+  направляют consumer к `Relation::findConnections()`; README ссылается на
+  migration guide. `ConnectionCollection::getPosts()` явно остаётся вне API-02.
+- REL-00 не нашла публичных вызовов `load()`, но private usage остаётся
+  residual risk.
+
+Verification:
+
+- Unit contract проверяет `@deprecated`, removal target/replacement и то, что
+  вызов в текущей major version возвращает `null`, не меняя connection.
+- `make tests.phpunit`: 6 tests / 14 assertions; `make tests.run`: unit 6/14,
+  integration 10/69; `make lint.phpcs`: 35/35 files.
+- `make tests.coverage`: 16 tests / 83 assertions; 549/786 statements (69,85%),
+  approved exact baseline 365/786 пройден.
 
 ### API-03. Реализовать bulk resolution связанных entities
 
