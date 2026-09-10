@@ -7,10 +7,10 @@ Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 
 This is the canonical DB-03A artifact. It inventories the existing connection
 delete behavior and makes the remaining public choices reviewable before
-DB-03B changes production code. The six `DG-DELETE-*` sections are pending human
-decision gates. Recommendations describe a coherent implementation candidate;
-they are not the current contract and do not authorize code, REST, SPI, hook, or
-schema changes.
+DB-03B-A/DB-03B-B change production code. The six `DG-DELETE-*` sections are
+pending human decision gates. Recommendations describe a coherent implementation
+candidate; they are not the current contract and do not authorize code, REST,
+SPI, hook, or schema changes.
 
 ## Ownership and boundaries
 
@@ -28,7 +28,7 @@ storage implementer SPI:
 - The default adapter is [`WPStorage`](../src/WPStorage.php). Its SQL, physical
   tables, and low-level hooks are concrete behavior, not automatically portable
   SPI obligations.
-- Connection deletion is DB-03A/DB-03B scope. Selective metadata deletion via
+- Connection deletion is DB-03A/DB-03B-A/DB-03B-B scope. Selective metadata deletion via
   `removeConnectionMeta()` and the REST `/meta` subresource is inventoried below
   because it shares result/failure problems, but its value semantics and route
   contract remain DB-02/REST-05 work.
@@ -186,16 +186,16 @@ isolated choices.
 
 | Scenario | Recommended observable outcome | Required proof | Gate/owner |
 | --- | --- | --- | --- |
-| Relation delete by existing ID owned by that relation | Logical count `1` | Only that row and all its metadata disappear | DG-DELETE-01/02; DB-03B |
+| Relation delete by existing ID owned by that relation | Logical count `1` | Only that row and all its metadata disappear | DG-DELETE-01/02; DB-03B-A |
 | Relation delete by ID owned by another relation | Valid no-match `0`; REST converts to its approved not-found response | Foreign row/meta remain | DG-DELETE-01/03; REST-00A/REST-03 |
-| Direct SPI delete by one/several IDs | Client-wide primitive; count distinct matching connection rows | Missing IDs do not inflate count; duplicate input IDs do not double-count | DG-DELETE-02/03/04; DB-03B/REL-02 |
-| Directed pair | All exact-pair rows in exact optional relation | Duplicate rows count separately; unrelated relation remains | DG-DELETE-01/02; DB-03B |
-| Object, neither direction flag | Incoming union outgoing in exact optional relation | Self-row selected once; other relation remains | DG-DELETE-01/02; DB-03B |
-| Object, one direction flag | Only the named endpoint side | Mirrored from/to fixtures | DG-DELETE-01/04; DB-03B |
+| Direct SPI delete by one/several IDs | Client-wide primitive; count distinct matching connection rows | Missing IDs do not inflate count; duplicate input IDs do not double-count | DG-DELETE-02/03/04; DB-03B-A/REL-02 |
+| Directed pair | All exact-pair rows in exact optional relation | Duplicate rows count separately; unrelated relation remains | DG-DELETE-01/02; DB-03B-A |
+| Object, neither direction flag | Incoming union outgoing in exact optional relation | Self-row selected once; other relation remains | DG-DELETE-01/02; DB-03B-A |
+| Object, one direction flag | Only the named endpoint side | Mirrored from/to fixtures | DG-DELETE-01/04; DB-03B-A |
 | Valid selector, no rows | `0`, never an adapter failure | No writes; no committed-success hook | DG-DELETE-03 plus DG-SPI-03/06 |
 | Empty, invalid, mixed-invalid, or ambiguous selector | Stable attributable domain error before SQL | No storage mutation or committed-success hook | DG-DELETE-01/04 plus DG-SPI-03/06 |
-| Any selector read/write failure | Stable adapter/domain failure, never `0` or partial success | Original state restored; failure context retained outside default REST body | DG-SPI-03/04/06; DB-03B/DB-05/REST-00A |
-| Connection plus any number of metadata rows | One logical connection contributes `1` | All-or-nothing rollback at every fault point | Approved DG-M7; pending DG-SPI-04; DB-03B/DB-05 |
+| Any selector read/write failure | Stable adapter/domain failure, never `0` or partial success | Original state restored; failure context retained outside default REST body | DG-SPI-03/04/06; DB-03B-B/DB-05/REST-00A |
+| Connection plus any number of metadata rows | One logical connection contributes `1` | All-or-nothing rollback at every fault point | Approved DG-M7; pending DG-SPI-04; DB-03B-B/DB-05 |
 | REST existing connection delete | Preserve default v1 HTTP 200 `{deleted:true}` | Full dispatch plus persisted-state assertion | DG-DELETE-05; REST-03 |
 | WordPress post cascade failure | Post deletion is not claimed rolled back; cleanup failure is observable and repairable | Real hook flow plus injected adapter failure | DG-DELETE-06; DB-04/REL-03 |
 
@@ -218,9 +218,10 @@ DG-M7/A already fixes these requirements; they are not a new DB-03A decision:
    hook timing/name compatibility is conditional on DG-SPI-06.
 
 The transaction API and backend feasibility are still pending DG-SPI-04 and
-DB-00. DB-03B may add selector/count/SQL-safety regressions after the
-`DG-DELETE-*` decisions, but DB-05 owns the reusable transaction implementation
-and fault-injection infrastructure.
+DB-00. DB-03B-A adds selector/count/SQL-safety regressions after the
+`DG-DELETE-*` decisions; DB-05 owns the reusable transaction implementation and
+fault-injection infrastructure; DB-03B-B then proves delete failure and hook
+conformance against that boundary.
 
 WordPress `deleted_post` is an external boundary: it fires after WordPress has
 deleted the post. Even an atomic connection/meta cleanup cannot restore that
@@ -239,8 +240,8 @@ The following are observations, not approval of hook compatibility:
 | `removeConnectionMeta` | Global `before` receives client, ID, selector and SQL | Global `after` receives client, ID, selector, SQL and `int\|false` | Failure is exposed raw to the after hook |
 
 DG-SPI-06 owns whether existing names and argument order remain public, and
-whether success-named hooks move to after commit. DB-03B must capture the current
-arguments before refactoring; REL-02 supplies adapter-neutral hook conformance.
+whether success-named hooks move to after commit. DB-03B-B must capture the
+current arguments before refactoring; REL-02 supplies adapter-neutral hook conformance.
 DB-03A does not rename hooks, require a SQL payload from custom adapters, or
 choose attempt/commit/rollback notifications.
 
@@ -272,9 +273,9 @@ rules, without treating DG-DELETE-02's connection count as a metadata count.
 
 - The REST relation path is currently not an authorization or data-isolation
   boundary for deletion by ID. A valid ID from another relation in the same
-  client can be deleted. DG-DELETE-01 must be decided before DB-03B/REST-03.
+  client can be deleted. DG-DELETE-01 must be decided before DB-03B-A/REST-03.
 - `relation LIKE '<raw>'` in object/directed deletes is both unparameterized and
-  pattern-capable. DB-03B must use a parameterized exact identity if
+  pattern-capable. DB-03B-A must use a parameterized exact identity if
   DG-DELETE-01/A is approved. Empty relation remains an explicit all-relations
   direct-SPI selector, never an accidental fallback from invalid domain input.
 - `is_numeric()` prevents simple SQL text injection but admits non-ID numeric
@@ -324,7 +325,7 @@ changes cross-relation ID calls from deletion to no-match, and removes
 undocumented wildcard relation matching. Direct ID deletion remains client-wide.
 B preserves dangerous behavior. C breaks or deprecates public surfaces.
 
-**Consequences:** DB-03B, REST-03, REST-05 relation ownership, and REL-02 are
+**Consequences:** DB-03B-A, REST-03, REST-05 relation ownership, and REL-02 are
 blocked until this gate is approved. DOC-01 is a nonblocking downstream
 refinement: it consumes the verified implementation contract through its
 existing REST dependencies and must not document the current cross-relation
@@ -355,9 +356,10 @@ multiplicity; callers relying on raw database-row totals would need migration,
 although current code normally returns only the final connection delete count.
 B leaks adapter schema. C breaks domain/SPI consumers and implementers.
 
-**Consequences:** DB-03B, REST-03, and REL-02 are blocked until this gate is
-approved. DB-05 delete assertions are a nonblocking refinement here because
-DB-05 already waits for DB-03B's approved and implemented count semantics.
+**Consequences:** DB-03B-A, DB-03B-B, REST-03, and REL-02 are blocked until this
+gate is approved. DB-05 delete assertions are a nonblocking refinement here
+because DB-05 already waits for DB-03B-A's approved and implemented count
+semantics.
 
 ### DG-DELETE-03 — valid no-match and partial-match semantics
 
@@ -388,7 +390,7 @@ throw instead of returning `0`; valid no-match and partial-match callers remain
 compatible. B can break idempotent/best-effort cleanup. C changes PHP/SPI and
 observable REST responses.
 
-**Consequences:** DB-03B, REST-03, and REL-02 are blocked until this gate is
+**Consequences:** DB-03B-A, DB-03B-B, REST-03, and REL-02 are blocked until this gate is
 approved. REST-00A is a nonblocking mapping refinement: it may complete a
 decision-ready error taxonomy while leaving delete no-match classification
 conditional on this gate.
@@ -420,7 +422,7 @@ scientific notation, non-positive values, or relying on invalid input as no-op.
 The documented `int|int[]` surface and observed CF7 VK integer ID remain valid.
 B preserves ambiguity; C is an explicit SPI/API migration.
 
-**Consequences:** DB-03B, DB-04's destructive-input contract, REST-03, and
+**Consequences:** DB-03B-A, DB-04's destructive-input contract, REST-03, and
 REL-02 are blocked until this gate is approved.
 
 ### DG-DELETE-05 — REST connection-delete success representation
@@ -483,7 +485,7 @@ atomic primitive.
 
 ## Downstream acceptance matrix
 
-### DB-03B
+### DB-03B-A and DB-03B-B
 
 - Cover each storage method plus every `Relation::detachConnections()` branch.
 - Assert exact relation isolation and selector-family behavior selected by
@@ -497,11 +499,11 @@ atomic primitive.
 - Assert the DG-DELETE-02 logical count independently of metadata multiplicity.
 - Parameterize IDs and relation; prove wildcard/metacharacter input cannot
   broaden selection or produce a `wpdb::prepare` warning.
-- Fault-inject selector read, metadata delete, connection delete, commit, and
-  thrown-`Throwable` boundaries. Under DG-M7, state is unchanged and failure is
-  never `0`/success. Coordinate reusable transactions with DB-05.
-- Capture existing hook names/arguments before refactoring and assert the
-  DG-SPI-06-approved attempt/commit behavior after refactoring.
+- In DB-03B-B, fault-inject selector read, metadata delete, connection delete,
+  commit, and thrown-`Throwable` boundaries. Under DG-M7, state is unchanged and
+  failure is never `0`/success. Reuse the transaction boundary from DB-05.
+- In DB-03B-B, capture existing hook names/arguments before refactoring and
+  assert the DG-SPI-06-approved attempt/commit behavior after refactoring.
 
 ### REST-00A and REST-03
 
@@ -558,4 +560,4 @@ object_hook_events=["object-before"]
 ```
 
 The probe confirms source-observed behavior only. Failure injection and the full
-matrix belong in DB-03B/DB-05 after the gates are approved.
+matrix belong in DB-03B-A/DB-05/DB-03B-B after the gates are approved.

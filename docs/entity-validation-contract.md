@@ -72,13 +72,13 @@ No current endpoint-bearing create/update path calls `get_post()`, compares
 | `Relation::createConnection(Query\Connection)` | Receives candidate `from`/`to`; sets the owning relation name; calls `Storage::createConnection()`; constructs a `Connection`. | Non-empty endpoints, closure, duplicate and cardinality checks run before the `relation/creating` action. | Validate both physical endpoint roles before storage. Ordering relative to required/closure/duplicate/cardinality checks and the lifecycle action is conditional on DG-ENT-03. |
 | `Relation::updateConnection(Query\Connection)` | Overwrites query `relation` with the receiver's name and passes the query object to `Storage::updateConnection()`. | No connection lookup, endpoint validation, closure, duplicate or cardinality check. Omitted-field semantics are not defined. | Apply the DG-ENT-04 effective-state/validation breadth and DG-ENT-05 relation-identity rule, coordinated with REST-00B; required validation must finish before storage. |
 | `Connection::update()` | Requires a non-zero connection ID; sends the mutable connection object to storage, then replaces metadata through separate calls. | Code `304` for an uninitialized object; no relation lookup or endpoint invariant. | Use the governing relation selected by DG-ENT-05 and the update breadth selected by DG-ENT-04 before the first storage/meta call. The caller's in-memory mutation cannot be rolled back; persisted row/meta must remain unchanged on rejection. |
-| `Relation::removeConnectionMeta(Query\Connection)` | Passes connection ID and meta selectors directly to `Storage::removeConnectionMeta()`; the receiver relation is not forwarded. | Storage rejects an empty object ID; Relation coerces the rows-affected result to `int`. It does not load or validate endpoint entities. | This is cleanup, not an endpoint-bearing create/update. It must be able to remove metadata from a legacy connection whose endpoint is missing or wrong-type. Ownership, selector and result/error rules belong to DB-03A/DB-03B and REST-05, not CORE-04 entity resolution. |
-| `Relation::detachConnections(Query\Connection)` | Selects the ID, `both`, directed pair, `from` or `to` branch and delegates to the corresponding storage delete method. | It does not resolve endpoint entities and currently converts caught `ConnectionWrongData` to `0`. | Do not require endpoint existence before delete: that would make dangling rows impossible to clean. DB-03A/DB-03B own selector, relation-isolation, result and orphan-meta behavior. |
+| `Relation::removeConnectionMeta(Query\Connection)` | Passes connection ID and meta selectors directly to `Storage::removeConnectionMeta()`; the receiver relation is not forwarded. | Storage rejects an empty object ID; Relation coerces the rows-affected result to `int`. It does not load or validate endpoint entities. | This is cleanup, not an endpoint-bearing create/update. It must be able to remove metadata from a legacy connection whose endpoint is missing or wrong-type. Ownership, selector and result/error rules belong to DB-03A/DB-03B-A/DB-03B-B and REST-05, not CORE-04 entity resolution. |
+| `Relation::detachConnections(Query\Connection)` | Selects the ID, `both`, directed pair, `from` or `to` branch and delegates to the corresponding storage delete method. | It does not resolve endpoint entities and currently converts caught `ConnectionWrongData` to `0`. | Do not require endpoint existence before delete: that would make dangling rows impossible to clean. DB-03A/DB-03B-A/DB-03B-B own selector, relation-isolation, result and orphan-meta behavior. |
 | REST create | `ClientRestApi::createConnection()` converts request parameters to `Query\Connection`, then delegates to `Relation::createConnection()`. | WordPress route args require integer `from` and `to`; permission and argument validation occur before the handler. | Keep REST thin. PHP callers can bypass route validation, so the domain boundary remains authoritative. |
 | REST connection update | The POST/PUT/PATCH `EDITABLE` route delegates to `Relation::updateConnection()`. | Route defaults/required fields and handler construction are incomplete; no entity check. | REST-00B defines omitted/null/falsy merge semantics. Apply the DG-ENT-04 validation breadth and DG-ENT-05 identity rule before storage; REST-00A/REST-03 coordinate error mapping. |
 | REST metadata update | Handler loads a `Connection`, changes metadata and calls `Connection::update()`. | Existing endpoint IDs are carried by the loaded object but are not revalidated. | Whether unchanged endpoints on every update must be revalidated is pending DG-ENT-04; the path may not bypass the selected rule. |
-| REST connection delete | `ClientRestApi::deleteConnection()` delegates a route connection ID to `Relation::detachConnections()`. | Permission/route ID checks precede the handler; no endpoint entity is resolved. A zero rows result becomes `ConnectionNotFound`. | Preserve deletion of a legacy/dangling connection without requiring either endpoint to exist. REST-03 and DB-03A/DB-03B own response/result and relation-isolation rules. |
-| REST metadata delete | `ClientRestApi::deleteConnectionMeta()` delegates connection ID/meta selectors to `Relation::removeConnectionMeta()`. | Permission/route handling precedes the handler; no endpoint entity is resolved. | Preserve selective/all metadata cleanup even when the connection has a missing or wrong-type endpoint. REST-05 and DB-03A/DB-03B own selector/result semantics. |
+| REST connection delete | `ClientRestApi::deleteConnection()` delegates a route connection ID to `Relation::detachConnections()`. | Permission/route ID checks precede the handler; no endpoint entity is resolved. A zero rows result becomes `ConnectionNotFound`. | Preserve deletion of a legacy/dangling connection without requiring either endpoint to exist. REST-03 and DB-03A/DB-03B-A/DB-03B-B own response/result and relation-isolation rules. |
+| REST metadata delete | `ClientRestApi::deleteConnectionMeta()` delegates connection ID/meta selectors to `Relation::removeConnectionMeta()`. | Permission/route handling precedes the handler; no endpoint entity is resolved. | Preserve selective/all metadata cleanup even when the connection has a missing or wrong-type endpoint. REST-05 and DB-03A/DB-03B-A/DB-03B-B own selector/result semantics. |
 | WordPress `deleted_post` cascade | `Client::init()` registers `Storage::deleteByObjectID()` directly on `deleted_post`. | The post is already deleted when the hook runs, so successful endpoint-existence validation is impossible. | This path must remove matching from/to rows and orphan metadata without an entity resolver. DB-04 owns hook lifecycle, client isolation and cascade evidence. |
 | Direct `Abstracts\Storage`/`WPStorage` calls | Persistence SPI accepts query or connection data and writes tables. | Storage-specific shape/SQL checks only. | Remains outside the supported consumer domain contract under DG-M9. CORE-04 must not duplicate resolver logic in WPStorage or require custom storage adapters to resolve entities. |
 
@@ -245,7 +245,7 @@ rows. All rollout options therefore share these rules:
 - `Relation::detachConnections()`, `Relation::removeConnectionMeta()`, their
   REST delegates and `deleted_post` cleanup do not require endpoint resolution;
   they must remain able to remove legacy/dangling connection and orphan-meta
-  state under the separate DB-03A/DB-03B/DB-04/REST-05 contracts;
+  state under the separate DB-03A/DB-03B-A/DB-03B-B/DB-04/REST-05 contracts;
 - direct storage access stays source-compatible in 1.x but is neither a
   sanctioned import bypass nor covered by domain invariant guarantees;
 - bulk/import code that uses Relation or Connection APIs follows the same
@@ -480,7 +480,8 @@ cross-review input but may not move entity resolution into storage.
 - Do not add endpoint resolution to `Relation::detachConnections()`,
   `Relation::removeConnectionMeta()`, their REST delegates or the `deleted_post`
   cascade. Add boundary evidence that these cleanup paths can remove
-  legacy/dangling state; DB-03A/DB-03B/DB-04/REST-05 retain detailed ownership.
+  legacy/dangling state; DB-03A/DB-03B-A/DB-03B-B/DB-04/REST-05 retain detailed
+  ownership.
 - Keep REST handlers as delegates. Error-to-HTTP serialization belongs to
   REST-00A/REST-03.
 
@@ -512,7 +513,7 @@ Add WordPress integration coverage, suggested as
    `detachConnections()`/`removeConnectionMeta()`, REST delete delegates and the
    `deleted_post` cascade do not invoke endpoint resolution and remain capable
    of cleaning dangling connection/orphan-meta state; detailed delete results
-   and cascade coverage remain with DB-03A/DB-03B/DB-04/REST-05.
+   and cascade coverage remain with DB-03A/DB-03B-A/DB-03B-B/DB-04/REST-05.
 
 Map these tests explicitly to `ENT-VAL-01`, plus affected `CARD-MUT-01`,
 `ERR-CODE-01`, `REST-ERROR-01` and `HOOK-CONTRACT-01` where the test actually

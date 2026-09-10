@@ -66,7 +66,7 @@ normative here.
 - `deleteByObjectID()` and `deleteDirectedConnections()` interpolate `relation`
   directly into concrete SQL, unlike the prepared relation predicate in
   `findConnections()`. Direct SPI reachability makes this a real adapter
-  hardening requirement for DB-03B even though supported domain/REST flows may
+  hardening requirement for DB-03B-A even though supported domain/REST flows may
   constrain relation names.
 - `removeConnectionMeta()` concatenates an `int`-typed ID and prepares metadata
   key/value predicates, but a DB failure can still become `false` and then `0`
@@ -277,7 +277,7 @@ DB-03A; update results remain solely with shared DG-UPDATE-04.
 exceptions and may expose defective custom adapters. B cannot satisfy DG-M7.
 C breaks implementers and consumers.
 
-**Blocked/refined tasks:** DB-03A, DB-03B, DB-05, REST-00A, REST-03 and REL-02.
+**Blocked/refined tasks:** DB-03A, DB-03B-B, DB-05, REST-00A, REST-03 and REL-02.
 
 ### DG-SPI-04 — transaction capability and orchestration shape
 
@@ -392,11 +392,11 @@ behavior.
 | Update result | Changed, valid no-op, not-found and adapter failure remain distinguishable through the shared pending DG-UPDATE-04 contract; the SPI and REST assertions use the same fixture outcomes. | REST-00B / DB-02 / REST-02 |
 | Create identity/hydration | The returned ID, query observability and client attachment follow DG-SPI-02; a returned domain connection can subsequently update through the same selected adapter. | DB-02 / REL-02 |
 | Read | Empty success differs from adapter failure; ID priority and relation/from/to/both filtering keep DB-01 semantics; ordering remains unspecified until DG-API20-04. Returned duplicates/meta multiplicity survive adapter-neutral hydration. | REL-02; DB-01 is the behavior baseline |
-| Delete results | ID, directed and object-side variants cover invalid input, no match, duplicates and affected-connection counts according to DB-03A/DG-SPI-03. No direct adapter error becomes a misleading `0`. | DB-03A / DB-03B |
-| WP adapter safety | Relation, IDs and metadata selectors are parameterized in `WPStorage`; malformed direct-SPI input cannot broaden a delete, and database failure retains attributable error context without leaking it through REST by default. | DB-03B / REST-00A |
+| Delete results | ID, directed and object-side variants cover invalid input, no match, duplicates and affected-connection counts according to DB-03A/DG-SPI-03. No direct adapter error becomes a misleading `0`. | DB-03A / DB-03B-A / DB-03B-B |
+| WP adapter safety | Relation, IDs and metadata selectors are parameterized in `WPStorage`; malformed direct-SPI input cannot broaden a delete, and database failure retains attributable error context without leaking it through REST by default. | DB-03B-A / DB-03B-B / REST-00A |
 | Atomic create | Failure on any meta write rolls back connection and prior meta writes; unsupported capability fails before the first call; committed result and hooks occur once. | DB-05 |
 | Atomic update | Scalar update plus metadata clear/add is one boundary. Failure restores all previous scalar/meta values and emits no committed-success hook. | DB-05 |
-| Atomic delete | Failure between meta and connection deletion rolls back every selected ID for each delete variant; row-count semantics remain those approved by DB-03A. | DB-03B / DB-05 |
+| Atomic delete | Failure between meta and connection deletion rolls back every selected ID for each delete variant; row-count semantics remain those approved by DB-03A. | DB-03B-B / DB-05 |
 | Metadata | Duplicate keys and allowed falsy values survive add/read; selective and delete-all behavior is covered after CORE-07; partial add/remove failures follow DG-SPI-03/04. | DB-02 / DB-05 |
 | Hooks | Global/client variants preserve accepted names, argument order/count and once-only behavior. Attempt, commit and rollback observations match DG-SPI-06. Raw SQL hooks are tested only for `WPStorage` unless REL-02 promotes them. | REL-02 / DB-05 |
 | Legacy access | `getStorage()` stays callable in v1, but consumer documentation directs writes to the domain API. `WPStorage` table getter compatibility and an orphan-cleanup migration path follow DG-SPI-07. | REL-02 / DOC-01 / REL-03 |
@@ -414,7 +414,7 @@ behavior.
 ### DB-05
 
 - Depend on accepted DG-SPI-03, DG-SPI-04 and DG-SPI-06 in addition to DB-00,
-  DB-02 and DB-03B.
+  DB-02 and DB-03B-A.
 - Preflight transaction capability before every compound write.
 - Fault-inject after every statement, assert persisted state after rollback, and
   assert no success hook/result escaped before commit.

@@ -11,10 +11,11 @@
    #51—#65 последовательно зафиксировали решения, test foundation/contracts,
    первые production fixes и исполняемые quality gates. PR #66 активировал
    Batch 5, PR #67 завершил CORE-03 и закрыл issue #31.
-3. Все workstreams Batch 5 завершены: CORE-03 закрыл issue #31, а DB-00,
-   REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Следующий
-   шаг — readiness sweep и решения владельца; `CORE-06`/`DB-06` ждут naming и
-   DB gates, а `TEST-02F/CORE-07` — DG-QMETA-01.
+3. Batch 5 завершён на `master` `3151285`: CORE-03 закрыл issue #31, а DB-00,
+   REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Batch 6
+   определён, но имеет статус `waiting_dependency`: до решений владельца нет
+   безопасного production slice. Минимальные независимые пакеты решений —
+   DG-QMETA-01, domain/entity gates и client-bootstrap gates.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -38,7 +39,8 @@
 - Unit: 6 тестов, 14 assertions.
 - WordPress integration: 67 тестов, 345 assertions.
 - Совместный coverage run: 73 теста, 359 assertions и `588/790` statements
-  (`74,43%`) на CORE-03 `master` `b36fa85`.
+  (`74,43%`) установлен CORE-03 и подтверждён protected CI Batch 5 на
+  `master` `3151285`.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
@@ -59,6 +61,7 @@
   DG-RESTERR-01—DG-RESTERR-04, DG-DELETE-01—DG-DELETE-06 и
   DG-NAME-01—DG-NAME-06 остаются pending и блокируют только явно перечисленные
   downstream tasks. Полные тексты находятся в
+  [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [entity validation contract](../entity-validation-contract.md),
   [database compatibility contract](../db-compatibility-contract.md),
   [REST error contract](../rest-error-contract.md),
@@ -72,7 +75,8 @@
   [delete result/failure contract](../delete-result-contract.md) отделяет
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
-  `deleted_post` recovery. DB-03B/DB-04/REST-03 остаются waiting до решений.
+  `deleted_post` recovery. DB-03B-A/DB-03B-B/DB-04/REST-03 остаются waiting до
+  решений.
 - Штатные regressions уже защищают missing-`to`, broken `both` и полную
   cardinality matrix; REST update без `title` и `Query\Meta` fatal ожидают свои
   явно перечисленные решения/dependencies.
