@@ -10,6 +10,8 @@ use Psr\Log\LoggerInterface;
 
 class Client
 {
+    private const RELATION_CARDINALITIES = [ '1-1', '1-m', 'm-1', 'm-m' ];
+
     private string $name;
     private Abstracts\Storage $storage;
     private RelationCollection $relations;
@@ -69,16 +71,10 @@ class Client
 
         $missingParameters = new MissingParameters();
 
-        if (empty($relationQuery->get('name'))) {
-            $missingParameters->setParam('name');
-        }
-
-        if (empty($relationQuery->get('from'))) {
-            $missingParameters->setParam('from');
-        }
-
-        if (empty($relationQuery->get('name'))) {
-            $missingParameters->setParam('name');
+        foreach ([ 'name', 'from', 'to' ] as $requiredParameter) {
+            if (empty($relationQuery->get($requiredParameter))) {
+                $missingParameters->setParam($requiredParameter);
+            }
         }
 
         if ($missingParameters->getParams()) {
@@ -106,6 +102,12 @@ class Client
         ];
 
         $args = wp_parse_args($relationQuery, $default);
+
+        if (! in_array($args['cardinality'], self::RELATION_CARDINALITIES, true)) {
+            $relationWrongData = new RelationWrongData('Unknown relation cardinality: ');
+            $relationWrongData->setParam((string) $args['cardinality']);
+            throw $relationWrongData;
+        }
 
         $relation = new Relation();
         foreach ($args as $field => $value) {

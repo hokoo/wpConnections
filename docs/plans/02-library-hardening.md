@@ -436,7 +436,7 @@ Verification:
 
 ### TEST-02A. Зафиксировать missing-`to` relation regression
 
-Status: todo
+Status: completed
 
 Priority: P0
 
@@ -477,6 +477,13 @@ Notes/Risks:
 
 - Regression task не мержится отдельно с красным required CI; она поставляется
   одним зелёным vertical batch с CORE-01.
+- Red evidence 2026-09-10 на неизменённом production-коде:
+  `docker run --rm -v /tmp/wpconnections-core01:/srv/web
+  wpconnections-final-clean:latest test:integration --filter
+  test_rejects_relation_missing_only_to` — ожидаемый fail `1 test / 1 assertion`:
+  relation зарегистрировалась без `to`, поэтому `MissingParameters` не возник.
+- Green evidence после CORE-01 той же командой: `1 test / 2 assertions`, passed;
+  exception содержит ровно `["to"]` и сообщение `Missing required fields: to `.
 
 ### TEST-02B. Зафиксировать cardinality `1-m` regression
 
@@ -915,7 +922,7 @@ Notes/Risks:
 
 ### CORE-01. Валидировать relation definition
 
-Status: waiting_dependency
+Status: completed
 
 Priority: P0
 
@@ -965,6 +972,21 @@ Dependencies:
 Notes/Risks:
 
 - Ужесточение validation может выявить некорректные definitions у consumers.
+- `Client::registerRelation()` проверяет обязательные `name`, `from`, `to`
+  единым проходом и допускает только `1-1`, `1-m`, `m-1`, `m-m`; unknown value
+  возвращает `RelationWrongData` code `400` с offending value.
+- Legacy `type=from|to|both` остаётся сериализуемым no-op: physical
+  `from -> to` create/query direction от него не зависит.
+
+Verification:
+
+- Targeted relation matrix: `21 tests / 52 assertions`; missing-field matrix,
+  cardinality allowlist/rejections, duplicate contract, defaults и legacy type.
+- Full default run: unit `4 / 7`, integration `31 / 121`; compatibility floor
+  PHP 8.1.34 / WordPress 6.7.7: integration `31 / 121`.
+- Reverse `--repeat=2` и random seed `20260910 --repeat=2`: `62 / 242` каждый.
+- Combined coverage: `35 / 128`, gate passed at `568/787 (72.17%)` against
+  baseline `365/786`; PHPCS passed `35/35`.
 
 ### CORE-02. Исправить и полностью проверить cardinality
 
