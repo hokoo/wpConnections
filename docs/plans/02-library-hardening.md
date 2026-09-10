@@ -2166,7 +2166,7 @@ Tasking Guidance:
 
 ### API-01. Исследовать и зафиксировать contract issue #20
 
-Status: todo
+Status: completed
 
 Priority: P1
 
@@ -2224,8 +2224,21 @@ Dependencies:
 
 Notes/Risks:
 
-- Design task сама готова к исполнению; implementation остаётся waiting до
-  утверждения обнаруженных public-contract gates.
+- Decision-ready contract записан в
+  [`docs/api-01-related-entities-contract.md`](../api-01-related-entities-contract.md).
+- Issues #20/#21 и отсутствие комментариев повторно проверены 2026-09-10;
+  production-код не изменялся.
+- DG-API20-01—DG-API20-09 остаются pending: completion API-01 означает
+  завершённое исследование, но не утверждение рекомендаций. Implementation
+  остаётся `waiting_dependency` до явных решений владельца.
+
+Verification:
+
+- Contract отдельно определяет connection selection, endpoint projection и
+  entity filtering/representation и содержит end-to-end request matrix.
+- Default v1, permissions/context, pagination/totals/order, duplicates,
+  missing endpoints, adapters, query budget и `getPosts()` покрыты явными
+  alternatives/recommendations без молчаливого принятия решений.
 
 ### API-02. Решить судьбу `Connection::load()`
 
@@ -2297,7 +2310,10 @@ Out of Scope:
 
 DoR:
 
-- API-01 завершена, material gates утверждены.
+- API-01 завершена; владелец утвердил DG-API20-02, DG-API20-05,
+  DG-API20-06, DG-API20-08 и DG-API20-09.
+- CORE-00 завершила entity adapter contract, и возникшие material gates
+  утверждены.
 - DB-01 и REST-06 завершены.
 
 DoD:
@@ -2316,6 +2332,8 @@ AC:
 Dependencies:
 
 - API-01.
+- CORE-00.
+- DG-API20-02, DG-API20-05, DG-API20-06, DG-API20-08, DG-API20-09 approvals.
 - DB-01, REST-06.
 
 Notes/Risks:
@@ -2345,7 +2363,8 @@ Out of Scope:
 
 DoR:
 
-- API-01 contract и gates утверждены.
+- API-01 завершена; владелец утвердил DG-API20-02—DG-API20-07 и
+  DG-API20-09.
 - API-03, REST-03 и REST-06 завершены.
 
 DoD:
@@ -2364,6 +2383,8 @@ AC:
 Dependencies:
 
 - API-01, API-03.
+- DG-API20-02, DG-API20-03, DG-API20-04, DG-API20-05, DG-API20-06,
+  DG-API20-07, DG-API20-09 approvals.
 - REST-03, REST-06.
 
 Notes/Risks:
