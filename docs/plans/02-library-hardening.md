@@ -255,7 +255,7 @@ Verification:
 
 ### Batch 2. Green foundation и contract discovery
 
-Status: planned
+Status: completed
 
 Tasks:
 
@@ -278,6 +278,55 @@ Execution model:
 - В утверждённых vertical slices regression task после наблюдаемого red
   переходит в `review`; это достаточно, чтобы взять paired fix в том же batch.
   Обе задачи получают `completed` только после общего зелёного commit/PR.
+
+Verification:
+
+- TEST-03A: PR #52; independent QA pass; 17/17 required checks pass.
+- API-01: PR #53; independent QA pass; 17/17 required checks pass после
+  strict-base update.
+- REL-00: PR #54; independent QA pass; 17/17 required checks pass после
+  strict-base update.
+- REST-01: PR #55; independent QA pass; 17/17 required checks pass после
+  strict-base update.
+- API-01 завершила research, но DG-API20-01—DG-API20-09 остаются pending и не
+  считаются принятыми в результате merge ADR.
+
+### Batch 3. Automated guardrails и первые vertical fixes
+
+Status: planned
+
+Tasks:
+
+- TEST-03B + TEST-03C — автоматизировать отдельные PR/RC coverage profiles,
+  reverse/repeat и seeded-random isolation checks; один workstream из-за общего
+  ownership CI/runbook файлов, но раздельные task evidence/status.
+- TEST-02A + CORE-01 — red-first vertical: воспроизвести missing-`to`, затем
+  исправить relation-definition validation и всю enum/default/duplicate matrix.
+- TEST-02E + DB-01 — red-first vertical: воспроизвести broken `both`, затем
+  исправить placeholders и покрыть query matrix.
+- API-02 — только PHPDoc/docs deprecation пустого `Connection::load()` и
+  документированный relation-query replacement без runtime notice.
+
+Execution model:
+
+- Четыре изолированных workstreams стартуют от завершённого Batch 2.
+- В двух vertical PR сначала записывается наблюдаемый red и regression task
+  переводится в `review`; paired fix выполняется в той же утверждённой ветке;
+  оба task получают `completed` только после итогового green.
+- API-02 не расширяет issue #20/`getPosts()` и не зависит от pending
+  DG-API20-01—DG-API20-09.
+- Каждый workstream проходит independent QA, полный релевантный suite и
+  protected-branch CI; ветки обновляются последовательно при strict-base rule.
+
+Exit criteria:
+
+- PR и RC coverage policy, isolation и flaky policy имеют исполняемые команды.
+- Missing-`to` и `both` defects имеют red evidence и финально зелёные fixes.
+- `Connection::load()` имеет утверждённый deprecation path без нового runtime
+  behavior.
+- После merge выполняется readiness sweep для Batch 4: CORE-00, SPI-01, DB-00,
+  REST-00A и REST-00B остаются первыми design workstreams; CORE-05 и DB-03A
+  также готовы, но планируются с учётом доступного ownership.
 
 ## E1. Test foundation и regression harness
 
@@ -1072,7 +1121,7 @@ Notes/Risks:
 
 ### CORE-05. Зафиксировать client naming и migration contract
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
@@ -1212,7 +1261,7 @@ Tasking Guidance:
 
 ### SPI-01. Зафиксировать storage SPI и mutation boundary
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -2248,7 +2297,7 @@ Verification:
 
 ### API-02. Решить судьбу `Connection::load()`
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P2
 
