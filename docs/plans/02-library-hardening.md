@@ -4596,7 +4596,9 @@ Notes/Risks:
 - Source-linked search, full candidate matrix, option costs и rollback находятся
   в [`docs/hook-manager-selection.md`](../hook-manager-selection.md). Ни один
   candidate не прошёл mandatory static matrix, поэтому runtime probe не имел
-  qualifying target; recommendation — DG-HOOK-01/B, decision остаётся pending.
+  qualifying target. QA-discovered `tombroucke/wp-fluent-hooks` отдельно
+  проверен: dispatch predicate есть, но license/subscription/registry boundary
+  не проходят. Recommendation — DG-HOOK-01/B, decision остаётся pending.
 
 ### HOOK-01. Поставить выбранный context-aware manager
 

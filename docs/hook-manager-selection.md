@@ -94,6 +94,7 @@ still be built; **fail** means a mandatory property is absent or incompatible.
 
 | Candidate | Distribution | Priority / args / native order | Owned subscription and exact unsubscribe | Dispatch-time site + prefix guard | Active failure propagation | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
+| [`tombroucke/wp-fluent-hooks`](https://packagist.org/packages/tombroucke/wp-fluent-hooks) 1.0.0 | No declared license, PHP `>=8.0`, no runtime dependencies; released 2026-06-19 | **pass**: wrapper registration retains priority and args | **partial**: alias tracks the wrapper's WordPress ID, but there is no subscription handle and removal directly mutates global `WP_Hook` state | **partial**: generic `when(callable)` runs per dispatch, but captured site/prefix semantics remain adapter code | **pass**: wrapper does not catch callback failures | **fail** |
 | [`heybran/wp-hook-manager`](https://packagist.org/packages/heybran/wp-hook-manager) 0.2.0 | MIT, PHP `>=8.1`, no runtime dependencies; released 2026-08-15 | **pass**: direct native registration retains priority and args | **partial**: tracks callbacks and removes exact stored callbacks, but exposes a mutable static registry and returns booleans instead of a subscription handle | **fail**: no wrapper or context predicate | **pass** through native callback | **fail** |
 | [`pinkcrab/hook-loader`](https://packagist.org/packages/pinkcrab/hook-loader) 1.3.0 | MIT, PHP `>=8.0`, no runtime dependencies; released 2026-04-19 | **pass**: `Hook` carries priority and args and manager registers directly | **fail**: no subscription handle; removal rejects closures and matches object callbacks by class + method rather than object identity | **fail**: admin/front is tested only before registration, not per dispatch | **pass** through native callback | **fail** |
 | [`italystrap/event`](https://packagist.org/packages/italystrap/event) 0.2.1 | MIT, PHP `>=7.4`, runtime `psr/log ^1.1`; released 2024-07, repository updated 2025-10 | **pass**: direct add/remove with priority and accepted args | **partial**: subscriber add/remove exists, but `EventSubscription` is only a value object, not an active handle | **fail**: no dispatch predicate | **pass** through native callback | **fail** |
@@ -102,6 +103,20 @@ still be built; **fail** means a mandatory property is absent or incompatible.
 | [`ssnepenthe/wp-event-dispatcher`](https://packagist.org/packages/ssnepenthe/wp-event-dispatcher) 0.1.0 | MIT, PHP 7.4/8.x, no runtime dependencies; only release 2023-11 | **fail**: accepted args are always `999` | **partial**: exact add/remove and subscriber removal, but no owned token | **fail**: no dispatch predicate | **pass** through native callback | **fail** |
 
 ### Why the closest candidates still fail
+
+`tombroucke/wp-fluent-hooks` is the closest dispatch model found. Its immutable
+[`Filter`](https://github.com/tombroucke/wp-fluent-hooks/blob/e1b054b21f0d9f769eb69edf8320d9ecdd351bb8/src/Filter.php)
+creates a wrapper and evaluates `when(callable)` each time WordPress dispatches
+the hook, including the correct first-argument passthrough for an inactive
+filter. An adapter could supply a site-and-prefix predicate. However, the
+package has no declared license in its release
+[`composer.json`](https://github.com/tombroucke/wp-fluent-hooks/blob/e1b054b21f0d9f769eb69edf8320d9ecdd351bb8/composer.json),
+has no subscription handle, forbids combining `when()` and `deregister()` on
+the same fluent object, and its singleton
+[`FilterRepository`](https://github.com/tombroucke/wp-fluent-hooks/blob/e1b054b21f0d9f769eb69edf8320d9ecdd351bb8/src/FilterRepository.php)
+removes the saved wrapper by directly unsetting `WP_Hook`'s global callback
+array. Satisfying the mandatory lifecycle and registry-boundary rules therefore
+requires upstream redesign or a fork, not a narrow adapter.
 
 `heybran/wp-hook-manager` is the freshest close match. Its immutable
 [`HookManager.php`](https://codeberg.org/heybran/wp-hook-manager/src/commit/0bf3e0fbf314d079d69c9366002c73975d401582/src/HookManager.php)
@@ -147,8 +162,10 @@ dispatch ownership and exact subscription lifetime.
 ## Probe disposition
 
 The task requires a minimal integration probe for a candidate that survives the
-static mandatory matrix. No candidate survived: every full-matrix candidate
-lacks the dispatch-time site-and-prefix boundary, and most also lack a stable
+static mandatory matrix. No candidate survived. Tombroucke provides a generic
+dispatch predicate but fails the declared-license, subscription-handle and
+WordPress-registry-boundary gates; every other full-matrix candidate lacks the
+owned dispatch-time site-and-prefix boundary, and most also lack a stable
 subscription handle. A runtime install could only reconfirm an already-proven
 absence and would add no selection evidence, so no third-party package was
 installed.
