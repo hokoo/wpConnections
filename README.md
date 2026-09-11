@@ -94,6 +94,38 @@ cascade, but cannot be updated through the domain API until repaired. The
 library performs no automatic scan, repair or destructive migration. See the
 [entity-validation contract and preflight guidance](docs/entity-validation-contract.md#release-and-read-only-preflight-guidance).
 
+### Client identity and table isolation
+
+Client names must be strings. They are normalized once with WordPress
+`sanitize_title()` and the result must be non-empty lower-case ASCII containing
+only letters, digits, `_` or `-`. The default `WPStorage` adapter preserves the
+legacy table mapping by replacing hyphens with underscores; for example,
+`my-app-wpc-client` uses unprefixed table names
+`post_connections_my_app_wpc_client` and
+`post_connections_meta_my_app_wpc_client`.
+
+Both complete names, including the current site prefix, must fit the database's
+64-character identifier limit. A versioned, non-autoloaded site-local WordPress
+option claims each fresh table postfix atomically, so distinct logical names
+such as `my-client` and `my_client` cannot silently share one pair. A default
+storage object is bound to the WordPress site prefix used at construction and
+must be recreated after `switch_to_blog()`; custom non-table Storage adapters
+receive only the logical-name rules. Direct access through a stale default
+storage object throws the documented prefix error. Its globally registered
+`deleted_post` callback instead becomes a no-op before storage hooks or SQL, so
+it cannot prevent the fresh current-site client from running its own cascade.
+The 1.x callback remains the concrete storage method at priority 10, preserving
+existing `remove_action()` usage. A semantic cleanup lifecycle API follows in
+a separate 1.x transition change; the context-aware subscription manager is
+reserved for the documented 2.0 transition.
+
+Existing complete tables without a matching ownership record, partial pairs or
+malformed/conflicting records are rejected without automatic repair, rename or
+delete. Operator-facing inventory and explicit attestation remain follow-up
+work in DB-06/REL-03, so CORE-06 by itself is not release approval for an
+existing unclaimed installation. See the
+[client naming and migration contract](docs/client-naming-contract.md).
+
 ## Deprecations
 
 `Connection::load()` is a deprecated legacy no-op and will be removed in

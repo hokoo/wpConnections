@@ -34,7 +34,11 @@ class Client
         }
 
         $canonicalName = sanitize_title($name);
-        if ('' === $canonicalName || ! preg_match('/^[a-z0-9_-]+$/D', $canonicalName)) {
+        if (
+            ! is_string($canonicalName) ||
+            '' === $canonicalName ||
+            ! preg_match('/^[a-z0-9_-]+$/D', $canonicalName)
+        ) {
             throw new ClientRegisterFail('Client name is empty or unsafe after normalization.');
         }
 

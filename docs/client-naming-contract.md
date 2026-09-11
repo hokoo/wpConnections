@@ -1,6 +1,6 @@
 # Client identity, table naming, and migration contract
 
-Status: approved decision contract for `CORE-06`; implementation queued
+Status: approved decision contract; `CORE-06` implementation in progress
 
 Source snapshot: `d1750731d7e94f4e3349600431a33bf6954d3106`.
 
@@ -11,22 +11,23 @@ Research date: 2026-09-11.
 This document separates the public logical client identity from the default
 `WPStorage` table identity, records the compatibility evidence, and fixes the
 approved naming and migration contract for implementation. It is the
-canonical decision body for DG-NAME-01 through DG-NAME-06. The decision
+canonical decision body for DG-NAME-01 through DG-NAME-06R. The decision
 registry in [`docs/plans/02-library-hardening.md`](plans/02-library-hardening.md)
 is the canonical record of status, owner, date, and selected option.
 
 Nothing in this document by itself changes production code, creates or renames
 a table, or writes an ownership record. The repository owner approved option A
-for DG-NAME-01 through DG-NAME-06 on 2026-09-11; CORE-06 is queued after the
-current CORE-04 vertical, while later tasks retain their other dependencies.
+for DG-NAME-01 through DG-NAME-06 and the staged A-to-D transition in
+DG-NAME-06R on 2026-09-11. CORE-06 implements only the 1.x bridge after the
+merged CORE-04 vertical; later tasks retain their other dependencies.
 
 Approved DG-M6 is the fixed outer boundary: v1 hardening keeps one connections
 table and one metadata table per client. A shared table with a `client` column
 is out of scope and would require reopening DG-M6.
 
-## Current identity pipeline
+## Pre-CORE-06 identity pipeline
 
-The current default path has four different values that must not be conflated:
+The legacy default path had four different values that must not be conflated:
 
 1. **Raw input** is the value passed to [`Client::__construct()`](../src/Client.php#L28).
 2. **Logical name** is `sanitize_title($raw)`, stored by `Client` and returned by
@@ -149,8 +150,8 @@ whether SQL tables exist at all. The approved DG-NAME-02/A flow is:
    covered by the same concrete preflight and later REL-02 conformance.
 
 This sequencing does not change the public storage-factory filter signature,
-approve pending DG-SPI-05, or alter approved DG-SPI-07. CORE-06 may place the
-second phase in a private `WPStorage` helper; no new portable Storage capability
+approve pending DG-SPI-05, or alter approved DG-SPI-07. CORE-06 places the
+second phase in private `WPStorage` helpers; no new portable Storage capability
 is introduced.
 
 ## Database identifier budget
@@ -181,11 +182,12 @@ Examples:
 | 42 or more ASCII characters | 0 or less | no non-empty default-storage client can fit |
 
 The check must apply to both complete names and must occur after `WPStorage` is
-selected but before table registration or any connection/meta-table SQL. The
-ownership-option coordination described above is the only preflight I/O.
-Checking only the client postfix, truncating it, or counting raw UTF-8 bytes
-does not establish a safe identifier. DG-NAME-04 owns the actual rejection or
-alternative mapping rule.
+selected but before table registration or any connection/meta-table DML. The
+ownership-option coordination described above is the only preflight write and
+the only coordination mutation; read-only table-existence and schema
+introspection remain part of the preflight. Checking only the client postfix,
+truncating it, or counting raw UTF-8 bytes does not establish a safe identifier.
+DG-NAME-04 owns the actual rejection or alternative mapping rule.
 
 ## Collision and ownership inventory
 
@@ -195,8 +197,10 @@ marker. A physical pair alone cannot prove whether it belongs to `my-client`,
 Relation names and row contents are supporting diagnostics, never proof of
 ownership.
 
-Before a future CORE-06 implementation claims or uses default tables, its
-read-only preflight needs to report:
+CORE-06 now performs the safe runtime subset before it claims or uses default
+tables: complete-name length, pair existence/schema, ownership record, collision
+and bound-site checks. Before DB-06/REL-03 creates an explicit adoption record,
+the operator-facing read-only inventory still needs to report:
 
 - raw input and resulting canonical logical name;
 - current legacy postfix and any approved future postfix;
@@ -229,7 +233,7 @@ DG-NAME-02/A—DG-NAME-06/A.
 | Only one table of the pair exists | Report partial schema; defer repair to DB-06 and the approved DB lifecycle. | Creating the missing half as a side effect of naming detection. |
 | Unsafe, empty, or overlong current logical name | Keep read-only diagnostic/export access in an explicit migration tool; reject normal initialization under the approved policy. | Interpolating it into SQL or silently truncating it. |
 | Custom non-table Storage selected | Apply the approved logical client-name rule and skip every `WPStorage` postfix, length, table, collision, ownership, and site-prefix check. | Requiring SQL table getters or default-adapter physical rules from every Storage adapter. |
-| Client object observed after a site-prefix switch | Reject access under DG-NAME-06/A; construct a fresh client bound to the effective blog prefix. | Treating `$wpdb`'s recalculated table property as proof that install, schema, collision, or ownership preflight ran for the new site. |
+| Client object observed after a site-prefix switch | Direct stale storage access throws the approved prefix error. Under the DG-NAME-06R 1.x bridge, inactive-prefix `deleted_post` dispatch returns `0` before storage hooks/SQL so it cannot block the fresh current-site callback; construct that fresh client before the event under the effective blog prefix. | Treating `$wpdb`'s recalculated table property as proof that install, schema, collision, or ownership preflight ran for the new site. |
 
 Every migration alternative is non-destructive by default: it may inventory,
 claim, copy, verify, or change a pointer, but it may not drop, truncate, rename,
@@ -256,15 +260,16 @@ explicit administrator operation with backup and rollback review.
 None of these alternatives may infer ownership from a relation name, silently
 merge data, or make a shared table the steady state.
 
-## Future implementation and test hand-off
+## Implementation evidence and downstream hand-off
 
-Under the approved decisions, CORE-06 owns production validation and the critical
-`CLIENT-NAME-01` / `CLIENT-ISO-01` scenarios from
+Under the approved decisions, CORE-06 implements production validation and the
+critical `CLIENT-NAME-01` / `CLIENT-ISO-01` scenarios from
 [`docs/test-quality.md`](test-quality.md). DB-06 owns schema lifecycle on the
 approved DB matrix. REL-02 owns public hooks/factory compatibility and the
 DG-SPI-07 concrete-introspection path. REL-03 owns tested migration guidance.
 
-At minimum, the future matrix must cover:
+The CORE-06 regression matrix covers its rows below; downstream owners retain
+the explicitly shared or migration-only work:
 
 | Area | Cases and assertions | Primary task |
 | --- | --- | --- |
@@ -275,7 +280,7 @@ At minimum, the future matrix must cover:
 | Legacy mapping | `cf7-telegram -> cf7_telegram`, `cf7-vk -> cf7_vk`, `neural_seo -> neural_seo`; complete, partial, ambiguous, and explicitly adopted pairs | CORE-06 / DB-06 |
 | Isolation | two independent clients exercise read/create/update/every delete path without cross-client connection or metadata access | CORE-06 / DB-03B-A / DB-03B-B |
 | Migration | DG-NAME-05/A dry-run inventory, explicit attestation, non-destructive in-place adoption, and rejection of ambiguous/shared pairs; a later copy/cutover remains separate work | DB-06 / REL-03 |
-| Multisite | construction/use under one blog, `switch_to_blog()`, callback execution, rejection of the bound object, and fresh per-blog client behavior under DG-NAME-06/A | CORE-06 / REL-02 |
+| Multisite | construction/use under one blog, `switch_to_blog()`, direct rejection of the bound object, fail-closed 1.x callback delivery, legacy callback removability and fresh per-blog client behavior under DG-NAME-06/A plus DG-NAME-06R | CORE-06 / REL-02 |
 | Custom Storage | logical naming behavior is tested without assuming SQL tables; table introspection follows DG-SPI-07 only for concrete `WPStorage` | CORE-06 / REL-02 |
 
 ## Approved decision gates
@@ -478,10 +483,12 @@ therefore issue DML against the new site's missing, incompatible, unclaimed, or
 differently owned pair.
 
 - A: bind a default `WPStorage` client to the effective blog prefix at
-  construction. Reject use after the prefix changes, including deferred hooks;
-  consumers must construct a fresh client after `switch_to_blog()` and restore
-  the previous blog normally. Ownership records remain regular site-local
-  options.
+  construction. Reject direct use after the prefix changes; consumers must
+  construct a fresh client after `switch_to_blog()` and restore the previous
+  blog normally. Direct stale access throws the stable prefix
+  `ClientRegisterFail`. The 1.x deferred-hook compatibility refinement is
+  specified separately by DG-NAME-06R. Ownership records remain regular
+  site-local options.
 - B: make the client follow the current blog dynamically. Keep WordPress's
   recalculated dynamic property, and on every access re-run collision,
   ownership, length, and schema preflight for that blog before using its pair.
@@ -498,6 +505,63 @@ network-global tables and is a breaking data-isolation change.
 
 **Implementation consequences:** CORE-06, DB-06, DB-04, REL-02 and REL-03.
 
+<a id="dg-name-06r"></a>
+### DG-NAME-06R — staged multisite hook lifecycle
+
+**Status:** approved staged A-to-D by the repository owner on 2026-09-11.
+
+**Problem:** `Client::init()` registers the default storage method directly on
+WordPress's process-global `deleted_post` action. After `switch_to_blog()`, the
+inactive site's older callback normally runs before a freshly constructed
+current-site client. Throwing from that stale callback aborts WordPress action
+dispatch before the applicable callback can clean its own tables. Replacing the
+callback with a proxy immediately would fix dispatch identity but would also
+break the current 1.x `remove_action('deleted_post', [$storage,
+'deleteByObjectID'])` compatibility surface.
+
+- **1.x bridge (A):** retain the exact direct callback identity and priority.
+  During `deleted_post` dispatch only, an inactive-prefix default `WPStorage`
+  returns `0` before wpConnections storage hooks or SQL. Direct stale storage
+  use outside that dispatch continues to throw the DG-NAME-06 prefix
+  `ClientRegisterFail`. A current-site client must exist before the deletion
+  event; otherwise no callback owns cleanup for that site. Because the bridge
+  can observe only the active WordPress filter, a manual stale
+  `deleteByObjectID()` call made by third-party code from inside another
+  `deleted_post` callback is also classified as cascade delivery and returns
+  `0`. This fail-closed limitation is explicit and temporary.
+- **1.x transition:** in a separate post-CORE-06 change, add idempotent semantic
+  `Client::enablePostDeletionCleanup()` and
+  `Client::disablePostDeletionCleanup()` methods. Keep the direct WordPress
+  callback removable throughout 1.x, but document direct callback manipulation
+  as a legacy pattern scheduled to stop working in 2.0. No runtime deprecation
+  notice is added.
+- **2.0 target (D):** register site-scoped callbacks through a context-aware
+  subscription manager. The target callback is invoked only when the captured
+  site identity and storage prefix match the effective context. Each
+  subscription preserves priority, accepted argument count and ordering,
+  exposes idempotent unsubscribe, and does not swallow failures from an active
+  callback. Selection of an existing package or a separately published package
+  owned by this project follows a build-versus-buy spike against that contract.
+
+The manager is opt-in and does not intercept the global WordPress hook
+registry. The first integration target is `deleted_post`; `rest_api_init`,
+logging callbacks and indirect REST route dispatch require a separate complete
+Client-owned-hook audit before any broader site-isolation claim. Manager-backed
+hook delivery can cover custom adapters, but DG-NAME-06's direct stale-call
+guarantee remains specific to default `WPStorage` unless a future Storage SPI
+decision changes that boundary.
+
+**Compatibility impact:** the 1.x bridge preserves callback identity and
+existing `remove_action()` behavior. The semantic enable/disable API gives
+consumers a non-identity-based migration path before 2.0. The manager switch is
+an explicit major-version breaking change and requires an upgrade guide plus a
+known-consumer search for direct `deleted_post` callback removal.
+
+**Implementation consequences:** CORE-06 implements and verifies only the 1.x
+bridge. The transition API, manager plan/package, complete hook audit, 2.0
+integration and upgrade validation must be decomposed in a separate plan after
+CORE-06 merges; they are out of scope for this branch.
+
 ## Decision consequences
 
 The six approved A decisions remain independently traceable, but their
@@ -511,6 +575,9 @@ implementations must be coherent:
   or copied; no option silently shares it;
 - DG-NAME-04 always budgets both complete identifiers using the site scope from
   DG-NAME-06;
+- DG-NAME-06R preserves the 1.x callback identity while making inactive-site
+  cascade delivery fail closed, then moves identity-independent subscriptions
+  to the 2.0 major boundary;
 - approved DG-SPI-07/A governs only concrete table introspection and migration
   compatibility; it does not turn SQL names into a portable adapter contract;
 - DB-00 PR #68's 64-character result is feasibility evidence, not approval of
@@ -521,5 +588,11 @@ implementations must be coherent:
   DML. Its direct naming gates remain DG-NAME-01 and DG-NAME-03—DG-NAME-06.
 
 CORE-05 completed the design artifact and registry entries. The repository owner
-approved DG-NAME-01—DG-NAME-06/A and DG-SPI-07/A on 2026-09-11; production work
-remains owned by CORE-06 and its downstream tasks.
+approved DG-NAME-01—DG-NAME-06/A, staged DG-NAME-06R/A-to-D, and DG-SPI-07/A
+on 2026-09-11. CORE-06 locally enforces the runtime contract without a new public migration capability: fresh
+pairs receive a versioned, hash-keyed, site-local non-autoloaded claim; matching
+claims can use a complete compatible pair in place; and unowned, partial,
+malformed or conflicting states fail without implicit repair, rename or delete.
+The operator-facing dry-run, explicit attestation interface and rollout remain
+owned by DB-06/REL-03. Consequently, the CORE-06 code alone is not a release
+approval for installations with pre-existing unclaimed tables.

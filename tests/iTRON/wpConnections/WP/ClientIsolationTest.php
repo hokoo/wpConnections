@@ -175,6 +175,44 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		}
 	}
 
+	public function test_non_string_sanitize_result_is_an_unsafe_normalization_error_before_factory(): void
+	{
+		$factory_calls = 0;
+		$sanitize_filter = static function () {
+			return [];
+		};
+		$factory_filter = static function ( string $class ) use ( &$factory_calls ): string {
+			$factory_calls++;
+			return $class;
+		};
+		add_filter( 'sanitize_title', $sanitize_filter );
+		add_filter( 'wpConnections/factory/getStorage/class', $factory_filter );
+
+		try {
+			$this->assert_client_registration_error(
+				'Client name is empty or unsafe after normalization.',
+				static function (): void {
+					new Client( 'unsafe-filter-result' );
+				}
+			);
+		} finally {
+			remove_filter( 'wpConnections/factory/getStorage/class', $factory_filter );
+			remove_filter( 'sanitize_title', $sanitize_filter );
+		}
+
+		self::assertSame( 0, $factory_calls );
+	}
+
+	public function test_legacy_deleted_post_callback_identity_remains_removable_in_1_x_bridge(): void
+	{
+		$client   = $this->new_default_client( 'legacy-delete-callback' );
+		$callback = [ $client->getStorage(), 'deleteByObjectID' ];
+
+		self::assertSame( 10, has_action( 'deleted_post', $callback ) );
+		self::assertTrue( remove_action( 'deleted_post', $callback ) );
+		self::assertFalse( has_action( 'deleted_post', $callback ) );
+	}
+
 	public function test_default_storage_rejects_collision_and_65_character_identifier(): void
 	{
 		global $wpdb;
@@ -484,9 +522,19 @@ class ClientIsolationTest extends \WP_UnitTestCase
 	{
 		global $wpdb;
 
-		$post_id = self::factory()->post->create( [ 'post_type' => 'post' ] );
-		$post = get_post( $post_id );
-		$bound = $this->new_default_client( 'site-bound' );
+		$post_id             = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$post                = get_post( $post_id );
+		$bound               = $this->new_default_client( 'site-bound' );
+		$stale_storage_calls = 0;
+		$nested_result       = null;
+		$storage_hook        = static function ( Client $client ) use ( $bound, &$stale_storage_calls ): void {
+			if ( $client === $bound ) {
+				$stale_storage_calls++;
+			}
+		};
+		$nested_call         = static function ( int $deleted_post_id ) use ( $bound, &$nested_result ): void {
+			$nested_result = $bound->getStorage()->deleteByObjectID( $deleted_post_id );
+		};
 		$wpdb->prefix = 'alternate_';
 
 		$this->assert_client_registration_error(
@@ -495,12 +543,18 @@ class ClientIsolationTest extends \WP_UnitTestCase
 				$bound->getStorage()->findConnections( new ConnectionQuery( 1, 2 ) );
 			}
 		);
-		$this->assert_client_registration_error(
-			'Client storage is bound to a different WordPress site prefix.',
-			static function () use ( $post_id, $post ): void {
-				do_action( 'deleted_post', $post_id, $post );
-			}
-		);
+		add_action( 'wpConnections/storage/deleteByObjectID', $storage_hook );
+		add_action( 'deleted_post', $nested_call, 9 );
+		$queries_before = $wpdb->num_queries;
+		try {
+			do_action( 'deleted_post', $post_id, $post );
+		} finally {
+			remove_action( 'deleted_post', $nested_call, 9 );
+			remove_action( 'wpConnections/storage/deleteByObjectID', $storage_hook );
+		}
+		self::assertSame( 0, $nested_result );
+		self::assertSame( 0, $stale_storage_calls );
+		self::assertSame( $queries_before, $wpdb->num_queries );
 
 		$fresh = $this->new_default_client( 'site-fresh' );
 		self::assertSame(
@@ -509,25 +563,51 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		);
 
 		$wpdb->prefix = $this->original_prefix;
-		if ( is_multisite() ) {
-			$site_id = self::factory()->blog->create();
-			switch_to_blog( $site_id );
-			try {
-				$this->assert_client_registration_error(
-					'Client storage is bound to a different WordPress site prefix.',
-					static function () use ( $bound ): void {
-						$bound->getStorage()->findConnections( new ConnectionQuery( 1, 2 ) );
-					}
-				);
-				$site_client = $this->new_default_client( 'site-multisite' );
-				self::assertSame(
-					$wpdb->prefix . 'post_connections_site_multisite',
-					$wpdb->prefix . $site_client->getStorage()->get_connections_table()
-				);
-			} finally {
-				restore_current_blog();
-			}
+		if ( ! is_multisite() ) {
+			return;
 		}
+
+		$site_one_client = $this->new_default_client( 'site-cascade', true );
+		$site_one_relation = $this->register_relation( $site_one_client, 'site-cascade-relation' );
+		$site_one_page = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$site_one_post = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$site_one_relation->createConnection( new ConnectionQuery( $site_one_page, $site_one_post ) );
+		self::assertCount( 1, $site_one_relation->findConnections() );
+
+		$site_id = self::factory()->blog->create();
+		switch_to_blog( $site_id );
+		try {
+			$this->assert_client_registration_error(
+				'Client storage is bound to a different WordPress site prefix.',
+				static function () use ( $site_one_client ): void {
+					$site_one_client->getStorage()->deleteByObjectID( 1 );
+				}
+			);
+
+			$site_client = $this->new_default_client( 'site-cascade', true );
+			$site_relation = $this->register_relation( $site_client, 'site-cascade-relation' );
+			$site_page = self::factory()->post->create( [ 'post_type' => 'page' ] );
+			$site_post = self::factory()->post->create( [ 'post_type' => 'post' ] );
+			$site_relation->createConnection( new ConnectionQuery( $site_page, $site_post ) );
+			self::assertCount( 1, $site_relation->findConnections() );
+
+			$cleanup_clients = [];
+			$cleanup_hook    = static function ( Client $client ) use ( &$cleanup_clients ): void {
+				$cleanup_clients[] = spl_object_id( $client );
+			};
+			add_action( 'wpConnections/storage/deleteByObjectID', $cleanup_hook );
+			try {
+				self::assertInstanceOf( \WP_Post::class, wp_delete_post( $site_post, true ) );
+			} finally {
+				remove_action( 'wpConnections/storage/deleteByObjectID', $cleanup_hook );
+			}
+			self::assertSame( [ spl_object_id( $site_client ) ], $cleanup_clients );
+			self::assertCount( 0, $site_relation->findConnections() );
+		} finally {
+			restore_current_blog();
+		}
+
+		self::assertCount( 1, $site_one_relation->findConnections() );
 	}
 
 	public function test_prefix_change_inside_storage_callbacks_stops_before_registration_or_dml(): void

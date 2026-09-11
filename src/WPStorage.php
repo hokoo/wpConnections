@@ -270,6 +270,19 @@ class WPStorage extends Abstracts\Storage
         }
     }
 
+    /**
+     * Keeps the 1.x direct callback identity while ignoring inactive-site
+     * cascade delivery. A context-aware subscription replaces this bridge in
+     * the next major version.
+     */
+    private function isStaleDeletedPostContext(): bool
+    {
+        global $wpdb;
+
+        return 'deleted_post' === current_filter() &&
+            $this->site_prefix !== (string) $wpdb->prefix;
+    }
+
 
     /**
      * Deletes connections by set of connection IDs
@@ -322,6 +335,10 @@ class WPStorage extends Abstracts\Storage
     public function deleteByObjectID($objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false): int
     {
         global $wpdb;
+
+        if ($this->isStaleDeletedPostContext()) {
+            return 0;
+        }
 
         $this->assertSitePrefix();
 
