@@ -9,8 +9,9 @@ issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили de
 discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
 владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 завершён:
 CORE-06R влит PR #76 как `2371ed2` и post-merge 17/17 jobs зелёные. Batch 7
-активен и поставляет утверждённый semantic 1.x hook lifecycle API; Batch 8
-заранее определён для manager selection и полного Client-owned-hook audit.
+активен: утверждённый semantic 1.x hook lifecycle API реализован, локальная
+матрица зелёная и HOOK-TRANS-01 находится на independent review. Batch 8 заранее
+определён для manager selection и полного Client-owned-hook audit.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1155,7 +1156,7 @@ Entry criteria:
 
 Tasks:
 
-- HOOK-TRANS-01 — `in_progress`; test-first additive
+- HOOK-TRANS-01 — `review`; test-first additive
   `enablePostDeletionCleanup()` / `disablePostDeletionCleanup()` vertical.
 
 Execution model:
@@ -4448,7 +4449,7 @@ Canonical contract и staged delivery map:
 
 ### HOOK-TRANS-01. Добавить semantic 1.x post-deletion lifecycle API
 
-Status: in_progress
+Status: review
 
 Priority: P0
 
@@ -4518,6 +4519,21 @@ Notes/Risks:
   documentation помечает его как обязательный consumer audit перед 2.0.
 - Rollback additive: revert возвращает constructor-owned direct registration и
   не меняет persisted data.
+
+Verification evidence (2026-09-11):
+
+- Red contract: focused suite `15 / 135` with the two expected undefined-method
+  errors before production implementation.
+- Current and fixed-floor: unit `12 / 58`, integration `108 / 756` on PHP
+  8.1.34 with WordPress 7.1 and 6.7.7 respectively.
+- True multisite focused suite `15 / 159`; isolation seed `20260911`
+  reverse/random repeat-2 unit `24 / 116`, integration `216 / 1512`.
+- Fixed-floor combined coverage `120 / 814`, `968/1070 (90.47%)`; exact
+  baseline `365/786 (46.44%)`; PR and RC policies pass.
+- PHP 8.5.10 / WordPress 7.1 / Ramsey Collection 2.1.1 integration
+  `108 / 756`; PHPCS `45/45`; quality-tool synthetics pass.
+- Independent QA, final-head 17/17 protected checks and post-merge 17/17 checks
+  remain required before `completed`.
 
 ### HOOK-00. Выбрать источник и package boundary hook manager
 

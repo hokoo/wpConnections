@@ -1,6 +1,6 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; 1.x transition API in progress
+Status: executable staged plan; 1.x transition API in independent review
 
 Baseline: `master` merge `2371ed2f3ae01f3e2d589553cff3b79944e94981`
 (CORE-06R, PR #76).
@@ -147,7 +147,7 @@ callback pattern.
 | Phase | Task | Deliverable | Gate/dependency | Status |
 | --- | --- | --- | --- | --- |
 | 1.x safety | CORE-06R | Prefix-bound storage and compatible stale callback no-op | DG-NAME-06R | completed, PR #76 |
-| 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | in progress |
+| 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | review |
 | 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | waiting dependency |
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | waiting dependency |
 | Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, HOOK-00 | waiting decision |
@@ -179,6 +179,30 @@ HOOK-03 must later add:
 - active callback exception propagation;
 - upgrade-path and known-consumer fixtures for the direct `remove_action()`
   break.
+
+## HOOK-TRANS-01 verification evidence
+
+The implementation was developed test-first: the focused suite first failed
+with two undefined-method errors (`15` tests, `135` assertions), then passed
+after the minimal production change. Local verification on 2026-09-11 is:
+
+- current PHP 8.1.34 / WordPress 7.1 / Ramsey Collection 1.3.0: unit
+  `12 / 58`, integration `108 / 756`;
+- fixed floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0: unit
+  `12 / 58`, integration `108 / 756`;
+- true multisite focused lifecycle/isolation suite: `15 / 159`;
+- deterministic isolation seed `20260911`, reverse/random repeat-2: unit
+  `24 / 116`, integration `216 / 1512`;
+- fixed-floor combined coverage: `120 / 814`, `968/1070` statements
+  (`90.47%`), with exact legacy baseline `365/786` (`46.44%`); both PR and
+  70% RC policies pass;
+- newest compatibility PHP 8.5.10 / WordPress 7.1 / Ramsey Collection 2.1.1:
+  integration `108 / 756`, with only pre-existing deprecations;
+- PHPCS `45/45` and the coverage, exception-policy and isolation quality-tool
+  synthetic checks pass.
+
+Independent QA, final-head protected checks and post-merge checks remain open;
+their absence is why the task is `review`, not `completed`.
 
 ## Rollback
 

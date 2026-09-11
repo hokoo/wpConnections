@@ -14,9 +14,10 @@
 3. Batch 5 завершён и закрыт PR #72 на `master` `5b60682`. Batch 6 завершён:
    TEST-02F/CORE-07 завершены, CORE-04 влит PR #75 как `7ec7643`, CORE-06R
    влит PR #76 как `2371ed2`; post-merge 17/17 jobs зелёные.
-4. Batch 7 активен: отдельная ветка поставляет утверждённый semantic 1.x
-   post-deletion lifecycle API. Batch 8 уже определён для отдельных HOOK-00
-   build-versus-buy и HOOK-02 owned-hook audit artifacts.
+4. Batch 7 активен: semantic 1.x post-deletion lifecycle API реализован и
+   прошёл локальную матрицу, HOOK-TRANS-01 находится на independent review.
+   Batch 8 уже определён для отдельных HOOK-00 build-versus-buy и HOOK-02
+   owned-hook audit artifacts.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -52,6 +53,11 @@ map находятся в
   `2371ed2` прошли все 17 required jobs.
   Operator-facing naming inventory/attestation остаётся downstream
   DB-06/REL-03 work.
+- HOOK-TRANS-01 local candidate добавляет idempotent semantic cleanup API:
+  current/fixed-floor unit `12/58`, integration `108/756`; true multisite
+  `15/159`; isolation unit `24/116`, integration `216/1512`; combined coverage
+  `968/1070 (90.47%)`; newest PHP 8.5 / WP 7.1 / Ramsey 2.1 integration
+  `108/756`; PHPCS `45/45`. Independent QA и protected checks ещё открыты.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
