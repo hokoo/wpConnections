@@ -201,8 +201,11 @@ after the minimal production change. Local verification on 2026-09-11 is:
 - PHPCS `45/45` and the coverage, exception-policy and isolation quality-tool
   synthetic checks pass.
 
-Independent QA, final-head protected checks and post-merge checks remain open;
-their absence is why the task is `review`, not `completed`.
+Independent QA independently repeated the focused, current, fixed-floor, true
+multisite, isolation, coverage-policy, newest-compatibility and PHPCS checks on
+head `632da3aae45dbc6091ba3e098eff915b2136beae`, and returned an unconditional
+PASS with no findings. Final-head protected checks and post-merge checks remain
+open; their absence is why the task is `review`, not `completed`.
 
 ## Rollback
 

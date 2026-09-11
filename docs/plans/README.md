@@ -57,7 +57,8 @@ map находятся в
   current/fixed-floor unit `12/58`, integration `108/756`; true multisite
   `15/159`; isolation unit `24/116`, integration `216/1512`; combined coverage
   `968/1070 (90.47%)`; newest PHP 8.5 / WP 7.1 / Ramsey 2.1 integration
-  `108/756`; PHPCS `45/45`. Independent QA и protected checks ещё открыты.
+  `108/756`; PHPCS `45/45`. Independent QA на head `632da3a` — PASS без
+  замечаний; protected и post-merge checks ещё открыты.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных

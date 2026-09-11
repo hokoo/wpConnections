@@ -4532,8 +4532,11 @@ Verification evidence (2026-09-11):
   baseline `365/786 (46.44%)`; PR and RC policies pass.
 - PHP 8.5.10 / WordPress 7.1 / Ramsey Collection 2.1.1 integration
   `108 / 756`; PHPCS `45/45`; quality-tool synthetics pass.
-- Independent QA, final-head 17/17 protected checks and post-merge 17/17 checks
-  remain required before `completed`.
+- Independent QA независимо повторил focused `15/150`, current/fixed-floor
+  unit `12/58` и integration `108/756`, true multisite `15/159`, isolation,
+  coverage policies, newest compatibility и PHPCS на head `632da3a`; PASS без
+  замечаний. Final-head 17/17 protected checks и post-merge 17/17 checks
+  остаются обязательными до `completed`.
 
 ### HOOK-00. Выбрать источник и package boundary hook manager
 
