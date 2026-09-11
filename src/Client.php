@@ -12,6 +12,9 @@ use Psr\Log\LoggerInterface;
 class Client
 {
     private const RELATION_CARDINALITIES = [ '1-1', '1-m', 'm-1', 'm-m' ];
+    private const POST_DELETION_HOOK = 'deleted_post';
+    private const POST_DELETION_PRIORITY = 10;
+    private const POST_DELETION_ACCEPTED_ARGUMENTS = 1;
 
     private string $name;
     private Abstracts\Storage $storage;
@@ -55,6 +58,31 @@ class Client
     public function getStorage(): Abstracts\Storage
     {
         return $this->storage;
+    }
+
+    /**
+     * Enables automatic cleanup when WordPress deletes a post.
+     */
+    public function enablePostDeletionCleanup(): void
+    {
+        add_action(
+            self::POST_DELETION_HOOK,
+            [ $this->storage, 'deleteByObjectID' ],
+            self::POST_DELETION_PRIORITY,
+            self::POST_DELETION_ACCEPTED_ARGUMENTS
+        );
+    }
+
+    /**
+     * Disables automatic cleanup when WordPress deletes a post.
+     */
+    public function disablePostDeletionCleanup(): void
+    {
+        remove_action(
+            self::POST_DELETION_HOOK,
+            [ $this->storage, 'deleteByObjectID' ],
+            self::POST_DELETION_PRIORITY
+        );
     }
 
     public function getRelations(): RelationCollection
@@ -212,7 +240,7 @@ class Client
 
         $this->relations = new RelationCollection();
 
-        add_action('deleted_post', [ $this->storage, 'deleteByObjectID' ]);
+        $this->enablePostDeletionCleanup();
 
         do_action('wpConnections/client/inited', $this);
         do_action("wpConnections/client/{$this->getName()}/inited", $this);
