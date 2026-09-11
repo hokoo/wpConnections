@@ -239,6 +239,9 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 	{
 		parent::set_up();
 
+		$this->clients = [];
+		$this->factory_calls = [];
+		$this->rest_api_class = RestHookRecordingRestApi::class;
 		$GLOBALS['wp_rest_server'] = null;
 		RestHookRecordingRestApi::reset();
 		RestHookMissingParentRestApi::reset();
