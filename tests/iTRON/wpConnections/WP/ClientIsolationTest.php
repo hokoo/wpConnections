@@ -493,6 +493,27 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			'alternate_post_connections_site_fresh',
 			$wpdb->prefix . $fresh->getStorage()->get_connections_table()
 		);
+
+		$wpdb->prefix = $this->original_prefix;
+		if ( is_multisite() ) {
+			$site_id = self::factory()->blog->create();
+			switch_to_blog( $site_id );
+			try {
+				$this->assert_client_registration_error(
+					'Client storage is bound to a different WordPress site prefix.',
+					static function () use ( $bound ): void {
+						$bound->getStorage()->findConnections( new ConnectionQuery( 1, 2 ) );
+					}
+				);
+				$site_client = $this->new_default_client( 'site-multisite' );
+				self::assertSame(
+					$wpdb->prefix . 'post_connections_site_multisite',
+					$wpdb->prefix . $site_client->getStorage()->get_connections_table()
+				);
+			} finally {
+				restore_current_blog();
+			}
+		}
 	}
 
 	public function test_prefix_change_inside_storage_callbacks_stops_before_registration_or_dml(): void
