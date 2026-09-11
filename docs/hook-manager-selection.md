@@ -250,6 +250,21 @@ and no external repository is created by HOOK-00.
 
 ## Verification and completion criteria
 
+### Independent review record
+
+The first independent documentation/source review found one major omission:
+`tombroucke/wp-fluent-hooks`, whose dispatch-time `when()` predicate made it a
+serious candidate despite its other contract gaps. Commit `010c5de` added it to
+the full matrix, immutable-source analysis and no-probe rationale. The repeated
+independent review of `010c5de514546e1f600d3878a86a0031234a40d5` returned an
+unconditional PASS with no remaining findings. It also independently checked
+the package metadata, immutable source links, search totals, documentation-only
+scope and the fact that DG-HOOK-01 remains pending.
+
+This closes the research and traceability portions of HOOK-00. Protected CI and
+post-merge verification remain delivery evidence rather than selection
+evidence, so the task stays in `review` until those checks complete.
+
 HOOK-00 is complete when:
 
 - the source links and current package metadata are independently checked;

@@ -1189,7 +1189,10 @@ Entry criteria:
 Tasks:
 
 - HOOK-00 — `review`; отдельный build-versus-buy artifact и decision packet
-  DG-HOOK-01.
+  DG-HOOK-01. Независимая проверка сначала выявила пропущенный релевантный
+  кандидат `tombroucke/wp-fluent-hooks`; после добавления его в полную матрицу
+  повторная проверка commit `010c5de` завершилась unconditional PASS без
+  замечаний. Открыты только protected CI и post-merge verification.
 - HOOK-02 — `todo`; отдельный полный hook inventory/context/migration artifact
   в следующей ветке.
 
