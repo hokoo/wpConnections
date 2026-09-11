@@ -44,8 +44,9 @@ Primary source evidence:
   supplies the isolated, authenticated full-dispatch harness established by
   `REST-01`.
 - [`rest-partial-update-contract.md`](rest-partial-update-contract.md) owns
-  omitted/null/falsy and mutation-result choices `DG-UPDATE-04` and
-  `DG-UPDATE-05`; [`storage-spi-contract.md`](storage-spi-contract.md) owns
+  method roles (`DG-UPDATE-01`), scalar presence/null/falsy (`DG-UPDATE-02/02R`),
+  metadata (`DG-UPDATE-03`), mutation results (`DG-UPDATE-04`) and REST success
+  representation (`DG-UPDATE-05`); [`storage-spi-contract.md`](storage-spi-contract.md) owns
   read hydration in `DG-SPI-02` and storage failure signaling in `DG-SPI-03`.
 
 ## Current exception inventory
@@ -83,7 +84,7 @@ are current-state evidence, not desired behavior.
 | --- | --- | --- | --- |
 | Anonymous protected request | `401`, string code `rest_forbidden`, WordPress message, `data.status=401` | Authentication failure is generated before the handler. | `DG-RESTERR-03`; capability selection stays in `REST-04`. |
 | Authenticated subscriber denied | `403`, string code `rest_forbidden`, same WordPress message, `data.status=403` | WordPress differentiates unauthenticated and authenticated denial. | `DG-RESTERR-03`; capability selection stays in `REST-04`. |
-| Missing required route args | `400`, `rest_missing_callback_param`, `data.params` names `from` and `to` | Native pre-handler validation; handler/domain is not invoked. | `DG-RESTERR-03`; argument defaults/requiredness stay in `DG-UPDATE-04`. |
+| Missing required route args | `400`, `rest_missing_callback_param`, `data.params` names `from` and `to` | Native pre-handler validation; handler/domain is not invoked. | `DG-RESTERR-03`; update method/presence semantics consume approved `DG-UPDATE-01/02`, while executable route schema stays with `REST-02`. |
 | Wrong route arg types | `400`, `rest_invalid_param`, with per-field `rest_invalid_type` details | Native pre-handler validation. | `DG-RESTERR-03`. |
 | Unsupported method/path | `404`, `rest_no_route` | Native route matching. | `DG-RESTERR-03`. |
 | Unknown relation | `500`, numeric code `1`, current message, `data=null` | Semantically not-found, but no status is attached to `WP_Error`. | `DG-RESTERR-01`, `DG-RESTERR-02`. |
@@ -295,12 +296,14 @@ false-success bodies, and escaped throwables with an exact generic 500 shape. A
 has the smallest public surface and does not make storage classification part of
 the REST contract; B exposes that category; C adds a per-response identifier.
 Logging transport must never change the selected public response.
-`DG-UPDATE-04` and `DG-UPDATE-05` still own changed/no-op/not-found result
-semantics; this gate only maps a result already classified as failure.
+Approved `DG-UPDATE-04/A` owns changed/no-op/not-found result semantics, while
+pending `DG-UPDATE-05` owns the metadata success body; this gate only maps a
+result already classified as failure.
 
 **Blocked tasks:** storage/unknown cases in `REST-03` and `REST-05`, `DOC-01`,
 and failure/hook compatibility coverage in `REL-02`. Production work also waits
-for `DG-SPI-03` and the applicable `DG-UPDATE-04`/`DG-UPDATE-05` decision.
+for `DG-SPI-03` and, where applicable, pending `DG-UPDATE-05`; it consumes the
+approved `DG-UPDATE-04/A` outcome taxonomy.
 
 ## Coordination and approval sequence
 
@@ -308,8 +311,8 @@ for `DG-SPI-03` and the applicable `DG-UPDATE-04`/`DG-UPDATE-05` decision.
    statuses. REST-00A does not redefine them.
 2. Resolve `DG-SPI-03` before implementing storage-failure mapping. A numeric
    code-`300` catch-all is not an adequate substitute.
-3. Resolve `DG-UPDATE-04` and `DG-UPDATE-05` before classifying mutation
-   `false`/`0` results or changing meta success/no-op response bodies.
+3. Consume approved `DG-UPDATE-04/A` for mutation `false`/not-found outcomes,
+   and resolve `DG-UPDATE-05` before changing meta success/no-op response bodies.
 4. Approve `DG-RESTERR-01` through `DG-RESTERR-04`, then make `REST-03`/`04`/`05`
    tests fail against the chosen exact statuses and bodies before handler work.
 

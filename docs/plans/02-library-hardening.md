@@ -6,8 +6,10 @@ Milestone M0 достигнут 2026-09-10: инфраструктурная в�
 clean test flow воспроизводим, coverage baseline доступен в CI. Основной план
 активен; Batch 1—5 завершены. В Batch 5 production slice CORE-03 завершён и
 issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
-discovery. DP-1—DP-3 утверждены владельцем 2026-09-11; Batch 6 активен:
-TEST-02F/CORE-07 завершены, CORE-04 выполняется, CORE-06 поставлен следующим.
+discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
+владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 активен:
+TEST-02F/CORE-07 завершены, CORE-04 полностью проверен локально и ожидает
+independent QA/merge, CORE-06 поставлен следующим после merge.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -313,6 +315,39 @@ replacement-compatible; запросы, передававшие невалид�
 **Последствия решения:** TEST-02D и downstream DB-02/REST-02/OpenAPI используют
 утверждённую field-state matrix.
 
+### DG-UPDATE-02R. Presence при прямой записи legacy endpoint property
+
+**Статус:** approved A владельцем репозитория 2026-09-11.
+
+**Проблема:** `Query\Connection::$from/$to/$both` исторически публичны и
+инициализируются нулём. Поэтому обычное PHP-присваивание `$query->from = 0`
+неотличимо от untouched default, хотя DG-UPDATE-02/A требует считать явный
+нулевой endpoint supplied-invalid, а omission — сохранить.
+
+- A: оставить публичный синтаксис, но внутренне сделать untouched endpoint
+  properties uninitialized и отслеживать первую прямую запись через magic
+  access. Legacy direct/get reads, `isset`, `property_exists`, `exists_*` и
+  `toArray()` сохраняют значения; raw `get_object_vars()`/default `json_encode()`
+  отражают presence и опускают untouched endpoints.
+- B: отслеживать presence только через constructor и `set()`, считая прямое
+  присваивание нуля omission. Это создаёт разные значения для двух публичных
+  способов передать одно поле и нарушает DG-UPDATE-02/A.
+- C: отказаться от sparse PHP update и требовать оба endpoint на каждом update.
+  Это заметный breaking change для исторического Relation API.
+
+**Рекомендация:** A. Она единственная сохраняет прямой публичный setter syntax
+и утверждённую supplied-invalid semantics без нового command type или signature.
+
+**Compatibility impact:** A сохраняет материализованные query reads и
+`toArray()`, но raw object introspection/JSON больше не показывает untouched
+endpoint keys. Эти raw shapes не были документированной query representation;
+явно присвоенный zero по-прежнему виден и теперь предсказуемо отклоняется до
+storage.
+
+**Последствия решения:** CORE-04 реализует и тестирует прямые from/to zero
+assignments; TEST-02D/REST-02 используют тот же presence contract для handler-
+normalized input.
+
 ### DG-UPDATE-03. Где и как обновлять connection metadata
 
 **Статус:** pending human decision.
@@ -346,7 +381,7 @@ atomicity/precedence scalar+meta. C ломает существующий subres
 
 ### DG-UPDATE-04. Результат changed, no-op, not-found и storage failure
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** `$wpdb->update()` возвращает affected rows или `false`, но
 текущий `bool` contract схлопывает unchanged existing row, missing row и DB
@@ -371,9 +406,10 @@ no-op; новый return type возможен только в следующе�
 failure и не выдавать missing target за no-op. B является явным public/SPI
 breaking change; C не позволяет выполнить error и atomicity contracts.
 
-**Блокирует:** DB-02, REST-02, REST-03, DB-05 и SPI conformance/implementation в
-REL-02. SPI-01 может завершить decision-ready inventory с pending cross-reference
-на этот gate; это не означает утверждения result semantics.
+**Последствия решения:** CORE-04 отличает missing positive ID до update SPI;
+DB-02, REST-02, REST-03, DB-05 и REL-02 должны сохранить changed/no-op/not-found/
+failure distinction. DG-SPI-03 всё ещё отдельно определяет adapter-failure
+signal и не считается утверждённым этим решением.
 
 ### DG-UPDATE-05. Success/no-op response REST `/meta`
 
@@ -609,8 +645,9 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-QMETA-01 | approved A | repository owner | 2026-09-11 | TEST-02F + CORE-07 started in Batch 6 |
 | DG-UPDATE-01 | approved A | repository owner | 2026-09-11 | Sparse PHP/PATCH; replacement Connection/PUT/legacy POST |
 | DG-UPDATE-02 | approved A | repository owner | 2026-09-11 | Field-specific omitted/null/empty/zero semantics |
+| DG-UPDATE-02R | approved A | repository owner | 2026-09-11 | Direct zero endpoint writes are supplied-invalid; materialized reads preserved |
 | DG-UPDATE-03 | pending; recommendation A | repository owner | — | Metadata update boundary не утверждена |
-| DG-UPDATE-04 | pending; recommendation A | repository owner | — | SPI/domain/REST result semantics не утверждена |
+| DG-UPDATE-04 | approved A | repository owner | 2026-09-11 | Existing changed/no-op bool; not-found/failure are distinct exceptions |
 | DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
 | DG-SPI-01 | approved A | repository owner | 2026-09-11 | Domain sends fully materialized update state to SPI |
 | DG-SPI-02 | approved A | repository owner | 2026-09-11 | Domain owns create ID/client hydration; signatures retained |
@@ -624,6 +661,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-ENT-03`](../entity-validation-contract.md#dg-ent-03) | approved A | repository owner | 2026-09-11 | Stable 305—310 reasons; entity validation precedes existing invariants/hooks |
 | [`DG-ENT-04`](../entity-validation-contract.md#dg-ent-04) | approved A | repository owner | 2026-09-11 | Full effective state validated; repair/bypass API deferred |
 | [`DG-ENT-05`](../entity-validation-contract.md#dg-ent-05) | approved A | repository owner | 2026-09-11 | Persisted owning relation is immutable |
+| [`DG-ENT-06`](../entity-validation-contract.md#dg-ent-06) | approved A | repository owner | 2026-09-11 | Mutable creating-hook identity/endpoints are conditionally revalidated |
 | [`DG-DB-01`](../db-compatibility-contract.md#dg-db-01) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 wait for DB matrix |
 | [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | pending; recommendation A | repository owner | — | InnoDB preflight/migration for DB-05/DB-06/REL-01 |
 | [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | pending; recommendation A | repository owner | — | DB-05/REL-02 nested transaction conformance waits |
@@ -645,7 +683,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | approved A | repository owner | 2026-09-11 | Explicit in-place adoption; no automatic destructive migration |
 | [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
 
-Для DG-ENT-01—DG-ENT-05, DG-RESTERR-01—DG-RESTERR-04,
+Для DG-ENT-01—DG-ENT-06, DG-RESTERR-01—DG-RESTERR-04,
 DG-DELETE-01—DG-DELETE-06 и DG-NAME-01—DG-NAME-06 связанные contracts являются
 canonical decision bodies (problem, alternatives, recommendation и compatibility
 impact). Этот registry — canonical запись решения/status, владельца и даты.
@@ -986,9 +1024,9 @@ Decision packets:
 | Packet | Gates | Статус и вариант | Разблокирует |
 |---|---|---|---|
 | DP-1 Query Meta | DG-QMETA-01 | approved A, 2026-09-11 | TEST-02F + CORE-07 |
-| DP-2 Domain mutation | DG-UPDATE-01/02, DG-SPI-01/02, DG-ENT-01—05 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
+| DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06, DG-SPI-07 | approved all A, 2026-09-11 | CORE-06; naming/migration preflight |
-| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | pending; все A recommended | DB-02/DB-05/DB-06 и failure contracts |
+| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | partial: UPDATE-04 approved A 2026-09-11; остальные pending A recommended | DB-02/DB-05/DB-06 и failure contracts |
 | DP-5 Delete | DG-DELETE-01—04/06 | pending; все A recommended | DB-03B-A/DB-03B-B/DB-04 |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | pending; все A recommended | REST-03—REST-05 exact wire contract |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
@@ -1001,15 +1039,17 @@ Entry criteria:
   required checks и independent QA PASS.
 - DP-1, DP-2 и DP-3 утверждены вариантом A по каждому отдельному gate владельцем
   2026-09-11 и записаны в canonical bodies и central registry.
-- DP-4—DP-9 не считаются неявно утверждёнными и не блокируют три задачи этого
-  batch, если не перечислены в их собственных dependencies.
+- В DP-4 отдельно утверждён только DG-UPDATE-04/A. Остаток DP-4 и DP-5—DP-9 не
+  считается неявно утверждённым и не блокирует задачи batch, если не перечислен
+  в их собственных dependencies.
 - TEST-02F red evidence остаётся вне `master` до paired green CORE-07 PR.
 
 Tasks:
 
 - TEST-02F + CORE-07 — `completed`, один red-to-green query-meta compatibility
   vertical с сохранённым red evidence и зелёным paired fix.
-- CORE-04 — `in_progress`, endpoint entity validation и extension boundary.
+- CORE-04 — `completed` локально: implementation, remediation и полный
+  verification gate зелёные; independent QA/merge остаются delivery gates.
 - CORE-06 — `waiting_dependency`, client naming, collision, migration-preflight и multisite
   isolation; стартует после CORE-04.
 - TEST-02D вне Batch 6 переведён в `todo`: его gate dependencies выполнены, но
@@ -1018,7 +1058,8 @@ Tasks:
 Execution model:
 
 - CORE-07/TEST-02F завершены после DP-1; CORE-04 продолжает выполняться после
-  DP-2.
+  DP-2 и явно утверждённых refinement gates DG-UPDATE-02R/A, DG-UPDATE-04/A и
+  DG-ENT-06/A.
 - CORE-06 стартует после merge/rebase CORE-04: обе задачи меняют client/factory
   registration boundary.
 - Каждый vertical получает отдельный implementation worker, independent QA,
@@ -1032,7 +1073,8 @@ Exit criteria:
   storage boundaries зелёные.
 - Fixed-floor/full/coverage/PHPCS и применимые compatibility lanes зелёные;
   каждый merge имеет independent QA и 17/17 required checks.
-- Readiness sweep определяет Batch 7 без неявного принятия DP-4—DP-9.
+- Readiness sweep определяет Batch 7 без неявного принятия оставшихся gates
+  DP-4—DP-9.
 
 Verification:
 
@@ -1044,6 +1086,21 @@ Verification:
   `589/790 (74.56%)`, RC threshold ready.
 - Clean Compose lane PHP 8.1.34 / WordPress 7.1.0 / Ramsey Collection 1.3.0:
   unit `7 / 19`, integration `68 / 353`. PHPCS production: `36/36`, exit 0.
+- CORE-04 red-first commit `36bf8fd`: targeted integration `14 / 20`,
+  `12 failures + 1 error` against unchanged production. Green commits:
+  `374dabf` plus review remediation `38e1b48`; decision/docs commit `8efe079`.
+- CORE-04 fixed floor PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0: unit
+  `12 / 58`, integration `93 / 606`; focused query presence `5 / 39`, focused
+  entity validation `25 / 253`; PHPCS production `45/45`, exit 0.
+- CORE-04 combined coverage: `105 / 664`, current `817/951 (85.91%)`; exact PR
+  baseline `365/786 (46.44%)` unchanged, PR and explicit RC gates pass, active
+  exception registry empty.
+- Isolation seed `20260911`: reverse and seeded-random repeat-2 pass immediately,
+  unit `24 / 116` and integration `186 / 1212` in each phase. Compatibility:
+  all ten PHP 8.1.34—8.5.10 / Ramsey 1.3.0 and 2.1.1 unit lanes pass `12 / 58`;
+  all five blocking PHP/WP/Ramsey integration pairs pass `93 / 606`. Existing
+  dependency/WordPress dynamic-property deprecations on newer PHP are warnings,
+  not test failures.
 
 ## E1. Test foundation и regression harness
 
@@ -1762,10 +1819,10 @@ Notes/Risks:
   delete/meta-delete/`deleted_post` cleanup paths, отделяет domain validation от
   Storage SPI и задаёт точные `ENT-VAL-01`/`ENT-EXT-01` scenarios для refinement
   CORE-04.
-- DG-ENT-01—DG-ENT-05 были утверждены вариантом A владельцем 2026-09-11:
+- DG-ENT-01—DG-ENT-06 были утверждены вариантом A владельцем 2026-09-11:
   `WP_Post` lifecycle, typed client-scoped non-post resolver, domain errors/hook
-  precedence, strict update rollout и immutable relation identity теперь
-  являются implementation inputs для активной CORE-04.
+  precedence/revalidation, strict update rollout и immutable relation identity
+  теперь являются implementation inputs для активной CORE-04.
 - Verification 2026-09-10: source/REL-00/critical-registry traceability и
   relative links проверены; task/gate IDs уникальны; `git diff --check` и
   secrets/out-of-scope diff checks проходят. Docs-only change сохраняет
@@ -2011,7 +2068,7 @@ Notes/Risks:
 
 ### CORE-04. Реализовать endpoint entity validation
 
-Status: in_progress
+Status: completed
 
 Priority: P1
 
@@ -2024,6 +2081,10 @@ Scope:
 - Tests для missing/deleted/wrong-type endpoints.
 - Typed client-scoped resolver registry и structured resolution result согласно
   утверждённому DG-ENT-02/A.
+- Presence tracking прямых `Query\Connection::$from/$to` writes по
+  DG-UPDATE-02R/A и missing/no-op/changed result boundary по DG-UPDATE-04/A.
+- Сохранить mutable `relation/creating` transformation hook и условно повторить
+  entity/closure/duplicate/cardinality validation по DG-ENT-06/A.
 - Провести high-level mutations через общий validation path согласно DG-M9;
   direct storage writes остаются SPI и не являются consumer API.
 - Сохранить cleanup boundary: explicit connection/meta deletes и `deleted_post`
@@ -2041,14 +2102,19 @@ DoR:
 - DG-M9 решён.
 - CORE-00 завершила extension и backward-compatibility/rollout contract.
 - DG-SPI-01 и DG-SPI-02 утверждены.
-- REST-00B завершена; DG-UPDATE-01 и DG-UPDATE-02 утверждены.
-- DG-ENT-01, DG-ENT-02, DG-ENT-03, DG-ENT-04 и DG-ENT-05 утверждены владельцем.
+- REST-00B завершена; DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-02R и
+  DG-UPDATE-04 утверждены.
+- DG-ENT-01—DG-ENT-06 утверждены владельцем.
 
 DoD:
 
 - Validation единообразна для PHP и REST paths.
 - Ошибки имеют стабильный domain contract.
 - Документация relation `from`/`to` соответствует реализации.
+- Legacy-invalid cleanup остаётся доступен через domain, full-dispatch REST и
+  реальный `deleted_post`, без entity resolver.
+- Critical scenario mapping, release/preflight notes и red/green/full evidence
+  записаны; fixed floor, coverage, PHPCS, isolation и compatibility lanes зелёные.
 
 AC:
 
@@ -2057,22 +2123,63 @@ AC:
 - Given несуществующий ID, then запись в storage не создаётся.
 - Given разрешающий extension strategy, then поддерживаемый non-post endpoint
   проходит без изменения core storage.
+- Given direct `from=0` или `to=0` sparse assignment, then code `305` возникает
+  до adapter write; untouched endpoint остаётся omission с legacy read `0`.
+- Given positive update ID отсутствует, then Relation и aggregate entrypoints
+  бросают exact `ConnectionNotFound`; existing adapter `true`/`false` остаются
+  changed/no-op, а `Connection::update(): void` возвращает normally.
+- Given mutable creating hook меняет relation, then code `310` возникает до
+  storage; given hook меняет endpoint, then entity и existing invariants
+  проверяются повторно; unchanged endpoint state не резолвится дважды.
 
 Dependencies:
 
 - DG-M1.
 - DG-M9.
 - DG-SPI-01, DG-SPI-02.
-- DG-ENT-01, DG-ENT-02, DG-ENT-03, DG-ENT-04, DG-ENT-05.
+- DG-ENT-01—DG-ENT-06.
 - CORE-00.
 - CORE-03.
 - REST-00B.
-- DG-UPDATE-01, DG-UPDATE-02.
+- DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-02R, DG-UPDATE-04.
 
 Notes/Risks:
 
 - Строгая проверка может быть breaking для consumers, использующих IDs не из
   `wp_posts`.
+- Approved presence implementation меняет только undocumented raw
+  `get_object_vars()`/default JSON shape untouched query endpoints; `toArray()`
+  и direct reads остаются materialized.
+- Entity deletion может произойти между validation и write; DB-04/DB-05 владеют
+  cascade/transaction race, CORE-04 не заявляет cross-table atomicity.
+
+Verification:
+
+- Red-first commit `36bf8fd` дал targeted integration `14 tests / 20 assertions /
+  12 failures + 1 error` только на ещё отсутствующем CORE-04 поведении. Production
+  реализован в `374dabf`, review gaps закрыты `38e1b48`, решения и contracts
+  синхронизированы в `8efe079`.
+- Focused: `ConnectionQueryPresenceTest` — `5 / 39`; `EntityValidationTest` —
+  `25 / 253`. Fixed floor: unit `12 / 58`, integration `93 / 606`.
+- Combined coverage `105 / 664`, current `817/951 (85.91%)`; exact PR ratio
+  `365/786 (46.44%)` не изменён, PR и RC gates зелёные, active exceptions `0`.
+  PHPCS production: `45/45`, exit 0.
+- Seed `20260911`: unit reverse/random repeat-2 `24 / 116`, integration
+  reverse/random repeat-2 `186 / 1212`, без retry. Unit compatibility зелёная
+  во всех 10 PHP 8.1.34—8.5.10 × Ramsey 1.3.0/2.1.1 lanes; integration зелёная
+  во всех пяти blocking PHP/WP/Ramsey pairs (`93 / 606` в каждой).
+- `ENT-VAL-01`: endpoint order/types, sparse/full update, zero-presence,
+  missing-ID, hook revalidation, REST create/update/meta и cleanup assertions
+  находятся в `EntityValidationTest`. `ENT-EXT-01`: structured outcomes,
+  unsupported/throwing resolver, registry lifecycle/client isolation и
+  domain-owned storage payload проверены там же.
+- `ERR-CODE-01` scoped evidence проверяет exact leaf exception classes 305—310
+  и previous exception chain; `CARD-MUT-01`/`HOOK-CONTRACT-01` scoped evidence
+  проверяет повторную closure/duplicate/cardinality validation и отсутствие
+  write/created hook при reject. Полное закрытие broad release scenarios остаётся
+  за их владельцами и не заявляется этим vertical.
+- Existing PHP/WordPress/dependency deprecations записаны отдельно от зелёного
+  результата. Protected CI/merge и независимая QA ещё обязательны.
 
 ### CORE-05. Зафиксировать client naming и migration contract
 
@@ -3147,9 +3254,9 @@ Notes/Risks:
   [`docs/rest-partial-update-contract.md`](../rest-partial-update-contract.md)
   инвентаризирует
   PHP/domain/storage/REST paths, историю commits `7f800b8`/`2b7bacc`, issues
-  #13/#22 и Postman drift; DG-UPDATE-01/02 утверждены вариантом A, а metadata и
-  result choices DG-UPDATE-03—DG-UPDATE-05 остаются pending с downstream
-  acceptance matrix.
+  #13/#22 и Postman drift; DG-UPDATE-01/02/02R и result gate DG-UPDATE-04
+  утверждены вариантом A, а metadata/REST-response choices DG-UPDATE-03 и
+  DG-UPDATE-05 остаются pending с downstream acceptance matrix.
 - Задача завершает discovery/design, но не разблокирует implementation до
   явного утверждения соответствующих gates владельцем.
 

@@ -3,6 +3,7 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use iTRON\wpConnections\Exceptions\RelationWrongData;
 use iTRON\wpConnections\Exceptions\MissingParameters;
@@ -16,6 +17,7 @@ class Client
     private Abstracts\Storage $storage;
     private RelationCollection $relations;
     private LoggerInterface $logger;
+    private ConnectionEntityValidator $entityValidator;
 
     /**
      * WP user capability id that is required for performing actions with client.
@@ -28,6 +30,7 @@ class Client
     public function __construct($name)
     {
         $this->name = sanitize_title($name);
+        $this->entityValidator = new ConnectionEntityValidator();
         $this->init();
     }
 
@@ -121,6 +124,61 @@ class Client
     public function getLogger(): LoggerInterface
     {
         return $this->logger;
+    }
+
+    /**
+     * Registers a client-scoped resolver before the client's first connection
+     * mutation.
+     *
+     * @throws ClientRegisterFail
+     */
+    public function registerEntityResolver(EntityResolverInterface $resolver): self
+    {
+        $this->entityValidator->registerResolver($resolver);
+
+        return $this;
+    }
+
+    /**
+     * @internal Domain mutation entrypoints are the only callers.
+     */
+    public function assertConnectionEndpoints(
+        Relation $relation,
+        Abstracts\Connection $connection
+    ): void {
+        $this->entityValidator->assertEndpoints($relation, $connection);
+    }
+
+    /**
+     * @internal Loads one client-owned connection and attaches domain context.
+     *
+     * @throws ConnectionNotFound
+     */
+    public function findConnection(int $connectionId): Connection
+    {
+        $query = new Query\Connection();
+        $query->set('id', $connectionId);
+        $connections = $this->hydrateConnections(
+            $this->storage->findConnections($query)
+        );
+
+        if ($connections->isEmpty()) {
+            throw new ConnectionNotFound();
+        }
+
+        return $connections->first();
+    }
+
+    /**
+     * @internal Storage returns persistence data; the domain owns client context.
+     */
+    public function hydrateConnections(ConnectionCollection $connections): ConnectionCollection
+    {
+        foreach ($connections->getIterator() as $connection) {
+            $connection->setClient($this);
+        }
+
+        return $connections;
     }
 
     /**

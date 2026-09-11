@@ -1,7 +1,8 @@
 # Connection update contract discovery
 
-Status: partial approved decision contract; DG-UPDATE-01 and DG-UPDATE-02
-approved A, while DG-UPDATE-03 through DG-UPDATE-05 remain pending
+Status: partial approved decision contract; DG-UPDATE-01, DG-UPDATE-02,
+DG-UPDATE-02R and DG-UPDATE-04 approved A, while DG-UPDATE-03 and
+DG-UPDATE-05 remain pending
 
 Date: 2026-09-10
 
@@ -15,10 +16,12 @@ needed before `TEST-02D`, `DB-02`, `REST-02`, and the broader REST CRUD work can
 be implemented without accidentally making an old defect part of the public
 contract.
 
-The five material choices are recorded as `DG-UPDATE-01` through
-`DG-UPDATE-05` in the main execution plan. The repository owner approved option
-A for DG-UPDATE-01 and DG-UPDATE-02 on 2026-09-11; the remaining three choices
-are still decision-ready rather than approved.
+The five original material choices are recorded as `DG-UPDATE-01` through
+`DG-UPDATE-05` in the main execution plan. CORE-04 review exposed one required
+refinement, `DG-UPDATE-02R`, for same-value writes to legacy public endpoint
+properties. The repository owner approved option A for DG-UPDATE-01,
+DG-UPDATE-02, DG-UPDATE-02R and DG-UPDATE-04 on 2026-09-11; DG-UPDATE-03 and
+DG-UPDATE-05 remain decision-ready rather than approved.
 
 ## Evidence and compatibility baseline
 
@@ -127,7 +130,8 @@ call. No new public parameter or return type is implied.
 
 ## Approved scalar state matrix
 
-This matrix is the approved A contract from `DG-UPDATE-01` and `DG-UPDATE-02`.
+This matrix is the approved A contract from `DG-UPDATE-01`, `DG-UPDATE-02` and
+the direct-property refinement `DG-UPDATE-02R`.
 “Replacement” below means REST `PUT`, the legacy REST `POST` alias, and the
 complete scalar portion of `Connection::update()`.
 
@@ -157,6 +161,17 @@ must not guess. Whether that normalization reuses the existing query type or
 introduces an internal command is an implementation detail unless it changes a
 public signature.
 
+Approved DG-UPDATE-02R/A retains the public `$query->from = ...` and
+`$query->to = ...` syntax while tracking even a same-value assignment of `0` as
+explicit input. An untouched endpoint still reads as `0`, `isset()` and
+`property_exists()` retain their legacy answers, `exists_*()` remains false,
+and `toArray()` materializes zero defaults. The implementation makes untouched
+endpoint properties internally uninitialized so `__set()` can observe a first
+direct write. Consequently, raw `get_object_vars()` and default
+`json_encode()` omit untouched endpoints but include an explicitly assigned
+zero. Those introspection shapes were not a documented query representation;
+callers requiring a materialized array use `toArray()`.
+
 ## Approved REST method matrix
 
 This matrix is the approved option A in `DG-UPDATE-01`.
@@ -172,11 +187,9 @@ method documented in the current Postman collection. Removing it, silently
 turning it into PATCH, or changing the response representation would violate
 approved `DG-M4`. `PATCH` is the safe path for “change order but retain title.”
 
-An empty PATCH is a valid no-op only if `DG-UPDATE-04` chooses the recommended
-changed/not-changed boolean contract. Rejecting it as invalid is also coherent,
-but would make clients manufacture unchanged values and would not improve
-integrity. The recommended contract therefore accepts it and reports
-`updated=false` after verifying the target exists.
+Under approved DG-UPDATE-04/A, an empty PATCH is a valid no-op and reports
+`updated=false` after verifying the target exists. A missing positive ID is a
+domain `ConnectionNotFound`, never a successful no-op.
 
 ## Proposed metadata boundary and matrix
 
@@ -232,16 +245,16 @@ All aggregate/meta replacement paths must become atomic under approved
 the previous state remains. Empty metadata is a valid desired state, not an
 exception after deletion.
 
-## Proposed result and failure contract
+## Approved result and failure contract
 
-The recommended `DG-UPDATE-04` option preserves existing signatures while
+Approved `DG-UPDATE-04/A` preserves existing signatures while
 removing ambiguity:
 
 | Outcome | `Relation::updateConnection()` / storage SPI | `Connection::update()` | REST v1 |
 |---|---|---|---|
 | Existing target changed | `true` | returns normally | 200, `{ "updated": true }` |
 | Existing target already equals desired state | `false` | returns normally | 200, `{ "updated": false }` |
-| Target does not exist in the selected client/relation | Domain not-found exception | Domain not-found exception | Mapped 404 error; never `{ "updated": false }` |
+| Target does not exist in the selected client/relation | Domain not-found exception | Domain not-found exception | Error, never `{ "updated": false }`; exact HTTP status/body remain pending `DG-RESTERR-01/02` |
 | Invalid field, entity, relation, or invariant | Domain validation exception before mutation | Same | Mapped 4xx error |
 | Storage failure | Storage/domain exception; rollback | Same | Mapped 5xx error |
 
@@ -257,7 +270,7 @@ current interfaces unambiguous.
 
 ## Downstream acceptance matrix
 
-After the five gates are approved, implementation tasks must cover at least:
+After their listed gates are approved, implementation tasks must cover at least:
 
 1. PATCH changes only title, only order, only `from`, and only `to` through full
    REST dispatch; every omitted scalar remains unchanged.

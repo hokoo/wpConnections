@@ -330,8 +330,6 @@ class WPStorage extends Abstracts\Storage
             }
 
             $item[ 'meta' ] = $meta;
-            $item[ 'client' ] = $this->getClient();
-
             $data[ $connection->ID ] = $item;
         }
 
@@ -381,7 +379,6 @@ class WPStorage extends Abstracts\Storage
         }
 
         $connection_id = $wpdb->insert_id;
-        $connectionQuery->set('id', $connection_id);
 
         // Insert meta data.
         $metaQuery = $connectionQuery->get('meta');

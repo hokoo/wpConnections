@@ -11,7 +11,9 @@ This document is the canonical inventory and decision record for the storage
 extension boundary. It describes the source as it exists at the snapshot above,
 the already approved constraints from DG-M7 and DG-M9, the A decisions recorded
 for DG-SPI-01/02/07 on 2026-09-11, and the decisions still required before other
-production signatures or behavior change.
+production signatures or behavior change. Shared result gate DG-UPDATE-04/A
+was separately approved on 2026-09-11; it does not approve the still-pending
+adapter-failure signal in DG-SPI-03.
 
 The words **current** and **observed** describe compatibility evidence, not a
 promise that defective behavior should be retained. A **recommended** option is
@@ -130,7 +132,7 @@ an instance of that type but has uninitialized `title` and `order` properties.
 
 CORE-02 may enforce cardinality around updates, but it must not repair this SPI
 contract incidentally. Approved DG-SPI-01/A is coordinated with REST-00B's
-approved method and value-state gates. The separate pending `DG-UPDATE-04` is the canonical shared gate
+approved method and value-state gates. The separate approved `DG-UPDATE-04/A` is the canonical shared gate
 for changed versus valid no-op versus not-found/storage-failure results.
 
 ## Factory replacement baseline
@@ -397,7 +399,7 @@ behavior.
 | Factory selection | Default class and exact `Client` reach the filter; a valid replacement is constructed once and becomes `Client::getStorage()`. Missing, incompatible and unconstructable replacements follow the DG-SPI-05 error contract without partially initialized client hooks. | REL-02 |
 | Domain boundary | Invalid relation/cardinality/entity input performs zero adapter writes; valid input reaches one adapter only after common validation. A supported non-post entity strategy does not require storage-specific validation. | CORE-04 |
 | Update payload | Omitted/null/falsy REST states are resolved before the SPI call according to REST-00B and DG-SPI-01/A. The recording adapter receives one fully initialized materialized shape, never sparse input or an accidental mixture. | TEST-02D / DB-02 / REST-02 |
-| Update result | Changed, valid no-op, not-found and adapter failure remain distinguishable through the shared pending DG-UPDATE-04 contract; the SPI and REST assertions use the same fixture outcomes. | REST-00B / DB-02 / REST-02 |
+| Update result | Changed, valid no-op, not-found and adapter failure remain distinguishable through the shared approved DG-UPDATE-04/A contract; the SPI and REST assertions use the same fixture outcomes. | CORE-04 / DB-02 / REST-02 |
 | Create identity/hydration | The returned ID, query observability and client attachment follow DG-SPI-02; a returned domain connection can subsequently update through the same selected adapter. | DB-02 / REL-02 |
 | Read | Empty success differs from adapter failure; ID priority and relation/from/to/both filtering keep DB-01 semantics; ordering remains unspecified until DG-API20-04. Returned duplicates/meta multiplicity survive adapter-neutral hydration. | REL-02; DB-01 is the behavior baseline |
 | Delete results | ID, directed and object-side variants cover invalid input, no match, duplicates and affected-connection counts according to DB-03A/DG-SPI-03. No direct adapter error becomes a misleading `0`. | DB-03A / DB-03B-A / DB-03B-B |

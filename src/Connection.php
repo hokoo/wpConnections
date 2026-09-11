@@ -3,10 +3,10 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
 
 class Connection extends Abstracts\Connection
 {
-    use CardinalityValidation;
     use ClientInterface;
 
     public function __construct(Query\Connection $connectionQuery)
@@ -34,8 +34,13 @@ class Connection extends Abstracts\Connection
             throw new ConnectionWrongData('Cannot update uninitialized connection', 304);
         }
 
-        $relation = $this->getClient()->getRelation($this->relation);
-        $this->assertCardinality($relation, $this);
+        $persisted = $this->getClient()->findConnection((int) $this->id);
+        if ($persisted->relation !== $this->relation) {
+            throw new ConnectionRelationMismatch($persisted->relation, $this->relation);
+        }
+
+        $relation = $this->getClient()->getRelation($persisted->relation);
+        $relation->assertUpdateCandidate($this);
 
         $this->getClient()->getStorage()->updateConnection($this);
 
