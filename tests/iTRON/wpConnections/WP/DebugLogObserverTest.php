@@ -16,12 +16,14 @@ class DebugLogRecordingLogger extends AbstractLogger
 {
 	public static array $timeline = [];
 	public array $records = [];
+	public int $site_id;
 
 	private Client $client;
 
 	public function __construct( Client $client )
 	{
 		$this->client = $client;
+		$this->site_id = get_current_blog_id();
 	}
 
 	public function log( $level, $message, array $context = [] ): void
@@ -241,20 +243,27 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 		self::assertSame( [], $this->logger( $client )->records );
 	}
 
-	public function test_client_created_for_another_site_prefix_uses_only_its_own_logger(): void
+	public function test_client_created_after_switch_to_blog_uses_only_its_own_logger(): void
 	{
-		global $wpdb;
+		if ( ! function_exists( 'switch_to_blog' ) ) {
+			require_once ABSPATH . WPINC . '/ms-blogs.php';
+		}
 
-		$original_prefix = $wpdb->prefix;
 		$first = $this->new_client( 'debug-site-first' );
-		$wpdb->prefix = 'debug_site_two_';
+		$first_site_id = get_current_blog_id();
+		$second_site_id = $first_site_id + 1;
+
+		\switch_to_blog( $second_site_id );
 		try {
+			self::assertSame( $second_site_id, get_current_blog_id() );
 			$second = $this->new_client( 'debug-site-second' );
 			$second->getStorage()->findConnections( new ConnectionQuery() );
 		} finally {
-			$wpdb->prefix = $original_prefix;
+			\restore_current_blog();
 		}
 
+		self::assertSame( $first_site_id, $this->logger( $first )->site_id );
+		self::assertSame( $second_site_id, $this->logger( $second )->site_id );
 		self::assertSame( [], $this->logger( $first )->records );
 		self::assertCount( 1, $this->logger( $second )->records );
 	}
