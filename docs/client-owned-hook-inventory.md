@@ -38,6 +38,24 @@ owns action subscriptions only, so approved DG-HOOK-SCOPE-01/A selects an
 action-only first stable manager release. Filter subscription semantics can be
 added later without expanding the first integration batch.
 
+## LOG-HOOK-01 implementation update
+
+The construction graph, registration matrix and runtime probes below preserve
+the frozen HOOK-02 baseline that exposed the defect. LOG-HOOK-01 subsequently
+replaces only its three `Settings` closure subscriptions with one idempotently
+registered process-global `DebugLogObserver` at priority 10. The query event
+adds the originating Client as a trailing third argument; the two mutation
+events retain their existing first Client argument. The observer uses that
+origin to select one logger and excludes the additive query origin from the
+legacy logged context.
+
+The new runtime contract is documented in the project README and
+`storage-spi-contract.md`. Custom Storage events without a valid origin still
+reach consumer callbacks but are skipped by automatic logging. This logging
+change does not install or use the context-aware hook manager and does not move
+mutation event emission; DB-05 and REL-02 retain the approved transaction and
+commit-aware timing work.
+
 ## Audit method and completeness boundary
 
 The inventory used four complementary passes:

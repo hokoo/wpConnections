@@ -204,6 +204,50 @@ class WPStorageFindConnectionsTest extends WPConnectionsTestCase
 		self::assertTrue( $this->find_connections( RELATION_0_NAME, $query )->isEmpty() );
 	}
 
+	public function test_query_hook_appends_origin_and_keeps_logger_compatibility_payload(): void
+	{
+		$legacy_arguments = null;
+		$origin_arguments = null;
+		$logger_arguments = null;
+		$legacy_listener = static function ( $sql, $rows ) use ( &$legacy_arguments ): void {
+			$legacy_arguments = [ $sql, $rows ];
+		};
+		$origin_listener = static function ( $sql, $rows, $client ) use ( &$origin_arguments ): void {
+			$origin_arguments = [ $sql, $rows, $client ];
+		};
+		$logger_listener = static function ( $message_and_context, $level ) use ( &$logger_arguments ): void {
+			$logger_arguments = [ $message_and_context, $level ];
+		};
+
+		add_action( 'wpConnections/storage/findConnections/dbQuery', $legacy_listener, 20, 2 );
+		add_action( 'wpConnections/storage/findConnections/dbQuery', $origin_listener, 20, 3 );
+		add_action( 'logger', $logger_listener, 10, 2 );
+		try {
+			$query = new ConnectionQuery();
+			$query->set( 'relation', RELATION_0_NAME );
+			$this->client->getStorage()->findConnections( $query );
+		} finally {
+			remove_action( 'logger', $logger_listener, 10 );
+			remove_action( 'wpConnections/storage/findConnections/dbQuery', $origin_listener, 20 );
+			remove_action( 'wpConnections/storage/findConnections/dbQuery', $legacy_listener, 20 );
+		}
+
+		self::assertIsString( $legacy_arguments[0] );
+		self::assertIsArray( $legacy_arguments[1] );
+		self::assertSame( $legacy_arguments, array_slice( $origin_arguments, 0, 2 ) );
+		self::assertSame( $this->client, $origin_arguments[2] );
+		self::assertSame(
+			[
+				[
+					'wpConnections/storage/findConnections/dbQuery',
+					$legacy_arguments,
+				],
+				'debug',
+			],
+			$logger_arguments
+		);
+	}
+
 	public function test_preserves_duplicate_connection_rows_as_distinct_items(): void
 	{
 		$relation_name = 'duplicatable-query-relation';
