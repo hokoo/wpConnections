@@ -213,6 +213,70 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertFalse( has_action( 'deleted_post', $callback ) );
 	}
 
+	public function test_semantic_post_deletion_lifecycle_is_idempotent_and_legacy_removable(): void
+	{
+		global $wp_filter;
+
+		$client   = $this->new_default_client( 'semantic-delete-callback' );
+		$callback = [ $client->getStorage(), 'deleteByObjectID' ];
+
+		$client->disablePostDeletionCleanup();
+		$client->disablePostDeletionCleanup();
+		self::assertFalse( has_action( 'deleted_post', $callback ) );
+
+		$client->enablePostDeletionCleanup();
+		$client->enablePostDeletionCleanup();
+		self::assertSame( 10, has_action( 'deleted_post', $callback ) );
+
+		$callback_id = _wp_filter_build_unique_id( 'deleted_post', $callback, 10 );
+		self::assertSame( 1, $wp_filter['deleted_post']->callbacks[10][ $callback_id ]['accepted_args'] );
+		self::assertTrue( remove_action( 'deleted_post', $callback, 10 ) );
+		self::assertFalse( has_action( 'deleted_post', $callback ) );
+
+		$client->enablePostDeletionCleanup();
+		self::assertSame( 10, has_action( 'deleted_post', $callback ) );
+	}
+
+	public function test_semantic_post_deletion_lifecycle_controls_real_cleanup_once(): void
+	{
+		$client   = $this->new_default_client( 'semantic-delete-behavior', true );
+		$relation = $this->register_relation( $client, 'semantic-delete-relation' );
+		$page_one = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$post_one = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$page_two = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$post_two = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$first    = $relation->createConnection(
+			$this->connection_query( $page_one, $post_one, 'disabled', 'first' )
+		);
+		$second   = $relation->createConnection(
+			$this->connection_query( $page_two, $post_two, 'enabled', 'second' )
+		);
+
+		$client->disablePostDeletionCleanup();
+		$client->disablePostDeletionCleanup();
+		self::assertInstanceOf( \WP_Post::class, wp_delete_post( $post_one, true ) );
+		self::assertSame( 1, $this->find_connection_count( $relation, $first->id ) );
+
+		$cleanup_calls = 0;
+		$cleanup_hook  = static function ( Client $hook_client ) use ( $client, &$cleanup_calls ): void {
+			if ( $hook_client === $client ) {
+				$cleanup_calls++;
+			}
+		};
+		add_action( 'wpConnections/storage/deleteByObjectID', $cleanup_hook );
+		try {
+			$client->enablePostDeletionCleanup();
+			$client->enablePostDeletionCleanup();
+			self::assertInstanceOf( \WP_Post::class, wp_delete_post( $post_two, true ) );
+		} finally {
+			remove_action( 'wpConnections/storage/deleteByObjectID', $cleanup_hook );
+		}
+
+		self::assertSame( 1, $cleanup_calls );
+		self::assertSame( 1, $this->find_connection_count( $relation, $first->id ) );
+		self::assertSame( 0, $this->find_connection_count( $relation, $second->id ) );
+	}
+
 	public function test_default_storage_rejects_collision_and_65_character_identifier(): void
 	{
 		global $wpdb;
