@@ -11,7 +11,8 @@ discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверж�
 CORE-06R влит PR #76 как `2371ed2`. Batch 7 завершён: HOOK-TRANS-01 влит PR
 #77 как `5c2fc26`, final head и post-merge `master` прошли по 17/17 jobs.
 HOOK-00 завершён PR #78 как `cf8caa6`, также с 17/17 final-head и post-merge
-jobs. Batch 8 активен: HOOK-02 owned-hook audit находится в review.
+jobs. HOOK-02 получил independent QA PASS, а candidate head `d7ab4bd` PR #79
+прошёл 17/17 protected jobs; Batch 8 завершён.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1185,7 +1186,7 @@ Exit criteria:
 
 ### Batch 8. Hook manager selection и owned-hook audit
 
-Status: active
+Status: completed
 
 Goal: независимо подготовить решение о поставщике 2.0 manager и полную карту
 Client-owned hook registrations, не смешивая discovery с runtime integration.
@@ -1200,9 +1201,10 @@ Tasks:
 - HOOK-00 — `completed`; отдельный build-versus-buy artifact и decision packet
   DG-HOOK-01. После исправления QA-находки final head `345e36d` PR #78 и merge
   `cf8caa6` прошли по 17/17 jobs.
-- HOOK-02 — `review`; отдельный полный hook inventory/context/migration artifact
+- HOOK-02 — `completed`; отдельный полный hook inventory/context/migration artifact
   и decision packets DG-HOOK-SCOPE-01, DG-HOOK-REST-01—DG-HOOK-REST-04,
-  DG-HOOK-LOG-01, DG-HOOK-LIFE-01.
+  DG-HOOK-LOG-01, DG-HOOK-LIFE-01. Independent QA PASS на content head
+  `06b07a7`; record head `d7ab4bd` прошёл все 17 protected jobs PR #79.
 
 Execution model:
 

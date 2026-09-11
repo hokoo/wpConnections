@@ -1,7 +1,7 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; 1.x transition and manager research delivered,
-owned-hook audit in review
+Status: executable staged plan; 1.x transition, manager research and owned-hook
+audit delivered
 
 Baseline: `master` merge `cf8caa6aa4cd61afc592161092492914f12eb25d`
 (HOOK-00, PR #78).
@@ -175,7 +175,7 @@ callback pattern.
 | 1.x safety | CORE-06R | Prefix-bound storage and compatible stale callback no-op | DG-NAME-06R | completed, PR #76 |
 | 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | completed, PR #77 |
 | 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | completed, PR #78 |
-| 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | review |
+| 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | completed, PR #79 |
 | Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, DG-HOOK-SCOPE-01, HOOK-00 | waiting dependency |
 | 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01, DG-SPI-06 | waiting dependency |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |

@@ -1,6 +1,6 @@
 # Client-owned WordPress hook inventory
 
-Status: decision-ready audit; no runtime behavior changed
+Status: completed decision-ready audit; no runtime behavior changed
 
 Repository baseline: `cf8caa6aa4cd61afc592161092492914f12eb25d`
 (HOOK-00, PR #78).
@@ -531,5 +531,7 @@ after revocable deletion/REST hand-offs, HOOK-04 gained its missing lifecycle
 dependency, and every task status now uses the plan's canonical vocabulary.
 
 Delivery-owner verification of that candidate passed unit `12 / 58`,
-integration `108 / 756`, PHPCS `45 / 45`, and `git diff --check`. HOOK-02 stays
-in `review` until the final PR head and post-merge protected checks close.
+integration `108 / 756`, PHPCS `45 / 45`, and `git diff --check`. PR #79
+candidate head `d7ab4bd` then passed all 17 protected jobs. HOOK-02 is complete;
+the closure head and post-merge protected runs remain delivery evidence rather
+than undiscovered task scope.

@@ -16,8 +16,9 @@
    влит PR #76 как `2371ed2`; post-merge 17/17 jobs зелёные.
 4. Batch 7 завершён: HOOK-TRANS-01 влит PR #77 как `5c2fc26`, final head и
    post-merge `master` прошли по 17/17 jobs. HOOK-00 влит PR #78 как
-   `cf8caa6`, final head и post-merge также прошли 17/17. Batch 8 активен:
-   HOOK-02 owned-hook audit находится в review.
+   `cf8caa6`, final head и post-merge также прошли 17/17. HOOK-02 получил
+   independent QA PASS; candidate head `d7ab4bd` PR #79 прошёл 17/17 protected
+   jobs. Batch 8 завершён.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -75,6 +76,8 @@ map находятся в
   REST recommendation гарантирует native 404 до stale permission/handler
   callback, но осознанно не скрывает stale route name в index намеренно reused
   REST server; custom REST object сохраняется как current-context delegate.
+  Independent QA дала unconditional PASS на content head `06b07a7`, а PR #79
+  candidate head `d7ab4bd` прошёл все 17 protected jobs.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
