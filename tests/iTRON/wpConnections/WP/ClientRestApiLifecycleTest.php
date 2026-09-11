@@ -441,6 +441,48 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		$this->assert_exact_route_contract( $server, $delegate );
 	}
 
+	public function test_failure_after_rest_activation_revokes_mapping_and_identity_claim(): void
+	{
+		$server = rest_get_server();
+		$failing_hook = static function ( Client $client ): void {
+			if ( 'failed-route-owner' === $client->getName() ) {
+				throw new \RuntimeException( 'Intentional failure after REST activation.' );
+			}
+		};
+
+		add_action( 'wpConnections/client/inited', $failing_hook, 10, 1 );
+		try {
+			try {
+				new Client( 'failed-route-owner' );
+				self::fail( 'Expected construction to fail after REST activation.' );
+			} catch ( \RuntimeException $exception ) {
+				self::assertSame( 'Intentional failure after REST activation.', $exception->getMessage() );
+			}
+		} finally {
+			remove_action( 'wpConnections/client/inited', $failing_hook, 10 );
+		}
+
+		$failed_delegate = RestHookRecordingRestApi::$instances[0];
+		$this->clients[] = $failed_delegate->getClient();
+		RestHookRecordingRestApi::$trace = [];
+		$valid_response = $this->dispatch_case(
+			$server,
+			$this->request_matrix( $failed_delegate )[0]
+		);
+		$this->assert_native_rest_error( 'rest_no_route', 404, $valid_response );
+		self::assertSame( [], RestHookRecordingRestApi::$trace );
+
+		$replacement = $this->new_client( 'failed-route-owner' );
+		$replacement_delegate = $this->delegate_for_client( $replacement );
+		self::assertNotSame( $failed_delegate, $replacement_delegate );
+		$this->authenticate_for_managed_routes();
+		$this->assert_dispatches_to_delegate(
+			$server,
+			$replacement_delegate,
+			$this->request_matrix( $replacement_delegate )[0]
+		);
+	}
+
 	public function test_actual_blog_switch_routes_same_name_clients_through_one_server(): void
 	{
 		if ( ! function_exists( 'switch_to_blog' ) && defined( 'ABSPATH' ) && defined( 'WPINC' ) ) {

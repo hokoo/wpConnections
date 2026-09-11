@@ -306,6 +306,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			true
 		);
 
+		RestRouteRegistry::instance()->deactivateClient( $first );
 		$same_owner = $this->new_default_client( 'MY CLIENT' );
 		self::assertSame( $first->getName(), $same_owner->getName() );
 		self::assertCount(
@@ -832,6 +833,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertCount( 1, $new_options );
 		$record = get_option( $new_options[0] );
 		self::assertIsArray( $record );
+		RestRouteRegistry::instance()->deactivateClient( $client );
 
 		return [ $new_options[0], $record, $client ];
 	}
