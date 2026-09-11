@@ -58,9 +58,9 @@ commit-aware timing work.
 
 The implementation candidate `234216e` received an unconditional independent
 QA PASS and passed all 17 protected checks. Fixed-floor combined coverage is
-`991/1093 (90.67%)`; same-site, real multisite context switching, custom
-Storage, origin-less emission, priority ordering and `WP_DEBUG` on/off paths are
-covered by committed regression tests.
+`991/1093 (90.67%)`; same-site, real `switch_to_blog()` site-ID context
+switching, custom Storage, origin-less emission, priority ordering and
+`WP_DEBUG` on/off paths are covered by committed regression tests.
 
 ## Audit method and completeness boundary
 
