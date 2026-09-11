@@ -383,6 +383,20 @@ class ClientIsolationTest extends \WP_UnitTestCase
 				$this->new_default_client( 'partial-client' );
 			}
 		);
+
+		foreach ( [ '', 'unsafe%owner' ] as $malformed_owner ) {
+			update_option(
+				$option_name,
+				[ 'version' => 1, 'postfix' => $record['postfix'], 'owner' => $malformed_owner ],
+				false
+			);
+			$this->assert_client_registration_error(
+				'Client table ownership is ambiguous; explicit migration is required.',
+				function (): void {
+					$this->new_default_client( 'partial-client' );
+				}
+			);
+		}
 	}
 
 	public function test_two_default_clients_isolate_crud_metadata_and_every_delete_selector(): void
@@ -565,6 +579,44 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		}
 
 		self::assertSame( $rows_before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ) );
+	}
+
+	public function test_terminal_after_hook_prefix_change_does_not_turn_a_committed_write_into_failure(): void
+	{
+		global $wpdb;
+
+		$prefix = $wpdb->prefix;
+		$client = $this->new_default_client( 'callback-after', true );
+		$storage = $client->getStorage();
+		$query = new ConnectionQuery( 1, 2 );
+		$query->set( 'relation', 'callback' );
+		$connection_id = $storage->createConnection( $query );
+		$meta = new MetaCollection();
+		$meta->add( new Meta( 'after-hook', 'persisted' ) );
+		$after_hook = static function () use ( $wpdb ): void {
+			$wpdb->prefix = 'callback_';
+		};
+		add_action( 'wpConnections/storage/addConnectionMeta/after', $after_hook );
+
+		try {
+			$storage->addConnectionMeta( $connection_id, $meta );
+		} finally {
+			remove_action( 'wpConnections/storage/addConnectionMeta/after', $after_hook );
+			$wpdb->prefix = $prefix;
+		}
+
+		self::assertSame(
+			1,
+			(int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM ' . $wpdb->prefix . $storage->get_meta_table() .
+					' WHERE connection_id = %d AND meta_key = %s AND meta_value = %s',
+					$connection_id,
+					'after-hook',
+					'persisted'
+				)
+			)
+		);
 	}
 
 	public function test_custom_non_table_storage_skips_physical_rules_but_not_logical_rules(): void

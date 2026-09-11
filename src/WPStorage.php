@@ -181,7 +181,8 @@ class WPStorage extends Abstracts\Storage
             ! is_array($record) ||
             self::OWNERSHIP_VERSION !== ($record['version'] ?? null) ||
             $this->postfix !== ($record['postfix'] ?? null) ||
-            ! is_string($record['owner'] ?? null)
+            ! is_string($record['owner'] ?? null) ||
+            ! preg_match('/^[a-z0-9_-]+$/D', $record['owner'])
         ) {
             throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
         }
@@ -302,7 +303,6 @@ class WPStorage extends Abstracts\Storage
 
         do_action('wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $wpdb->rows_affected);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $wpdb->rows_affected);
-        $this->assertSitePrefix();
 
         return $wpdb->rows_affected;
     }
@@ -372,7 +372,6 @@ class WPStorage extends Abstracts\Storage
 
         do_action('wpConnections/storage/deletedByObjectID', $this->getClient(), $ids);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedByObjectID", $ids);
-        $this->assertSitePrefix();
 
         return $wpdb->rows_affected;
     }
@@ -428,7 +427,6 @@ class WPStorage extends Abstracts\Storage
 
         do_action('wpConnections/storage/deletedDirectedConnections', $this->getClient(), $ids);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedDirectedConnections", $ids);
-        $this->assertSitePrefix();
 
         return $wpdb->rows_affected;
     }
@@ -513,7 +511,6 @@ class WPStorage extends Abstracts\Storage
         $query_result = $wpdb->get_results($query);
 
         do_action('wpConnections/storage/findConnections/dbQuery', $query, $query_result);
-        $this->assertSitePrefix();
 
         // Meta prepare
         $data = [];
@@ -536,7 +533,6 @@ class WPStorage extends Abstracts\Storage
         $collection = new ConnectionCollection($data);
 
         do_action('wpConnections/storage/findConnections/dbQuery/data', $query, $query_result, $data, $collection->toArray());
-        $this->assertSitePrefix();
 
         return $collection;
     }
@@ -568,10 +564,10 @@ class WPStorage extends Abstracts\Storage
             $result = $wpdb->insert($this->fullTableName($this->connections_table), $data);
             $wpdb->suppress_errors($suppress);
             do_action('iTRON/wpConnections/storage/createConnection/attempt/result', $result, $wpdb->last_error);
-            $this->assertSitePrefix();
 
             if (false === $result && 0 === $attempt) {
                 // Try to create tables
+                $this->assertSitePrefix();
                 $this->install();
             }
 
@@ -654,7 +650,6 @@ class WPStorage extends Abstracts\Storage
         }
 
         do_action('wpConnections/storage/addConnectionMeta/after', $this->getClient(), $objectID, $metaCollection, $errors);
-        $this->assertSitePrefix();
 
         if ($errors) {
             $errors = implode('; ', $errors);
@@ -710,7 +705,6 @@ class WPStorage extends Abstracts\Storage
         $rowsAffected = $wpdb->query($query);
 
         do_action('wpConnections/storage/removeConnectionMeta/after', $this->getClient(), $objectID, $metaQuery, $query, $rowsAffected);
-        $this->assertSitePrefix();
 
         return $rowsAffected;
     }
