@@ -89,6 +89,27 @@ later constant/configuration change cannot add or remove the listeners. Because
 PHP constants cannot normally change during a request, this is not a dynamic
 state bug; it is relevant to lifecycle ownership and test setup.
 
+### Indirect REST route registrations
+
+`registerRestRoutes()` writes four patterns and twelve method/callback
+combinations into the active `WP_REST_Server`. Every handler and every
+`permission_callback` is an object callback on the same `ClientRestApi`; the
+handler boundary therefore retains and exposes the same site-bound Client even
+after the original `rest_api_init` callback is removed.
+
+| Route pattern | Methods and handlers |
+| --- | --- |
+| `/wp-connections/v1/client/{client}` | `GET → getTheClient` |
+| `/wp-connections/v1/client/{client}/relation/(?P<relation>[\w-]+)` | `GET → getRelation`; `POST → createConnection` |
+| `/wp-connections/v1/client/{client}/relation/(?P<relation>[\w-]+)/(?P<connectionID>[\d]+)` | `GET → getConnection`; `POST`, `PUT`, `PATCH → updateConnection`; `DELETE → deleteConnection` |
+| `/wp-connections/v1/client/{client}/relation/(?P<relation>[\w-]+)/(?P<connectionID>[\d]+)/meta` | `POST`, `PUT`, `PATCH → updateConnectionMeta`; `DELETE → deleteConnectionMeta` |
+
+All twelve combinations use `checkPermissions` on the same object. Route
+registration uses WordPress's default non-override behavior, so repeated or
+same-path registration appends/merges endpoint groups rather than providing an
+owned unregister token. Removing `rest_api_init` later does not remove routes
+already present in the server.
+
 ## What is not a Client-owned registration
 
 The 30 dispatch sites in `Client`, `Factory`, `Relation`, `WPStorage` and
