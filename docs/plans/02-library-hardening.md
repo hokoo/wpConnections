@@ -16,8 +16,9 @@ merge `cf67eee` и post-merge прошли 17/17 jobs; Batch 8 завершён.
 DG-SPI-06/A и DG-RESTERR-03/A утверждены владельцем 2026-09-11. Координаты
 standalone manager package `hokoo/wp-hooks-dispatcher` и namespace
 `iTRON\wpHooksDispatcher\` подтверждены 2026-09-12. HOOK-01 завершён release
-`v1.0.1`; Packagist и clean PHP 8.1 install подтверждены. Batch 9 продолжает
-LOG-HOOK-01 как `in_progress`.
+`v1.0.1`; Packagist и clean PHP 8.1 install подтверждены. LOG-HOOK-01 завершён
+на exact candidate `234216e` PR #82 с independent QA PASS и 17/17 protected
+checks. Batch 9 завершён; REST-HOOK-01 — следующий ready task.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1236,7 +1237,7 @@ Exit criteria:
 
 ### Batch 9. Standalone dispatcher и origin-routed logging
 
-Status: active
+Status: completed
 
 Goal: сначала поставить independently releasable action dispatcher, затем
 отдельным wpConnections PR устранить cross-client automatic debug fanout без
@@ -1254,9 +1255,9 @@ Tasks:
 - HOOK-01 — `completed`; public MIT package `v1.0.1`, action-only API, PHP
   `^8.1`, no Composer runtime dependencies, contract tests, protected CI,
   independent QA, GitHub Release, Packagist publication и clean install.
-- LOG-HOOK-01 — `in_progress`; второй отдельный PR после HOOK-01, хотя manager не
-  является его runtime dependency. Он реализует singleton origin routing и
-  trailing Client payload по утверждённым gates.
+- LOG-HOOK-01 — `completed`; второй отдельный PR после HOOK-01, без manager
+  runtime dependency. PR #82 реализует singleton origin routing и trailing
+  Client payload по утверждённым gates.
 
 Execution model:
 
@@ -1264,7 +1265,7 @@ Execution model:
   и не добавляет Composer dependency.
 - HOOK-01 поставлен отдельным repository/package; точная stable версия может
   быть pinned consumer-репозиторием только в runtime integration task.
-- LOG-HOOK-01 начат после HOOK-01 как второй batch item и не переносит
+- LOG-HOOK-01 выполнен после HOOK-01 как второй batch item и не переносит
   public storage emissions под manager ownership.
 - REST-HOOK-01 теперь `todo`: REST-01 и все его decision gates
   завершены. LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а
@@ -4991,7 +4992,7 @@ Notes/Risks:
 
 ### LOG-HOOK-01. Устранить cross-client automatic debug fanout
 
-Status: in_progress
+Status: completed
 
 Priority: P1 для 2.0
 
@@ -5068,6 +5069,25 @@ Notes/Risks:
 - Existing equal-priority consumer order может зависеть от registration order;
   singleton observer должен регистрироваться детерминированно, а REL-02 обязан
   зафиксировать точную границу вместо обещания «priority-independent» timing.
+
+Verification evidence (2026-09-12):
+
+- PR #82 exact implementation candidate `234216e` получил independent QA PASS
+  без оставшихся findings и прошёл 17/17 protected checks.
+- Fixed-floor PHP 8.1.34 / WordPress 6.7.7: unit `13 / 61`, integration
+  `113 / 783`; combined coverage `126 / 847`, `991/1093 (90.67%)`, PR и RC
+  policies pass.
+- PHPCS `46/46`, quality-tool synthetics и `git diff --check` прошли.
+  Isolation seed `20260910` в reverse/random repeat-2 дал unit `26 / 122` и
+  integration `226 / 1576` в каждой фазе.
+- Same-site clients, real `switch_to_blog()` site IDs, all three conforming
+  custom Storage events, invalid/missing origin, legacy two-argument query
+  listeners, priority 5/10/15 ordering и default Logger compatibility action
+  покрыты regression tests.
+- Первый combined CI прогон выявил test-bootstrap defect: `UNIT_TESTS`
+  определён и в WordPress coverage runtime. Проверка заменена на факт загрузки
+  WordPress hook API через `function_exists('add_action')`; повторный локальный
+  coverage и protected job прошли.
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 

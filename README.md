@@ -136,6 +136,35 @@ work in DB-06/REL-03, so CORE-06 by itself is not release approval for an
 existing unclaimed installation. See the
 [client naming and migration contract](docs/client-naming-contract.md).
 
+### Automatic debug logging and storage event origins
+
+When `WP_DEBUG` is enabled, the library registers one process-global observer
+for its three automatically logged storage events. The observer routes each
+event to the logger owned by the originating `Client`; creating more clients
+does not add more logging callbacks or broadcast an operation to other client
+loggers.
+
+Custom `Storage` implementations that emit these public actions must include
+the origin in the documented position to receive automatic logging:
+
+| Action | Arguments |
+| --- | --- |
+| `wpConnections/storage/findConnections/dbQuery` | SQL/query payload, raw result, trailing `Client` origin |
+| `wpConnections/storage/removeConnectionMeta/after` | `Client` origin, object ID, meta selector, query payload, affected rows |
+| `wpConnections/storage/deletedSpecificConnections` | `Client` origin, normalized connection IDs, affected rows |
+
+The query action's third argument is additive: WordPress listeners registered
+with an accepted-argument count of two continue to receive the original two
+values. The origin is routing metadata and is not added to the PSR logger's
+legacy context. If an event omits a valid origin, consumer callbacks still run,
+but library-owned automatic logging safely skips that event. The default
+`Logger::log()` continues to emit the `logger` compatibility action.
+
+The observer remains a priority-10 callback inside each public action. This
+change does not move the mutation actions; their approved commit-aware timing
+will be implemented by DB-05 and verified by REL-02. Current mutation-event
+emission remains unchanged in this task.
+
 ## Deprecations
 
 `Connection::load()` is a deprecated legacy no-op and will be removed in

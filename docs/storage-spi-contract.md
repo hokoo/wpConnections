@@ -195,10 +195,20 @@ SPI requirements.
 | Delete by IDs | `wpConnections/storage/deleteSpecificConnections($client, $inputIDs)` and client-scoped variant; `.../deletedSpecificConnections($client, $normalizedIDs, $rows)` and client-scoped variant | Before hook precedes validation. After hook reports connection-delete rows even if meta deletion failed. |
 | Delete by object | `wpConnections/storage/deleteByObjectID($client, $objectIDs, $relation, $onlyFrom, $onlyTo)` and client-scoped variant; `.../deletedByObjectID($client, $resolvedIDs)` and variant | No after hook for invalid flags/no match; no failure distinction. |
 | Directed delete | `wpConnections/storage/deleteDirectedConnections($client, $from, $to, $relation)` and client-scoped variant; `.../deletedDirectedConnections($client, $resolvedIDs)` and variant | No after hook for invalid endpoints/no match; no failure distinction. |
-| Find | `wpConnections/storage/findConnections/dbQuery($sql, $rawRows)`; `.../dbQuery/data($sql, $rawRows, $data, $serializedCollection)` | Only when SQL runs; leaks concrete query/result representation. |
+| Find | `wpConnections/storage/findConnections/dbQuery($sql, $rawRows, $client)`; `.../dbQuery/data($sql, $rawRows, $data, $serializedCollection)` | Only when SQL runs; leaks concrete query/result representation. The trailing origin Client is additive for legacy two-argument listeners and lets the singleton debug observer select the correct logger. |
 | Add meta | `wpConnections/storage/addConnectionMeta/before($client, $id, $collection)`; `.../after($client, $id, $collection, $errors)` | `after` fires before collected errors are thrown and can follow partial insertion. |
 | Remove meta | `wpConnections/storage/removeConnectionMeta/before($client, $id, $query, $sql)`; `.../after($client, $id, $query, $sql, $rowsOrFalse)` | Exposes SQL and reports raw failure value. |
 | Post cascade | WordPress `deleted_post` invokes the adapter's `deleteByObjectID` directly | Bypasses a relation domain object; client isolation comes from the selected adapter/table. |
+
+The three automatically logged public events require a valid originating
+`Client`: the trailing third argument above for `findConnections/dbQuery`, and
+the existing first argument for `removeConnectionMeta/after` and
+`deletedSpecificConnections`. A conforming custom Storage emits the same
+origin positions. Missing or invalid origin data does not suppress the public
+action, but the library-owned automatic logger skips it rather than fanning it
+out to unrelated Client loggers. Logging stays at priority 10 and retains the
+pre-existing logged context; the Client added to the query action is routing
+metadata only.
 
 DG-SPI-06 decides commit-aware mutation hook semantics. REL-02 still owns the
 complete public/internal classification and compatibility tests; SPI-01 does

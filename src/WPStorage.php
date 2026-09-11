@@ -527,7 +527,7 @@ class WPStorage extends Abstracts\Storage
         $query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
         $query_result = $wpdb->get_results($query);
 
-        do_action('wpConnections/storage/findConnections/dbQuery', $query, $query_result);
+        do_action('wpConnections/storage/findConnections/dbQuery', $query, $query_result, $this->getClient());
 
         // Meta prepare
         $data = [];
