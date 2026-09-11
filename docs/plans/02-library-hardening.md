@@ -8,8 +8,8 @@ clean test flow воспроизводим, coverage baseline доступен �
 issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
 discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
 владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 активен:
-TEST-02F/CORE-07 завершены, CORE-04 полностью проверен локально и ожидает
-independent QA/merge, CORE-06 поставлен следующим после merge.
+TEST-02F/CORE-07 завершены, CORE-04 влит PR #75 как `7ec7643`, CORE-06R
+реализован и полностью проверен в PR #76; merge остаётся delivery gate Batch 6.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -682,9 +682,10 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-NAME-04`](../client-naming-contract.md#dg-name-04) | approved A | repository owner | 2026-09-11 | Reject overlong complete identifiers; no implicit hash/truncate |
 | [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | approved A | repository owner | 2026-09-11 | Explicit in-place adoption; no automatic destructive migration |
 | [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
+| [`DG-NAME-06R`](../client-naming-contract.md#dg-name-06r) | approved staged A-to-D | repository owner | 2026-09-11 | Preserve direct callback identity in 1.x; context-aware manager at the 2.0 boundary |
 
 Для DG-ENT-01—DG-ENT-06, DG-RESTERR-01—DG-RESTERR-04,
-DG-DELETE-01—DG-DELETE-06 и DG-NAME-01—DG-NAME-06 связанные contracts являются
+DG-DELETE-01—DG-DELETE-06 и DG-NAME-01—DG-NAME-06R связанные contracts являются
 canonical decision bodies (problem, alternatives, recommendation и compatibility
 impact). Этот registry — canonical запись решения/status, владельца и даты.
 Implementation использует оба источника; рекомендация в contract сама по себе
@@ -1025,7 +1026,7 @@ Decision packets:
 |---|---|---|---|
 | DP-1 Query Meta | DG-QMETA-01 | approved A, 2026-09-11 | TEST-02F + CORE-07 |
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
-| DP-3 Client bootstrap | DG-NAME-01—06, DG-SPI-07 | approved all A, 2026-09-11 | CORE-06; naming/migration preflight |
+| DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | partial: UPDATE-04 approved A 2026-09-11; остальные pending A recommended | DB-02/DB-05/DB-06 и failure contracts |
 | DP-5 Delete | DG-DELETE-01—04/06 | pending; все A recommended | DB-03B-A/DB-03B-B/DB-04 |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | pending; все A recommended | REST-03—REST-05 exact wire contract |
@@ -1037,8 +1038,10 @@ Entry criteria:
 
 - Batch 5 завершён; PR #67—#71 merged последовательно, каждый имеет 17/17
   required checks и independent QA PASS.
-- DP-1, DP-2 и DP-3 утверждены вариантом A по каждому отдельному gate владельцем
-  2026-09-11 и записаны в canonical bodies и central registry.
+- DP-1 и DP-2 утверждены вариантом A по каждому отдельному gate владельцем
+  2026-09-11. В DP-3 DG-NAME-01—06 и DG-SPI-07 утверждены вариантом A, а
+  DG-NAME-06R — как staged A-to-D transition; все решения записаны в canonical
+  bodies и central registry.
 - В DP-4 отдельно утверждён только DG-UPDATE-04/A. Остаток DP-4 и DP-5—DP-9 не
   считается неявно утверждённым и не блокирует задачи batch, если не перечислен
   в их собственных dependencies.
@@ -1048,20 +1051,21 @@ Tasks:
 
 - TEST-02F + CORE-07 — `completed`, один red-to-green query-meta compatibility
   vertical с сохранённым red evidence и зелёным paired fix.
-- CORE-04 — `completed` локально: implementation, remediation и полный
-  verification gate зелёные; independent QA/merge остаются delivery gates.
-- CORE-06 — `waiting_dependency`, client naming, collision, migration-preflight и multisite
-  isolation; стартует после CORE-04.
+- CORE-04 — `completed` и влит PR #75 как `7ec7643` после implementation,
+  remediation, independent QA и полного verification gate.
+- CORE-06R — `completed` локально: client naming, collision,
+  migration-preflight, custom-storage boundaries и утверждённый 1.x multisite
+  callback bridge прошли полную verification matrix, independent QA и 17/17
+  protected jobs PR #76; merge остаётся delivery gate.
 - TEST-02D вне Batch 6 переведён в `todo`: его gate dependencies выполнены, но
   red test поставляется paired с REST-02 после готовности DB-02.
 
 Execution model:
 
-- CORE-07/TEST-02F завершены после DP-1; CORE-04 продолжает выполняться после
-  DP-2 и явно утверждённых refinement gates DG-UPDATE-02R/A, DG-UPDATE-04/A и
-  DG-ENT-06/A.
-- CORE-06 стартует после merge/rebase CORE-04: обе задачи меняют client/factory
-  registration boundary.
+- CORE-07/TEST-02F завершены после DP-1; CORE-04 завершён после DP-2 и явно
+  утверждённых refinement gates DG-UPDATE-02R/A, DG-UPDATE-04/A и DG-ENT-06/A.
+- CORE-06 стартовал после merge/rebase CORE-04, поскольку обе задачи меняют
+  client/factory registration boundary.
 - Каждый vertical получает отдельный implementation worker, independent QA,
   strict-base rebase и sequential protected merge.
 
@@ -1069,8 +1073,8 @@ Exit criteria:
 
 - TEST-02F и CORE-07 completed; query-meta autoload и create-with-meta зелёные.
 - CORE-04 completed; entity validation, extension и no-mutation matrix зелёная.
-- CORE-06 completed; isolation, collision, length, legacy, multisite и custom
-  storage boundaries зелёные.
+- CORE-06R completed; isolation, collision, length, legacy, 1.x callback
+  compatibility, multisite и custom storage boundaries зелёные.
 - Fixed-floor/full/coverage/PHPCS и применимые compatibility lanes зелёные;
   каждый merge имеет independent QA и 17/17 required checks.
 - Readiness sweep определяет Batch 7 без неявного принятия оставшихся gates
@@ -1101,6 +1105,33 @@ Verification:
   all five blocking PHP/WP/Ramsey integration pairs pass `93 / 606`. Existing
   dependency/WordPress dynamic-property deprecations on newer PHP are warnings,
   not test failures.
+- CORE-06 red-first: `e3505f4` дал targeted `4 / 14 / 4 failures`, расширенный
+  test-only `2f47c89` — `8 / 38 / 7 failures` на неизменённом production.
+  Runtime implementation находится в `95f0085`, actual multisite regression —
+  в `f87cc99`, independent QA remediation — в `cb32976`.
+- CORE-06 pre-DG-NAME-06R focused PHP 8.1.34 / WordPress 7.1.0 / Ramsey 1.3.0:
+  `ClientIsolationTest` — `11 / 128`; full unit `12 / 58`, integration
+  `104 / 734`; PHPCS `45/45`. Реальный `WP_MULTISITE=1` switch/fresh-client
+  lane — `1 / 11`.
+- CORE-06 fixed-floor coverage PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0:
+  combined `116 / 792`, current `951/1053 (90.31%)`; exact PR baseline
+  `365/786 (46.44%)` не изменён, PR gate зелёный и RC threshold ready.
+  Seed `20260911`: unit reverse/random repeat-2 `24 / 116`, integration
+  reverse/random repeat-2 `208 / 1468`, без retry. Newest compatibility PHP
+  8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1: integration `104 / 734`; известные
+  dependency/dynamic-property deprecations не являются failures. Эти counts
+  являются предыдущим checkpoint evidence и будут заменены результатами
+  полной CORE-06R повторной проверки до перевода задачи в `completed`.
+- CORE-06R current verification: PHP 8.1.34 / WordPress 7.1.0 / Ramsey 1.3.0
+  focused `ClientIsolationTest` `13 / 135`, unit `12 / 58`, integration
+  `106 / 741`; PHP 8.1.34 / WordPress 6.7.7 full unit `12 / 58` and integration
+  `106 / 741`. True WordPress multisite bootstrap focused lane is `13 / 144`.
+  PHPCS is `45/45`; isolation seed `20260911` passes unit reverse/random
+  repeat-2 at `24 / 116` and integration at `212 / 1482`. Fixed-floor PR and
+  RC coverage both pass at combined `118 / 799`, current `957/1059 (90.37%)`,
+  exact baseline `365/786 (46.44%)`, with zero active test exceptions. Newest
+  PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1 integration passes `106 / 741`
+  with only the already known dependency/dynamic-property deprecations.
 
 ## E1. Test foundation и regression harness
 
@@ -2262,7 +2293,7 @@ Notes/Risks:
 
 ### CORE-06. Реализовать multi-client isolation и table-name rules
 
-Status: waiting_dependency
+Status: completed
 
 Priority: P1
 
@@ -2274,12 +2305,16 @@ Scope:
 - Реализовать утверждённый CORE-05 canonical/migration contract.
 - Tests двух клиентов с разными relations/data.
 - Collision, empty, length и legacy compatibility scenarios.
+- Реализовать DG-NAME-06R 1.x bridge без изменения concrete `deleted_post`
+  callback identity и priority.
 - Документировать фактический table naming.
 
 Out of Scope:
 
 - Shared-table migration.
 - Любая naming policy вне утверждённых DG-NAME-01—DG-NAME-06/A.
+- Переходный semantic cleanup API, context-aware manager, полный аудит
+  Client-owned hooks и 2.0 migration; это отдельный post-merge plan.
 
 DoR:
 
@@ -2288,6 +2323,8 @@ DoR:
 - TEST-01 завершена.
 - DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-04, DG-NAME-05 и DG-NAME-06
   утверждены владельцем.
+- DG-NAME-06R staged A-to-D transition утверждён владельцем; CORE-06 реализует
+  только совместимый 1.x bridge.
 - DG-SPI-07 утверждён для concrete `WPStorage` introspection/migration surface.
 
 DoD:
@@ -2295,6 +2332,10 @@ DoD:
 - Разные допустимые client names не разделяют данные неожиданно.
 - Collision/empty/overlong inputs дают утверждённый result/error до опасного SQL.
 - Legacy compatibility/migration tests и документация соответствуют contract.
+- Direct stale storage access отклоняется, inactive-site `deleted_post` delivery
+  завершается до storage hooks/SQL, а применимый fresh-site callback выполняет
+  cleanup без cross-site удаления.
+- Concrete 1.x callback identity, priority и removability сохранены.
 
 AC:
 
@@ -2302,6 +2343,11 @@ AC:
   данные другого не читаются и не изменяются.
 - Given коллидирующие normalized names, then система не молча использует одну
   table pair как два разных client identity.
+- Given client из другого site context и реальный `wp_delete_post()`, when fresh
+  client создан до события, then stale callback не испускает storage hooks и не
+  блокирует cleanup текущего сайта, а исходные данные сохраняются.
+- Given 1.x consumer снимает `[$client->getStorage(), 'deleteByObjectID']` с
+  `deleted_post` на priority 10, then callback успешно удаляется.
 
 Dependencies:
 
@@ -2309,12 +2355,53 @@ Dependencies:
 - CORE-05.
 - TEST-01.
 - DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-04, DG-NAME-05, DG-NAME-06.
+- DG-NAME-06R.
 - DG-SPI-07.
 
 Notes/Risks:
 
 - Любая table rename/copy операция требует отдельного destructive migration
   review и rollback; она не подразумевается этой задачей автоматически.
+- Red-first evidence 2026-09-11: test-only `ClientIsolationTest` на неизменённом
+  production завершился `4 tests / 14 assertions / 4 failures`. Current code
+  принял unsafe logical input, silent hyphen/underscore collision и 65-character
+  physical identifier, а reused storage после prefix change дошёл до SQL
+  `alternate_post_connections_site_bound` вместо утверждённого
+  `ClientRegisterFail`; custom-storage logical rejection также отсутствовала.
+- Расширенный test-only commit `2f47c89` дал `8 tests / 38 assertions /
+  7 failures`, отдельно подтвердив отсутствие ownership record, legacy
+  attestation и long-prefix boundary. Production `95f0085`, multisite regression
+  `f87cc99` и QA remediation `cb32976` закрыли эти failures без изменения
+  public Storage SPI или REST wire contract.
+- Pre-DG-NAME-06R green checkpoint: focused `11 / 128`; full PHP 8.1.34 / WordPress 7.1.0 /
+  Ramsey 1.3.0 — unit `12 / 58`, integration `104 / 734`; fixed-floor coverage
+  combined `116 / 792`, `951/1053 (90.31%)`, baseline `365/786` unchanged;
+  PHPCS `45/45`; isolation seed `20260911` — unit `24 / 116`, integration
+  `208 / 1468` в каждом reverse/random repeat-2 phase; actual multisite
+  `1 / 11`; newest integration PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1 —
+  `104 / 734` с только известными deprecation warnings. Обновлённые counts и
+  independent QA фиксируются до перевода этой задачи в `completed`.
+- Final DG-NAME-06R verification: focused `13 / 135`; true multisite
+  `13 / 144`; full PHP 8.1.34 with WordPress 7.1.0 and fixed-floor WordPress
+  6.7.7 — unit `12 / 58`, integration `106 / 741`; PHPCS `45/45`; isolation
+  seed `20260911` — unit `24 / 116`, integration `212 / 1482` in every
+  reverse/random repeat-2 phase. Fixed-floor PR and RC coverage pass at
+  combined `118 / 799`, `957/1059 (90.37%)`, baseline `365/786` unchanged and
+  zero active exceptions. Newest PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1
+  integration is `106 / 741` with only known deprecations. Independent QA
+  independently repeated focused single-site `13 / 135`, true multisite
+  `13 / 144`, full unit `12 / 58`, integration `106 / 741` and PHPCS `45/45`
+  with PASS. All 17 protected jobs of PR #76 passed on `ef69d31`; merge remains
+  the Batch 6 delivery gate.
+- Fresh mappings получают atomic non-autoloaded site-local claim. Complete
+  unowned, partial, malformed или conflicting mappings не исправляются
+  автоматически. Operator-facing dry-run/attestation остаётся за DB-06/REL-03;
+  один CORE-06 vertical не является самостоятельным release approval для
+  существующих unclaimed installations.
+- В 1.x bridge `current_filter() === 'deleted_post'` является единственным
+  доступным признаком cascade delivery при сохранённой callback identity.
+  Поэтому manual stale вызов изнутри другого `deleted_post` callback также
+  fail-closed возвращает `0`; точное subscription routing принадлежит 2.0.
 
 ### CORE-07. Восстановить материализацию `Query\Meta`
 
@@ -4189,7 +4276,8 @@ DoR:
 - DG-SPI-01—DG-SPI-07 утверждены.
 - DG-RESTERR-01, DG-RESTERR-02 и DG-RESTERR-04 утверждены.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03 и DG-DELETE-04 утверждены.
-- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-05 и DG-NAME-06 утверждены.
+- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-05, DG-NAME-06 и
+  DG-NAME-06R утверждены.
 
 DoD:
 
@@ -4215,7 +4303,7 @@ Dependencies:
   DG-SPI-07.
 - DG-RESTERR-01, DG-RESTERR-02, DG-RESTERR-04.
 - DG-DELETE-01, DG-DELETE-02, DG-DELETE-03, DG-DELETE-04.
-- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-05, DG-NAME-06.
+- DG-NAME-01, DG-NAME-02, DG-NAME-03, DG-NAME-05, DG-NAME-06, DG-NAME-06R.
 - REL-00, SPI-01.
 
 Notes/Risks:
@@ -4247,7 +4335,7 @@ DoR:
 - Все blocking tasks E1—E5 завершены.
 - REL-01 и REL-02 завершены.
 - DG-M8 quality target достигнут.
-- DG-NAME-01—DG-NAME-06 утверждены.
+- DG-NAME-01—DG-NAME-06R утверждены.
 
 DoD:
 
@@ -4270,7 +4358,7 @@ Dependencies:
 - REL-01, REL-02, DOC-01.
 - Все blocking задачи E1—E5.
 - DG-M8.
-- DG-NAME-01—DG-NAME-06.
+- DG-NAME-01—DG-NAME-06R.
 
 Notes/Risks:
 

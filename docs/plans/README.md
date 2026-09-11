@@ -14,8 +14,8 @@
 3. Batch 5 завершён и закрыт PR #72 на `master` `5b60682`. CORE-03 закрыл issue #31, а DB-00,
    REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Batch 6
    активирован после утверждения DP-1—DP-3 владельцем 2026-09-11:
-   TEST-02F/CORE-07 завершены; CORE-04 реализован и полностью проверен локально,
-   independent QA/merge ещё требуются, CORE-06 поставлен следующим после merge.
+   TEST-02F/CORE-07 завершены; CORE-04 влит PR #75 как `7ec7643`; CORE-06R
+   реализован и проверен в PR #76, merge остаётся delivery gate Batch 6.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -36,13 +36,20 @@
 
 ## Текущий baseline
 
-- Последний merged baseline после CORE-07: unit `7 / 19`, WordPress integration
-  `68 / 353`, combined `75 / 372` и `589/790` statements (`74.56%`).
-- Локально проверенная CORE-04 branch на PHP 8.1.34 / WordPress 6.7.7 / Ramsey
-  Collection 1.3.0: unit `12 / 58`, integration `93 / 606`, combined `105 / 664`
-  и `817/951` statements (`85.91%`). Fixed PR baseline `365/786` не изменён.
-- CORE-04 проходит independent QA до merge; локальный результат не считается
-  merged baseline и не подменяет обязательные protected checks.
+- Последний merged baseline после CORE-04 PR #75 (`7ec7643`): unit `12 / 58`,
+  WordPress integration `93 / 606`, combined `105 / 664` и `817/951`
+  statements (`85.91%`).
+- Текущая CORE-06R branch на PHP 8.1.34 / Ramsey 1.3.0: WordPress 7.1.0 и
+  fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
+  true multisite focused lane `13 / 144`; isolation unit `24 / 116` и
+  integration `212 / 1482`; PHPCS `45/45`. Fixed-floor PR/RC coverage —
+  combined `118 / 799`, `957/1059` statements (`90.37%`), baseline `365/786`
+  не изменён. Newest PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1 integration —
+  `106 / 741` с только известными deprecation warnings.
+- CORE-06R получил independent QA PASS; все 17 protected jobs PR #76 успешны
+  на `ef69d31`. До merge это branch evidence, а не новый merged baseline.
+  Operator-facing naming inventory/attestation остаётся downstream
+  DB-06/REL-03 work.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
@@ -60,10 +67,11 @@
 - DG-M1—DG-M9 утверждены владельцем 2026-09-10. M5 ограничен deprecation
   `Connection::load()`; `getPosts()` перенесён в отдельное исследование REST
   issue #20 вместе с filtering/traversal/representation contract.
-- DP-1—DP-3 и их review refinements утверждены вариантом A владельцем
-  2026-09-11: DG-QMETA-01, DG-UPDATE-01/02/02R, DG-SPI-01/02/07,
-  DG-ENT-01—DG-ENT-06 и DG-NAME-01—DG-NAME-06. В DP-4 отдельно утверждён только
-  DG-UPDATE-04/A; остальной packet остаётся pending. Pending остаются
+- DP-1—DP-3 и их review refinements утверждены владельцем 2026-09-11:
+  DG-QMETA-01/A, DG-UPDATE-01/02/02R/A, DG-SPI-01/02/07/A,
+  DG-ENT-01—DG-ENT-06/A, DG-NAME-01—DG-NAME-06/A и staged
+  DG-NAME-06R/A-to-D. В DP-4 отдельно утверждён только DG-UPDATE-04/A;
+  остальной packet остаётся pending. Pending остаются
   DG-API20-01—DG-API20-09, DG-UPDATE-03/05, DG-SPI-03—DG-SPI-06,
   DG-DB-01—DG-DB-04,
   DG-RESTERR-01—DG-RESTERR-04 и DG-DELETE-01—DG-DELETE-06; они блокируют только

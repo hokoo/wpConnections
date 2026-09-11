@@ -3,6 +3,7 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Helpers\Database;
 
 class WPStorage extends Abstracts\Storage
@@ -12,37 +13,51 @@ class WPStorage extends Abstracts\Storage
     public const CONNECTIONS_TABLE_PREFIX = 'post_connections_';
     public const META_TABLE_PREFIX = 'post_connections_meta_';
 
+    private const OWNERSHIP_OPTION_PREFIX = 'wpconnections_storage_owner_';
+    private const OWNERSHIP_VERSION = 1;
+
     private string $connections_table;
     private string $meta_table;
+    private string $postfix;
+    private string $site_prefix;
 
     /**
      * @param Client $client wpConnections Client
      */
     public function __construct(Client $client)
     {
-        $this->client = $client;
-        $postfix = Database::normalize_table_name($client->getName());
-        $this->connections_table = self::CONNECTIONS_TABLE_PREFIX . $postfix;
-        $this->meta_table = self::META_TABLE_PREFIX . $postfix;
+        global $wpdb;
 
+        $this->client = $client;
+        $this->site_prefix = (string) $wpdb->prefix;
+        $this->postfix = str_replace('-', '_', $client->getName());
+        $this->connections_table = self::CONNECTIONS_TABLE_PREFIX . $this->postfix;
+        $this->meta_table = self::META_TABLE_PREFIX . $this->postfix;
+
+        $this->preflight();
         $this->init();
     }
+
     public function get_connections_table(): string
     {
+        $this->assertSitePrefix();
         return $this->connections_table;
     }
 
     public function get_meta_table(): string
     {
+        $this->assertSitePrefix();
         return $this->meta_table;
     }
 
     private function init()
     {
-        Database::register_table($this->get_connections_table());
-        Database::register_table($this->get_meta_table());
-
+        $this->assertSitePrefix();
         $install_on_init = apply_filters('wpConnections/storage/installOnInit', false, $this->client);
+        $this->assertSitePrefix();
+
+        $this->registerTable($this->connections_table);
+        $this->registerTable($this->meta_table);
 
         if (true !== $install_on_init) {
             return;
@@ -53,8 +68,9 @@ class WPStorage extends Abstracts\Storage
 
     private function install()
     {
+        $this->assertSitePrefix();
         Database::install_table(
-            $this->get_connections_table(),
+            $this->connections_table,
             "
             `ID`        bigint(20) unsigned NOT NULL auto_increment,
             `relation`  varchar(255) NOT NULL,
@@ -71,7 +87,7 @@ class WPStorage extends Abstracts\Storage
         );
 
         Database::install_table(
-            $this->get_meta_table(),
+            $this->meta_table,
             "
             `meta_id`       bigint(20) unsigned NOT NULL auto_increment,
             `connection_id` bigint(20) unsigned NOT NULL default '0',
@@ -82,6 +98,189 @@ class WPStorage extends Abstracts\Storage
             KEY `meta_key` (`meta_key`)
             "
         );
+    }
+
+    /**
+     * Validates and claims the concrete table mapping before registration.
+     *
+     * @throws ClientRegisterFail
+     */
+    private function preflight(): void
+    {
+        $this->assertSitePrefix();
+
+        if (
+            strlen($this->site_prefix . $this->connections_table) > 64 ||
+            strlen($this->site_prefix . $this->meta_table) > 64
+        ) {
+            throw new ClientRegisterFail('Client table identifier exceeds the 64-character database limit.');
+        }
+
+        $connectionsExists = $this->tableExists($this->site_prefix . $this->connections_table);
+        $metaExists = $this->tableExists($this->site_prefix . $this->meta_table);
+        $record = $this->readOwnershipRecord();
+
+        if ($connectionsExists !== $metaExists) {
+            throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
+        }
+
+        if (null !== $record) {
+            $this->assertOwnershipRecord($record);
+
+            if (
+                $connectionsExists &&
+                (! $this->hasExpectedSchema(
+                    $this->site_prefix . $this->connections_table,
+                    [ 'ID', 'relation', 'from', 'to', 'order', 'title' ]
+                ) || ! $this->hasExpectedSchema(
+                    $this->site_prefix . $this->meta_table,
+                    [ 'meta_id', 'connection_id', 'meta_key', 'meta_value' ]
+                ))
+            ) {
+                throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
+            }
+
+            return;
+        }
+
+        if ($connectionsExists) {
+            throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
+        }
+
+        $record = [
+            'version' => self::OWNERSHIP_VERSION,
+            'postfix' => $this->postfix,
+            'owner'   => $this->client->getName(),
+        ];
+
+        global $wpdb;
+        $suppressErrors = $wpdb->suppress_errors();
+        try {
+            $claimAdded = add_option($this->ownershipOptionName(), $record, '', false);
+        } finally {
+            $wpdb->suppress_errors($suppressErrors);
+        }
+
+        if ($claimAdded) {
+            return;
+        }
+
+        wp_cache_delete($this->ownershipOptionName(), 'options');
+        wp_cache_delete('notoptions', 'options');
+        $concurrentRecord = $this->readPersistedOwnershipRecord();
+        if (null === $concurrentRecord) {
+            throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
+        }
+
+        $this->assertOwnershipRecord($concurrentRecord);
+    }
+
+    private function assertOwnershipRecord($record): void
+    {
+        if (
+            ! is_array($record) ||
+            self::OWNERSHIP_VERSION !== ($record['version'] ?? null) ||
+            $this->postfix !== ($record['postfix'] ?? null) ||
+            ! is_string($record['owner'] ?? null) ||
+            ! preg_match('/^[a-z0-9_-]+$/D', $record['owner'])
+        ) {
+            throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
+        }
+
+        if ($this->client->getName() !== $record['owner']) {
+            throw new ClientRegisterFail('Client table mapping is already claimed by another client.');
+        }
+    }
+
+    private function readOwnershipRecord()
+    {
+        $missing = new \stdClass();
+        $record = get_option($this->ownershipOptionName(), $missing);
+
+        return $missing === $record ? null : $record;
+    }
+
+    private function readPersistedOwnershipRecord()
+    {
+        global $wpdb;
+
+        $serializedRecord = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+                $this->ownershipOptionName()
+            )
+        );
+
+        return null === $serializedRecord ? null : maybe_unserialize($serializedRecord);
+    }
+
+    private function ownershipOptionName(): string
+    {
+        return self::OWNERSHIP_OPTION_PREFIX . hash('sha256', $this->postfix);
+    }
+
+    private function tableExists(string $table): bool
+    {
+        global $wpdb;
+
+        return 1 === (int) $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+                $table
+            )
+        );
+    }
+
+    private function hasExpectedSchema(string $table, array $expectedColumns): bool
+    {
+        global $wpdb;
+
+        $escapedTable = str_replace('`', '``', $table);
+        $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$escapedTable}`");
+
+        return $expectedColumns === $columns;
+    }
+
+    private function registerTable(string $table): void
+    {
+        global $wpdb;
+
+        $this->assertSitePrefix();
+        if (! in_array($table, $wpdb->tables, true)) {
+            $wpdb->tables[] = $table;
+        }
+        $wpdb->{$table} = $this->site_prefix . $table;
+    }
+
+    private function fullTableName(string $table): string
+    {
+        $this->assertSitePrefix();
+        return $this->site_prefix . $table;
+    }
+
+    /**
+     * @throws ClientRegisterFail
+     */
+    private function assertSitePrefix(): void
+    {
+        global $wpdb;
+
+        if ($this->site_prefix !== (string) $wpdb->prefix) {
+            throw new ClientRegisterFail('Client storage is bound to a different WordPress site prefix.');
+        }
+    }
+
+    /**
+     * Keeps the 1.x direct callback identity while ignoring inactive-site
+     * cascade delivery. A context-aware subscription replaces this bridge in
+     * the next major version.
+     */
+    private function isStaleDeletedPostContext(): bool
+    {
+        global $wpdb;
+
+        return 'deleted_post' === current_filter() &&
+            $this->site_prefix !== (string) $wpdb->prefix;
     }
 
 
@@ -96,14 +295,17 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        $this->assertSitePrefix();
+
         do_action('wpConnections/storage/deleteSpecificConnections', $this->getClient(), $connectionIDs);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deleteSpecificConnections", $connectionIDs);
+        $this->assertSitePrefix();
 
         $connectionIDs = $this->prepareIDs($connectionIDs);
 
         // MySQL Query
-        $db = $wpdb->prefix . $this->get_connections_table();
-        $db_meta = $wpdb->prefix . $this->get_meta_table();
+        $db = $this->fullTableName($this->connections_table);
+        $db_meta = $this->fullTableName($this->meta_table);
         $in = implode(',', $connectionIDs);
 
         $query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
@@ -134,8 +336,15 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        if ($this->isStaleDeletedPostContext()) {
+            return 0;
+        }
+
+        $this->assertSitePrefix();
+
         do_action('wpConnections/storage/deleteByObjectID', $this->getClient(), $objectIDs, $relation, $onlyFrom, $onlyTo);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deleteByObjectID", $objectIDs, $relation, $onlyFrom, $onlyTo);
+        $this->assertSitePrefix();
 
         // Only one of direction restricts may be set true.
         if ($onlyFrom && $onlyTo) {
@@ -157,8 +366,8 @@ class WPStorage extends Abstracts\Storage
         $where_str = implode(' OR ', $where);
 
         $relation_query = empty($relation) ? '1=1' : "`relation` LIKE '{$relation}'";
-        $db = $wpdb->prefix . $this->get_connections_table();
-        $db_meta = $wpdb->prefix . $this->get_meta_table();
+        $db = $this->fullTableName($this->connections_table);
+        $db_meta = $this->fullTableName($this->meta_table);
 
         // Get ID's
         $query_ids = "SELECT `ID` FROM {$db} WHERE {$relation_query} AND ({$where_str})";
@@ -198,8 +407,11 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        $this->assertSitePrefix();
+
         do_action('wpConnections/storage/deleteDirectedConnections', $this->getClient(), $from, $to, $relation);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deleteDirectedConnections", $from, $to, $relation);
+        $this->assertSitePrefix();
 
         // Only exactly specified connections may be deleted.
         if (empty($from) || empty($to)) {
@@ -207,8 +419,8 @@ class WPStorage extends Abstracts\Storage
         }
 
         // MySQL Query
-        $db = $wpdb->prefix . $this->get_connections_table();
-        $db_meta = $wpdb->prefix . $this->get_meta_table();
+        $db = $this->fullTableName($this->connections_table);
+        $db_meta = $this->fullTableName($this->meta_table);
         $relation_query = empty($relation) ? '1=1' : "`relation` LIKE '{$relation}'";
 
         // Get ID's
@@ -275,6 +487,8 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        $this->assertSitePrefix();
+
         $where = [];
 
         if (is_numeric($id = $params->get('id')) && ! empty($id)) {
@@ -308,8 +522,8 @@ class WPStorage extends Abstracts\Storage
         }
 
         $where_str = implode(' AND ', $where);
-        $db = $wpdb->prefix . $this->get_connections_table();
-        $db_meta = $wpdb->prefix . $this->get_meta_table();
+        $db = $this->fullTableName($this->connections_table);
+        $db_meta = $this->fullTableName($this->meta_table);
         $query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
         $query_result = $wpdb->get_results($query);
 
@@ -349,6 +563,7 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        $this->assertSitePrefix();
         $data = [
             'from'      => $connectionQuery->get('from'),
             'to'        => $connectionQuery->get('to'),
@@ -361,13 +576,15 @@ class WPStorage extends Abstracts\Storage
         do {
             // Suppress errors when table does not exist.
             do_action('iTRON/wpConnections/storage/createConnection/attempt', $attempt);
+            $this->assertSitePrefix();
             $suppress = $wpdb->suppress_errors();
-            $result = $wpdb->insert($wpdb->prefix . $this->get_connections_table(), $data);
+            $result = $wpdb->insert($this->fullTableName($this->connections_table), $data);
             $wpdb->suppress_errors($suppress);
             do_action('iTRON/wpConnections/storage/createConnection/attempt/result', $result, $wpdb->last_error);
 
             if (false === $result && 0 === $attempt) {
                 // Try to create tables
+                $this->assertSitePrefix();
                 $this->install();
             }
 
@@ -394,6 +611,8 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        $this->assertSitePrefix();
+
         $where = ['ID' => $connection->id];
         $update = [
             'from'      => $connection->from,
@@ -403,7 +622,7 @@ class WPStorage extends Abstracts\Storage
             'title'     => $connection->title,
         ];
 
-        return $wpdb->update($wpdb->prefix . $this->get_connections_table(), $update, $where);
+        return $wpdb->update($this->fullTableName($this->connections_table), $update, $where);
     }
 
     /**
@@ -419,6 +638,8 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        $this->assertSitePrefix();
+
         if ($metaCollection->isEmpty()) {
             throw new Exceptions\ConnectionWrongData("Meta object is empty.");
         }
@@ -428,6 +649,7 @@ class WPStorage extends Abstracts\Storage
         }
 
         do_action('wpConnections/storage/addConnectionMeta/before', $this->getClient(), $objectID, $metaCollection);
+        $this->assertSitePrefix();
 
         $errors = [];
         foreach ($metaCollection->getIterator() as $meta) {
@@ -438,7 +660,7 @@ class WPStorage extends Abstracts\Storage
                 'meta_value'    => $meta->getValue(),
             ];
 
-            $result = $wpdb->insert($wpdb->prefix . $this->get_meta_table(), $data);
+            $result = $wpdb->insert($this->fullTableName($this->meta_table), $data);
             if (false === $result) {
                 $errors [] = $wpdb->last_error;
             }
@@ -463,11 +685,13 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
+        $this->assertSitePrefix();
+
         if (empty($objectID)) {
             throw new Exceptions\ConnectionWrongData("Object ID is empty.");
         }
 
-        $from = "DELETE FROM {$wpdb->prefix}{$this->get_meta_table()}";
+        $from = 'DELETE FROM ' . $this->fullTableName($this->meta_table);
         $where = [" WHERE connection_id = {$objectID}"];
         if (! $metaQuery->isEmpty()) {
             $where [] = "AND (";
@@ -493,6 +717,7 @@ class WPStorage extends Abstracts\Storage
         $query = $from . implode(' ', $where);
 
         do_action('wpConnections/storage/removeConnectionMeta/before', $this->getClient(), $objectID, $metaQuery, $query);
+        $this->assertSitePrefix();
 
         $rowsAffected = $wpdb->query($query);
 
