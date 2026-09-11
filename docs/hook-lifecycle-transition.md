@@ -1,9 +1,9 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; 1.x transition API ready for protected merge
+Status: executable staged plan; 1.x transition delivered, manager selection in review
 
-Baseline: `master` merge `2371ed2f3ae01f3e2d589553cff3b79944e94981`
-(CORE-06R, PR #76).
+Baseline: `master` merge `5c2fc26289a1ee2ae55d11967c15b2562093442c`
+(HOOK-TRANS-01, PR #77).
 
 Decision date: 2026-09-11.
 
@@ -36,7 +36,7 @@ manual stale `deleteByObjectID()` call made inside another `deleted_post`
 callback. Both fail closed. That limitation ends only when the callback itself
 is owned by a context-aware subscription.
 
-## Current delivery: semantic 1.x lifecycle API
+## Delivered: semantic 1.x lifecycle API
 
 HOOK-TRANS-01 adds these public commands to `Client`:
 
@@ -63,7 +63,7 @@ The exact 1.x contract is:
 The task does not change stale-prefix handling, cascade SQL, storage hooks,
 factory behavior, custom-storage semantics or any REST representation.
 
-## Next delivery: selection and complete hook audit
+## Current delivery: selection and complete hook audit
 
 Batch 8 contains two independent documentation/research tasks after the 1.x API
 merges:
@@ -71,7 +71,9 @@ merges:
 - HOOK-00 evaluates maintained Composer candidates against the target contract
   and prepares DG-HOOK-01. If no candidate satisfies the contract without a
   compatibility fork, the preferred fallback is a separately published small
-  library owned by this project.
+  library owned by this project. Its current source-linked evidence and option
+  analysis are in the
+  [manager selection packet](hook-manager-selection.md).
 - HOOK-02 inventories every hook registration owned by `Client`, its REST API,
   settings and logger collaborators. It records registration context,
   unregisterability, site sensitivity and 2.0 migration action. It does not
@@ -83,7 +85,7 @@ artifacts. No dependency is selected or installed before DG-HOOK-01 is approved.
 <a id="dg-hook-01"></a>
 ## DG-HOOK-01 — manager source and package boundary
 
-**Status:** pending evidence and repository-owner decision.
+**Status:** decision-ready; repository-owner decision pending.
 
 **Problem:** the 2.0 behavior is approved, but the implementation source is not.
 Adopting an unsuitable abstraction could add more compatibility risk than the
@@ -103,6 +105,11 @@ small manager removes.
 **Selection rule:** prefer A when a candidate passes every mandatory criterion
 without a compatibility fork; otherwise prefer B. C is the documented fallback,
 not an implicit default.
+
+**Evidence result:** no current candidate passes every mandatory criterion.
+Option B is recommended; see the
+[source-linked candidate matrix](hook-manager-selection.md). This recommendation
+does not approve the gate and no dependency has been selected or installed.
 
 **Required evidence:** primary-source version/license/maintenance data, supported
 PHP range, dependency footprint, a contract-gap matrix, a minimal integration
@@ -147,15 +154,16 @@ callback pattern.
 | Phase | Task | Deliverable | Gate/dependency | Status |
 | --- | --- | --- | --- | --- |
 | 1.x safety | CORE-06R | Prefix-bound storage and compatible stale callback no-op | DG-NAME-06R | completed, PR #76 |
-| 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | review |
-| 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | waiting dependency |
-| 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | waiting dependency |
+| 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | completed, PR #77 |
+| 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | review |
+| 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | todo in separate branch |
 | Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, HOOK-00 | waiting decision |
 | 2.0 integration | HOOK-03 | Manager-backed context-safe registrations and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
-protected-check run. The current branch closes only HOOK-TRANS-01.
+protected-check run. The current branch contains only HOOK-00 discovery and the
+necessary prior-batch status closure; HOOK-02 remains a separate delivery.
 
 ## Verification matrix
 
@@ -204,10 +212,10 @@ after the minimal production change. Local verification on 2026-09-11 is:
 Independent QA independently repeated the focused, current, fixed-floor, true
 multisite, isolation, coverage-policy, newest-compatibility and PHPCS checks on
 head `632da3aae45dbc6091ba3e098eff915b2136beae`, and returned an unconditional
-PASS with no findings. PR #77 then passed all 17 protected jobs on head
-`0d70f33a26ed18b307d7a855d6599b26079585f1`. Any later commit must repeat that
-matrix before merge. The task remains `review`, not `completed`, until the
-closure head and post-merge `master` have both passed the protected matrix.
+PASS with no findings. PR #77 passed all 17 protected jobs on closure head
+`1e98cf70e7b2bb74b1cb66e8c0c960329c652c76`, was merged as
+`5c2fc26289a1ee2ae55d11967c15b2562093442c`, and all 17 post-merge jobs passed.
+HOOK-TRANS-01 and Batch 7 are complete.
 
 ## Rollback
 

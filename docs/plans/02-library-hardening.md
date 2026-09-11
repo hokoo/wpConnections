@@ -8,12 +8,10 @@ clean test flow воспроизводим, coverage baseline доступен �
 issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
 discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
 владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 завершён:
-CORE-06R влит PR #76 как `2371ed2` и post-merge 17/17 jobs зелёные. Batch 7
-активен: утверждённый semantic 1.x hook lifecycle API реализован, локальная
-матрица и independent QA зелёные, PR #77 получил 17/17 protected checks на
-implementation/QA head. HOOK-TRANS-01 находится на финальном delivery gate.
-Batch 8 заранее определён для manager selection и полного Client-owned-hook
-audit.
+CORE-06R влит PR #76 как `2371ed2`. Batch 7 завершён: HOOK-TRANS-01 влит PR
+#77 как `5c2fc26`, final head и post-merge `master` прошли по 17/17 jobs. Batch
+8 активен: HOOK-00 manager selection packet находится в review, HOOK-02
+поставляется отдельной веткой.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -687,7 +685,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | approved A | repository owner | 2026-09-11 | Explicit in-place adoption; no automatic destructive migration |
 | [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
 | [`DG-NAME-06R`](../client-naming-contract.md#dg-name-06r) | approved staged A-to-D | repository owner | 2026-09-11 | Preserve direct callback identity in 1.x; context-aware manager at the 2.0 boundary |
-| [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | pending; A if fully conforming candidate, otherwise B recommended | repository owner | — | HOOK-01 waits; no dependency is selected or installed |
+| [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | decision-ready; B recommended, approval pending | repository owner | — | [HOOK-00 evidence](../hook-manager-selection.md) found no fully conforming package; HOOK-01 waits and no dependency is installed |
 
 Для DG-ENT-01—DG-ENT-06, DG-RESTERR-01—DG-RESTERR-04,
 DG-DELETE-01—DG-DELETE-06, DG-NAME-01—DG-NAME-06R и DG-HOOK-01 связанные contracts являются
@@ -1142,7 +1140,7 @@ Verification:
 
 ### Batch 7. Semantic 1.x post-deletion lifecycle
 
-Status: active
+Status: completed
 
 Goal: дать consumers стабильный semantic API для управления post-deletion
 cleanup до breaking перехода на context-aware manager в 2.0.
@@ -1158,7 +1156,7 @@ Entry criteria:
 
 Tasks:
 
-- HOOK-TRANS-01 — `review`; test-first additive
+- HOOK-TRANS-01 — `completed`; test-first additive
   `enablePostDeletionCleanup()` / `disablePostDeletionCleanup()` vertical.
 
 Execution model:
@@ -1178,7 +1176,7 @@ Exit criteria:
 
 ### Batch 8. Hook manager selection и owned-hook audit
 
-Status: queued_after_batch_7
+Status: active
 
 Goal: независимо подготовить решение о поставщике 2.0 manager и полную карту
 Client-owned hook registrations, не смешивая discovery с runtime integration.
@@ -1190,8 +1188,10 @@ Entry criteria:
 
 Tasks:
 
-- HOOK-00 — отдельный build-versus-buy artifact и decision packet DG-HOOK-01.
-- HOOK-02 — отдельный полный hook inventory/context/migration artifact.
+- HOOK-00 — `review`; отдельный build-versus-buy artifact и decision packet
+  DG-HOOK-01.
+- HOOK-02 — `todo`; отдельный полный hook inventory/context/migration artifact
+  в следующей ветке.
 
 Execution model:
 
@@ -4451,7 +4451,7 @@ Canonical contract и staged delivery map:
 
 ### HOOK-TRANS-01. Добавить semantic 1.x post-deletion lifecycle API
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -4537,13 +4537,12 @@ Verification evidence (2026-09-11):
 - Independent QA независимо повторил focused `15/150`, current/fixed-floor
   unit `12/58` и integration `108/756`, true multisite `15/159`, isolation,
   coverage policies, newest compatibility и PHPCS на head `632da3a`; PASS без
-  замечаний. PR #77 получил 17/17 protected checks на head `0d70f33`; любой
-  closure commit обязан повторить полный protected набор. Post-merge 17/17
-  checks остаются обязательными до `completed`.
+  замечаний. Closure head PR #77 `1e98cf7` и merge `5c2fc26` прошли по 17/17
+  protected/post-merge jobs. Задача завершена.
 
 ### HOOK-00. Выбрать источник и package boundary hook manager
 
-Status: waiting_dependency
+Status: review
 
 Priority: P1
 
@@ -4594,10 +4593,14 @@ Notes/Risks:
 - Abandoned или framework-coupled package может стоить дороже малого manager.
 - New package требует отдельного repository ownership, CI, versioning и release
   workflow; это входит в decision cost, а не создаётся автоматически.
+- Source-linked search, full candidate matrix, option costs и rollback находятся
+  в [`docs/hook-manager-selection.md`](../hook-manager-selection.md). Ни один
+  candidate не прошёл mandatory static matrix, поэтому runtime probe не имел
+  qualifying target; recommendation — DG-HOOK-01/B, decision остаётся pending.
 
 ### HOOK-01. Поставить выбранный context-aware manager
 
-Status: waiting_dependency
+Status: waiting_decision
 
 Priority: P1
 
@@ -4652,7 +4655,7 @@ Notes/Risks:
 
 ### HOOK-02. Проаудировать все Client-owned hook registrations
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
