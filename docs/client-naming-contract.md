@@ -529,7 +529,7 @@ break the current 1.x `remove_action('deleted_post', [$storage,
   `deleteByObjectID()` call made by third-party code from inside another
   `deleted_post` callback is also classified as cascade delivery and returns
   `0`. This fail-closed limitation is explicit and temporary.
-- **1.x transition:** in a separate post-CORE-06 change, add idempotent semantic
+- **1.x transition:** HOOK-TRANS-01 adds idempotent semantic
   `Client::enablePostDeletionCleanup()` and
   `Client::disablePostDeletionCleanup()` methods. Keep the direct WordPress
   callback removable throughout 1.x, but document direct callback manipulation

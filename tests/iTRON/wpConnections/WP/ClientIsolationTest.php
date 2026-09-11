@@ -774,6 +774,12 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			$client = $this->remember_client( new Client( str_repeat( 'c', 100 ) ) );
 			self::assertInstanceOf( ClientIsolationMemoryStorage::class, $client->getStorage() );
 			self::assertFalse( method_exists( $client->getStorage(), 'get_connections_table' ) );
+			$callback = [ $client->getStorage(), 'deleteByObjectID' ];
+			self::assertSame( 10, has_action( 'deleted_post', $callback ) );
+			$client->disablePostDeletionCleanup();
+			self::assertFalse( has_action( 'deleted_post', $callback ) );
+			$client->enablePostDeletionCleanup();
+			self::assertSame( 10, has_action( 'deleted_post', $callback ) );
 
 			$this->assert_client_registration_error(
 				'Client name is empty or unsafe after normalization.',

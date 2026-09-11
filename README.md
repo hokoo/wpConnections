@@ -115,9 +115,19 @@ storage object throws the documented prefix error. Its globally registered
 `deleted_post` callback instead becomes a no-op before storage hooks or SQL, so
 it cannot prevent the fresh current-site client from running its own cascade.
 The 1.x callback remains the concrete storage method at priority 10, preserving
-existing `remove_action()` usage. A semantic cleanup lifecycle API follows in
-a separate 1.x transition change; the context-aware subscription manager is
-reserved for the documented 2.0 transition.
+existing `remove_action()` usage. Cleanup is enabled automatically at Client
+construction and can now be controlled without depending on callback identity:
+
+```php
+$client->disablePostDeletionCleanup();
+$client->enablePostDeletionCleanup();
+```
+
+Both commands are idempotent. Direct callback removal remains compatible in
+1.x, but consumers should migrate to these semantic methods before 2.0: the
+context-aware subscription manager planned for that major version will own a
+different WordPress callback identity. See the
+[hook lifecycle transition contract](docs/hook-lifecycle-transition.md).
 
 Existing complete tables without a matching ownership record, partial pairs or
 malformed/conflicting records are rejected without automatic repair, rename or
