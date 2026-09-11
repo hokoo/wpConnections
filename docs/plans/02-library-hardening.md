@@ -4734,7 +4734,8 @@ Notes/Risks:
   late-created Client не получает route до повторного `rest_api_init`; failed
   constructor оставляет по callback каждого вида. True multisite подтвердил
   delivery обоим same-name Clients и смешение callbacks обоих sites в одном
-  REST route. Диагностические файлы после запуска удалены.
+  REST route. Парный isolated probe дал 0/3 Settings registrations при
+  `WP_DEBUG=false/true`. Диагностические файлы после запуска удалены.
 - GitHub search не нашёл consumer-owned direct removal в трёх известных public
   consumers; absence не исключает private usage и не снимает HOOK-04 red flag.
 

@@ -179,8 +179,9 @@ callback pattern.
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
-protected-check run. The current branch contains only HOOK-02 discovery and
-plan refinement; it installs no manager and changes no runtime registration.
+protected-check run. The current branch contains HOOK-02 discovery, its plan
+refinement and HOOK-00 delivery-status closure; it installs no manager and
+changes no runtime registration.
 
 ## Verification matrix
 

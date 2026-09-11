@@ -117,6 +117,9 @@ library emits filters.
 
 ### Single-site, PHP 8.1.34 / WordPress 6.7.7 / Ramsey 1.3.0
 
+Paired isolated `Settings::init()` probes recorded zero `add_action()` calls
+with `WP_DEBUG=false` and exactly three with `WP_DEBUG=true`.
+
 The temporary probe constructed two Clients with instrumented factory
 collaborators. With `WP_DEBUG=true`, each of the five hooks gained exactly two
 callbacks. Dispatching `findConnections/dbQuery` once delivered one record to
