@@ -7,9 +7,13 @@ clean test flow воспроизводим, coverage baseline доступен �
 активен; Batch 1—5 завершены. В Batch 5 production slice CORE-03 завершён и
 issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили decision-ready
 discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
-владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 активен:
-TEST-02F/CORE-07 завершены, CORE-04 влит PR #75 как `7ec7643`, CORE-06R
-реализован и полностью проверен в PR #76; merge остаётся delivery gate Batch 6.
+владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 завершён:
+CORE-06R влит PR #76 как `2371ed2` и post-merge 17/17 jobs зелёные. Batch 7
+активен: утверждённый semantic 1.x hook lifecycle API реализован, локальная
+матрица и independent QA зелёные, PR #77 получил 17/17 protected checks на
+implementation/QA head. HOOK-TRANS-01 находится на финальном delivery gate.
+Batch 8 заранее определён для manager selection и полного Client-owned-hook
+audit.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -683,9 +687,10 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | approved A | repository owner | 2026-09-11 | Explicit in-place adoption; no automatic destructive migration |
 | [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
 | [`DG-NAME-06R`](../client-naming-contract.md#dg-name-06r) | approved staged A-to-D | repository owner | 2026-09-11 | Preserve direct callback identity in 1.x; context-aware manager at the 2.0 boundary |
+| [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | pending; A if fully conforming candidate, otherwise B recommended | repository owner | — | HOOK-01 waits; no dependency is selected or installed |
 
 Для DG-ENT-01—DG-ENT-06, DG-RESTERR-01—DG-RESTERR-04,
-DG-DELETE-01—DG-DELETE-06 и DG-NAME-01—DG-NAME-06R связанные contracts являются
+DG-DELETE-01—DG-DELETE-06, DG-NAME-01—DG-NAME-06R и DG-HOOK-01 связанные contracts являются
 canonical decision bodies (problem, alternatives, recommendation и compatibility
 impact). Этот registry — canonical запись решения/status, владельца и даты.
 Implementation использует оба источника; рекомендация в contract сама по себе
@@ -1007,14 +1012,14 @@ Verification:
   17/17 required checks.
 - CORE-05: PR #71, merge `3151285`, remediation и post-rebase integrity QA PASS,
   17/17 required checks.
-- Readiness sweep: 45 задач до split DB-03B — 23 `completed`, 20
+- Historical Batch-5 readiness sweep: 45 задач до split DB-03B — 23 `completed`, 20
   `waiting_dependency`, TEST-02F `review`, PROD-01 `deferred`; `todo` и
-  `in_progress` отсутствуют. После split ниже план содержит 46 задач и 21
-  `waiting_dependency` без изменения готовности.
+  `in_progress` отсутствовали. На том checkpoint после split план содержал 46
+  задач и 21 `waiting_dependency`; это не current count после Batch 6 и E7.
 
 ### Batch 6. Query-meta recovery, entity validation и client isolation
 
-Status: active
+Status: completed
 
 Goal: после явного утверждения минимальных decision packets выполнить первые
 три независимые production verticals без неявного принятия последующих REST,
@@ -1053,10 +1058,10 @@ Tasks:
   vertical с сохранённым red evidence и зелёным paired fix.
 - CORE-04 — `completed` и влит PR #75 как `7ec7643` после implementation,
   remediation, independent QA и полного verification gate.
-- CORE-06R — `completed` локально: client naming, collision,
+- CORE-06R — `completed`: client naming, collision,
   migration-preflight, custom-storage boundaries и утверждённый 1.x multisite
   callback bridge прошли полную verification matrix, independent QA и 17/17
-  protected jobs PR #76; merge остаётся delivery gate.
+  protected jobs; PR #76 влит как `2371ed2`, post-merge 17/17 jobs зелёные.
 - TEST-02D вне Batch 6 переведён в `todo`: его gate dependencies выполнены, но
   red test поставляется paired с REST-02 после готовности DB-02.
 
@@ -1132,6 +1137,77 @@ Verification:
   exact baseline `365/786 (46.44%)`, with zero active test exceptions. Newest
   PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1 integration passes `106 / 741`
   with only the already known dependency/dynamic-property deprecations.
+- CORE-06R independent QA PASS; final PR head `93d09c6` and post-merge master
+  `2371ed2` each passed all 17 required jobs.
+
+### Batch 7. Semantic 1.x post-deletion lifecycle
+
+Status: active
+
+Goal: дать consumers стабильный semantic API для управления post-deletion
+cleanup до breaking перехода на context-aware manager в 2.0.
+
+Entry criteria:
+
+- CORE-06R завершён и влит PR #76 как `2371ed2`; post-merge 17/17 jobs зелёные.
+- DG-NAME-06R staged A-to-D утверждён владельцем.
+- Точный 1.x API contract записан в
+  [`docs/hook-lifecycle-transition.md`](../hook-lifecycle-transition.md).
+- Ни один pending DB/REST/issue #20 gate не требуется для additive lifecycle
+  wrapper вокруг существующей callback registration.
+
+Tasks:
+
+- HOOK-TRANS-01 — `review`; test-first additive
+  `enablePostDeletionCleanup()` / `disablePostDeletionCleanup()` vertical.
+
+Execution model:
+
+- Отдельная ветка от merge `2371ed2`; plan/contract, red test, minimal green
+  implementation, full verification, independent QA и protected merge.
+- Constructor остаётся auto-enabled, а concrete callback identity/priority и
+  legacy direct `remove_action()` сохраняются во всей 1.x линии.
+- Никакой manager dependency или proxy callback в этот batch не добавляется.
+
+Exit criteria:
+
+- HOOK-TRANS-01 completed по всем AC и verification matrix.
+- Public docs дают semantic migration path и выделяют будущий 2.0 break.
+- Full/fixed-floor/coverage/PHPCS/isolation и compatibility lanes зелёные;
+  independent QA и 17/17 required checks подтверждены.
+
+### Batch 8. Hook manager selection и owned-hook audit
+
+Status: queued_after_batch_7
+
+Goal: независимо подготовить решение о поставщике 2.0 manager и полную карту
+Client-owned hook registrations, не смешивая discovery с runtime integration.
+
+Entry criteria:
+
+- HOOK-TRANS-01 завершён и влит.
+- Current 1.x compatibility surface и 2.0 target contract опубликованы.
+
+Tasks:
+
+- HOOK-00 — отдельный build-versus-buy artifact и decision packet DG-HOOK-01.
+- HOOK-02 — отдельный полный hook inventory/context/migration artifact.
+
+Execution model:
+
+- Исследования могут идти параллельно, но поставляются отдельными reviewable PR.
+- HOOK-00 не устанавливает dependency; HOOK-01 стартует только после явного
+  решения DG-HOOK-01.
+- HOOK-02 не объявляет каждый WordPress hook site-sensitive: для каждого hook
+  требуется evidence и отдельное migration action.
+
+Exit criteria:
+
+- DG-HOOK-01 имеет current primary-source evidence, recommendation и rollback.
+- Для каждого Client-owned hook известны owner, callback identity, priority,
+  accepted args, context sensitivity, unregister path и 2.0 action.
+- HOOK-01 становится `todo` только после решения DG-HOOK-01; отсутствие решения
+  является явным human blocker, а не скрытым implementation default.
 
 ## E1. Test foundation и regression harness
 
@@ -4364,6 +4440,378 @@ Notes/Risks:
 
 - Не выпускать strict cardinality/entity validation без data-audit guidance.
 
+## E7. Context-aware WordPress hook lifecycle
+
+Outcome: 1.x consumers получают semantic lifecycle API без compatibility break,
+а 2.0 переходит на проверяемую context-aware subscription boundary с явным
+upgrade path для direct `remove_action()` consumers.
+
+Canonical contract и staged delivery map:
+[`docs/hook-lifecycle-transition.md`](../hook-lifecycle-transition.md).
+
+### HOOK-TRANS-01. Добавить semantic 1.x post-deletion lifecycle API
+
+Status: review
+
+Priority: P0
+
+Goal: предоставить стабильный consumer-owned способ включать и выключать
+автоматический `deleted_post` cleanup до замены callback identity в 2.0.
+
+Scope:
+
+- Public `Client::enablePostDeletionCleanup(): void`.
+- Public `Client::disablePostDeletionCleanup(): void`.
+- Constructor auto-enable через новый semantic метод.
+- Idempotent registration/removal exact concrete storage callback на priority
+  10 с одним accepted argument.
+- Regression coverage для disabled, re-enabled, repeated и legacy-direct-remove
+  flows.
+- README и focused lifecycle contract.
+
+Out of Scope:
+
+- Closure/proxy callback, subscription token или context-aware manager.
+- Новая Composer dependency либо отдельный package.
+- Runtime deprecation notice.
+- Изменение CORE-06R stale-prefix bridge, storage DML/hooks, REST или schema.
+- Обещание поддержки consumer-re-registration callback на другом priority.
+
+DoR:
+
+- CORE-06R completed и влит PR #76 как `2371ed2`.
+- DG-NAME-06R staged A-to-D утверждён владельцем.
+- 1.x transition contract фиксирует точные method names, `void`, default
+  auto-enable, identity, priority, accepted args и no-runtime-deprecation.
+
+DoD:
+
+- Новый API additive и одинаково работает с default и custom Storage.
+- Repeated enable создаёт один effective callback; repeated disable безопасен.
+- Constructor behavior и legacy direct `remove_action()` остаются совместимы.
+- Disabled real `deleted_post` не выполняет cleanup; re-enabled выполняет его
+  ровно один раз.
+- Targeted/full/fixed-floor/coverage/PHPCS/isolation/compatibility проверки и
+  independent QA зелёные; evidence записан до merge.
+
+AC:
+
+- Given новый Client, when consumer не вызывает lifecycle API, then exact
+  `[$client->getStorage(), 'deleteByObjectID']` зарегистрирован на priority 10
+  с одним accepted argument.
+- Given enable вызван повторно, when срабатывает `deleted_post`, then storage
+  callback выполняется один раз.
+- Given disable вызван один или несколько раз, when срабатывает
+  `deleted_post`, then callback отсутствует и matching connection сохраняется.
+- Given consumer выполнил legacy direct `remove_action()` на priority 10, when
+  затем вызван semantic enable, then exact callback снова зарегистрирован.
+- Given semantic re-enable, when удалён новый endpoint post, then только его
+  matching connection/meta очищаются без повторного callback execution.
+
+Dependencies:
+
+- CORE-06R.
+- DG-NAME-06R.
+
+Notes/Risks:
+
+- API intentionally не раскрывает subscription handle или boolean state:
+  hook identity перестанет быть public mechanism в 2.0.
+- Direct callback manipulation поддерживается в 1.x для совместимости, но
+  documentation помечает его как обязательный consumer audit перед 2.0.
+- Rollback additive: revert возвращает constructor-owned direct registration и
+  не меняет persisted data.
+
+Verification evidence (2026-09-11):
+
+- Red contract: focused suite `15 / 135` with the two expected undefined-method
+  errors before production implementation.
+- Current and fixed-floor: unit `12 / 58`, integration `108 / 756` on PHP
+  8.1.34 with WordPress 7.1 and 6.7.7 respectively.
+- True multisite focused suite `15 / 159`; isolation seed `20260911`
+  reverse/random repeat-2 unit `24 / 116`, integration `216 / 1512`.
+- Fixed-floor combined coverage `120 / 814`, `968/1070 (90.47%)`; exact
+  baseline `365/786 (46.44%)`; PR and RC policies pass.
+- PHP 8.5.10 / WordPress 7.1 / Ramsey Collection 2.1.1 integration
+  `108 / 756`; PHPCS `45/45`; quality-tool synthetics pass.
+- Independent QA независимо повторил focused `15/150`, current/fixed-floor
+  unit `12/58` и integration `108/756`, true multisite `15/159`, isolation,
+  coverage policies, newest compatibility и PHPCS на head `632da3a`; PASS без
+  замечаний. PR #77 получил 17/17 protected checks на head `0d70f33`; любой
+  closure commit обязан повторить полный protected набор. Post-merge 17/17
+  checks остаются обязательными до `completed`.
+
+### HOOK-00. Выбрать источник и package boundary hook manager
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: доказательно выбрать existing dependency, новый отдельный package или
+internal fallback для утверждённого 2.0 context-aware manager.
+
+Scope:
+
+- Current primary-source Composer/Packagist/repository search.
+- Candidate matrix: maintenance, license, PHP range, dependencies и release
+  history.
+- Проверка callback identity, priority, accepted args, deterministic order,
+  context predicate, idempotent unsubscribe и active-error propagation.
+- Minimal integration probe для кандидатов, прошедших static matrix.
+- Подготовка DG-HOOK-01 с recommendation, compatibility cost и rollback.
+
+Out of Scope:
+
+- Установка production dependency.
+- Реализация manager или изменение wpConnections hook registration.
+- Выбор только по popularity/download count без contract conformance.
+
+DoR:
+
+- HOOK-TRANS-01 completed и влит.
+- Target manager contract опубликован.
+
+DoD:
+
+- Для каждого серьёзного кандидата есть source-linked pass/fail matrix.
+- Отсутствие подходящего кандидата подтверждено воспроизводимым search scope.
+- A/B/C варианты DG-HOOK-01 decision-ready; никакой вариант не считается
+  утверждённым по одной рекомендации.
+
+AC:
+
+- Given кандидат, when его API сопоставлен с обязательным contract, then каждый
+  критерий имеет evidence или явный gap.
+- Given ни один candidate не проходит все mandatory criteria без fork, then
+  recommendation выбирает отдельный project-owned package, а не скрытый fork.
+
+Dependencies:
+
+- HOOK-TRANS-01.
+
+Notes/Risks:
+
+- Abandoned или framework-coupled package может стоить дороже малого manager.
+- New package требует отдельного repository ownership, CI, versioning и release
+  workflow; это входит в decision cost, а не создаётся автоматически.
+
+### HOOK-01. Поставить выбранный context-aware manager
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: получить independently testable manager implementation согласно
+утверждённому DG-HOOK-01 без зависимости от wpConnections domain classes.
+
+Scope:
+
+- Adopt/adapter contribution для option A либо отдельный package для option B;
+  internal implementation только для явно утверждённого option C.
+- Subscription, context predicate, exact priority/accepted args/order и
+  idempotent unsubscribe contract tests.
+- Active callback exception propagation и inactive callback non-delivery.
+- PHP 8.1+ compatibility, package CI, versioning и minimal usage docs.
+
+Out of Scope:
+
+- wpConnections runtime integration.
+- Domain-specific Client/Storage dependencies.
+- Перехват или замена глобального WordPress hook registry.
+
+DoR:
+
+- HOOK-00 completed.
+- DG-HOOK-01 явно утверждён владельцем.
+- Package ownership/release location доступен для выбранного варианта.
+
+DoD:
+
+- Selected implementation проходит target contract conformance suite.
+- Package/adaptation имеет release/rollback path и pinned compatible version.
+- wpConnections может использовать manager через documented public boundary.
+
+AC:
+
+- Given mismatch site identity или prefix, when hook dispatch occurs, then
+  target callback не вызывается.
+- Given active context, when callbacks имеют equal/different priorities, then
+  порядок и accepted arguments соответствуют регистрации.
+- Given repeated unsubscribe, then операция безопасна; given active callback
+  throws, then original failure не скрывается и не переписывается.
+
+Dependencies:
+
+- HOOK-00.
+- DG-HOOK-01.
+
+Notes/Risks:
+
+- Если existing package требует behavior fork, DG-HOOK-01 должен быть reopened
+  вместо незадокументированного patch dependency.
+
+### HOOK-02. Проаудировать все Client-owned hook registrations
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: определить полный 2.0 migration scope по evidence, а не переносить каждый
+hook в manager автоматически.
+
+Scope:
+
+- `Client`, `ClientRestApi`, `Settings`, logger и factory-created collaborators.
+- Для каждого registration: owner, callback, hook, priority, accepted args,
+  construction context, global/site behavior и unregister path.
+- Known-consumer search для direct `deleted_post` callback removal.
+- Классификация: manager-required, manager-optional, process-global by design,
+  internal или separately gated.
+- Migration and test hand-off для HOOK-03/HOOK-04/REL-02.
+
+Out of Scope:
+
+- Runtime registration changes.
+- Предположение, что `rest_api_init` или logging автоматически site-sensitive.
+- Изменение hook names/arguments.
+
+DoR:
+
+- HOOK-TRANS-01 completed и влит.
+- REL-00 consumer inventory доступен.
+
+DoD:
+
+- Все reachable Client-owned registrations traceable до code locations.
+- Для каждого hook есть context risk, 2.0 action, compatibility statement и
+  owner task.
+- Consumer direct-remove search воспроизводим и входит в upgrade hand-off.
+
+AC:
+
+- Given любой hook, зарегистрированный при Client construction, when audit
+  завершён, then известны identity/priority/args/context/unregister semantics.
+- Given hook не требует manager, then artifact объясняет почему и кто защищает
+  его contract tests.
+
+Dependencies:
+
+- HOOK-TRANS-01.
+- REL-00.
+
+Notes/Risks:
+
+- Indirect registrations внутри constructors могут не находиться одним
+  `add_action` search; audit обязан пройти factory graph и runtime probe.
+
+### HOOK-03. Перевести 2.0 registrations на context-aware manager
+
+Status: waiting_dependency
+
+Priority: P0 для 2.0
+
+Goal: заменить direct process-global delivery там, где HOOK-02 доказал
+site-context boundary, начиная с `deleted_post`.
+
+Scope:
+
+- Manager-backed `deleted_post` registration.
+- Остальные registrations только по approved HOOK-02 migration map.
+- Active/inactive/restored multisite, same-name clients, ordering, args,
+  unsubscribe и failure conformance.
+- Удаление 1.x `current_filter()` bridge только после equivalent manager tests.
+
+Out of Scope:
+
+- Поддержка direct storage callback identity в 2.0.
+- Изменение storage/delete result contract за пределами утверждённых gates.
+- Автоматическое создание Client после `switch_to_blog()`.
+
+DoR:
+
+- HOOK-01 и HOOK-02 completed.
+- DB-04 completed для полного cascade contract.
+- Применимые delete/failure gates утверждены.
+- 2.0 release branch/version boundary открыт.
+
+DoD:
+
+- Mismatched context callback не запускается manager-ом, а не storage guard.
+- Active callback поведение, ошибки и ordering соответствуют contracts.
+- Semantic Client enable/disable API работает через manager без consumer code
+  change.
+- 1.x direct callback compatibility break покрыт tests и upgrade fixture.
+
+AC:
+
+- Given clients site A и site B, when post удалён на B, then только B
+  subscriptions запускаются и A callback вообще не вызывается.
+- Given consumer использует semantic disable, then cleanup отсутствует до
+  semantic enable независимо от внутренней callback identity.
+- Given active callback throws, then manager не подавляет ошибку; recovery
+  следует утверждённому delete failure contract.
+
+Dependencies:
+
+- HOOK-01, HOOK-02, DB-04.
+- DG-HOOK-01.
+- DG-DELETE-06.
+
+Notes/Risks:
+
+- Это intentional major-version break для direct `remove_action()` consumers.
+- Consumer остаётся ответственным за отдельный Client в каждом site context.
+
+### HOOK-04. Проверить migration и выпустить 2.0 hook upgrade guide
+
+Status: waiting_dependency
+
+Priority: P0 для 2.0 release
+
+Goal: сделать callback-identity break видимым, обнаружимым и проверяемым до
+обновления consumer applications.
+
+Scope:
+
+- Changelog/upgrade-guide red flag для direct `remove_action()`.
+- Known-consumer repository search и migration checklist.
+- Before/after examples через semantic Client lifecycle API.
+- Clean 1.x-to-2.0 consumer fixture и rollback rehearsal.
+- REL-02/REL-03 compatibility evidence update.
+
+Out of Scope:
+
+- Автоматическая перепись third-party consumer code.
+- Обещание совместимости неизвестных callback internals.
+
+DoR:
+
+- HOOK-03 completed.
+- REL-02 hook/factory compatibility evidence доступен.
+- REL-03 release process активен.
+
+DoD:
+
+- Upgrade guide явно говорит, что storage-method `remove_action()` больше не
+  управляет cleanup в 2.0.
+- Known consumers проверены; найденные usages имеют owner/outcome.
+- Representative consumer мигрирует на semantic API и проходит rollback test.
+
+AC:
+
+- Given 1.x consumer с direct callback removal, when он следует guide, then до
+  2.0 upgrade переходит на semantic disable и сохраняет поведение после upgrade.
+- Given release candidate, then no known direct-remove usage remains without an
+  explicit migration owner or accepted external risk.
+
+Dependencies:
+
+- HOOK-03, REL-02, REL-03.
+
+Notes/Risks:
+
+- Это обязательный release gate, а не обычная deprecation note.
+
 ## Traceability: замечания и GitHub issues
 
 | Источник/наблюдение | План |
@@ -4392,6 +4840,7 @@ Notes/Risks:
 | Empty `Connection::load()` | DG-M5, API-02 |
 | `type` has no behavior | DG-M2, CORE-01, DOC-01 |
 | Direct storage mutation bypasses domain invariants | DG-M9, CORE-04, DB-05, REL-02 |
+| Process-global `deleted_post` callback after multisite switch | CORE-06R, HOOK-TRANS-01, HOOK-00—HOOK-04 |
 | Open issue #20 related entities | API-01, API-03, API-04, DOC-01 |
 | Missing route-level REST tests | REST-01—REST-05 |
 | Missing coverage/quality policy in CI | INFRA-04, TEST-03A, TEST-03B, TEST-03C |
