@@ -2262,7 +2262,7 @@ Notes/Risks:
 
 ### CORE-06. Реализовать multi-client isolation и table-name rules
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P1
 
@@ -2315,6 +2315,12 @@ Notes/Risks:
 
 - Любая table rename/copy операция требует отдельного destructive migration
   review и rollback; она не подразумевается этой задачей автоматически.
+- Red-first evidence 2026-09-11: test-only `ClientIsolationTest` на неизменённом
+  production завершился `4 tests / 14 assertions / 4 failures`. Current code
+  принял unsafe logical input, silent hyphen/underscore collision и 65-character
+  physical identifier, а reused storage после prefix change дошёл до SQL
+  `alternate_post_connections_site_bound` вместо утверждённого
+  `ClientRegisterFail`; custom-storage logical rejection также отсутствовала.
 
 ### CORE-07. Восстановить материализацию `Query\Meta`
 
