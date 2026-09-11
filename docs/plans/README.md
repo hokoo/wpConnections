@@ -14,11 +14,9 @@
 3. Batch 5 завершён и закрыт PR #72 на `master` `5b60682`. Batch 6 завершён:
    TEST-02F/CORE-07 завершены, CORE-04 влит PR #75 как `7ec7643`, CORE-06R
    влит PR #76 как `2371ed2`; post-merge 17/17 jobs зелёные.
-4. Batch 7 активен: semantic 1.x post-deletion lifecycle API реализован,
-   independent QA пройден и PR #77 получил 17/17 protected checks на
-   implementation/QA head; HOOK-TRANS-01 находится на финальном delivery gate.
-   Batch 8 уже определён для отдельных HOOK-00 build-versus-buy и HOOK-02
-   owned-hook audit artifacts.
+4. Batch 7 завершён: HOOK-TRANS-01 влит PR #77 как `5c2fc26`, final head и
+   post-merge `master` прошли по 17/17 jobs. Batch 8 активен: HOOK-00 manager
+   selection packet находится в review, HOOK-02 поставляется отдельной веткой.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -54,13 +52,16 @@ map находятся в
   `2371ed2` прошли все 17 required jobs.
   Operator-facing naming inventory/attestation остаётся downstream
   DB-06/REL-03 work.
-- HOOK-TRANS-01 local candidate добавляет idempotent semantic cleanup API:
+- HOOK-TRANS-01 добавил idempotent semantic cleanup API:
   current/fixed-floor unit `12/58`, integration `108/756`; true multisite
   `15/159`; isolation unit `24/116`, integration `216/1512`; combined coverage
   `968/1070 (90.47%)`; newest PHP 8.5 / WP 7.1 / Ramsey 2.1 integration
   `108/756`; PHPCS `45/45`. Independent QA на head `632da3a` — PASS без
-  замечаний. PR #77 получил 17/17 protected checks на head `0d70f33`; closure
-  head обязан повторить матрицу, post-merge checks ещё открыты.
+  замечаний. Closure head PR #77 `1e98cf7` и merge `5c2fc26` прошли по 17/17
+  protected/post-merge jobs; HOOK-TRANS-01 завершён.
+- HOOK-00 decision packet не нашёл полностью conforming dependency и рекомендует
+  отдельный project-owned package (DG-HOOK-01/B). Gate остаётся pending и
+  никакая dependency не установлена.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
