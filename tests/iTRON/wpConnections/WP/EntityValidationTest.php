@@ -18,6 +18,7 @@ use iTRON\wpConnections\Exceptions\ConnectionEndpointTypeUnsupported;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\Meta;
 use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
@@ -125,8 +126,15 @@ class EntityValidationRecordingStorage extends Storage
  */
 class EntityValidationTest extends WPConnectionsTestCase
 {
+	private array $additional_clients = [];
+
 	public function tear_down()
 	{
+		if ( class_exists( RestRouteRegistry::class ) ) {
+			foreach ( $this->additional_clients as $client ) {
+				RestRouteRegistry::instance()->deactivateClient( $client );
+			}
+		}
 		remove_filter(
 			'wpConnections/factory/getStorage/class',
 			[ EntityValidationRecordingStorage::class, 'use_for_test' ]
@@ -1220,7 +1228,10 @@ class EntityValidationTest extends WPConnectionsTestCase
 			2
 		);
 
-		return new Client( $name );
+		$client = new Client( $name );
+		$this->additional_clients[] = $client;
+
+		return $client;
 	}
 
 	private function resolver( array $types, array $results = [], bool $throws = false )
