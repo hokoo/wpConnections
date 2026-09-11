@@ -27,9 +27,10 @@
    candidate `234216e` получил independent QA PASS и 17/17 protected checks.
    Final head `6554089`, merge `73bc71f` и post-merge `master` также прошли
    17/17 checks. Batch 9 завершён.
-6. Batch 10 открыт, но REST-HOOK-01 переведён в `needs_design`: WordPress
-   выполняет schema validation до permission gateway, поэтому новый
-   DG-HOOK-REST-05 должен определить precedence no-owner 404 и native 400.
+6. DG-HOOK-REST-05/A утверждён владельцем: WordPress сохраняет native
+   validation precedence, а stale Client code не вызывается ни на 400, ни на
+   no-owner 404 path. Batch 10 активен; implementation commit `d99b525` прошёл
+   local verification, REST-HOOK-01 — `review` до independent QA.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

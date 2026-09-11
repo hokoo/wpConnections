@@ -1,10 +1,10 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; standalone manager delivered, logging correction
-active after completed 1.x transition, research and owned-hook audit
+Status: executable staged plan; standalone manager and logging correction
+delivered, context-safe REST integration active
 
-Baseline: `master` merge `cf67eee7cc439785bbd2b526f5934512b01a990c`
-(HOOK-02, PR #79).
+Baseline: `master` merge `73bc71f13d27761f5898d7b49d4be03fbb964ea0`
+(LOG-HOOK-01, PR #82).
 
 Manager release: `hokoo/wp-hooks-dispatcher` `v1.0.1`, commit
 `7f449c41bd73fb40ce80ad790daeaa71fd253e36`.
@@ -67,7 +67,7 @@ The exact 1.x contract is:
 The task does not change stale-prefix handling, cascade SQL, storage hooks,
 factory behavior, custom-storage semantics or any REST representation.
 
-## Current delivery: selection and complete hook audit
+## Delivered: selection and complete hook audit
 
 Batch 8 contains two independent documentation/research tasks after the 1.x API
 merges:
@@ -137,8 +137,8 @@ Packagist resolves that version to the exact `7f449c4` dist. A clean PHP 8.1
 Composer project loaded
 `iTRON\wpHooksDispatcher\ActionDispatcher`, and reported no advisories. The
 package has no Composer runtime dependencies beyond PHP `^8.1`; its native
-adapters consume the loaded WordPress runtime. wpConnections does not pin the
-package until a runtime integration task needs it.
+adapters consume the loaded WordPress runtime. REST-HOOK-01 is the first
+wpConnections integration and pins the compatible runtime range `^1.0.1`.
 
 ## 2.0 target contract
 
@@ -164,13 +164,16 @@ route registry and consumes approved
 [DG-HOOK-REST-02](client-owned-hook-inventory.md#dg-hook-rest-02) and
 [DG-HOOK-REST-03](client-owned-hook-inventory.md#dg-hook-rest-03), while the
 custom REST factory boundary consumes approved
-[DG-HOOK-REST-04](client-owned-hook-inventory.md#dg-hook-rest-04). Automatic
+[DG-HOOK-REST-04](client-owned-hook-inventory.md#dg-hook-rest-04). Native
+validation-before-permission precedence consumes approved
+[DG-HOOK-REST-05](client-owned-hook-inventory.md#dg-hook-rest-05). Automatic
 debug logging needs a singleton origin-routed observer and documented custom
 Storage payload under approved
 [DG-HOOK-LOG-01](client-owned-hook-inventory.md#dg-hook-log-01), and complete
 Client subscription lifetime follows approved
 [DG-HOOK-LIFE-01](client-owned-hook-inventory.md#dg-hook-life-01). The
-repository owner approved all of these recommended options on 2026-09-11.
+repository owner approved the initial options on 2026-09-11 and
+DG-HOOK-REST-05/A on 2026-09-12.
 
 ## 2.0 breaking-change and upgrade boundary
 
@@ -190,6 +193,14 @@ semantic method after upgrading. HOOK-04 must place this warning prominently in
 the changelog and upgrade guide and must search known consumers for the direct
 callback pattern.
 
+Custom REST subclasses have a separate deliberate 2.0 boundary. An overridden
+`init()` must call `parent::init()`; `$namespace`, `$base`, permission methods
+and built-in handlers remain delegate extension points. The library owns the
+four built-in route registrations, so an overridden `registerRestRoutes()` is
+not called automatically. Extra hooks or routes created by a subclass remain
+the implementer's context and lifecycle responsibility. HOOK-04 must include
+this check in the consumer upgrade scan.
+
 ## Delivery map
 
 | Phase | Task | Deliverable | Gate/dependency | Status |
@@ -201,7 +212,7 @@ callback pattern.
 | Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | completed, `v1.0.1` |
 | 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | completed, PR #82 |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
-| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | needs design |
+| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | review |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
 
@@ -210,9 +221,11 @@ protected-check run. HOOK-01 is delivered independently and installs no
 wpConnections dependency. LOG-HOOK-01 completed on exact candidate `234216e`
 with independent QA PASS and 17/17 protected checks; it changes logging only.
 Manager-backed runtime registrations remain in their downstream tasks.
-REST-HOOK-01 is the Batch 10 task and first planned wpConnections runtime
-consumer of `hokoo/wp-hooks-dispatcher`. Implementation waits for
-DG-HOOK-REST-05; its scope remains limited to the REST integration boundary.
+REST-HOOK-01 is the active Batch 10 task and first wpConnections runtime
+consumer of `hokoo/wp-hooks-dispatcher`. DG-HOOK-REST-05/A is approved; task
+scope remains limited to the REST integration boundary. Implementation commit
+`d99b525` is in review after the local verification matrix passed; independent
+QA and protected checks remain before completion.
 
 ## Verification matrix
 
@@ -238,6 +251,24 @@ HOOK-03 must later add:
   final Client lifecycle can collect without reconstructing callback identity;
 - upgrade-path and known-consumer fixtures for the direct `remove_action()`
   break.
+
+REST-HOOK-01 local review evidence on PHP 8.1.34 / WordPress 6.7.7 / Ramsey
+Collection 1.3.0 is:
+
+- full unit `13 / 61` and integration `121 / 1199`;
+- managed plus legacy REST reverse and fixed-seed random repeat-2 each
+  `26 / 912`;
+- true multisite managed REST lifecycle `8 / 420`;
+- combined coverage `134 / 1258`, `1184/1305` statements (`90.73%`), with PR
+  and 70% RC policies passing;
+- PHPCS `51/51`, Composer locked install and advisory audit passing.
+
+The suite covers four route patterns, twelve method/callback combinations,
+same-name site A/B routing through one server, custom delegate identity and
+overrides, duplicate/replacement, late binding, repeated initialization,
+constructor rollback, and DG-HOOK-REST-05/A native 400/404 precedence without
+stale Client callbacks. Independent QA, newest-runtime compatibility and
+protected checks remain closure gates.
 
 ## HOOK-TRANS-01 verification evidence
 

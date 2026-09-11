@@ -1,7 +1,6 @@
 # Client-owned WordPress hook inventory
 
-Status: completed audit; all HOOK-02 gates approved; DG-HOOK-REST-05 pending;
-no runtime behavior changed
+Status: completed audit; all recorded gates approved; no runtime behavior changed
 
 Repository baseline: `cf8caa6aa4cd61afc592161092492914f12eb25d`
 (HOOK-00, PR #78).
@@ -398,7 +397,7 @@ listener registration. There is no persisted-data effect.
 <a id="dg-hook-rest-05"></a>
 ### DG-HOOK-REST-05 — no-owner availability versus native validation precedence
 
-**Status:** pending; owner decision required. Recommendation: A.
+**Status:** approved A by the repository owner on 2026-09-12.
 
 **Problem:** implementation discovery found a precedence constraint hidden by
 the earlier runtime probe. After WordPress matches a registered route and
@@ -442,8 +441,8 @@ route: native validation 400 instead of unconditional 404.
 B creates a new library-owned filter and changes error precedence. C changes
 the public route schema and is incompatible with the stated REST-HOOK-01 scope.
 
-**Decision required:** approve A, B or C before REST-HOOK-01 production code or
-its exact error-contract tests start.
+**Decision:** A. REST-HOOK-01 preserves native WordPress validation precedence
+while making stale Client code unreachable on both validation and 404 paths.
 
 <a id="dg-hook-rest-04"></a>
 ### DG-HOOK-REST-04 — custom ClientRestApi factory boundary
@@ -593,8 +592,8 @@ independent traceability review and all protected repository checks. Completing
 the audit itself did not approve any gate or authorize a dependency, external
 repository or runtime behavior change. The repository owner subsequently
 approved every gate produced by HOOK-02 on 2026-09-11. REST-HOOK-01
-implementation discovery added DG-HOOK-REST-05, which remains pending. The
-separate HOOK-01 task later
+implementation discovery added DG-HOOK-REST-05; the repository owner approved
+recommendation A on 2026-09-12. The separate HOOK-01 task later
 published `hokoo/wp-hooks-dispatcher` `v1.0.1`; LOG-HOOK-01 subsequently
 completed as the second Batch 9 task in PR #82.
 
