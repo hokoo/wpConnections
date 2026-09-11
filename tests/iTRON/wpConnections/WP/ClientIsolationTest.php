@@ -7,9 +7,11 @@ use iTRON\wpConnections\Abstracts\Storage;
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use iTRON\wpConnections\Meta;
 use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
 use iTRON\wpConnections\Query\MetaCollection as MetaQueryCollection;
+use iTRON\wpConnections\Query\Relation as RelationQuery;
 use iTRON\wpConnections\WPStorage;
 
 class ClientIsolationMemoryStorage extends Storage
@@ -114,8 +116,6 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		}
 		$wpdb->tables = $this->original_tables;
 
-		remove_all_filters( 'wpConnections/factory/getStorage/class' );
-		remove_all_filters( 'wpConnections/storage/installOnInit' );
 		parent::tear_down();
 	}
 
@@ -179,9 +179,38 @@ class ClientIsolationTest extends \WP_UnitTestCase
 	{
 		global $wpdb;
 
+		$options_before = $this->option_names();
 		$first = $this->new_default_client( 'my-client' );
 		self::assertSame( 'post_connections_my_client', $first->getStorage()->get_connections_table() );
 		self::assertSame( 'post_connections_meta_my_client', $first->getStorage()->get_meta_table() );
+		$claim_options = array_values( array_diff( $this->option_names(), $options_before ) );
+		self::assertCount( 1, $claim_options );
+		$claim = get_option( $claim_options[0] );
+		self::assertSame( 1, $claim['version'] ?? null );
+		self::assertSame( 'my_client', $claim['postfix'] ?? null );
+		self::assertSame( 'my-client', $claim['owner'] ?? null );
+		self::assertNotContains(
+			$wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT autoload FROM {$wpdb->options} WHERE option_name = %s",
+					$claim_options[0]
+				)
+			),
+			[ 'yes', 'on', 'auto', 'auto-on' ],
+			true
+		);
+
+		$same_owner = $this->new_default_client( 'MY CLIENT' );
+		self::assertSame( $first->getName(), $same_owner->getName() );
+		self::assertCount(
+			1,
+			$wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT option_name FROM {$wpdb->options} WHERE option_name = %s",
+					$claim_options[0]
+				)
+			)
+		);
 
 		$tables_after_first = $wpdb->tables;
 		$this->assert_client_registration_error(
@@ -209,6 +238,168 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertSame( $tables_at_boundary, $wpdb->tables );
 	}
 
+	public function test_long_prefix_uses_the_same_64_character_complete_identifier_budget(): void
+	{
+		global $wpdb;
+
+		$wpdb->prefix = str_repeat( 'p', 41 );
+		$boundary = $this->new_default_client( 'z' );
+		self::assertSame( 64, strlen( $wpdb->prefix . $boundary->getStorage()->get_meta_table() ) );
+
+		$this->assert_client_registration_error(
+			'Client table identifier exceeds the 64-character database limit.',
+			function (): void {
+				$this->new_default_client( 'zz' );
+			}
+		);
+
+		$wpdb->prefix = str_repeat( 'q', 42 );
+		$this->assert_client_registration_error(
+			'Client table identifier exceeds the 64-character database limit.',
+			function (): void {
+				$this->new_default_client( 'x' );
+			}
+		);
+	}
+
+	public function test_complete_legacy_pair_requires_matching_explicit_ownership_record(): void
+	{
+		global $wpdb;
+
+		[ $option_name, $record, $seed ] = $this->capture_empty_mapping_claim( 'legacy-client' );
+		$this->unregister_storage( $seed->getStorage() );
+		delete_option( $option_name );
+		$this->create_legacy_pair( 'legacy_client' );
+
+		$registered_before = $wpdb->tables;
+		$this->assert_client_registration_error(
+			'Client table ownership is ambiguous; explicit migration is required.',
+			function (): void {
+				$this->new_default_client( 'legacy-client' );
+			}
+		);
+		self::assertSame( $registered_before, $wpdb->tables );
+		self::assertTrue( $this->table_exists( $wpdb->prefix . 'post_connections_legacy_client' ) );
+		self::assertTrue( $this->table_exists( $wpdb->prefix . 'post_connections_meta_legacy_client' ) );
+
+		self::assertTrue( add_option( $option_name, $record, '', false ) );
+		$adopted = $this->new_default_client( 'legacy-client' );
+		self::assertSame( 'post_connections_legacy_client', $adopted->getStorage()->get_connections_table() );
+		self::assertTrue( $this->table_exists( $wpdb->prefix . $adopted->getStorage()->get_meta_table() ) );
+	}
+
+	public function test_partial_or_malformed_legacy_mapping_is_never_repaired_implicitly(): void
+	{
+		global $wpdb;
+
+		[ $option_name, $record, $seed ] = $this->capture_empty_mapping_claim( 'partial-client' );
+		$this->unregister_storage( $seed->getStorage() );
+		$this->create_legacy_pair( 'partial_client', true, false );
+
+		$this->assert_client_registration_error(
+			'Client table ownership is ambiguous; explicit migration is required.',
+			function (): void {
+				$this->new_default_client( 'partial-client', true );
+			}
+		);
+		self::assertTrue( $this->table_exists( $wpdb->prefix . 'post_connections_partial_client' ) );
+		self::assertFalse( $this->table_exists( $wpdb->prefix . 'post_connections_meta_partial_client' ) );
+
+		$this->drop_legacy_pair( 'partial_client' );
+		update_option(
+			$option_name,
+			[ 'version' => 99, 'postfix' => $record['postfix'], 'owner' => $record['owner'] ],
+			false
+		);
+		$this->assert_client_registration_error(
+			'Client table ownership is ambiguous; explicit migration is required.',
+			function (): void {
+				$this->new_default_client( 'partial-client' );
+			}
+		);
+	}
+
+	public function test_two_default_clients_isolate_crud_metadata_and_every_delete_selector(): void
+	{
+		$first  = $this->new_default_client( 'isolation-first', true );
+		$second = $this->new_default_client( 'isolation-second', true );
+		$first_relation  = $this->register_relation( $first, 'isolation-relation' );
+		$second_relation = $this->register_relation( $second, 'isolation-relation' );
+
+		$pages = [];
+		$posts = [];
+		for ( $index = 0; $index < 6; $index++ ) {
+			$pages[] = self::factory()->post->create( [ 'post_type' => 'page' ] );
+			$posts[] = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		}
+
+		$first_connections  = [];
+		$second_connections = [];
+		foreach ( $pages as $index => $page_id ) {
+			$first_connections[] = $first_relation->createConnection(
+				$this->connection_query( $page_id, $posts[ $index ], 'first', 'first-' . $index )
+			);
+			$second_connections[] = $second_relation->createConnection(
+				$this->connection_query( $page_id, $posts[ $index ], 'second', 'second-' . $index )
+			);
+		}
+
+		self::assertNotSame(
+			$first->getStorage()->get_connections_table(),
+			$second->getStorage()->get_connections_table()
+		);
+		self::assertCount( 6, $first_relation->findConnections() );
+		self::assertCount( 6, $second_relation->findConnections() );
+
+		$first_connections[0]->title = 'first-updated';
+		$first_connections[0]->meta->add( new Meta( 'updated', 'yes' ) );
+		$first_connections[0]->update();
+		self::assertSame(
+			'first-updated',
+			$this->find_connection( $first_relation, $first_connections[0]->id )->title
+		);
+		self::assertSame(
+			'second',
+			$this->find_connection( $second_relation, $second_connections[0]->id )->title
+		);
+
+		$meta_delete = new ConnectionQuery();
+		$meta_delete->set( 'id', $first_connections[0]->id );
+		$meta_delete->meta->fromArray( [ [ 'key' => 'owner' ] ] );
+		self::assertSame( 1, $first_relation->removeConnectionMeta( $meta_delete ) );
+		self::assertSame(
+			[ 'owner' => [ 'second-0' ] ],
+			$this->find_connection( $second_relation, $second_connections[0]->id )->meta->toArray()
+		);
+
+		$specific = new ConnectionQuery();
+		$specific->set( 'id', $first_connections[1]->id );
+		self::assertSame( 1, $first_relation->detachConnections( $specific ) );
+
+		self::assertSame(
+			1,
+			$first_relation->detachConnections( new ConnectionQuery( $pages[2], $posts[2] ) )
+		);
+		self::assertSame( 1, $first_relation->detachConnections( new ConnectionQuery( $pages[3] ) ) );
+
+		$to = new ConnectionQuery();
+		$to->set( 'to', $posts[4] );
+		self::assertSame( 1, $first_relation->detachConnections( $to ) );
+
+		$both = new ConnectionQuery();
+		$both->set( 'both', $pages[5] );
+		self::assertSame( 1, $first_relation->detachConnections( $both ) );
+
+		self::assertCount( 1, $first_relation->findConnections() );
+		self::assertCount( 6, $second_relation->findConnections() );
+		foreach ( $second_connections as $connection ) {
+			self::assertSame(
+				1,
+				$this->find_connection_count( $second_relation, $connection->id )
+			);
+		}
+	}
+
 	public function test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix(): void
 	{
 		global $wpdb;
@@ -220,6 +411,12 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			'Client storage is bound to a different WordPress site prefix.',
 			static function () use ( $bound ): void {
 				$bound->getStorage()->findConnections( new ConnectionQuery( 1, 2 ) );
+			}
+		);
+		$this->assert_client_registration_error(
+			'Client storage is bound to a different WordPress site prefix.',
+			static function (): void {
+				do_action( 'deleted_post', 999999 );
 			}
 		);
 
@@ -253,9 +450,11 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		}
 	}
 
-	private function new_default_client( string $name ): Client
+	private function new_default_client( string $name, bool $install = false ): Client
 	{
-		$install_filter = '__return_false';
+		$install_filter = static function () use ( $install ): bool {
+			return $install;
+		};
 		add_filter( 'wpConnections/storage/installOnInit', $install_filter, 999, 2 );
 		try {
 			$client = $this->remember_client( new Client( $name ) );
@@ -265,11 +464,152 @@ class ClientIsolationTest extends \WP_UnitTestCase
 
 		global $wpdb;
 		if ( $client->getStorage() instanceof WPStorage ) {
-			$this->physical_tables[] = $wpdb->prefix . $client->getStorage()->get_connections_table();
-			$this->physical_tables[] = $wpdb->prefix . $client->getStorage()->get_meta_table();
+			foreach ( [
+				$wpdb->prefix . $client->getStorage()->get_connections_table(),
+				$wpdb->prefix . $client->getStorage()->get_meta_table(),
+			] as $table ) {
+				if ( strlen( $table ) <= 64 ) {
+					$this->physical_tables[] = $table;
+				}
+			}
 		}
 
 		return $client;
+	}
+
+	private function capture_empty_mapping_claim( string $name ): array
+	{
+		$options_before = $this->option_names();
+		$client = $this->new_default_client( $name );
+		$new_options = array_values( array_diff( $this->option_names(), $options_before ) );
+
+		self::assertCount( 1, $new_options );
+		$record = get_option( $new_options[0] );
+		self::assertIsArray( $record );
+
+		return [ $new_options[0], $record, $client ];
+	}
+
+	private function unregister_storage( Storage $storage ): void
+	{
+		if ( ! $storage instanceof WPStorage ) {
+			return;
+		}
+
+		global $wpdb;
+		foreach ( [ $storage->get_connections_table(), $storage->get_meta_table() ] as $key ) {
+			$wpdb->tables = array_values( array_filter(
+				$wpdb->tables,
+				static function ( string $registered ) use ( $key ): bool {
+					return $key !== $registered;
+				}
+			) );
+			unset( $wpdb->{$key} );
+		}
+	}
+
+	private function create_legacy_pair(
+		string $postfix,
+		bool $connections = true,
+		bool $meta = true
+	): void {
+		global $wpdb;
+
+		$connections_table = $wpdb->prefix . WPStorage::CONNECTIONS_TABLE_PREFIX . $postfix;
+		$meta_table = $wpdb->prefix . WPStorage::META_TABLE_PREFIX . $postfix;
+		$this->physical_tables[] = $connections_table;
+		$this->physical_tables[] = $meta_table;
+
+		if ( $connections ) {
+			$wpdb->query(
+				"CREATE TABLE `{$connections_table}` (
+					`ID` bigint(20) unsigned NOT NULL auto_increment,
+					`relation` varchar(255) NOT NULL,
+					`from` bigint(20) unsigned NOT NULL,
+					`to` bigint(20) unsigned NOT NULL,
+					`order` bigint(20) unsigned NULL default '0',
+					`title` varchar(63) NULL default '',
+					PRIMARY KEY (`ID`)
+				)"
+			);
+		}
+
+		if ( $meta ) {
+			$wpdb->query(
+				"CREATE TABLE `{$meta_table}` (
+					`meta_id` bigint(20) unsigned NOT NULL auto_increment,
+					`connection_id` bigint(20) unsigned NOT NULL default '0',
+					`meta_key` varchar(255) NOT NULL,
+					`meta_value` longtext NOT NULL,
+					PRIMARY KEY (`meta_id`)
+				)"
+			);
+		}
+	}
+
+	private function drop_legacy_pair( string $postfix ): void
+	{
+		global $wpdb;
+		foreach ( [ WPStorage::META_TABLE_PREFIX, WPStorage::CONNECTIONS_TABLE_PREFIX ] as $prefix ) {
+			$wpdb->query( "DROP TABLE IF EXISTS `{$wpdb->prefix}{$prefix}{$postfix}`" );
+		}
+	}
+
+	private function table_exists( string $table ): bool
+	{
+		global $wpdb;
+		return 1 === (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+				$table
+			)
+		);
+	}
+
+	private function option_names(): array
+	{
+		global $wpdb;
+		return $wpdb->get_col( "SELECT option_name FROM {$wpdb->options}" );
+	}
+
+	private function register_relation( Client $client, string $name ): \iTRON\wpConnections\Relation
+	{
+		$query = new RelationQuery();
+		$query->set( 'name', $name );
+		$query->set( 'from', 'page' );
+		$query->set( 'to', 'post' );
+		$query->set( 'cardinality', 'm-m' );
+		$query->set( 'duplicatable', true );
+		$query->set( 'closurable', false );
+
+		return $client->registerRelation( $query );
+	}
+
+	private function connection_query( int $from, int $to, string $title, string $owner ): ConnectionQuery
+	{
+		$query = new ConnectionQuery( $from, $to );
+		$query->set( 'title', $title );
+		$query->set( 'order', 0 );
+		$query->meta->fromArray( [ [ 'key' => 'owner', 'value' => $owner ] ] );
+		return $query;
+	}
+
+	private function find_connection(
+		\iTRON\wpConnections\Relation $relation,
+		int $connection_id
+	): \iTRON\wpConnections\Connection {
+		$query = new ConnectionQuery();
+		$query->set( 'id', $connection_id );
+		return $relation->findConnections( $query )->first();
+	}
+
+	private function find_connection_count(
+		\iTRON\wpConnections\Relation $relation,
+		int $connection_id
+	): int {
+		$query = new ConnectionQuery();
+		$query->set( 'id', $connection_id );
+		return count( $relation->findConnections( $query ) );
 	}
 
 	private function remember_client( Client $client ): Client
