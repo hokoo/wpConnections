@@ -1,6 +1,6 @@
 # Client identity, table naming, and migration contract
 
-Status: approved decision contract; `CORE-06` implementation in progress
+Status: approved decision contract; `CORE-06R` implemented and verified
 
 Source snapshot: `d1750731d7e94f4e3349600431a33bf6954d3106`.
 

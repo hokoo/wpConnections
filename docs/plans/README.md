@@ -15,8 +15,7 @@
    REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Batch 6
    активирован после утверждения DP-1—DP-3 владельцем 2026-09-11:
    TEST-02F/CORE-07 завершены; CORE-04 влит PR #75 как `7ec7643`; CORE-06R
-   выполняет утверждённый совместимый 1.x callback bridge, после чего нужны
-   полная повторная проверка, independent QA и merge.
+   реализован и проверен в PR #76, merge остаётся delivery gate Batch 6.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -47,9 +46,10 @@
   combined `118 / 799`, `957/1059` statements (`90.37%`), baseline `365/786`
   не изменён. Newest PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1 integration —
   `106 / 741` с только известными deprecation warnings.
-- CORE-06R ожидает independent QA и protected merge checks; локальный результат
-  их не подменяет. Operator-facing naming inventory/attestation остаётся
-  downstream DB-06/REL-03 work.
+- CORE-06R получил independent QA PASS; все 17 protected jobs PR #76 успешны
+  на `ef69d31`. До merge это branch evidence, а не новый merged baseline.
+  Operator-facing naming inventory/attestation остаётся downstream
+  DB-06/REL-03 work.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных

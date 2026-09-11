@@ -9,8 +9,7 @@ issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили de
 discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
 владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 активен:
 TEST-02F/CORE-07 завершены, CORE-04 влит PR #75 как `7ec7643`, CORE-06R
-выполняет утверждённый 1.x callback bridge после дополнительного multisite QA;
-полная повторная проверка, independent QA и merge ещё требуются.
+реализован и полностью проверен в PR #76; merge остаётся delivery gate Batch 6.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1054,9 +1053,10 @@ Tasks:
   vertical с сохранённым red evidence и зелёным paired fix.
 - CORE-04 — `completed` и влит PR #75 как `7ec7643` после implementation,
   remediation, independent QA и полного verification gate.
-- CORE-06R — `in_progress`: client naming, collision, migration-preflight и
-  custom-storage boundaries реализованы; утверждённый 1.x multisite callback
-  bridge проходит обновлённую verification matrix перед independent QA/merge.
+- CORE-06R — `completed` локально: client naming, collision,
+  migration-preflight, custom-storage boundaries и утверждённый 1.x multisite
+  callback bridge прошли полную verification matrix, independent QA и 17/17
+  protected jobs PR #76; merge остаётся delivery gate.
 - TEST-02D вне Batch 6 переведён в `todo`: его gate dependencies выполнены, но
   red test поставляется paired с REST-02 после готовности DB-02.
 
@@ -2293,7 +2293,7 @@ Notes/Risks:
 
 ### CORE-06. Реализовать multi-client isolation и table-name rules
 
-Status: in_progress
+Status: completed
 
 Priority: P1
 
@@ -2381,7 +2381,7 @@ Notes/Risks:
   `1 / 11`; newest integration PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1 —
   `104 / 734` с только известными deprecation warnings. Обновлённые counts и
   independent QA фиксируются до перевода этой задачи в `completed`.
-- Current DG-NAME-06R verification: focused `13 / 135`; true multisite
+- Final DG-NAME-06R verification: focused `13 / 135`; true multisite
   `13 / 144`; full PHP 8.1.34 with WordPress 7.1.0 and fixed-floor WordPress
   6.7.7 — unit `12 / 58`, integration `106 / 741`; PHPCS `45/45`; isolation
   seed `20260911` — unit `24 / 116`, integration `212 / 1482` in every
@@ -2389,7 +2389,10 @@ Notes/Risks:
   combined `118 / 799`, `957/1059 (90.37%)`, baseline `365/786` unchanged and
   zero active exceptions. Newest PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1
   integration is `106 / 741` with only known deprecations. Independent QA
-  remains before `completed`.
+  independently repeated focused single-site `13 / 135`, true multisite
+  `13 / 144`, full unit `12 / 58`, integration `106 / 741` and PHPCS `45/45`
+  with PASS. All 17 protected jobs of PR #76 passed on `ef69d31`; merge remains
+  the Batch 6 delivery gate.
 - Fresh mappings получают atomic non-autoloaded site-local claim. Complete
   unowned, partial, malformed или conflicting mappings не исправляются
   автоматически. Operator-facing dry-run/attestation остаётся за DB-06/REL-03;
