@@ -24,10 +24,13 @@ wrapper alone insufficient. The `Settings` listeners should not be copied into
 the manager: they fan every matching event out to every Client logger, including
 within the same site, and one event does not identify its originating Client.
 
-The audit therefore creates three additional decision gates:
+The audit therefore creates six additional decision gates:
 
-- DG-HOOK-REST-01 for REST route/context lifecycle;
-- DG-HOOK-LOG-01 for library-owned debug routing;
+- DG-HOOK-REST-01 for REST route/context architecture;
+- DG-HOOK-REST-02 for duplicate Client identity within one site;
+- DG-HOOK-REST-03 for late binding and unavailable-route behavior;
+- DG-HOOK-REST-04 for the custom `ClientRestApi` factory boundary;
+- DG-HOOK-LOG-01 for library-owned debug routing and custom Storage SPI;
 - DG-HOOK-LIFE-01 for Client disposal and failed-initialization rollback.
 
 It also resolves the deferred manager feature-scope question. wpConnections
@@ -79,8 +82,8 @@ keep those objects reachable. There is no general Client disposal path.
 | Owner / source | Hook and callback | Registration metadata | Retention and removal | Context finding | 2.0 action |
 | --- | --- | --- | --- | --- | --- |
 | `Client`, [`Client.php`](../src/Client.php#L63) | `deleted_post` → `[$storage, 'deleteByObjectID']` | priority 10; 1 accepted argument; auto-enabled in construction | `Client` retains storage. Exact direct removal and semantic `disablePostDeletionCleanup()` both work in 1.x; enable/disable are idempotent. | Site-sensitive. The default storage has the temporary 1.x prefix guard, but custom storage receives stale delivery. | HOOK-03: manager-required at the 2.0 boundary; preserve semantic API, intentionally break direct callback identity. |
-| `ClientRestApi`, [`ClientRestApi.php`](../src/ClientRestApi.php#L31) | `rest_api_init` → `[$restApi, 'registerRestRoutes']` | priority 10; default 1 accepted argument | Client does not retain the REST object; the hook does. No remove or semantic lifecycle API exists. | Site-sensitive registration plus a second global registry. Two site-bound same-name clients both execute and both place object handlers into one REST server. | REST-HOOK-01 after DG-HOOK-REST-01; not folded silently into HOOK-03. |
-| `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/findConnections/dbQuery` → one shared closure | priority 10; 2 accepted arguments | The local closure identity is discarded; the hook retains closure → Settings → logger. No unregister path exists. | Cross-client and cross-site fanout. Arguments are SQL string and result only, so the origin Client cannot be selected from the event. | LOG-HOOK-01 after DG-HOOK-LOG-01; recommendation is origin-owned logging, not manager wrapping. |
+| `ClientRestApi`, [`ClientRestApi.php`](../src/ClientRestApi.php#L31) | `rest_api_init` → `[$restApi, 'registerRestRoutes']` | priority 10; default 1 accepted argument | Client does not retain the REST object; the hook does. No remove or semantic lifecycle API exists. | Site-sensitive registration plus a second global registry. Two site-bound same-name clients both execute and both place object handlers into one REST server. | REST-HOOK-01 after DG-HOOK-REST-01—DG-HOOK-REST-04; not folded silently into HOOK-03. |
+| `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/findConnections/dbQuery` → one shared closure | priority 10; 2 accepted arguments | The local closure identity is discarded; the hook retains closure → Settings → logger. No unregister path exists. | Cross-client and cross-site fanout. Arguments are SQL string and result only, so the origin Client cannot be selected from the event. | LOG-HOOK-01 after DG-HOOK-LOG-01 and DG-SPI-06; recommendation is one origin-routed singleton observer, not manager wrapping. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/removeConnectionMeta/after` → the same closure | priority 10; 5 accepted arguments | Same lost identity and no unregister path. | First argument identifies Client, but the callback ignores it; every logger receives the event. | LOG-HOOK-01; route one record to the originating Client while keeping the public hook emission. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/deletedSpecificConnections` → the same closure | priority 10; 3 accepted arguments | Same lost identity and no unregister path. | First argument identifies Client, but the callback ignores it; every logger receives the event. | LOG-HOOK-01; route one record to the originating Client while keeping the public hook emission. |
 
@@ -185,7 +188,7 @@ This evidence distinguishes two layers:
 | --- | --- | --- |
 | `deleted_post` registration | Exact 1.x callback identity, priority/args, semantic enable/disable, idempotence, real cleanup, stale/fresh default-storage multisite behavior | HOOK-03 manager-level proof that a stale callback is not invoked at all; custom storage; active/inactive/restored contexts; same-name clients; ordering; failure propagation |
 | REST behavior | Four path patterns, twelve method/callback combinations, permissions, request validation and representative full dispatch; test server reset per fixture | Multiple clients/sites in one process; stale handler selection; same route identity; late Client initialization; repeated activation/rebinding; disposal and failed-construction cleanup |
-| Debug logging | No focused tests | Disabled/enabled setup, one record per originating operation, same-site multiple clients, multisite isolation, exact level/message/context, disposal and construction rollback |
+| Debug logging | No focused tests | Disabled/enabled setup, one record per originating operation, same-site multiple clients, multisite isolation, bundled and custom Storage origin payload, exact level/message/context, public-hook priority/order, disposal and construction rollback |
 | Client lifecycle | Semantic cleanup lifecycle only | General idempotent disposal, terminal-state behavior, subscription collection, reverse-order rollback after an initialization exception |
 
 Tests that assert today's duplicate delivery or leaked callbacks should not be
@@ -213,10 +216,10 @@ release snapshot and keep the direct-`remove_action()` warning prominent.
 
 | Current responsibility | Owner task | Gate/dependencies | Compatibility boundary |
 | --- | --- | --- | --- |
-| `deleted_post` delivery | HOOK-03 | HOOK-01, LIFE-HOOK-01, DB-04, DG-DELETE-06 | 2.0 changes callback identity; semantic enable/disable remains the migration API |
-| REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, LIFE-HOOK-01, REST-01, DG-HOOK-REST-01 | Preserve v1 paths/methods; define late initialization and cross-context behavior before code |
-| Automatic debug routing | LOG-HOOK-01 | DG-HOOK-LOG-01 | Preserve public storage events and `logger` emission; duplicate/wrong-client library logging is not retained |
-| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | New 2.0 lifecycle surface; constructor failure must leave no owned callbacks |
+| `deleted_post` delivery | HOOK-03 | HOOK-01, DB-04, DG-DELETE-06 | 2.0 changes callback identity; semantic enable/disable remains the migration API and exposes its handle to final Client lifecycle |
+| REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, REST-01, DG-HOOK-REST-01—DG-HOOK-REST-04, DG-RESTERR-03; REL-02 hand-off | Preserve v1 request URLs/methods and factory-selected handler delegates; define duplicate ownership, late initialization, unavailable dispatch/route-index visibility and a revocable Client mapping before final lifecycle integration |
+| Automatic debug routing | LOG-HOOK-01 | DG-HOOK-LOG-01, DG-SPI-06; REL-02 hand-off | Preserve event names, existing argument order and priority-10 logging; add a trailing origin Client to the query event and document the custom Storage obligation instead of retaining duplicate/wrong-client logging |
+| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | Final 2.0 lifecycle surface; failed/disposed Client must be unreachable from hooks and routes |
 | Direct callback migration documentation | HOOK-04 | All applicable integration tasks, REL-02/REL-03 | Red-flag direct `remove_action()` break and repeat known-consumer scan |
 | Public extension emissions | REL-02 | Existing SPI/release gates | No manager ownership; document/test names, arguments and timing |
 
@@ -263,18 +266,19 @@ registration until the action runs again.
   a fresh REST server after context changes. Route-server correctness remains a
   host/consumer responsibility.
 - **B — managed registration plus route boundary:** guard `rest_api_init`, own
-  deterministic activation/rebinding of the current site's route set, validate
-  context again before a handler reaches Client code, and define immediate
-  current-server registration for a Client created after `rest_api_init`.
+  deterministic activation/rebinding of the current site's route set, and
+  validate context again before a handler reaches Client code. Duplicate
+  identity, late/unavailable behavior and factory-delegate ownership are
+  resolved by DG-HOOK-REST-02/03/04.
 - **C — explicit REST opt-in:** stop automatic Client REST registration in 2.0;
   require the consumer to enable/rebind REST for each current site context.
 
 **Recommendation:** B. It preserves automatic behavior for normal consumers
-while closing both registries and the late-initialization hole. The
-implementation must preserve the four route paths and twelve method/callback
-combinations and must never dispatch to another site's Client. If a route
-cannot be rebound safely, it must fail deterministically before Client/storage
-code rather than silently use a stale handler.
+while providing ownership boundaries for both registries. The implementation
+must preserve the four route paths and twelve method/callback combinations and
+must never dispatch to another site's Client. This architecture is not
+implementation-ready until DG-HOOK-REST-02/03/04 and the applicable REST error
+shape are also approved.
 
 **Compatibility:** A preserves the smallest code diff but exposes operational
 preconditions. B changes internal callback identity and duplicate-route
@@ -284,6 +288,140 @@ break and needs an explicit migration API.
 **Rollback:** before 2.0 release, revert the REST registrar/handler boundary and
 manager subscription together. No stored connection data or route URL changes.
 
+<a id="dg-hook-rest-02"></a>
+### DG-HOOK-REST-02 — duplicate live Client identity within one site
+
+**Status:** decision-ready; owner decision pending.
+
+**Problem:** two live Clients with the same canonical name in one blog/prefix
+produce the same REST route identity but may have different in-memory relation,
+capability and collaborator state. Current endpoint merging makes the selected
+Client depend on registration/handler order.
+
+- **A — reject the second live owner:** allow exactly one live REST Client per
+  `(blog ID, database prefix, canonical client name)`. Reject another before it
+  gains hook/route ownership; allow a replacement only after the previous
+  mapping is explicitly revoked. LIFE-HOOK-01 later wires that revocation to
+  public Client disposal.
+- **B — explicit latest-owner replacement:** a later Client atomically revokes
+  the previous REST mapping and becomes the route owner; the earlier Client may
+  remain usable outside REST.
+- **C — retain first owner:** later same-key Clients remain usable outside REST
+  but do not replace or extend the first route owner.
+
+**Recommendation:** A. It turns an ambiguous collision into an early, visible
+configuration error and enforces one live REST owner per identity/site. B can
+silently change API behavior during a request; C leaves a newly constructed
+Client partially active without a clear signal. Same canonical name on
+different sites remains valid because blog ID and prefix are part of the key.
+
+**Compatibility:** current code permits duplicates and merges endpoints. A is
+an intentional 2.0 validation change and needs a stable `ClientRegisterFail`
+reason plus a REST-HOOK-01 test that internal mapping revocation permits
+replacement. LIFE-HOOK-01 owns the end-to-end `dispose()` replacement test.
+
+**Rollback:** remove the uniqueness claim and restore endpoint merging before
+2.0 release. No stored relation data is changed.
+
+<a id="dg-hook-rest-03"></a>
+### DG-HOOK-REST-03 — late binding, unavailable dispatch and route visibility
+
+**Status:** decision-ready; owner decision pending.
+
+**Problem:** a Client created after `rest_api_init` currently has no route until
+another dispatch. A context-neutral route callback may also outlive a disposed
+or failed Client mapping. The no-owner dispatch outcome must therefore be
+defined separately from route discovery: WordPress can retain an unavailable
+concrete path in `get_routes()` and the REST index even when dispatch is denied.
+
+- **A — bind late, native 404 at the dispatch boundary:** if REST initialization
+  has already run, atomically bind a unique current-context Client before
+  construction succeeds. A matched route with no live current-context mapping
+  returns the native `rest_no_route` shape with HTTP 404 before either a stale
+  `permission_callback` or handler runs. On a deliberately reused REST server,
+  an unavailable concrete path may remain visible in route discovery.
+- **B — reject late activation:** construction/REST activation after
+  `rest_api_init` fails with a stable `ClientRegisterFail`; absent/disposed
+  mappings return the same native 404 before permission or handler code. Stale
+  concrete paths may likewise remain visible in a reused server.
+- **C — bind late and hide unavailable discovery:** use an additional owned
+  `rest_endpoints` filter (with its own removal/lifecycle contract) so paths
+  without a current-context owner are absent from the REST index as well as
+  returning native 404 on dispatch. This expands the REST integration to a
+  filter subscription; it does not require the general manager's first release
+  to support filters.
+- **D — bind late, expose an availability error:** bind a late Client
+  immediately, but return a new explicit library error and separately approved
+  HTTP status when a route has no live mapping. Route discovery remains visible.
+
+**Recommendation:** A. It preserves automatic REST availability for normal and
+late consumers, guarantees that no permission or handler code from another
+site executes, and avoids a new filter and response contract. It intentionally
+does not promise that a REST server reused outside the normal WordPress request
+lifecycle conceals stale route names in its index.
+
+**Compatibility:** A fixes current late initialization and changes stale-route
+dispatch to a deterministic native 404 while leaving WordPress route discovery
+semantics intact. The response must follow DG-RESTERR-03's WordPress-native
+gateway shape. B is stricter and can make previously successful late
+construction fail. C changes the discoverable route index and adds filter
+ownership. D adds a new public REST error contract.
+
+**Rollback:** before release, disable late binding and restore constructor-only
+listener registration. There is no persisted-data effect.
+
+<a id="dg-hook-rest-04"></a>
+### DG-HOOK-REST-04 — custom ClientRestApi factory boundary
+
+**Status:** decision-ready; owner decision pending.
+
+**Problem:** `wpConnections/factory/getRestApi/class` is an existing public
+replacement surface. A selected subclass can override built-in handlers and
+permissions, but can also override `init()` or `registerRestRoutes()` and place
+arbitrary object callbacks directly into WordPress's global registries. A
+library-owned shared route boundary cannot safely discover, rewrite or revoke
+arbitrary private registrations.
+
+- **A — managed built-in transport, custom delegate:** preserve the factory
+  filter name/arguments, subclass requirement and construction. Invoke the
+  selected object's `init()` once in its construction context; successful
+  initialization requires a subclass override to delegate to the base managed
+  activation. Retain the object as the current-context delegate, including its
+  public `$namespace`/`$base` route identity and built-in permission/handler
+  overrides. The library exclusively owns lifecycle registration for those
+  four built-in route patterns. Overridden `registerRestRoutes()` is no longer
+  a built-in registration ownership point. Additional `init()` side effects or
+  private hooks/routes remain implementer-owned and require their own
+  context/lifecycle guards.
+- **B — preserve arbitrary registration overrides:** continue invoking custom
+  `init()`/`registerRestRoutes()` and manage only the bundled implementation.
+  Custom handler routes can therefore remain retained and cross-context unless
+  their implementer independently fixes them.
+- **C — replace the class filter:** deprecate/remove the subclass factory and
+  introduce a new REST delegate/route-provider interface with a complete
+  managed registration contract.
+
+**Recommendation:** A. It preserves the existing factory selection and the
+useful handler/permission customization boundary while making the library's
+four routes context-safe. It also states the unavoidable limit: arbitrary hooks
+registered privately by a replacement class cannot become library-owned by
+inspection. B weakens the central safety promise; C is a much larger public SPI
+break than the evidence justifies.
+
+**Compatibility:** no public replacement use was found by REL-00, but private
+use remains possible. A preserves one `init()` call and custom
+`$namespace`/`$base`, handler and permission behavior when an override delegates
+to base activation. It is an intentional 2.0 break for subclasses that used
+`registerRestRoutes()` to register/replace routes or whose `init()` skipped the
+parent lifecycle. Arbitrary custom `init()` side effects still run but are not
+made revocable by the library. HOOK-04 must flag those boundaries, and REL-02
+must test the retained factory/route/delegate behavior. Unmanaged additional
+effects and routes remain consumer/implementer-owned.
+
+**Rollback:** before release, restore direct selected-object initialization and
+route registration. This restores legacy extensibility together with its stale
+callback risk; no persisted relation data changes.
+
 <a id="dg-hook-log-01"></a>
 ### DG-HOOK-LOG-01 — ownership of automatic debug logging
 
@@ -291,26 +429,42 @@ manager subscription together. No stored connection data or route URL changes.
 
 **Problem:** every WP_DEBUG Client creates three global closures. A storage
 event is logged by every Client logger, not only its origin; the query event has
-no Client argument, so a context wrapper cannot fix same-site fanout.
+no Client argument, so a context wrapper cannot fix same-site fanout. Moving
+the call directly into bundled `WPStorage` would stop automatic logging for a
+custom Storage that currently emits the same public hooks, and moving it outside
+the public action would change relative callback timing.
 
 - **A — manager-wrap current listeners:** retain one listener set per Client and
   suppress only cross-site delivery. Same-site duplicate/wrong-client logging
   remains, and the query event still cannot be routed by origin.
-- **B — log at the operation origin:** remove library-owned `Settings`
-  subscriptions and send one debug record through the storage operation's own
-  Client logger while continuing to emit all existing public storage hooks and
-  the logger compatibility action unchanged.
+- **B — one origin-routed singleton observer:** replace the per-Client
+  `Settings` closures with one process-global library observer at priority 10.
+  The two mutation events already pass their originating Client first; append
+  the originating Client as the third argument of
+  `findConnections/dbQuery`. The observer uses the Client only to select its
+  logger and logs the legacy payload, then `Logger::log()` keeps emitting the
+  existing `logger` compatibility action.
 - **C — remove automatic debug logging:** keep public events, but require
   consumers to subscribe and select a logger themselves.
 
 **Recommendation:** B. It provides exactly one record through the correct
-logger, does not require changing public hook arguments and avoids adding
-non-context work to the manager. Public third-party listeners remain untouched.
+logger for bundled storage and for a conforming custom Storage, while retaining
+logging inside the public hook dispatch at priority 10. It avoids putting
+same-site origin selection into the context manager.
 
 **Compatibility:** multiple-client installations that currently receive
-duplicate records will receive one correct record. Custom `Settings` subclass
-replacement is not a factory surface today. The public storage hook names,
-arguments and `logger` action must remain stable.
+duplicate records will receive one correct record. Existing hook names and
+existing argument order remain stable; `findConnections/dbQuery` gains one
+trailing Client argument, which WordPress does not pass to callbacks that still
+declare two accepted arguments. A custom Storage gets automatic debug routing
+only when it emits the documented origin Client payload (third on the query
+event; existing first argument on the two mutation events). Otherwise its
+public event still runs, but the library observer skips automatic logging
+instead of broadcasting to every Client logger. Logging remains a priority-10
+callback inside the public action. Equal-priority ordering relative to consumer
+callbacks, and the post-commit timing of mutation events, must be frozen by
+REL-02 after DG-SPI-06. Custom `Settings` replacement is not a factory surface
+today.
 
 **Rollback:** restore the three internal listeners before release. There is no
 persisted-data effect; log multiplicity is the observable boundary.
@@ -322,13 +476,18 @@ persisted-data effect; log multiplicity is the observable boundary.
 
 **Problem:** WordPress callbacks strongly retain the Client object graph. There
 is no complete unsubscribe path, and an exception late in construction leaves
-all five owned registrations alive even though no Client was returned.
+all five owned registrations alive even though no Client was returned. The
+final lifecycle can only be assembled after deletion and REST integrations
+each provide their own revocable ownership boundary.
 
-- **A — explicit terminal disposal plus transactional initialization:** Client
-  retains every owned subscription, exposes an idempotent 2.0 disposal method,
-  and unsubscribes already-created registrations in reverse order if
-  initialization fails. Calls that would reactivate a disposed Client fail
-  deterministically.
+- **A — explicit terminal integration disposal plus transactional
+  initialization:** Client retains every owned subscription, exposes
+  `Client::dispose(): void`, and revokes already-created
+  subscriptions/mappings in reverse order if initialization fails. Disposal is
+  idempotent. A later semantic cleanup enable or REST activation/rebind fails
+  with existing `ClientRegisterFail` code `4` and a stable disposed-Client
+  reason. Context-neutral shared infrastructure may remain, but it must not
+  retain or resolve the failed/disposed Client.
 - **B — process-lifetime ownership:** retain subscriptions and context guards,
   but provide no Client disposal; only constructor rollback is added.
 - **C — destructor cleanup:** rely on `__destruct()` to unsubscribe when the
@@ -339,11 +498,14 @@ composition need a deterministic boundary. C cannot work reliably because the
 hook registry itself retains the callback object and can prevent destruction.
 B fixes partial construction but not intentional replacement or teardown.
 
-**Compatibility:** this is additive public lifecycle in 2.0. Disposal is
-terminal so an accidentally reused stale Client cannot silently resubscribe.
-The consumer remains responsible for creating one Client per site and disposing
-one it intentionally retires; `switch_to_blog()` does not auto-create or
-auto-dispose clients.
+**Compatibility:** this is additive public integration lifecycle in 2.0.
+Disposal is terminal for hook/REST activation so a retired Client cannot
+silently resubscribe. Direct domain calls through an already-held Client,
+Relation or Storage reference remain governed by their existing validation and
+site-prefix contracts; `dispose()` neither revokes those references nor adds a
+new use-after-dispose guard to every domain method. The consumer remains
+responsible for creating one Client per site and disposing one it intentionally
+retires; `switch_to_blog()` does not auto-create or auto-dispose clients.
 
 **Rollback:** before 2.0 release, remove the public disposal surface and retain
 process-lifetime subscriptions. Initialization rollback has no consumer-visible

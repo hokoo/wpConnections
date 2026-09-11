@@ -70,7 +70,11 @@ map находятся в
   подтвердили cross-site delivery, REST route mixing, late-init gap,
   cross-client logging и leaked callbacks после failed construction.
   Подготовлены pending gates DG-HOOK-SCOPE-01/A, DG-HOOK-REST-01/B,
+  DG-HOOK-REST-02/A, DG-HOOK-REST-03/A, DG-HOOK-REST-04/A,
   DG-HOOK-LOG-01/B и DG-HOOK-LIFE-01/A; рекомендации не считаются решениями.
+  REST recommendation гарантирует native 404 до stale permission/handler
+  callback, но осознанно не скрывает stale route name в index намеренно reused
+  REST server; custom REST object сохраняется как current-context delegate.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных

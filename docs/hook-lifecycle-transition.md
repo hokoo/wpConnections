@@ -79,8 +79,8 @@ merges:
   settings and logger collaborators. Its
   [audit artifact](client-owned-hook-inventory.md) finds five action
   subscriptions under `WP_DEBUG`, separates deletion, REST, logging and Client
-  lifetime work, and prepares four decision gates. It does not assume all hooks
-  need the manager.
+  lifetime work, and prepares six integration decision gates plus the manager
+  scope gate. It does not assume all hooks need the manager.
 
 These tasks may be researched in parallel but produce separate reviewable
 artifacts. No dependency is selected or installed before DG-HOOK-01 is approved.
@@ -138,8 +138,13 @@ The audit found that wpConnections owns no filter subscriptions. Its
 [DG-HOOK-SCOPE-01](client-owned-hook-inventory.md#dg-hook-scope-01) recommends
 an action-only first stable manager release. REST registration has a second
 global route registry and waits for
-[DG-HOOK-REST-01](client-owned-hook-inventory.md#dg-hook-rest-01). Automatic
-debug logging should be routed separately after
+[DG-HOOK-REST-01](client-owned-hook-inventory.md#dg-hook-rest-01),
+[DG-HOOK-REST-02](client-owned-hook-inventory.md#dg-hook-rest-02) and
+[DG-HOOK-REST-03](client-owned-hook-inventory.md#dg-hook-rest-03), while the
+custom REST factory boundary waits for
+[DG-HOOK-REST-04](client-owned-hook-inventory.md#dg-hook-rest-04). Automatic
+debug logging needs a singleton origin-routed observer and documented custom
+Storage payload after
 [DG-HOOK-LOG-01](client-owned-hook-inventory.md#dg-hook-log-01), and complete
 Client subscription lifetime waits for
 [DG-HOOK-LIFE-01](client-owned-hook-inventory.md#dg-hook-life-01). None of
@@ -172,10 +177,10 @@ callback pattern.
 | 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | completed, PR #78 |
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | review |
 | Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, DG-HOOK-SCOPE-01, HOOK-00 | waiting decision |
-| 2.0 logging | LOG-HOOK-01 | Origin-owned automatic debug logging | HOOK-02, DG-HOOK-LOG-01 | waiting decision |
-| Client lifetime | LIFE-HOOK-01 | Subscription retention, disposal and failed-init rollback | HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting decision |
-| 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, LIFE-HOOK-01, HOOK-02, DB-04 | waiting dependency |
-| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, LIFE-HOOK-01, REST-01, DG-HOOK-REST-01 | waiting decision |
+| 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01, DG-SPI-06 | waiting decision |
+| 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
+| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—04, DG-RESTERR-03 | waiting decision |
+| Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting decision |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
@@ -203,6 +208,8 @@ HOOK-03 must later add:
 - equal-priority deterministic ordering and accepted-argument forwarding;
 - unsubscribe during and outside dispatch as defined by the selected manager;
 - active callback exception propagation;
+- retained, idempotently revocable deletion subscription ownership that the
+  final Client lifecycle can collect without reconstructing callback identity;
 - upgrade-path and known-consumer fixtures for the direct `remove_action()`
   break.
 
