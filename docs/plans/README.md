@@ -75,8 +75,10 @@ map находятся в
 - HOOK-01 опубликован отдельным MIT package без Composer runtime dependencies:
   package PR #1 merge `ca0040f`, independent QA PASS, protected/post-merge CI
   `5/5`; clarity patch PR #2 merge `7f449c4` также прошёл independent QA и
-  `5/5` protected/post-merge jobs. Immutable release `v1.0.1` доступен в
-  Packagist; clean PHP 8.1 install разрешил точный commit `7f449c4` и
+  `5/5` protected/post-merge jobs. GitHub release/tag `v1.0.1` стал
+  immutable после включения repository-level policy и in-place
+  republication (`immutable: true` по API). Packagist отдаёт эту версию;
+  clean PHP 8.1 install разрешил точный commit `7f449c4` и
   подтвердил PSR-4 autoload. LOG-HOOK-01 теперь `in_progress`.
 - [HOOK-02 audit](../client-owned-hook-inventory.md) нашёл пять Client-owned
   action registrations при `WP_DEBUG` и ни одного owned filter:

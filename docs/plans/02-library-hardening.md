@@ -1266,13 +1266,14 @@ Execution model:
   быть pinned consumer-репозиторием только в runtime integration task.
 - LOG-HOOK-01 начат после HOOK-01 как второй batch item и не переносит
   public storage emissions под manager ownership.
-- REST-HOOK-01 сохраняет `waiting_dependency` по REST-01; LIFE-HOOK-01 ждёт
-  downstream hook/REST/logging tasks, а HOOK-03 — DB-04/DG-DELETE-06.
+- REST-HOOK-01 теперь `todo`: REST-01 и все его decision gates
+  завершены. LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а
+  HOOK-03 — DB-04/DG-DELETE-06.
 
 Exit criteria:
 
 - HOOK-01 выполнен по собственному DoD, прошёл independent QA и опубликован с
-  immutable stable tag.
+  GitHub-verified immutable stable release/tag.
 - LOG-HOOK-01 выполнен отдельным wpConnections PR, включая custom Storage,
   same-site, multisite, ordering и `WP_DEBUG` regression coverage.
 - План и release hand-offs называют точные package/version boundaries; runtime
@@ -4743,8 +4744,11 @@ Notes/Risks:
 - README clarity PR #2 final head `1b1e59a`, merge `7f449c4`, independent QA
   PASS и `5/5` protected/post-merge jobs поставили точное problem/ownership
   explanation до публикации current patch release.
-- Immutable GitHub/Packagist release `v1.0.1` разрешается в commit `7f449c4`.
-  Clean PHP 8.1 Composer install скачал registry dist, подтвердил MIT, PHP
+- GitHub release/tag `v1.0.1` зафиксирован как immutable после
+  включения repository-level release immutability и in-place republication;
+  GitHub API возвращает `immutable: true`. Packagist `v1.0.1` разрешается
+  в commit `7f449c4`. Clean PHP 8.1 Composer install скачал registry dist,
+  подтвердил MIT, PHP
   `^8.1`, PSR-4 autoload и отсутствие security advisories.
 - Package `master` защищён strict пятью required checks с enforcement для
   администратора, запретом force-push и deletion.
@@ -4893,7 +4897,7 @@ Notes/Risks:
 
 ### REST-HOOK-01. Защитить hook и route lifecycle REST API
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0 для 2.0
 

@@ -131,8 +131,10 @@ approved `iTRON\wpHooksDispatcher\` namespace. Package PR #1 final head
 post-merge jobs. README clarity PR #2 final head `1b1e59a` and merge `7f449c4`
 also passed independent QA and `5/5` protected/post-merge jobs.
 
-GitHub and Packagist expose immutable `v1.0.1`. A clean PHP 8.1 Composer project
-resolved the exact `7f449c4` dist, loaded
+GitHub exposes `v1.0.1` as an immutable release after repository-level release
+immutability was enabled and the existing release was republished in place;
+Packagist resolves that version to the exact `7f449c4` dist. A clean PHP 8.1
+Composer project loaded
 `iTRON\wpHooksDispatcher\ActionDispatcher`, and reported no advisories. The
 package has no Composer runtime dependencies beyond PHP `^8.1`; its native
 adapters consume the loaded WordPress runtime. wpConnections does not pin the
@@ -199,7 +201,7 @@ callback pattern.
 | Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | completed, `v1.0.1` |
 | 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | in progress |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
-| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—04, DG-RESTERR-03 | waiting dependency |
+| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—04, DG-RESTERR-03 | todo |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
 
