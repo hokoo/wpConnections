@@ -277,4 +277,4 @@ HOOK-00 is complete when:
   protected repository checks.
 
 Completing HOOK-00 does not approve DG-HOOK-01. Until the separate owner
-decision is recorded, HOOK-01 remains `waiting_decision`.
+decision is recorded, HOOK-01 remains `waiting_dependency`.
