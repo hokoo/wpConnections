@@ -1,7 +1,8 @@
 # REST v1 error contract discovery
 
-Status: decision-ready; all `DG-RESTERR-*` choices remain pending and this
-document changes no production behavior.
+Status: decision-ready; DG-RESTERR-03/A approved, while DG-RESTERR-01,
+DG-RESTERR-02 and DG-RESTERR-04 remain pending; this document changes no
+production behavior.
 
 Source snapshot: `b36fa85c62fc5984674a1bdf04b7648ff6065d8d`. The temporary
 full-dispatch failure probe was originally recorded on `752362b`; the post-rebase
@@ -109,9 +110,10 @@ behavior; it does not define how `DG-SPI-03` must represent adapter failures.
 
 ## Candidate response matrix
 
-This is the recommended combination of the four pending gates, not an approved
-contract. It gives downstream tasks a complete test target without silently
-claiming owner approval.
+This is the recommended combination of all four gates. DG-RESTERR-03/A is
+approved; DG-RESTERR-01, DG-RESTERR-02 and DG-RESTERR-04 remain pending. The
+matrix gives downstream tasks a complete test target without silently treating
+the remaining recommendations as owner decisions.
 
 | Failure class | Recommended HTTP status | Recommended v1 body treatment |
 | --- | ---: | --- |
@@ -229,7 +231,7 @@ the numeric-domain shape from this gate.
 
 ### DG-RESTERR-03. Native WordPress gateway errors
 
-**Status:** pending; human decision required.
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** Route matching, schema validation, and permission callbacks reject
 requests before the library handler and already expose established WordPress
@@ -313,8 +315,9 @@ approved `DG-UPDATE-04/A` outcome taxonomy.
    code-`300` catch-all is not an adequate substitute.
 3. Consume approved `DG-UPDATE-04/A` for mutation `false`/not-found outcomes,
    and resolve `DG-UPDATE-05` before changing meta success/no-op response bodies.
-4. Approve `DG-RESTERR-01` through `DG-RESTERR-04`, then make `REST-03`/`04`/`05`
-   tests fail against the chosen exact statuses and bodies before handler work.
+4. Consume approved `DG-RESTERR-03/A`, approve the remaining `DG-RESTERR-01`,
+   `DG-RESTERR-02` and `DG-RESTERR-04`, then make `REST-03`/`04`/`05` tests fail
+   against the chosen exact statuses and bodies before handler work.
 
 No item in this sequence changes the already approved independence of domain
 code and HTTP status, atomicity requirement, or backward-compatible default v1

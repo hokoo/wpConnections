@@ -18,7 +18,11 @@
    post-merge `master` прошли по 17/17 jobs. HOOK-00 влит PR #78 как
    `cf8caa6`, final head и post-merge также прошли 17/17. HOOK-02 получил
    independent QA PASS; candidate head `d7ab4bd` PR #79 прошёл 17/17 protected
-   jobs. Batch 8 завершён.
+   jobs, merge `cf67eee` и post-merge также прошли 17/17. Batch 8 завершён.
+5. Все hook-transition gates, DG-SPI-06/A и DG-RESTERR-03/A утверждены
+   владельцем. Batch 9 активирован: HOOK-01 публикует standalone package
+   `hokoo/wp-hooks-dispatcher` (`iTRON\wpHooksDispatcher\`), затем
+   LOG-HOOK-01 исправляет automatic debug routing отдельным PR.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -61,18 +65,20 @@ map находятся в
   `108/756`; PHPCS `45/45`. Independent QA на head `632da3a` — PASS без
   замечаний. Closure head PR #77 `1e98cf7` и merge `5c2fc26` прошли по 17/17
   protected/post-merge jobs; HOOK-TRANS-01 завершён.
-- HOOK-00 decision packet не нашёл полностью conforming dependency и рекомендует
-  отдельный project-owned package (DG-HOOK-01/B). Gate остаётся pending и
-  никакая dependency не установлена. Independent QA после remediation дала
+- HOOK-00 decision packet не нашёл полностью conforming dependency;
+  DG-HOOK-01/B утверждён владельцем 2026-09-11. HOOK-01 публикует отдельный
+  project-owned package `hokoo/wp-hooks-dispatcher` с PSR-4 namespace
+  `iTRON\wpHooksDispatcher\`; координаты подтверждены 2026-09-12. Decision
+  record не устанавливает dependency. Independent QA после remediation дала
   unconditional PASS; PR #78 и merge `cf8caa6` прошли по 17/17 jobs.
 - [HOOK-02 audit](../client-owned-hook-inventory.md) нашёл пять Client-owned
   action registrations при `WP_DEBUG` и ни одного owned filter:
   `deleted_post`, `rest_api_init` и три debug callbacks. Runtime probes
   подтвердили cross-site delivery, REST route mixing, late-init gap,
   cross-client logging и leaked callbacks после failed construction.
-  Подготовлены pending gates DG-HOOK-SCOPE-01/A, DG-HOOK-REST-01/B,
-  DG-HOOK-REST-02/A, DG-HOOK-REST-03/A, DG-HOOK-REST-04/A,
-  DG-HOOK-LOG-01/B и DG-HOOK-LIFE-01/A; рекомендации не считаются решениями.
+  DG-HOOK-SCOPE-01/A, DG-HOOK-REST-01/B, DG-HOOK-REST-02/A,
+  DG-HOOK-REST-03/A, DG-HOOK-REST-04/A, DG-HOOK-LOG-01/B и
+  DG-HOOK-LIFE-01/A утверждены владельцем 2026-09-11.
   REST recommendation гарантирует native 404 до stale permission/handler
   callback, но осознанно не скрывает stale route name в index намеренно reused
   REST server; custom REST object сохраняется как current-context delegate.
@@ -98,11 +104,12 @@ map находятся в
 - DP-1—DP-3 и их review refinements утверждены владельцем 2026-09-11:
   DG-QMETA-01/A, DG-UPDATE-01/02/02R/A, DG-SPI-01/02/07/A,
   DG-ENT-01—DG-ENT-06/A, DG-NAME-01—DG-NAME-06/A и staged
-  DG-NAME-06R/A-to-D. В DP-4 отдельно утверждён только DG-UPDATE-04/A;
-  остальной packet остаётся pending. Pending остаются
-  DG-API20-01—DG-API20-09, DG-UPDATE-03/05, DG-SPI-03—DG-SPI-06,
+  DG-NAME-06R/A-to-D. В DP-4 утверждены DG-UPDATE-04/A и DG-SPI-06/A;
+  остальной packet остаётся pending. DG-RESTERR-03/A также утверждён
+  2026-09-11. Pending остаются DG-API20-01—DG-API20-09,
+  DG-UPDATE-03/05, DG-SPI-03—DG-SPI-05,
   DG-DB-01—DG-DB-04,
-  DG-RESTERR-01—DG-RESTERR-04 и DG-DELETE-01—DG-DELETE-06; они блокируют только
+  DG-RESTERR-01/02/04 и DG-DELETE-01—DG-DELETE-06; они блокируют только
   явно перечисленные downstream tasks. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),

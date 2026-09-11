@@ -1,6 +1,6 @@
 # Client-owned WordPress hook inventory
 
-Status: completed decision-ready audit; no runtime behavior changed
+Status: completed audit; all recorded gates approved; no runtime behavior changed
 
 Repository baseline: `cf8caa6aa4cd61afc592161092492914f12eb25d`
 (HOOK-00, PR #78).
@@ -34,9 +34,9 @@ The audit therefore creates six additional decision gates:
 - DG-HOOK-LIFE-01 for Client disposal and failed-initialization rollback.
 
 It also resolves the deferred manager feature-scope question. wpConnections
-owns action subscriptions only, so DG-HOOK-SCOPE-01 recommends an action-only
-first stable manager release. Filter subscription semantics can be added later
-without expanding the first integration batch.
+owns action subscriptions only, so approved DG-HOOK-SCOPE-01/A selects an
+action-only first stable manager release. Filter subscription semantics can be
+added later without expanding the first integration batch.
 
 ## Audit method and completeness boundary
 
@@ -228,7 +228,7 @@ release snapshot and keep the direct-`remove_action()` warning prominent.
 <a id="dg-hook-scope-01"></a>
 ### DG-HOOK-SCOPE-01 — first stable manager feature scope
 
-**Status:** decision-ready; owner decision pending.
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** the standalone/internal manager can initially expose actions only,
 or also commit to filter-specific inactive behavior. wpConnections owns no
@@ -254,7 +254,7 @@ must remain stable; later filter support can be additive.
 <a id="dg-hook-rest-01"></a>
 ### DG-HOOK-REST-01 — REST context and route-registry lifecycle
 
-**Status:** decision-ready; owner decision pending.
+**Status:** approved B by the repository owner on 2026-09-11.
 
 **Problem:** guarding `rest_api_init` stops an inactive Client from registering
 new routes, but it cannot remove stale object callbacks already stored in a
@@ -291,7 +291,7 @@ manager subscription together. No stored connection data or route URL changes.
 <a id="dg-hook-rest-02"></a>
 ### DG-HOOK-REST-02 — duplicate live Client identity within one site
 
-**Status:** decision-ready; owner decision pending.
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** two live Clients with the same canonical name in one blog/prefix
 produce the same REST route identity but may have different in-memory relation,
@@ -326,7 +326,7 @@ replacement. LIFE-HOOK-01 owns the end-to-end `dispose()` replacement test.
 <a id="dg-hook-rest-03"></a>
 ### DG-HOOK-REST-03 — late binding, unavailable dispatch and route visibility
 
-**Status:** decision-ready; owner decision pending.
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** a Client created after `rest_api_init` currently has no route until
 another dispatch. A context-neutral route callback may also outlive a disposed
@@ -373,7 +373,7 @@ listener registration. There is no persisted-data effect.
 <a id="dg-hook-rest-04"></a>
 ### DG-HOOK-REST-04 — custom ClientRestApi factory boundary
 
-**Status:** decision-ready; owner decision pending.
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** `wpConnections/factory/getRestApi/class` is an existing public
 replacement surface. A selected subclass can override built-in handlers and
@@ -425,7 +425,7 @@ callback risk; no persisted relation data changes.
 <a id="dg-hook-log-01"></a>
 ### DG-HOOK-LOG-01 — ownership of automatic debug logging
 
-**Status:** decision-ready; owner decision pending.
+**Status:** approved B by the repository owner on 2026-09-11.
 
 **Problem:** every WP_DEBUG Client creates three global closures. A storage
 event is logged by every Client logger, not only its origin; the query event has
@@ -472,7 +472,7 @@ persisted-data effect; log multiplicity is the observable boundary.
 <a id="dg-hook-life-01"></a>
 ### DG-HOOK-LIFE-01 — Client disposal and initialization rollback
 
-**Status:** decision-ready; owner decision pending.
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** WordPress callbacks strongly retain the Client object graph. There
 is no complete unsubscribe path, and an exception late in construction leaves
@@ -513,10 +513,12 @@ data effect and should be retained even if disposal is reconsidered.
 
 ## Completion criteria
 
-HOOK-02 is complete when this artifact and the executable-plan hand-off pass
+HOOK-02 was complete when this artifact and the executable-plan hand-off passed
 independent traceability review and all protected repository checks. Completing
-the audit does not approve any gate and does not authorize a dependency,
-external repository or runtime behavior change.
+the audit itself did not approve any gate or authorize a dependency, external
+repository or runtime behavior change. The repository owner subsequently
+approved every gate recorded here on 2026-09-11; package creation remains the
+separate HOOK-01 delivery task.
 
 ## Independent QA evidence
 

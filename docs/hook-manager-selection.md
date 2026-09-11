@@ -1,6 +1,6 @@
 # Context-aware hook manager selection
 
-Status: completed research; DG-HOOK-01 is not approved
+Status: completed research; DG-HOOK-01/B approved
 
 Repository baseline: `5c2fc26289a1ee2ae55d11967c15b2562093442c`
 (HOOK-TRANS-01, PR #77).
@@ -11,12 +11,10 @@ Research snapshot: 2026-09-11.
 
 No maintained Composer package found in the reproducible search satisfies the
 approved 2.0 contract without replacing its central lifecycle model. The
-recommendation for DG-HOOK-01 is therefore **B: publish a focused standalone
-package owned by this project**.
-
-This is a recommendation, not a decision. This branch installs no dependency,
-creates no external repository and changes no runtime behavior. HOOK-01 remains
-blocked until the repository owner explicitly resolves DG-HOOK-01.
+recommendation for DG-HOOK-01 was therefore **B: publish a focused standalone
+package owned by this project**. The repository owner approved B on 2026-09-11
+and selected public package `hokoo/wp-hooks-dispatcher` with PSR-4 namespace
+`iTRON\wpHooksDispatcher\`.
 
 ## Contract being evaluated
 
@@ -238,15 +236,24 @@ standalone implementation should:
 - contain no wpConnections `Client`, `Storage`, relation or schema classes.
 
 Action and filter subscriptions must not silently share inactive semantics: an
-inactive action returns nothing, while an inactive filter must return its first
-argument. Whether filters belong in the first stable package release is deferred
-until HOOK-02 proves which wpConnections-owned filters, if any, need context
-routing.
+inactive action returns nothing, while a future inactive filter would need to
+return its first argument. HOOK-02 found no wpConnections-owned filter
+subscriptions, and approved DG-HOOK-SCOPE-01/A therefore excludes filters from
+the first stable package release. Later filter support remains additive and
+requires its own contract tests.
 
-If B is approved, HOOK-01 still needs an implementation preflight for package
-coordinates/ownership, license and first-release action/filter scope. Those are
-conditional delivery choices; they do not change this build-versus-buy result
-and no external repository is created by HOOK-00.
+The approved implementation preflight is:
+
+- public GitHub repository and Composer package `hokoo/wp-hooks-dispatcher`
+  (coordinates confirmed by the repository owner on 2026-09-12);
+- PSR-4 namespace `iTRON\wpHooksDispatcher\`;
+- MIT license;
+- PHP `^8.1`, no runtime dependencies;
+- first stable release supports actions only under DG-HOOK-SCOPE-01/A;
+- independent CI, semantic versioning and a tagged Composer release before
+  wpConnections pins the dependency.
+
+HOOK-00 itself created no external repository; HOOK-01 owns that delivery.
 
 ## Verification and completion criteria
 
@@ -259,12 +266,13 @@ the full matrix, immutable-source analysis and no-probe rationale. The repeated
 independent review of `010c5de514546e1f600d3878a86a0031234a40d5` returned an
 unconditional PASS with no remaining findings. It also independently checked
 the package metadata, immutable source links, search totals, documentation-only
-scope and the fact that DG-HOOK-01 remains pending.
+scope and the fact that DG-HOOK-01 was pending at review time.
 
 This closed the research and traceability portions of HOOK-00. PR #78 final
 head `345e36d1794df4bba05377ebbeaf325ee894cf61` passed all 17 protected jobs,
 was merged as `cf8caa6aa4cd61afc592161092492914f12eb25d`, and all 17 post-merge jobs
-passed. HOOK-00 is complete; its recommended DG-HOOK-01/B remains unapproved.
+passed. HOOK-00 is complete; DG-HOOK-01/B was subsequently approved on
+2026-09-11 with the package coordinates above.
 
 HOOK-00 is complete when:
 
@@ -272,9 +280,9 @@ HOOK-00 is complete when:
 - the Packagist search can be reproduced and every serious candidate has a
   criterion-by-criterion disposition;
 - the no-probe decision is accepted because zero candidates pass static gates;
-- DG-HOOK-01 retains all A/B/C options and is ready for the owner to choose;
+- DG-HOOK-01 retains its decision history and records owner-approved B;
 - this documentation-only branch passes formatting/traceability QA and all
   protected repository checks.
 
-Completing HOOK-00 does not approve DG-HOOK-01. Until the separate owner
-decision is recorded, HOOK-01 remains `waiting_dependency`.
+Completing HOOK-00 did not itself approve DG-HOOK-01. The separate owner
+decision is now recorded, so HOOK-01 can enter delivery.

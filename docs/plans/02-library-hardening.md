@@ -11,8 +11,11 @@ discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверж�
 CORE-06R влит PR #76 как `2371ed2`. Batch 7 завершён: HOOK-TRANS-01 влит PR
 #77 как `5c2fc26`, final head и post-merge `master` прошли по 17/17 jobs.
 HOOK-00 завершён PR #78 как `cf8caa6`, также с 17/17 final-head и post-merge
-jobs. HOOK-02 получил independent QA PASS, а candidate head `d7ab4bd` PR #79
-прошёл 17/17 protected jobs; Batch 8 завершён.
+jobs. HOOK-02 получил independent QA PASS; candidate head `d7ab4bd` PR #79,
+merge `cf67eee` и post-merge прошли 17/17 jobs; Batch 8 завершён. Все hook gates,
+DG-SPI-06/A и DG-RESTERR-03/A утверждены владельцем 2026-09-11. Координаты
+standalone manager package `hokoo/wp-hooks-dispatcher` и namespace
+`iTRON\wpHooksDispatcher\` подтверждены 2026-09-12; Batch 9 активен.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -578,7 +581,7 @@ backend feasibility и уточняет этот gate до owner decision.
 
 ### DG-SPI-06. Значение mutation hooks при commit/rollback
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-11.
 
 **Проблема:** часть текущих `after`/`deleted` hooks вызывается с raw failure или
 после только последнего non-atomic statement. DB-05 не может считать их
@@ -657,7 +660,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-SPI-03 | pending; recommendation A | repository owner | — | DB-03A/REST-00A coordinate; DB-03B-B/REST/atomic production waits |
 | DG-SPI-04 | pending; recommendation A | repository owner | — | DB-00 refines feasibility; DB-05/REL-02 wait |
 | DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
-| DG-SPI-06 | pending; recommendation A | repository owner | — | Commit-aware mutation hooks; DB-05/REL-02 wait |
+| DG-SPI-06 | approved A | repository owner | 2026-09-11 | Commit-aware success hooks; DB-05/REL-02 unblocked on this gate |
 | DG-SPI-07 | approved A | repository owner | 2026-09-11 | Legacy concrete table introspection retained in v1 |
 | [`DG-ENT-01`](../entity-validation-contract.md#dg-ent-01) | approved A | repository owner | 2026-09-11 | Any extant exact-type `WP_Post` is a valid endpoint |
 | [`DG-ENT-02`](../entity-validation-contract.md#dg-ent-02) | approved A | repository owner | 2026-09-11 | Typed client-scoped non-post resolver registry |
@@ -671,7 +674,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 schema lifecycle waits |
 | [DG-RESTERR-01](../rest-error-contract.md#dg-resterr-01) | pending; recommendation A | repository owner | — | Domain-to-HTTP taxonomy; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | pending; recommendation A | repository owner | — | Default v1 library error body; REST-03/REST-05/DOC-01/REL-02 wait |
-| [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | pending; recommendation A | repository owner | — | Native WordPress gateway shape; REST-03/REST-04/REST-05/DOC-01 wait |
+| [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | approved A | repository owner | 2026-09-11 | Preserve native WordPress gateway status/code/data shape |
 | [DG-RESTERR-04](../rest-error-contract.md#dg-resterr-04) | pending; recommendation A | repository owner | — | Safe storage/unknown boundary; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-DELETE-01](../delete-result-contract.md#dg-delete-01--relation-ownership-and-selector-composition) | pending; recommendation A | repository owner | — | DB-03B-A/REST-03/REST-05/REL-02 wait; DOC-01 refinement |
 | [DG-DELETE-02](../delete-result-contract.md#dg-delete-02--logical-affected-count-semantics) | pending; recommendation A | repository owner | — | DB-03B-A/DB-03B-B/REST-03/REL-02 wait; DB-05 assertion refinement |
@@ -686,14 +689,14 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | approved A | repository owner | 2026-09-11 | Explicit in-place adoption; no automatic destructive migration |
 | [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
 | [`DG-NAME-06R`](../client-naming-contract.md#dg-name-06r) | approved staged A-to-D | repository owner | 2026-09-11 | Preserve direct callback identity in 1.x; context-aware manager at the 2.0 boundary |
-| [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | decision-ready; B recommended, approval pending | repository owner | — | [HOOK-00 evidence](../hook-manager-selection.md) found no fully conforming package; HOOK-01 waits and no dependency is installed |
-| [`DG-HOOK-SCOPE-01`](../client-owned-hook-inventory.md#dg-hook-scope-01) | decision-ready; A recommended, approval pending | repository owner | — | First stable manager scope; HOOK-01 waits |
-| [`DG-HOOK-REST-01`](../client-owned-hook-inventory.md#dg-hook-rest-01) | decision-ready; B recommended, approval pending | repository owner | — | REST-HOOK-01 waits; a hook guard alone does not own stale REST routes |
-| [`DG-HOOK-REST-02`](../client-owned-hook-inventory.md#dg-hook-rest-02) | decision-ready; A recommended, approval pending | repository owner | — | REST-HOOK-01 waits; duplicate live REST ownership within one site must be deterministic |
-| [`DG-HOOK-REST-03`](../client-owned-hook-inventory.md#dg-hook-rest-03) | decision-ready; A recommended, approval pending | repository owner | — | REST-HOOK-01 waits; late binding, unavailable dispatch and route-index visibility must be explicit |
-| [`DG-HOOK-REST-04`](../client-owned-hook-inventory.md#dg-hook-rest-04) | decision-ready; A recommended, approval pending | repository owner | — | REST-HOOK-01 waits; managed built-in routes must preserve an explicit custom REST factory boundary |
-| [`DG-HOOK-LOG-01`](../client-owned-hook-inventory.md#dg-hook-log-01) | decision-ready; B recommended, approval pending | repository owner | — | LOG-HOOK-01 waits; current Settings callbacks fan out across clients |
-| [`DG-HOOK-LIFE-01`](../client-owned-hook-inventory.md#dg-hook-life-01) | decision-ready; A recommended, approval pending | repository owner | — | LIFE-HOOK-01 waits; hook callbacks retain clients and failed constructors leak registrations |
+| [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | approved B | repository owner | 2026-09-11; coordinates 2026-09-12 | Publish `hokoo/wp-hooks-dispatcher` under `iTRON\wpHooksDispatcher\`; HOOK-01 in progress |
+| [`DG-HOOK-SCOPE-01`](../client-owned-hook-inventory.md#dg-hook-scope-01) | approved A | repository owner | 2026-09-11 | First stable manager release supports actions only |
+| [`DG-HOOK-REST-01`](../client-owned-hook-inventory.md#dg-hook-rest-01) | approved B | repository owner | 2026-09-11 | Managed init plus REST route boundary |
+| [`DG-HOOK-REST-02`](../client-owned-hook-inventory.md#dg-hook-rest-02) | approved A | repository owner | 2026-09-11 | Reject duplicate live REST owner within one site identity |
+| [`DG-HOOK-REST-03`](../client-owned-hook-inventory.md#dg-hook-rest-03) | approved A | repository owner | 2026-09-11 | Immediate late binding; native 404 before stale callbacks; stale index visibility accepted |
+| [`DG-HOOK-REST-04`](../client-owned-hook-inventory.md#dg-hook-rest-04) | approved A | repository owner | 2026-09-11 | Factory-selected current-context delegate; custom private registrations remain implementer-owned |
+| [`DG-HOOK-LOG-01`](../client-owned-hook-inventory.md#dg-hook-log-01) | approved B | repository owner | 2026-09-11 | Singleton origin-routed debug observer and documented custom Storage payload |
+| [`DG-HOOK-LIFE-01`](../client-owned-hook-inventory.md#dg-hook-life-01) | approved A | repository owner | 2026-09-11 | `Client::dispose()` plus transactional initialization rollback |
 
 Для DG-ENT-01—DG-ENT-06, DG-RESTERR-01—DG-RESTERR-04,
 DG-DELETE-01—DG-DELETE-06, DG-NAME-01—DG-NAME-06R и DG-HOOK-01,
@@ -1040,9 +1043,9 @@ Decision packets:
 | DP-1 Query Meta | DG-QMETA-01 | approved A, 2026-09-11 | TEST-02F + CORE-07 |
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
-| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | partial: UPDATE-04 approved A 2026-09-11; остальные pending A recommended | DB-02/DB-05/DB-06 и failure contracts |
+| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | partial: UPDATE-04 and SPI-06 approved A 2026-09-11; остальные pending A recommended | DB-02/DB-05/DB-06 и failure contracts |
 | DP-5 Delete | DG-DELETE-01—04/06 | pending; все A recommended | DB-03B-A/DB-03B-B/DB-04 |
-| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | pending; все A recommended | REST-03—REST-05 exact wire contract |
+| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | partial: RESTERR-03 approved A 2026-09-11; остальные pending A recommended | REST-03—REST-05 exact wire contract |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
 | DP-9 Factory compatibility | DG-SPI-05 | pending; A recommended | REL-02/release documentation |
@@ -1055,9 +1058,10 @@ Entry criteria:
   2026-09-11. В DP-3 DG-NAME-01—06 и DG-SPI-07 утверждены вариантом A, а
   DG-NAME-06R — как staged A-to-D transition; все решения записаны в canonical
   bodies и central registry.
-- В DP-4 отдельно утверждён только DG-UPDATE-04/A. Остаток DP-4 и DP-5—DP-9 не
+- В DP-4 утверждены DG-UPDATE-04/A и DG-SPI-06/A. Остаток DP-4 и DP-5—DP-9 не
   считается неявно утверждённым и не блокирует задачи batch, если не перечислен
-  в их собственных dependencies.
+  в их собственных dependencies; DG-RESTERR-03/A из DP-6 также учитывается
+  отдельно.
 - TEST-02F red evidence остаётся вне `master` до paired green CORE-07 PR.
 
 Tasks:
@@ -1209,8 +1213,8 @@ Tasks:
 Execution model:
 
 - Исследования могут идти параллельно, но поставляются отдельными reviewable PR.
-- HOOK-00 не устанавливает dependency; HOOK-01 стартует только после явного
-  решения DG-HOOK-01.
+- HOOK-00 не устанавливал dependency. DG-HOOK-01/B и package coordinates
+  утверждены после завершения Batch 8; HOOK-01 активирован в Batch 9.
 - HOOK-02 не объявляет каждый WordPress hook site-sensitive: для каждого hook
   требуется evidence и отдельное migration action.
 - HOOK-02 не меняет runtime и не фиксирует сегодняшние duplicate/leak outcomes
@@ -1224,8 +1228,52 @@ Exit criteria:
 - REST duplicate/late/dispatch/route-discovery/custom-factory,
   logging/custom-Storage и Client lifetime имеют отдельные decision gates и
   исполняемые задачи; они не скрыты внутри общего HOOK-03.
-- HOOK-01 становится `todo` только после решения DG-HOOK-01; отсутствие решения
-  является явным human blocker, а не скрытым implementation default.
+- HOOK-01 переведён в `in_progress` только после явного DG-HOOK-01/B и
+  подтверждения package coordinates; decision-recording PR не устанавливает
+  dependency и не меняет runtime.
+
+### Batch 9. Standalone dispatcher и origin-routed logging
+
+Status: active
+
+Goal: сначала поставить independently releasable action dispatcher, затем
+отдельным wpConnections PR устранить cross-client automatic debug fanout без
+смешивания package delivery и consumer integration.
+
+Entry criteria:
+
+- Batch 8 завершён и влит с independent QA и 17/17 post-merge jobs.
+- DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, DG-HOOK-LOG-01/B и DG-SPI-06/A утверждены.
+- Package coordinates зафиксированы как `hokoo/wp-hooks-dispatcher` и
+  `iTRON\wpHooksDispatcher\`.
+
+Tasks:
+
+- HOOK-01 — `in_progress`; public MIT package, action-only API, PHP `^8.1`, no
+  runtime dependencies, contract tests, CI, semantic version and tagged release.
+- LOG-HOOK-01 — `todo`; второй отдельный PR после HOOK-01, хотя manager не
+  является его runtime dependency. Он реализует singleton origin routing и
+  trailing Client payload по утверждённым gates.
+
+Execution model:
+
+- Decision activation в wpConnections поставляется отдельно от нового package
+  и не добавляет Composer dependency.
+- HOOK-01 создаёт и проверяет standalone repository, публикует первый stable
+  tag, после чего его точная версия может быть pinned consumer-репозиторием.
+- LOG-HOOK-01 начинается после HOOK-01 как второй batch item и не переносит
+  public storage emissions под manager ownership.
+- REST-HOOK-01 и LIFE-HOOK-01 сохраняют `waiting_dependency` до tagged HOOK-01;
+  HOOK-03 дополнительно ждёт DB-04/DG-DELETE-06.
+
+Exit criteria:
+
+- HOOK-01 выполнен по собственному DoD, прошёл independent QA и опубликован с
+  immutable stable tag.
+- LOG-HOOK-01 выполнен отдельным wpConnections PR, включая custom Storage,
+  same-site, multisite, ordering и `WP_DEBUG` regression coverage.
+- План и release hand-offs называют точные package/version boundaries; runtime
+  REST/deletion/lifecycle migration не совмещена с этими двумя задачами.
 
 ## E1. Test foundation и regression harness
 
@@ -2657,7 +2705,8 @@ Notes/Risks:
   REST-00B как `DG-UPDATE-04`; SPI artifact только связывает conformance с этим
   gate и не дублирует решение.
 - DG-SPI-01, DG-SPI-02 и DG-SPI-07 утверждены вариантом A владельцем
-  2026-09-11; DG-SPI-03—DG-SPI-06 остаются pending. Production tasks меняют
+  2026-09-11; DG-SPI-06/A утверждён отдельно, DG-SPI-03—DG-SPI-05 остаются
+  pending. Production tasks меняют
   статус только после выполнения остальных explicit dependencies.
 
 Verification:
@@ -3358,8 +3407,9 @@ Dependencies:
 Notes/Risks:
 
 - Canonical artifact: [REST v1 error contract discovery](../rest-error-contract.md).
-- DG-RESTERR-01—DG-RESTERR-04 остаются pending. Completion означает готовность
-  discovery/decision package, а не неявное утверждение recommendation A.
+- DG-RESTERR-03/A утверждён 2026-09-11; DG-RESTERR-01/02/04 остаются pending.
+  Completion REST-00A означает готовность discovery/decision package, а не
+  неявное утверждение остальных recommendation A.
 - Future entity rows consume approved DG-ENT-03/A from the merged CORE-00 contract;
   storage mapping consumes DG-SPI-03; mutation success/no-op classification
   consumes DG-UPDATE-04 and DG-UPDATE-05. REST-00A не дублирует их ownership.
@@ -4622,14 +4672,16 @@ Notes/Risks:
   candidate не прошёл mandatory static matrix, поэтому runtime probe не имел
   qualifying target. QA-discovered `tombroucke/wp-fluent-hooks` отдельно
   проверен: dispatch predicate есть, но license/subscription/registry boundary
-  не проходят. Recommendation — DG-HOOK-01/B, decision остаётся pending.
+  не проходят. DG-HOOK-01/B утверждён 2026-09-11; package coordinates
+  `hokoo/wp-hooks-dispatcher` / `iTRON\wpHooksDispatcher\` подтверждены
+  2026-09-12.
 - Independent QA после remediation завершилась unconditional PASS на `010c5de`.
   Final head `345e36d` PR #78 и merge `cf8caa6` прошли все 17 protected и
   post-merge jobs. Завершение research не утверждает DG-HOOK-01.
 
 ### HOOK-01. Поставить выбранный context-aware manager
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P1
 
@@ -4638,12 +4690,12 @@ Goal: получить independently testable manager implementation согла�
 
 Scope:
 
-- Adopt/adapter contribution для option A либо отдельный package для option B;
-  internal implementation только для явно утверждённого option C.
+- Отдельный public package `hokoo/wp-hooks-dispatcher` под namespace
+  `iTRON\wpHooksDispatcher\`, выбранный DG-HOOK-01/B.
 - Subscription, context predicate, exact priority/accepted args/order и
   idempotent unsubscribe contract tests.
 - Action/filter feature boundary строго следует DG-HOOK-SCOPE-01; future filter
-  support остаётся additive при рекомендованном action-only первом release.
+  support остаётся additive после утверждённого action-only первого release.
 - Active callback exception propagation и inactive callback non-delivery.
 - PHP 8.1+ compatibility, package CI, versioning и minimal usage docs.
 
@@ -4863,8 +4915,8 @@ DoR:
 - HOOK-01 и HOOK-02 completed.
 - REST-01 harness completed.
 - DG-HOOK-REST-01—DG-HOOK-REST-04 утверждены.
-- DG-RESTERR-03 утверждён для native `rest_no_route` shape, если выбран
-  рекомендованный DG-HOOK-REST-03/A или другой native-404 вариант.
+- DG-RESTERR-03/A утверждён для native `rest_no_route` shape, выбранного
+  DG-HOOK-REST-03/A.
 
 DoD:
 
@@ -4885,15 +4937,14 @@ AC:
 - Given same-name Clients sites A/B и reused REST server, when request идёт в
   context B, then только B permission callback и handler достигают Client code.
 - Given второй live Client с тем же `(blog ID, prefix, canonical name)`, then
-  регистрация следует DG-HOOK-REST-02; при рекомендованном A она завершается
+  регистрация по DG-HOOK-REST-02/A завершается
   стабильным `ClientRegisterFail`, а replacement возможен после явного отзыва
   предыдущего internal mapping. End-to-end replacement через public
   `Client::dispose()` принадлежит LIFE-HOOK-01.
 - Given Client создан после первого `rest_api_init`, then его текущий-site route
-  связывается до успешного завершения construction при рекомендованном
-  DG-HOOK-REST-03/A.
+  связывается до успешного завершения construction по DG-HOOK-REST-03/A.
 - Given route не имеет live current-context mapping, then ни permission callback,
-  ни handler/storage другого Client не вызывается; при рекомендованном A
+  ни handler/storage другого Client не вызывается; DG-HOOK-REST-03/A
   dispatch возвращает WordPress-native `rest_no_route`/404, а stale concrete
   path может оставаться видимым в index deliberately reused server.
 - Given factory выбирает custom `ClientRestApi`, when built-in route dispatch
@@ -4924,7 +4975,7 @@ Notes/Risks:
 
 ### LOG-HOOK-01. Устранить cross-client automatic debug fanout
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1 для 2.0
 
@@ -4949,7 +5000,8 @@ Out of Scope:
 
 - Управление consumer-owned listeners на public storage hooks.
 - Изменение PSR logger interface, hook names или порядка существующих arguments.
-- Перенос logging callbacks в manager при выборе рекомендованного B.
+- Перенос logging callbacks в manager: утверждённый DG-HOOK-LOG-01/B оставляет
+  automatic logging у singleton origin-routed observer.
 
 DoR:
 
