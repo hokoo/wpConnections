@@ -15,7 +15,9 @@ jobs. HOOK-02 получил independent QA PASS; candidate head `d7ab4bd` PR #7
 merge `cf67eee` и post-merge прошли 17/17 jobs; Batch 8 завершён. Все hook gates,
 DG-SPI-06/A и DG-RESTERR-03/A утверждены владельцем 2026-09-11. Координаты
 standalone manager package `hokoo/wp-hooks-dispatcher` и namespace
-`iTRON\wpHooksDispatcher\` подтверждены 2026-09-12; Batch 9 активен.
+`iTRON\wpHooksDispatcher\` подтверждены 2026-09-12. HOOK-01 завершён release
+`v1.0.1`; Packagist и clean PHP 8.1 install подтверждены. Batch 9 продолжает
+LOG-HOOK-01 как `in_progress`.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -689,7 +691,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-NAME-05`](../client-naming-contract.md#dg-name-05) | approved A | repository owner | 2026-09-11 | Explicit in-place adoption; no automatic destructive migration |
 | [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
 | [`DG-NAME-06R`](../client-naming-contract.md#dg-name-06r) | approved staged A-to-D | repository owner | 2026-09-11 | Preserve direct callback identity in 1.x; context-aware manager at the 2.0 boundary |
-| [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | approved B | repository owner | 2026-09-11; coordinates 2026-09-12 | Publish `hokoo/wp-hooks-dispatcher` under `iTRON\wpHooksDispatcher\`; HOOK-01 in progress |
+| [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | approved B | repository owner | 2026-09-11; coordinates 2026-09-12 | `hokoo/wp-hooks-dispatcher` `v1.0.1` published; HOOK-01 completed |
 | [`DG-HOOK-SCOPE-01`](../client-owned-hook-inventory.md#dg-hook-scope-01) | approved A | repository owner | 2026-09-11 | First stable manager release supports actions only |
 | [`DG-HOOK-REST-01`](../client-owned-hook-inventory.md#dg-hook-rest-01) | approved B | repository owner | 2026-09-11 | Managed init plus REST route boundary |
 | [`DG-HOOK-REST-02`](../client-owned-hook-inventory.md#dg-hook-rest-02) | approved A | repository owner | 2026-09-11 | Reject duplicate live REST owner within one site identity |
@@ -1249,9 +1251,10 @@ Entry criteria:
 
 Tasks:
 
-- HOOK-01 — `in_progress`; public MIT package, action-only API, PHP `^8.1`, no
-  runtime dependencies, contract tests, CI, semantic version and tagged release.
-- LOG-HOOK-01 — `todo`; второй отдельный PR после HOOK-01, хотя manager не
+- HOOK-01 — `completed`; public MIT package `v1.0.1`, action-only API, PHP
+  `^8.1`, no Composer runtime dependencies, contract tests, protected CI,
+  independent QA, GitHub Release, Packagist publication и clean install.
+- LOG-HOOK-01 — `in_progress`; второй отдельный PR после HOOK-01, хотя manager не
   является его runtime dependency. Он реализует singleton origin routing и
   trailing Client payload по утверждённым gates.
 
@@ -1259,12 +1262,12 @@ Execution model:
 
 - Decision activation в wpConnections поставляется отдельно от нового package
   и не добавляет Composer dependency.
-- HOOK-01 создаёт и проверяет standalone repository, публикует первый stable
-  tag, после чего его точная версия может быть pinned consumer-репозиторием.
-- LOG-HOOK-01 начинается после HOOK-01 как второй batch item и не переносит
+- HOOK-01 поставлен отдельным repository/package; точная stable версия может
+  быть pinned consumer-репозиторием только в runtime integration task.
+- LOG-HOOK-01 начат после HOOK-01 как второй batch item и не переносит
   public storage emissions под manager ownership.
-- REST-HOOK-01 и LIFE-HOOK-01 сохраняют `waiting_dependency` до tagged HOOK-01;
-  HOOK-03 дополнительно ждёт DB-04/DG-DELETE-06.
+- REST-HOOK-01 сохраняет `waiting_dependency` по REST-01; LIFE-HOOK-01 ждёт
+  downstream hook/REST/logging tasks, а HOOK-03 — DB-04/DG-DELETE-06.
 
 Exit criteria:
 
@@ -4681,7 +4684,7 @@ Notes/Risks:
 
 ### HOOK-01. Поставить выбранный context-aware manager
 
-Status: in_progress
+Status: completed
 
 Priority: P1
 
@@ -4734,8 +4737,17 @@ Dependencies:
 
 Notes/Risks:
 
-- Если existing package требует behavior fork, DG-HOOK-01 должен быть reopened
-  вместо незадокументированного patch dependency.
+- Standalone repository: <https://github.com/hokoo/wp-hooks-dispatcher>.
+- Package PR #1 final head `2c3c88f`, merge `ca0040f`, independent QA PASS и
+  `5/5` protected/post-merge jobs поставили contract/tests/implementation.
+- README clarity PR #2 final head `1b1e59a`, merge `7f449c4`, independent QA
+  PASS и `5/5` protected/post-merge jobs поставили точное problem/ownership
+  explanation до публикации current patch release.
+- Immutable GitHub/Packagist release `v1.0.1` разрешается в commit `7f449c4`.
+  Clean PHP 8.1 Composer install скачал registry dist, подтвердил MIT, PHP
+  `^8.1`, PSR-4 autoload и отсутствие security advisories.
+- Package `master` защищён strict пятью required checks с enforcement для
+  администратора, запретом force-push и deletion.
 
 ### HOOK-02. Проаудировать все Client-owned hook registrations
 
@@ -4975,7 +4987,7 @@ Notes/Risks:
 
 ### LOG-HOOK-01. Устранить cross-client automatic debug fanout
 
-Status: todo
+Status: in_progress
 
 Priority: P1 для 2.0
 

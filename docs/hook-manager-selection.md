@@ -286,3 +286,16 @@ HOOK-00 is complete when:
 
 Completing HOOK-00 did not itself approve DG-HOOK-01. The separate owner
 decision is now recorded, so HOOK-01 can enter delivery.
+
+## HOOK-01 delivery record
+
+HOOK-01 subsequently published <https://github.com/hokoo/wp-hooks-dispatcher>.
+Implementation PR #1 merged as `ca0040f` after independent QA and `5/5`
+protected checks; all five post-merge checks also passed. README clarification
+PR #2 merged as `7f449c4` with the same independent and CI outcomes.
+
+Immutable `v1.0.1` is available from GitHub and Packagist. A clean PHP 8.1
+Composer install resolved commit `7f449c4`, verified the documented
+`iTRON\wpHooksDispatcher\` autoload boundary and returned no security advisories.
+HOOK-01 is complete; wpConnections runtime integration remains deliberately
+owned by the separate deletion and REST tasks.

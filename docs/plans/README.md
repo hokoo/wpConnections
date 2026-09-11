@@ -20,9 +20,10 @@
    independent QA PASS; candidate head `d7ab4bd` PR #79 прошёл 17/17 protected
    jobs, merge `cf67eee` и post-merge также прошли 17/17. Batch 8 завершён.
 5. Все hook-transition gates, DG-SPI-06/A и DG-RESTERR-03/A утверждены
-   владельцем. Batch 9 активирован: HOOK-01 публикует standalone package
-   `hokoo/wp-hooks-dispatcher` (`iTRON\wpHooksDispatcher\`), затем
-   LOG-HOOK-01 исправляет automatic debug routing отдельным PR.
+   владельцем. HOOK-01 завершён: standalone package
+   `hokoo/wp-hooks-dispatcher` (`iTRON\wpHooksDispatcher\`) опубликован в
+   Packagist как `v1.0.1`. Batch 9 продолжает LOG-HOOK-01 как второй отдельный
+   implementation PR.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -66,11 +67,17 @@ map находятся в
   замечаний. Closure head PR #77 `1e98cf7` и merge `5c2fc26` прошли по 17/17
   protected/post-merge jobs; HOOK-TRANS-01 завершён.
 - HOOK-00 decision packet не нашёл полностью conforming dependency;
-  DG-HOOK-01/B утверждён владельцем 2026-09-11. HOOK-01 публикует отдельный
-  project-owned package `hokoo/wp-hooks-dispatcher` с PSR-4 namespace
+  DG-HOOK-01/B утверждён владельцем 2026-09-11. HOOK-01 впоследствии опубликовал
+  отдельный project-owned package `hokoo/wp-hooks-dispatcher` с PSR-4 namespace
   `iTRON\wpHooksDispatcher\`; координаты подтверждены 2026-09-12. Decision
   record не устанавливает dependency. Independent QA после remediation дала
   unconditional PASS; PR #78 и merge `cf8caa6` прошли по 17/17 jobs.
+- HOOK-01 опубликован отдельным MIT package без Composer runtime dependencies:
+  package PR #1 merge `ca0040f`, independent QA PASS, protected/post-merge CI
+  `5/5`; clarity patch PR #2 merge `7f449c4` также прошёл independent QA и
+  `5/5` protected/post-merge jobs. Immutable release `v1.0.1` доступен в
+  Packagist; clean PHP 8.1 install разрешил точный commit `7f449c4` и
+  подтвердил PSR-4 autoload. LOG-HOOK-01 теперь `in_progress`.
 - [HOOK-02 audit](../client-owned-hook-inventory.md) нашёл пять Client-owned
   action registrations при `WP_DEBUG` и ни одного owned filter:
   `deleted_post`, `rest_api_init` и три debug callbacks. Runtime probes
