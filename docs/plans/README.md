@@ -22,8 +22,9 @@
 5. Все hook-transition gates, DG-SPI-06/A и DG-RESTERR-03/A утверждены
    владельцем. HOOK-01 завершён: standalone package
    `hokoo/wp-hooks-dispatcher` (`iTRON\wpHooksDispatcher\`) опубликован в
-   Packagist как `v1.0.1`. Batch 9 продолжает LOG-HOOK-01 как второй отдельный
-   implementation PR.
+   Packagist как `v1.0.1`. LOG-HOOK-01 завершён отдельным PR #82: exact
+   candidate `234216e` получил independent QA PASS и 17/17 protected checks.
+   Batch 9 завершён; следующий ready task — REST-HOOK-01.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -79,7 +80,14 @@ map находятся в
   immutable после включения repository-level policy и in-place
   republication (`immutable: true` по API). Packagist отдаёт эту версию;
   clean PHP 8.1 install разрешил точный commit `7f449c4` и
-  подтвердил PSR-4 autoload. LOG-HOOK-01 теперь `in_progress`.
+  подтвердил PSR-4 autoload.
+- LOG-HOOK-01 заменил три per-Client debug closures одним idempotent
+  process-global observer и маршрутизирует запись через logger исходного
+  Client без dependency на dispatcher. Exact candidate `234216e` прошёл
+  independent QA без замечаний и 17/17 protected jobs. Fixed-floor combined
+  run: `126 / 847`, coverage `991/1093 (90.67%)`; PHPCS `46/46`. Первый CI
+  прогон обнаружил неоднозначную проверку combined bootstrap в новом тесте;
+  после runtime-based remediation полный контур зелёный.
 - [HOOK-02 audit](../client-owned-hook-inventory.md) нашёл пять Client-owned
   action registrations при `WP_DEBUG` и ни одного owned filter:
   `deleted_post`, `rest_api_init` и три debug callbacks. Runtime probes

@@ -199,7 +199,7 @@ callback pattern.
 | 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | completed, PR #78 |
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | completed, PR #79 |
 | Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | completed, `v1.0.1` |
-| 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | in progress |
+| 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | completed, PR #82 |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—04, DG-RESTERR-03 | todo |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
@@ -207,8 +207,9 @@ callback pattern.
 
 Each implementation task has its own branch, independent QA, rollback point and
 protected-check run. HOOK-01 is delivered independently and installs no
-wpConnections dependency. LOG-HOOK-01 is now active and changes logging only;
-manager-backed runtime registrations remain in their downstream tasks.
+wpConnections dependency. LOG-HOOK-01 completed on exact candidate `234216e`
+with independent QA PASS and 17/17 protected checks; it changes logging only.
+Manager-backed runtime registrations remain in their downstream tasks.
 
 ## Verification matrix
 
