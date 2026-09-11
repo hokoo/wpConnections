@@ -4687,7 +4687,7 @@ Notes/Risks:
 
 ### HOOK-02. Проаудировать все Client-owned hook registrations
 
-Status: review
+Status: completed
 
 Priority: P1
 
