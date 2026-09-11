@@ -18,7 +18,8 @@ standalone manager package `hokoo/wp-hooks-dispatcher` и namespace
 `iTRON\wpHooksDispatcher\` подтверждены 2026-09-12. HOOK-01 завершён release
 `v1.0.1`; Packagist и clean PHP 8.1 install подтверждены. LOG-HOOK-01 завершён
 на exact candidate `234216e` PR #82 с independent QA PASS и 17/17 protected
-checks. Batch 9 завершён; REST-HOOK-01 — следующий ready task.
+checks. Final head `6554089`, merge `73bc71f` и post-merge `master` также
+прошли 17/17 checks. Batch 9 завершён; Batch 10 активировал REST-HOOK-01.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1279,6 +1280,48 @@ Exit criteria:
   same-site, multisite, ordering и `WP_DEBUG` regression coverage.
 - План и release hand-offs называют точные package/version boundaries; runtime
   REST/deletion/lifecycle migration не совмещена с этими двумя задачами.
+
+### Batch 10. Context-safe REST registration and dispatch
+
+Status: active
+
+Goal: поставить REST-HOOK-01 отдельным vertical slice: manager ограничивает
+`rest_api_init` контекстом подписки, а library-owned route boundary выбирает
+живой current-context delegate до permission callback и handler.
+
+Entry criteria:
+
+- Batch 9 влит PR #82 как `73bc71f`; final-head и post-merge checks 17/17.
+- HOOK-01, HOOK-02 и REST-01 completed.
+- DG-HOOK-REST-01/B, DG-HOOK-REST-02/A, DG-HOOK-REST-03/A,
+  DG-HOOK-REST-04/A и DG-RESTERR-03/A утверждены.
+- `hokoo/wp-hooks-dispatcher` `v1.0.1` опубликован, immutable и прошёл clean
+  PHP 8.1 install.
+
+Tasks:
+
+- REST-HOOK-01 — `in_progress`; единственный implementation task batch.
+
+Execution model:
+
+- Добавить manager как runtime dependency только вместе с первой реальной
+  wpConnections integration.
+- Сохранить четыре route patterns, двенадцать method/callback combinations,
+  public factory filter и custom delegate overrides.
+- Разделить revocable internal Client mapping и будущий public
+  `Client::dispose()`: REST-HOOK-01 предоставляет внутреннюю границу,
+  LIFE-HOOK-01 позже собирает полный lifecycle.
+- Не переносить `deleted_post`, automatic logging или mutation timing в этот
+  PR.
+
+Exit criteria:
+
+- Все DoD/AC REST-HOOK-01, включая duplicate, late-init, no-owner native 404,
+  reused server, same-name multisite и custom delegate paths, покрыты тестами.
+- Dependency/version boundary и breaking 2.0 factory/init compatibility
+  документированы.
+- Independent QA, protected checks и post-merge checks зелёные до перехода к
+  следующему batch.
 
 ## E1. Test foundation и regression harness
 
@@ -4898,7 +4941,7 @@ Notes/Risks:
 
 ### REST-HOOK-01. Защитить hook и route lifecycle REST API
 
-Status: todo
+Status: in_progress
 
 Priority: P0 для 2.0
 

@@ -24,7 +24,10 @@
    `hokoo/wp-hooks-dispatcher` (`iTRON\wpHooksDispatcher\`) опубликован в
    Packagist как `v1.0.1`. LOG-HOOK-01 завершён отдельным PR #82: exact
    candidate `234216e` получил independent QA PASS и 17/17 protected checks.
-   Batch 9 завершён; следующий ready task — REST-HOOK-01.
+   Final head `6554089`, merge `73bc71f` и post-merge `master` также прошли
+   17/17 checks. Batch 9 завершён.
+6. Batch 10 активен: REST-HOOK-01 реализует утверждённый context-safe REST
+   hook/route lifecycle в отдельном PR.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
