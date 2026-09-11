@@ -11,14 +11,18 @@
    #51—#65 последовательно зафиксировали решения, test foundation/contracts,
    первые production fixes и исполняемые quality gates. PR #66 активировал
    Batch 5, PR #67 завершил CORE-03 и закрыл issue #31.
-3. Batch 5 завершён и закрыт PR #72 на `master` `5b60682`. CORE-03 закрыл issue #31, а DB-00,
-   REST-00A, DB-03A и CORE-05 подготовили decision-ready contracts. Batch 6
-   активирован после утверждения DP-1—DP-3 владельцем 2026-09-11:
-   TEST-02F/CORE-07 завершены; CORE-04 влит PR #75 как `7ec7643`; CORE-06R
-   реализован и проверен в PR #76, merge остаётся delivery gate Batch 6.
+3. Batch 5 завершён и закрыт PR #72 на `master` `5b60682`. Batch 6 завершён:
+   TEST-02F/CORE-07 завершены, CORE-04 влит PR #75 как `7ec7643`, CORE-06R
+   влит PR #76 как `2371ed2`; post-merge 17/17 jobs зелёные.
+4. Batch 7 активен: отдельная ветка поставляет утверждённый semantic 1.x
+   post-deletion lifecycle API. Batch 8 уже определён для отдельных HOOK-00
+   build-versus-buy и HOOK-02 owned-hook audit artifacts.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
+Staged 1.x-to-2.0 hook lifecycle contract, manager selection gate и delivery
+map находятся в
+[`docs/hook-lifecycle-transition.md`](../hook-lifecycle-transition.md).
 
 ## Правила ведения планов
 
@@ -36,18 +40,16 @@
 
 ## Текущий baseline
 
-- Последний merged baseline после CORE-04 PR #75 (`7ec7643`): unit `12 / 58`,
-  WordPress integration `93 / 606`, combined `105 / 664` и `817/951`
-  statements (`85.91%`).
-- Текущая CORE-06R branch на PHP 8.1.34 / Ramsey 1.3.0: WordPress 7.1.0 и
+- Последний merged baseline после CORE-06R PR #76 (`2371ed2`) на PHP 8.1.34 /
+  Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
   true multisite focused lane `13 / 144`; isolation unit `24 / 116` и
   integration `212 / 1482`; PHPCS `45/45`. Fixed-floor PR/RC coverage —
   combined `118 / 799`, `957/1059` statements (`90.37%`), baseline `365/786`
   не изменён. Newest PHP 8.5.10 / WordPress 7.1.0 / Ramsey 2.1.1 integration —
   `106 / 741` с только известными deprecation warnings.
-- CORE-06R получил independent QA PASS; все 17 protected jobs PR #76 успешны
-  на `ef69d31`. До merge это branch evidence, а не новый merged baseline.
+- CORE-06R получил independent QA PASS; final head `93d09c6` и merge
+  `2371ed2` прошли все 17 required jobs.
   Operator-facing naming inventory/attestation остаётся downstream
   DB-06/REL-03 work.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся

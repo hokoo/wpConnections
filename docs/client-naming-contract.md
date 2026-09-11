@@ -559,8 +559,9 @@ known-consumer search for direct `deleted_post` callback removal.
 
 **Implementation consequences:** CORE-06 implements and verifies only the 1.x
 bridge. The transition API, manager plan/package, complete hook audit, 2.0
-integration and upgrade validation must be decomposed in a separate plan after
-CORE-06 merges; they are out of scope for this branch.
+integration and upgrade validation are now decomposed in the executable
+[`hook lifecycle transition`](hook-lifecycle-transition.md). Each is delivered
+in its own branch; CORE-06 did not implement them.
 
 ## Decision consequences
 
