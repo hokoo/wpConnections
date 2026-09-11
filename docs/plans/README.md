@@ -19,15 +19,17 @@
    `cf8caa6`, final head и post-merge также прошли 17/17. HOOK-02 получил
    independent QA PASS; candidate head `d7ab4bd` PR #79 прошёл 17/17 protected
    jobs, merge `cf67eee` и post-merge также прошли 17/17. Batch 8 завершён.
-5. Все hook-transition gates, DG-SPI-06/A и DG-RESTERR-03/A утверждены
-   владельцем. HOOK-01 завершён: standalone package
+5. Все hook-transition gates, известные до implementation discovery Batch 10,
+   а также DG-SPI-06/A и DG-RESTERR-03/A утверждены владельцем. HOOK-01 завершён:
+   standalone package
    `hokoo/wp-hooks-dispatcher` (`iTRON\wpHooksDispatcher\`) опубликован в
    Packagist как `v1.0.1`. LOG-HOOK-01 завершён отдельным PR #82: exact
    candidate `234216e` получил independent QA PASS и 17/17 protected checks.
    Final head `6554089`, merge `73bc71f` и post-merge `master` также прошли
    17/17 checks. Batch 9 завершён.
-6. Batch 10 активен: REST-HOOK-01 реализует утверждённый context-safe REST
-   hook/route lifecycle в отдельном PR.
+6. Batch 10 открыт, но REST-HOOK-01 переведён в `needs_design`: WordPress
+   выполняет schema validation до permission gateway, поэтому новый
+   DG-HOOK-REST-05 должен определить precedence no-owner 404 и native 400.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

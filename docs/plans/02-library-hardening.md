@@ -13,13 +13,16 @@ CORE-06R влит PR #76 как `2371ed2`. Batch 7 завершён: HOOK-TRANS-
 HOOK-00 завершён PR #78 как `cf8caa6`, также с 17/17 final-head и post-merge
 jobs. HOOK-02 получил independent QA PASS; candidate head `d7ab4bd` PR #79,
 merge `cf67eee` и post-merge прошли 17/17 jobs; Batch 8 завершён. Все hook gates,
-DG-SPI-06/A и DG-RESTERR-03/A утверждены владельцем 2026-09-11. Координаты
+известные до implementation discovery Batch 10, а также DG-SPI-06/A и
+DG-RESTERR-03/A утверждены владельцем 2026-09-11. Координаты
 standalone manager package `hokoo/wp-hooks-dispatcher` и namespace
 `iTRON\wpHooksDispatcher\` подтверждены 2026-09-12. HOOK-01 завершён release
 `v1.0.1`; Packagist и clean PHP 8.1 install подтверждены. LOG-HOOK-01 завершён
 на exact candidate `234216e` PR #82 с independent QA PASS и 17/17 protected
 checks. Final head `6554089`, merge `73bc71f` и post-merge `master` также
-прошли 17/17 checks. Batch 9 завершён; Batch 10 активировал REST-HOOK-01.
+прошли 17/17 checks. Batch 9 завершён. Batch 10 выявил новый
+DG-HOOK-REST-05 и ждёт решения о no-owner/validation precedence до начала
+REST-HOOK-01 implementation.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -699,12 +702,13 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-HOOK-REST-02`](../client-owned-hook-inventory.md#dg-hook-rest-02) | approved A | repository owner | 2026-09-11 | Reject duplicate live REST owner within one site identity |
 | [`DG-HOOK-REST-03`](../client-owned-hook-inventory.md#dg-hook-rest-03) | approved A | repository owner | 2026-09-11 | Immediate late binding; native 404 before stale callbacks; stale index visibility accepted |
 | [`DG-HOOK-REST-04`](../client-owned-hook-inventory.md#dg-hook-rest-04) | approved A | repository owner | 2026-09-11 | Factory-selected current-context delegate; custom private registrations remain implementer-owned |
+| [`DG-HOOK-REST-05`](../client-owned-hook-inventory.md#dg-hook-rest-05) | pending; recommendation A | repository owner | — | REST-HOOK-01 waits for no-owner versus native validation precedence |
 | [`DG-HOOK-LOG-01`](../client-owned-hook-inventory.md#dg-hook-log-01) | approved B | repository owner | 2026-09-11 | Singleton origin-routed debug observer and documented custom Storage payload |
 | [`DG-HOOK-LIFE-01`](../client-owned-hook-inventory.md#dg-hook-life-01) | approved A | repository owner | 2026-09-11 | `Client::dispose()` plus transactional initialization rollback |
 
 Для DG-ENT-01—DG-ENT-06, DG-RESTERR-01—DG-RESTERR-04,
 DG-DELETE-01—DG-DELETE-06, DG-NAME-01—DG-NAME-06R и DG-HOOK-01,
-DG-HOOK-SCOPE-01, DG-HOOK-REST-01—DG-HOOK-REST-04, DG-HOOK-LOG-01,
+DG-HOOK-SCOPE-01, DG-HOOK-REST-01—DG-HOOK-REST-05, DG-HOOK-LOG-01,
 DG-HOOK-LIFE-01 связанные contracts являются
 canonical decision bodies (problem, alternatives, recommendation и compatibility
 impact). Этот registry — canonical запись решения/status, владельца и даты.
@@ -1268,8 +1272,9 @@ Execution model:
   быть pinned consumer-репозиторием только в runtime integration task.
 - LOG-HOOK-01 выполнен после HOOK-01 как второй batch item и не переносит
   public storage emissions под manager ownership.
-- REST-HOOK-01 теперь `todo`: REST-01 и все его decision gates
-  завершены. LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а
+- REST-HOOK-01 теперь `needs_design`: REST-01 и ранее известные decision gates
+  завершены, но implementation discovery открыл DG-HOOK-REST-05.
+  LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а
   HOOK-03 — DB-04/DG-DELETE-06.
 
 Exit criteria:
@@ -1283,7 +1288,7 @@ Exit criteria:
 
 ### Batch 10. Context-safe REST registration and dispatch
 
-Status: active
+Status: needs_design
 
 Goal: поставить REST-HOOK-01 отдельным vertical slice: manager ограничивает
 `rest_api_init` контекстом подписки, а library-owned route boundary выбирает
@@ -1295,12 +1300,15 @@ Entry criteria:
 - HOOK-01, HOOK-02 и REST-01 completed.
 - DG-HOOK-REST-01/B, DG-HOOK-REST-02/A, DG-HOOK-REST-03/A,
   DG-HOOK-REST-04/A и DG-RESTERR-03/A утверждены.
+- DG-HOOK-REST-05 утверждён владельцем; сейчас это невыполненный entry
+  criterion.
 - `hokoo/wp-hooks-dispatcher` `v1.0.1` опубликован, immutable и прошёл clean
   PHP 8.1 install.
 
 Tasks:
 
-- REST-HOOK-01 — `in_progress`; единственный implementation task batch.
+- REST-HOOK-01 — `needs_design`; единственный implementation task batch ждёт
+  DG-HOOK-REST-05.
 
 Execution model:
 
@@ -1313,10 +1321,12 @@ Execution model:
   LIFE-HOOK-01 позже собирает полный lifecycle.
 - Не переносить `deleted_post`, automatic logging или mutation timing в этот
   PR.
+- До решения DG-HOOK-REST-05 не фиксировать observable precedence между
+  no-owner 404 и native malformed-request validation 400.
 
 Exit criteria:
 
-- Все DoD/AC REST-HOOK-01, включая duplicate, late-init, no-owner native 404,
+- Все DoD/AC REST-HOOK-01, включая duplicate, late-init, no-owner precedence,
   reused server, same-name multisite и custom delegate paths, покрыты тестами.
 - Dependency/version boundary и breaking 2.0 factory/init compatibility
   документированы.
@@ -4941,7 +4951,7 @@ Notes/Risks:
 
 ### REST-HOOK-01. Защитить hook и route lifecycle REST API
 
-Status: in_progress
+Status: needs_design
 
 Priority: P0 для 2.0
 
@@ -4977,6 +4987,8 @@ DoR:
 - DG-HOOK-REST-01—DG-HOOK-REST-04 утверждены.
 - DG-RESTERR-03/A утверждён для native `rest_no_route` shape, выбранного
   DG-HOOK-REST-03/A.
+- DG-HOOK-REST-05 утверждён и фиксирует precedence для malformed no-owner
+  request.
 
 DoD:
 
@@ -5004,8 +5016,8 @@ AC:
 - Given Client создан после первого `rest_api_init`, then его текущий-site route
   связывается до успешного завершения construction по DG-HOOK-REST-03/A.
 - Given route не имеет live current-context mapping, then ни permission callback,
-  ни handler/storage другого Client не вызывается; DG-HOOK-REST-03/A
-  dispatch возвращает WordPress-native `rest_no_route`/404, а stale concrete
+  ни handler/storage другого Client не вызывается; exact precedence native
+  validation 400 и `rest_no_route`/404 задаёт DG-HOOK-REST-05, а stale concrete
   path может оставаться видимым в index deliberately reused server.
 - Given factory выбирает custom `ClientRestApi`, when built-in route dispatch
   проходит context selection, then вызываются permission/handler overrides
@@ -5022,6 +5034,7 @@ Dependencies:
 
 - HOOK-01, HOOK-02, REST-01.
 - DG-HOOK-REST-01—DG-HOOK-REST-04.
+- DG-HOOK-REST-05.
 - DG-RESTERR-03 для native gateway shape.
 
 Notes/Risks:
@@ -5030,6 +5043,8 @@ Notes/Risks:
   `WP_REST_Server`; требуется отдельная route-boundary реализация.
 - `WP_REST_Server` не предоставляет owned unregister token; route mapping и
   optional discovery filter должны иметь явную teardown boundary.
+- WordPress проверяет required/type arguments раньше route permission callback;
+  до решения DG-HOOK-REST-05 exact no-owner error precedence не определён.
 - REST-HOOK-01 передаёт factory/delegate compatibility cases в REL-02; REL-02
   не является prerequisite этой implementation задачи.
 
@@ -5278,7 +5293,7 @@ Notes/Risks:
 | `type` has no behavior | DG-M2, CORE-01, DOC-01 |
 | Direct storage mutation bypasses domain invariants | DG-M9, CORE-04, DB-05, REL-02 |
 | Process-global `deleted_post` callback after multisite switch | CORE-06R, HOOK-TRANS-01, HOOK-00—HOOK-04 |
-| Process-global REST hook plus reused route registry | HOOK-02, REST-HOOK-01, DG-HOOK-REST-01—DG-HOOK-REST-04, DG-RESTERR-03, REL-02 |
+| Process-global REST hook plus reused route registry | HOOK-02, REST-HOOK-01, DG-HOOK-REST-01—DG-HOOK-REST-05, DG-RESTERR-03, REL-02 |
 | `Settings` debug callbacks fan out to every Client logger | HOOK-02, LOG-HOOK-01, DG-HOOK-LOG-01, DG-SPI-06, REL-02 |
 | Failed Client construction leaves owned callbacks registered | HOOK-02, LIFE-HOOK-01, DG-HOOK-LIFE-01 |
 | Open issue #20 related entities | API-01, API-03, API-04, DOC-01 |
