@@ -1,6 +1,6 @@
 # Context-aware hook manager selection
 
-Status: decision-ready research; DG-HOOK-01 is not approved
+Status: completed research; DG-HOOK-01 is not approved
 
 Repository baseline: `5c2fc26289a1ee2ae55d11967c15b2562093442c`
 (HOOK-TRANS-01, PR #77).
@@ -261,9 +261,10 @@ unconditional PASS with no remaining findings. It also independently checked
 the package metadata, immutable source links, search totals, documentation-only
 scope and the fact that DG-HOOK-01 remains pending.
 
-This closes the research and traceability portions of HOOK-00. Protected CI and
-post-merge verification remain delivery evidence rather than selection
-evidence, so the task stays in `review` until those checks complete.
+This closed the research and traceability portions of HOOK-00. PR #78 final
+head `345e36d1794df4bba05377ebbeaf325ee894cf61` passed all 17 protected jobs,
+was merged as `cf8caa6aa4cd61afc592161092492914f12eb25d`, and all 17 post-merge jobs
+passed. HOOK-00 is complete; its recommended DG-HOOK-01/B remains unapproved.
 
 HOOK-00 is complete when:
 
@@ -276,4 +277,4 @@ HOOK-00 is complete when:
   protected repository checks.
 
 Completing HOOK-00 does not approve DG-HOOK-01. Until the separate owner
-decision is recorded, HOOK-01 remains `waiting_decision`.
+decision is recorded, HOOK-01 remains `waiting_dependency`.
