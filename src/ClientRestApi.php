@@ -3,10 +3,9 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Abstracts\IArrayConvertable;
-use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
-use iTRON\wpConnections\Exceptions\RelationNotFound;
+use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\RestResponse\CollectionItem;
 use Ramsey\Collection\Exception\NoSuchElementException;
 use Ramsey\Collection\Exception\OutOfBoundsException;
@@ -14,7 +13,6 @@ use WP_Error;
 use WP_HTTP_Response;
 use WP_REST_Request;
 use WP_REST_Response;
-use WP_REST_Server;
 
 class ClientRestApi
 {
@@ -30,7 +28,22 @@ class ClientRestApi
 
     public function init()
     {
-        add_action('rest_api_init', [ $this, 'registerRestRoutes' ], 10);
+        $registry = RestRouteRegistry::instance();
+        if ($registry->acknowledgeActivation($this)) {
+            return;
+        }
+
+        $registry->activate($this);
+    }
+
+    /**
+     * Revokes this delegate's internal route mapping.
+     *
+     * @internal LIFE-HOOK-01 will compose this into Client::dispose().
+     */
+    public function deactivate(): void
+    {
+        RestRouteRegistry::instance()->deactivateDelegate($this);
     }
 
     public function getTheClient(WP_REST_Request $request)
@@ -252,190 +265,13 @@ class ClientRestApi
     }
 
     /**
-     * @throws ClientRegisterFail
+     * Rebinds the managed transport into the current REST server.
+     *
+     * This method remains overridable for source compatibility, but the
+     * library-owned lifecycle does not invoke custom overrides.
      */
     public function registerRestRoutes()
     {
-        $result = [];
-        $result [] = register_rest_route(
-            $this->namespace,
-            '/' . $this->base . '/' . $this->getClient()->getName(),
-            [
-                'args'   => [],
-                [
-                    'methods'             => WP_REST_Server::READABLE,
-                    'description'         => 'Get the client relations.',
-                    'callback'            => [ $this, 'getTheClient' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                ],
-            ]
-        );
-
-        $result [] = register_rest_route(
-            $this->namespace,
-            '/' . $this->base . '/' . $this->getClient()->getName() .
-            '/relation/' . '(?P<relation>[\w-]+)',
-            [
-                [
-                    'methods'             => WP_REST_Server::READABLE,
-                    'callback'            => [ $this, 'getRelation' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args'   => [
-                        'relation' => [
-                            'description' => __('Unique name for the relation.'),
-                            'type'        => 'string',
-                            'required'    => true,
-                        ],
-                    ],
-                ],
-                [
-                    'methods'             => WP_REST_Server::CREATABLE,
-                    'callback'            => [ $this, 'createConnection' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args' => [
-                        'from'  => [
-                            'description' => __('Post ID that is considered as FROM.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                        'to'  => [
-                            'description' => __('Post ID that is considered as TO.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                        'order' => [
-                            'description' => __('Connection order.'),
-                            'type'        => 'integer',
-                            'required'    => false,
-                            'default'     => 0,
-                        ],
-                        'meta'  => [
-                            'description' => __('Connection meta data.'),
-                            'type'        => 'array',
-                            'required'    => false,
-                            'default'     => [],
-                        ]
-                    ]
-                ],
-            ]
-        );
-
-        $result [] = register_rest_route(
-            $this->namespace,
-            '/' . $this->base . '/' . $this->getClient()->getName() .
-            '/relation/' . '(?P<relation>[\w-]+)' .
-            '/(?P<connectionID>[\d]+)',
-            [
-                'args'   => [
-                    'relation' => [
-                        'description' => __('Unique name for the relation.'),
-                        'type'        => 'string',
-                        'required'    => true,
-                    ],
-                ],
-                [
-                    'methods'             => WP_REST_Server::READABLE,
-                    'callback'            => [ $this, 'getConnection' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args' => [
-                        'connectionID' => [
-                            'description' => __('Connection ID to be retrieved.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                    ]
-                ],
-                [
-                    'methods'             => WP_REST_Server::EDITABLE,
-                    'callback'            => [ $this, 'updateConnection' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args' => [
-                        'connectionID' => [
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                        'from'  => [
-                            'description' => __('Post ID that is considered as FROM.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                        'to'  => [
-                            'description' => __('Post ID that is considered as TO.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                        'order' => [
-                            'description' => __('Connection order.'),
-                            'type'        => 'integer',
-                            'required'    => false,
-                            'default'     => 0,
-                        ],
-                    ]
-                ],
-                [
-                    'methods'             => WP_REST_Server::DELETABLE,
-                    'callback'            => [ $this, 'deleteConnection' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args' => [
-                        'connectionID' => [
-                            'description' => __('Connection ID to be removed.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                    ]
-                ],
-            ]
-        );
-
-        $result [] = register_rest_route(
-            $this->namespace,
-            '/' . $this->base . '/' . $this->getClient()->getName() .
-            '/relation/' . '(?P<relation>[\w-]+)' .
-            '/(?P<connectionID>[\d]+)' .
-            '/meta',
-            [
-                'args'   => [
-                    'relation' => [
-                        'description' => __('Unique name for the relation.'),
-                        'type'        => 'string',
-                        'required'    => true,
-                    ],
-                    'connectionID' => [
-                        'description' => __('Unique ID of the connection.'),
-                        'type'        => 'integer',
-                        'required'    => true,
-                    ],
-                ],
-                [
-                    'methods'             => WP_REST_Server::EDITABLE,
-                    'callback'            => [ $this, 'updateConnectionMeta' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args' => [
-                        'meta'  => [
-                            'description' => __('Add connection meta data.'),
-                            'type'        => 'array',
-                            'required'    => false,
-                            'default'     => [],
-                        ],
-                    ]
-                ],
-                [
-                    'methods'             => WP_REST_Server::DELETABLE,
-                    'callback'            => [ $this, 'deleteConnectionMeta' ],
-                    'permission_callback' => [ $this, 'checkPermissions' ],
-                    'args' => [
-                        'connectionID' => [
-                            'description' => __('Connection ID of the meta to be removed.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                    ]
-                ],
-            ]
-        );
-
-        if (in_array(false, $result, true)) {
-            throw new ClientRegisterFail('An error has occurred during REST API Routes registering.');
-        }
+        RestRouteRegistry::instance()->rebind($this);
     }
 }

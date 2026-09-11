@@ -4,8 +4,52 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d06d83f10a0b60d4dd8faf33f3482ae4",
+    "content-hash": "e87bea545c4c86d6dcf9c7e99049b4d1",
     "packages": [
+        {
+            "name": "hokoo/wp-hooks-dispatcher",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/hokoo/wp-hooks-dispatcher.git",
+                "reference": "7f449c41bd73fb40ce80ad790daeaa71fd253e36"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/hokoo/wp-hooks-dispatcher/zipball/7f449c41bd73fb40ce80ad790daeaa71fd253e36",
+                "reference": "7f449c41bd73fb40ce80ad790daeaa71fd253e36",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^10.5",
+                "squizlabs/php_codesniffer": "^3.13"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "iTRON\\wpHooksDispatcher\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Context-aware WordPress action subscriptions",
+            "homepage": "https://github.com/hokoo/wp-hooks-dispatcher",
+            "keywords": [
+                "hooks",
+                "multisite",
+                "wordpress"
+            ],
+            "support": {
+                "issues": "https://github.com/hokoo/wp-hooks-dispatcher/issues",
+                "source": "https://github.com/hokoo/wp-hooks-dispatcher"
+            },
+            "time": "2026-09-11T22:10:59+00:00"
+        },
         {
             "name": "psr/log",
             "version": "3.0.2",

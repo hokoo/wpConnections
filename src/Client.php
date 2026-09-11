@@ -7,7 +7,10 @@ use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use iTRON\wpConnections\Exceptions\RelationWrongData;
 use iTRON\wpConnections\Exceptions\MissingParameters;
+use iTRON\wpConnections\Internal\RestRouteRegistration;
+use iTRON\wpConnections\Internal\RestRouteRegistry;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 class Client
 {
@@ -21,6 +24,7 @@ class Client
     private RelationCollection $relations;
     private LoggerInterface $logger;
     private ConnectionEntityValidator $entityValidator;
+    private RestRouteRegistration $restRegistration;
 
     /**
      * WP user capability id that is required for performing actions with client.
@@ -231,18 +235,23 @@ class Client
         $this->capabilities = new Capabilities($clientDefaultCapabilities);
         $this->storage = Factory::getStorage($this);
         $this->logger = Factory::getLogger($this);
-        $restapi = Factory::getRestApi($this);
-        $restapi->init();
+        $restApi = Factory::getRestApi($this);
+        $this->restRegistration = RestRouteRegistry::instance()->activate($restApi);
 
-        $settings = new Settings();
-        $settings->setLogger($this->getLogger());
-        $settings->init();
+        try {
+            $settings = new Settings();
+            $settings->setLogger($this->getLogger());
+            $settings->init();
 
-        $this->relations = new RelationCollection();
+            $this->relations = new RelationCollection();
 
-        $this->enablePostDeletionCleanup();
+            $this->enablePostDeletionCleanup();
 
-        do_action('wpConnections/client/inited', $this);
-        do_action("wpConnections/client/{$this->getName()}/inited", $this);
+            do_action('wpConnections/client/inited', $this);
+            do_action("wpConnections/client/{$this->getName()}/inited", $this);
+        } catch (Throwable $exception) {
+            $this->restRegistration->revoke();
+            throw $exception;
+        }
     }
 }
