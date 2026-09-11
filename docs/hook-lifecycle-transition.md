@@ -1,6 +1,6 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; 1.x transition API in independent review
+Status: executable staged plan; 1.x transition API ready for protected merge
 
 Baseline: `master` merge `2371ed2f3ae01f3e2d589553cff3b79944e94981`
 (CORE-06R, PR #76).
@@ -204,8 +204,10 @@ after the minimal production change. Local verification on 2026-09-11 is:
 Independent QA independently repeated the focused, current, fixed-floor, true
 multisite, isolation, coverage-policy, newest-compatibility and PHPCS checks on
 head `632da3aae45dbc6091ba3e098eff915b2136beae`, and returned an unconditional
-PASS with no findings. Final-head protected checks and post-merge checks remain
-open; their absence is why the task is `review`, not `completed`.
+PASS with no findings. PR #77 then passed all 17 protected jobs on head
+`0d70f33a26ed18b307d7a855d6599b26079585f1`. Any later commit must repeat that
+matrix before merge. The task remains `review`, not `completed`, until the
+closure head and post-merge `master` have both passed the protected matrix.
 
 ## Rollback
 

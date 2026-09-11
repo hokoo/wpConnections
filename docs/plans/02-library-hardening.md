@@ -10,8 +10,10 @@ discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверж�
 владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 завершён:
 CORE-06R влит PR #76 как `2371ed2` и post-merge 17/17 jobs зелёные. Batch 7
 активен: утверждённый semantic 1.x hook lifecycle API реализован, локальная
-матрица зелёная и HOOK-TRANS-01 находится на independent review. Batch 8 заранее
-определён для manager selection и полного Client-owned-hook audit.
+матрица и independent QA зелёные, PR #77 получил 17/17 protected checks на
+implementation/QA head. HOOK-TRANS-01 находится на финальном delivery gate.
+Batch 8 заранее определён для manager selection и полного Client-owned-hook
+audit.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -4535,8 +4537,9 @@ Verification evidence (2026-09-11):
 - Independent QA независимо повторил focused `15/150`, current/fixed-floor
   unit `12/58` и integration `108/756`, true multisite `15/159`, isolation,
   coverage policies, newest compatibility и PHPCS на head `632da3a`; PASS без
-  замечаний. Final-head 17/17 protected checks и post-merge 17/17 checks
-  остаются обязательными до `completed`.
+  замечаний. PR #77 получил 17/17 protected checks на head `0d70f33`; любой
+  closure commit обязан повторить полный protected набор. Post-merge 17/17
+  checks остаются обязательными до `completed`.
 
 ### HOOK-00. Выбрать источник и package boundary hook manager
 
