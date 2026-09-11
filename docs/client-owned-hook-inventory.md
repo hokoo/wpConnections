@@ -216,7 +216,7 @@ release snapshot and keep the direct-`remove_action()` warning prominent.
 | `deleted_post` delivery | HOOK-03 | HOOK-01, LIFE-HOOK-01, DB-04, DG-DELETE-06 | 2.0 changes callback identity; semantic enable/disable remains the migration API |
 | REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, LIFE-HOOK-01, REST-01, DG-HOOK-REST-01 | Preserve v1 paths/methods; define late initialization and cross-context behavior before code |
 | Automatic debug routing | LOG-HOOK-01 | DG-HOOK-LOG-01 | Preserve public storage events and `logger` emission; duplicate/wrong-client library logging is not retained |
-| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-01, DG-HOOK-LIFE-01 | New 2.0 lifecycle surface; constructor failure must leave no owned callbacks |
+| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | New 2.0 lifecycle surface; constructor failure must leave no owned callbacks |
 | Direct callback migration documentation | HOOK-04 | All applicable integration tasks, REL-02/REL-03 | Red-flag direct `remove_action()` break and repeat known-consumer scan |
 | Public extension emissions | REL-02 | Existing SPI/release gates | No manager ownership; document/test names, arguments and timing |
 

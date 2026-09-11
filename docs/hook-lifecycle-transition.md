@@ -172,10 +172,10 @@ callback pattern.
 | 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | completed, PR #78 |
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | review |
 | Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, DG-HOOK-SCOPE-01, HOOK-00 | waiting decision |
-| Client lifetime | LIFE-HOOK-01 | Subscription retention, disposal and failed-init rollback | HOOK-01, DG-HOOK-LIFE-01 | waiting decision |
+| 2.0 logging | LOG-HOOK-01 | Origin-owned automatic debug logging | HOOK-02, DG-HOOK-LOG-01 | waiting decision |
+| Client lifetime | LIFE-HOOK-01 | Subscription retention, disposal and failed-init rollback | HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting decision |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, LIFE-HOOK-01, HOOK-02, DB-04 | waiting dependency |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, LIFE-HOOK-01, REST-01, DG-HOOK-REST-01 | waiting decision |
-| 2.0 logging | LOG-HOOK-01 | Origin-owned automatic debug logging | HOOK-02, DG-HOOK-LOG-01 | waiting decision |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and

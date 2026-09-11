@@ -4766,6 +4766,8 @@ Out of Scope:
 DoR:
 
 - HOOK-01 completed и предоставляет idempotent subscription handle.
+- LOG-HOOK-01 completed; lifecycle охватывает уже утверждённую logging topology,
+  а не создаёт временный manager adapter для callbacks, которые будут удалены.
 - HOOK-02 completed.
 - DG-HOOK-LIFE-01 утверждён.
 
@@ -4786,7 +4788,7 @@ AC:
 
 Dependencies:
 
-- HOOK-01, HOOK-02.
+- HOOK-01, HOOK-02, LOG-HOOK-01.
 - DG-HOOK-LIFE-01.
 
 Notes/Risks:
