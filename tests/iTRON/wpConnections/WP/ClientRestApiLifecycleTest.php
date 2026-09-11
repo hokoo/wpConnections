@@ -79,6 +79,7 @@ class RestHookRecordingRestApi extends ClientRestApi
 	public static array $trace = [];
 	public static int $legacy_registration_calls = 0;
 	public static bool $enforce_native_permissions = true;
+	public static $permission_interceptor = null;
 
 	public function __construct( Client $client )
 	{
@@ -96,6 +97,7 @@ class RestHookRecordingRestApi extends ClientRestApi
 		self::$trace = [];
 		self::$legacy_registration_calls = 0;
 		self::$enforce_native_permissions = true;
+		self::$permission_interceptor = null;
 	}
 
 	public function init()
@@ -118,6 +120,11 @@ class RestHookRecordingRestApi extends ClientRestApi
 		$callback = $request->get_attributes()['callback'] ?? null;
 		$handler = is_array( $callback ) && isset( $callback[1] ) ? $callback[1] : null;
 		$this->record( 'permission', $handler );
+		if ( is_callable( self::$permission_interceptor ) ) {
+			$interceptor = self::$permission_interceptor;
+			self::$permission_interceptor = null;
+			$interceptor( $this, $request );
+		}
 
 		if ( ! self::$enforce_native_permissions ) {
 			return true;
@@ -220,6 +227,27 @@ class RestHookMissingParentRestApi extends ClientRestApi
 	}
 }
 
+class RestHookInvalidNamespaceRestApi extends RestHookRecordingRestApi
+{
+	public function __construct( Client $client )
+	{
+		parent::__construct( $client );
+
+		$this->namespace = '///';
+	}
+}
+
+class RestHookSlashIdentityRestApi extends RestHookRecordingRestApi
+{
+	public function __construct( Client $client )
+	{
+		parent::__construct( $client );
+
+		$this->namespace = '/' . self::NAMESPACE . '/';
+		$this->base = '/' . self::BASE;
+	}
+}
+
 /**
  * REST-HOOK-01 context, route-registry and factory-delegate contract.
  */
@@ -228,6 +256,7 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 	private const TEST_CAPABILITY = 'manage_wp_connections_rest_hook_test';
 	private const DUPLICATE_MESSAGE = 'A REST API client is already registered for this WordPress site context.';
 	private const MISSING_PARENT_MESSAGE = 'A custom REST API must call parent::init() to activate managed routes.';
+	private const REGISTRATION_MESSAGE = 'An error has occurred during REST API Routes registering.';
 
 	private array $clients = [];
 	private array $factory_calls = [];
@@ -441,6 +470,54 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		$this->assert_exact_route_contract( $server, $delegate );
 	}
 
+	public function test_invalid_custom_namespace_fails_and_releases_identity_claim(): void
+	{
+		$server = rest_get_server();
+		$this->rest_api_class = RestHookInvalidNamespaceRestApi::class;
+
+		$exception = $this->capture_client_registration_failure(
+			static function (): void {
+				new Client( 'invalid-namespace-owner' );
+			}
+		);
+		self::assertSame( 4, $exception->getCode() );
+		self::assertSame( self::REGISTRATION_MESSAGE, $exception->getMessage() );
+
+		$failed_delegate = RestHookRecordingRestApi::$instances[0];
+		$this->clients[] = $failed_delegate->getClient();
+		self::assertArrayNotHasKey(
+			'/invalid-namespace-owner',
+			$server->get_routes()
+		);
+
+		$this->rest_api_class = RestHookRecordingRestApi::class;
+		$replacement = $this->new_client( 'invalid-namespace-owner' );
+		$this->assert_exact_route_contract(
+			$server,
+			$this->delegate_for_client( $replacement )
+		);
+	}
+
+	public function test_custom_namespace_and_leading_slashes_follow_wordpress_route_normalization(): void
+	{
+		$this->rest_api_class = RestHookSlashIdentityRestApi::class;
+		$client = $this->new_client( 'slash-normalized-owner' );
+		$delegate = $this->delegate_for_client( $client );
+		$server = rest_get_server();
+		$normalized_route = '/' . RestHookRecordingRestApi::NAMESPACE . '/' .
+			RestHookRecordingRestApi::BASE . '/' . $client->getName();
+
+		self::assertArrayHasKey( $normalized_route, $server->get_routes() );
+		self::assertArrayNotHasKey( '//' . RestHookRecordingRestApi::NAMESPACE, $server->get_routes() );
+		$this->authenticate_for_managed_routes();
+		$response = $this->dispatch_case(
+			$server,
+			[ 'method' => 'GET', 'route' => $normalized_route, 'payload' => [] ]
+		);
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( spl_object_id( $delegate ), $response->get_data()['delegate_object_id'] );
+	}
+
 	public function test_failure_after_rest_activation_revokes_mapping_and_identity_claim(): void
 	{
 		$server = rest_get_server();
@@ -476,6 +553,49 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		$replacement_delegate = $this->delegate_for_client( $replacement );
 		self::assertNotSame( $failed_delegate, $replacement_delegate );
 		$this->authenticate_for_managed_routes();
+		$this->assert_dispatches_to_delegate(
+			$server,
+			$replacement_delegate,
+			$this->request_matrix( $replacement_delegate )[0]
+		);
+	}
+
+	public function test_handler_revalidates_owner_after_permission_stage_replacement(): void
+	{
+		$first_client = $this->new_client( 'permission-stage-owner' );
+		$first_delegate = $this->delegate_for_client( $first_client );
+		$server = rest_get_server();
+		$replacement_client = null;
+
+		$this->authenticate_for_managed_routes();
+		RestHookRecordingRestApi::$permission_interceptor = function () use (
+			$first_delegate,
+			&$replacement_client
+		): void {
+			$first_delegate->deactivate();
+			$replacement_client = $this->new_client( 'permission-stage-owner' );
+		};
+
+		$response = $this->dispatch_case(
+			$server,
+			$this->request_matrix( $first_delegate )[0]
+		);
+		$this->assert_native_rest_error( 'rest_no_route', 404, $response );
+		self::assertSame(
+			[
+				[
+					'blog_id' => get_current_blog_id(),
+					'prefix' => $GLOBALS['wpdb']->prefix,
+					'delegate_object_id' => spl_object_id( $first_delegate ),
+					'stage' => 'permission',
+					'handler' => 'getTheClient',
+				],
+			],
+			RestHookRecordingRestApi::$trace
+		);
+
+		self::assertInstanceOf( Client::class, $replacement_client );
+		$replacement_delegate = $this->delegate_for_client( $replacement_client );
 		$this->assert_dispatches_to_delegate(
 			$server,
 			$replacement_delegate,
@@ -648,6 +768,13 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 				self::assertTrue( is_callable( $handler['permission_callback'] ?? null ) );
 				$this->assert_context_neutral_callback( $handler['callback'] );
 				$this->assert_context_neutral_callback( $handler['permission_callback'] );
+				$handler_name = $handler['callback'][1] ?? null;
+				self::assertIsString( $handler_name );
+				self::assertSame(
+					$this->expected_handler_argument_names()[ $handler_name ] ?? null,
+					array_keys( $handler['args'] ?? [] ),
+					'Unexpected argument schema for ' . $handler_name
+				);
 
 				foreach ( array_keys( array_filter( $handler['methods'] ?? [] ) ) as $method ) {
 					$actual_methods[] = $method;
@@ -660,6 +787,20 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		}
 
 		self::assertSame( 12, $combination_count );
+	}
+
+	private function expected_handler_argument_names(): array
+	{
+		return [
+			'getTheClient' => [],
+			'getRelation' => [ 'relation' ],
+			'createConnection' => [ 'from', 'to', 'order', 'meta' ],
+			'getConnection' => [ 'relation', 'connectionID' ],
+			'updateConnection' => [ 'relation', 'connectionID', 'from', 'to', 'order' ],
+			'deleteConnection' => [ 'relation', 'connectionID' ],
+			'updateConnectionMeta' => [ 'relation', 'connectionID', 'meta' ],
+			'deleteConnectionMeta' => [ 'relation', 'connectionID' ],
+		];
 	}
 
 	private function assert_context_neutral_callback( $callback ): void

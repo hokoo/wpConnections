@@ -1,6 +1,7 @@
 # Client-owned WordPress hook inventory
 
-Status: completed audit; all recorded gates approved; no runtime behavior changed
+Status: completed frozen audit; all recorded gates approved; downstream
+implementation updates recorded separately below
 
 Repository baseline: `cf8caa6aa4cd61afc592161092492914f12eb25d`
 (HOOK-00, PR #78).
@@ -37,6 +38,32 @@ It also resolves the deferred manager feature-scope question. wpConnections
 owns action subscriptions only, so approved DG-HOOK-SCOPE-01/A selects an
 action-only first stable manager release. Filter subscription semantics can be
 added later without expanding the first integration batch.
+
+## REST-HOOK-01 implementation update
+
+The construction graph, registration matrix and runtime probes below preserve
+the frozen HOOK-02 baseline that exposed the original REST defect. REST-HOOK-01
+subsequently makes `Client` retain a revocable internal REST mapping while one
+`wp-hooks-dispatcher` subscription per live site context owns
+`rest_api_init`. The route server retains context-neutral boundary callbacks,
+not concrete `ClientRestApi` delegates; permission and handler stages resolve
+the exact current `(blog ID, database prefix, canonical client name)` owner and
+validate an ABA-safe mapping token.
+
+The managed registrar preserves the four patterns, twelve method/callback
+combinations and WordPress's common route-argument inheritance. It also
+preserves WordPress namespace/path normalization and the existing stable route
+registration failure for an empty custom namespace. A valid route with no live
+current-context owner returns native `rest_no_route`/404, while native argument
+validation can return 400 first for malformed input under DG-HOOK-REST-05/A;
+neither path reaches stale Client code.
+
+The custom factory still selects the delegate and its `$namespace`, `$base`,
+permission and handler overrides. A custom `init()` must call `parent::init()`;
+an overridden `registerRestRoutes()` is no longer invoked automatically for the
+four library-owned routes. Arbitrary extra registrations remain implementer
+owned. The implementation is in review; this update does not declare
+REST-HOOK-01 complete before independent QA and protected checks.
 
 ## LOG-HOOK-01 implementation update
 

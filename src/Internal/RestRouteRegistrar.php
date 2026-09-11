@@ -25,7 +25,7 @@ final class RestRouteRegistrar
         $server->register_route(
             $namespace,
             $clientRoute,
-            [
+            self::normalizeRouteArguments([
                 'args' => [],
                 [
                     'methods'             => WP_REST_Server::READABLE,
@@ -33,14 +33,14 @@ final class RestRouteRegistrar
                     'callback'            => [ $boundary, 'getTheClient' ],
                     'permission_callback' => [ $boundary, 'checkPermissions' ],
                 ],
-            ],
+            ]),
             true
         );
 
         $server->register_route(
             $namespace,
             $relationRoute,
-            [
+            self::normalizeRouteArguments([
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [ $boundary, 'getRelation' ],
@@ -82,14 +82,14 @@ final class RestRouteRegistrar
                         ],
                     ],
                 ],
-            ],
+            ]),
             true
         );
 
         $server->register_route(
             $namespace,
             $connectionRoute,
-            [
+            self::normalizeRouteArguments([
                 'args' => [
                     'relation' => [
                         'description' => __('Unique name for the relation.'),
@@ -148,14 +148,14 @@ final class RestRouteRegistrar
                         ],
                     ],
                 ],
-            ],
+            ]),
             true
         );
 
         $server->register_route(
             $namespace,
             $metaRoute,
-            [
+            self::normalizeRouteArguments([
                 'args' => [
                     'relation' => [
                         'description' => __('Unique name for the relation.'),
@@ -193,8 +193,43 @@ final class RestRouteRegistrar
                         ],
                     ],
                 ],
-            ],
+            ]),
             true
         );
+    }
+
+    /**
+     * Preserves register_rest_route() common-argument inheritance while
+     * binding routes to an explicit REST server instance.
+     */
+    private static function normalizeRouteArguments(array $routeArguments): array
+    {
+        $commonArguments = $routeArguments['args'] ?? [];
+        unset($routeArguments['args']);
+
+        if (isset($routeArguments['callback'])) {
+            $routeArguments = [ $routeArguments ];
+        }
+
+        $defaults = [
+            'methods'  => 'GET',
+            'callback' => null,
+            'args'     => [],
+        ];
+
+        foreach ($routeArguments as $key => $argumentGroup) {
+            if (! is_numeric($key)) {
+                continue;
+            }
+
+            $argumentGroup = array_merge($defaults, $argumentGroup);
+            $argumentGroup['args'] = array_merge(
+                $commonArguments,
+                $argumentGroup['args']
+            );
+            $routeArguments[ $key ] = $argumentGroup;
+        }
+
+        return $routeArguments;
     }
 }

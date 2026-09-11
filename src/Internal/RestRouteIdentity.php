@@ -3,6 +3,7 @@
 namespace iTRON\wpConnections\Internal;
 
 use iTRON\wpConnections\ClientRestApi;
+use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 
 /**
  * Immutable identity of the four built-in routes owned by one REST delegate.
@@ -17,9 +18,15 @@ final class RestRouteIdentity
 
     public function __construct(string $namespace, string $base, string $clientName)
     {
-        $this->namespace = $namespace;
+        $this->namespace = trim($namespace, '/');
         $this->base = $base;
         $this->clientName = $clientName;
+
+        if ('' === $this->namespace || '/' === $this->getClientRoute()) {
+            throw new ClientRegisterFail(
+                'An error has occurred during REST API Routes registering.'
+            );
+        }
     }
 
     public static function fromDelegate(ClientRestApi $delegate): self
@@ -48,7 +55,7 @@ final class RestRouteIdentity
 
     public function getClientRoute(): string
     {
-        return '/' . $this->base . '/' . $this->clientName;
+        return '/' . trim('/' . $this->base . '/' . $this->clientName, '/');
     }
 
     public function getRelationRoute(): string
@@ -68,7 +75,7 @@ final class RestRouteIdentity
 
     public function getKey(): string
     {
-        return $this->namespace . "\0" . $this->base . "\0" . $this->clientName;
+        return $this->namespace . "\0" . $this->getClientRoute();
     }
 
     public function equals(self $other): bool
