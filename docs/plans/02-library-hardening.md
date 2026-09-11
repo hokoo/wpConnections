@@ -4749,6 +4749,11 @@ Notes/Risks:
   `WP_DEBUG=false/true`. Диагностические файлы после запуска удалены.
 - GitHub search не нашёл consumer-owned direct removal в трёх известных public
   consumers; absence не исключает private usage и не снимает HOOK-04 red flag.
+- Independent QA вернула unconditional PASS на content head `06b07a7`: source
+  inventory/probes, decision packets, custom collaborator boundaries,
+  non-cyclic hand-offs, status vocabulary и links/anchors проверены независимо.
+  Delivery-owner verification: unit `12/58`, integration `108/756`, PHPCS
+  `45/45`; final protected checks остаются условием closure.
 
 ### LIFE-HOOK-01. Ввести полный lifecycle Client-owned subscriptions
 

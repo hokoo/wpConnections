@@ -517,3 +517,19 @@ HOOK-02 is complete when this artifact and the executable-plan hand-off pass
 independent traceability review and all protected repository checks. Completing
 the audit does not approve any gate and does not authorize a dependency,
 external repository or runtime behavior change.
+
+## Independent QA evidence
+
+Independent QA returned an unconditional PASS on content head
+`06b07a73225ccecce9225bda2bfca99ee6cfb12d`. It independently verified the
+source inventory, construction graph, runtime-probe interpretation, consumer
+search lower bound, all decision alternatives and compatibility boundaries,
+the non-cyclic task DAG, status vocabulary and local links/anchors. Review
+findings were resolved before that verdict: REST outcomes and custom
+collaborator boundaries were made explicit, lifecycle integration was ordered
+after revocable deletion/REST hand-offs, HOOK-04 gained its missing lifecycle
+dependency, and every task status now uses the plan's canonical vocabulary.
+
+Delivery-owner verification of that candidate passed unit `12 / 58`,
+integration `108 / 756`, PHPCS `45 / 45`, and `git diff --check`. HOOK-02 stays
+in `review` until the final PR head and post-merge protected checks close.
