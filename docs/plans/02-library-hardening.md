@@ -9,9 +9,9 @@ issue #31 закрыт; DB-00, REST-00A, DB-03A и CORE-05 завершили de
 discovery. DP-1—DP-3 и refinement gates DG-UPDATE-02R/DG-ENT-06 утверждены
 владельцем 2026-09-11; DG-UPDATE-04/A из DP-4 также утверждён. Batch 6 завершён:
 CORE-06R влит PR #76 как `2371ed2`. Batch 7 завершён: HOOK-TRANS-01 влит PR
-#77 как `5c2fc26`, final head и post-merge `master` прошли по 17/17 jobs. Batch
-8 активен: HOOK-00 manager selection packet находится в review, HOOK-02
-поставляется отдельной веткой.
+#77 как `5c2fc26`, final head и post-merge `master` прошли по 17/17 jobs.
+HOOK-00 завершён PR #78 как `cf8caa6`, также с 17/17 final-head и post-merge
+jobs. Batch 8 активен: HOOK-02 owned-hook audit находится в review.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -686,9 +686,14 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-NAME-06`](../client-naming-contract.md#dg-name-06) | approved A | repository owner | 2026-09-11 | Default storage binds to construction-site prefix |
 | [`DG-NAME-06R`](../client-naming-contract.md#dg-name-06r) | approved staged A-to-D | repository owner | 2026-09-11 | Preserve direct callback identity in 1.x; context-aware manager at the 2.0 boundary |
 | [`DG-HOOK-01`](../hook-lifecycle-transition.md#dg-hook-01) | decision-ready; B recommended, approval pending | repository owner | — | [HOOK-00 evidence](../hook-manager-selection.md) found no fully conforming package; HOOK-01 waits and no dependency is installed |
+| [`DG-HOOK-SCOPE-01`](../client-owned-hook-inventory.md#dg-hook-scope-01) | decision-ready; A recommended, approval pending | repository owner | — | First stable manager scope; HOOK-01 waits |
+| [`DG-HOOK-REST-01`](../client-owned-hook-inventory.md#dg-hook-rest-01) | decision-ready; B recommended, approval pending | repository owner | — | REST-HOOK-01 waits; a hook guard alone does not own stale REST routes |
+| [`DG-HOOK-LOG-01`](../client-owned-hook-inventory.md#dg-hook-log-01) | decision-ready; B recommended, approval pending | repository owner | — | LOG-HOOK-01 waits; current Settings callbacks fan out across clients |
+| [`DG-HOOK-LIFE-01`](../client-owned-hook-inventory.md#dg-hook-life-01) | decision-ready; A recommended, approval pending | repository owner | — | LIFE-HOOK-01 waits; hook callbacks retain clients and failed constructors leak registrations |
 
 Для DG-ENT-01—DG-ENT-06, DG-RESTERR-01—DG-RESTERR-04,
-DG-DELETE-01—DG-DELETE-06, DG-NAME-01—DG-NAME-06R и DG-HOOK-01 связанные contracts являются
+DG-DELETE-01—DG-DELETE-06, DG-NAME-01—DG-NAME-06R и DG-HOOK-01,
+DG-HOOK-SCOPE-01, DG-HOOK-REST-01, DG-HOOK-LOG-01, DG-HOOK-LIFE-01 связанные contracts являются
 canonical decision bodies (problem, alternatives, recommendation и compatibility
 impact). Этот registry — canonical запись решения/status, владельца и даты.
 Implementation использует оба источника; рекомендация в contract сама по себе
@@ -1188,13 +1193,12 @@ Entry criteria:
 
 Tasks:
 
-- HOOK-00 — `review`; отдельный build-versus-buy artifact и decision packet
-  DG-HOOK-01. Независимая проверка сначала выявила пропущенный релевантный
-  кандидат `tombroucke/wp-fluent-hooks`; после добавления его в полную матрицу
-  повторная проверка commit `010c5de` завершилась unconditional PASS без
-  замечаний. Открыты только protected CI и post-merge verification.
-- HOOK-02 — `todo`; отдельный полный hook inventory/context/migration artifact
-  в следующей ветке.
+- HOOK-00 — `completed`; отдельный build-versus-buy artifact и decision packet
+  DG-HOOK-01. После исправления QA-находки final head `345e36d` PR #78 и merge
+  `cf8caa6` прошли по 17/17 jobs.
+- HOOK-02 — `review`; отдельный полный hook inventory/context/migration artifact
+  и decision packets DG-HOOK-SCOPE-01, DG-HOOK-REST-01, DG-HOOK-LOG-01,
+  DG-HOOK-LIFE-01.
 
 Execution model:
 
@@ -1203,12 +1207,16 @@ Execution model:
   решения DG-HOOK-01.
 - HOOK-02 не объявляет каждый WordPress hook site-sensitive: для каждого hook
   требуется evidence и отдельное migration action.
+- HOOK-02 не меняет runtime и не фиксирует сегодняшние duplicate/leak outcomes
+  как желаемые regression contracts; они подтверждены временным probe.
 
 Exit criteria:
 
 - DG-HOOK-01 имеет current primary-source evidence, recommendation и rollback.
 - Для каждого Client-owned hook известны owner, callback identity, priority,
   accepted args, context sensitivity, unregister path и 2.0 action.
+- REST, logging и Client lifetime имеют отдельные decision gates и исполняемые
+  задачи; они не скрыты внутри общего HOOK-03.
 - HOOK-01 становится `todo` только после решения DG-HOOK-01; отсутствие решения
   является явным human blocker, а не скрытым implementation default.
 
@@ -4545,7 +4553,7 @@ Verification evidence (2026-09-11):
 
 ### HOOK-00. Выбрать источник и package boundary hook manager
 
-Status: review
+Status: completed
 
 Priority: P1
 
@@ -4602,6 +4610,9 @@ Notes/Risks:
   qualifying target. QA-discovered `tombroucke/wp-fluent-hooks` отдельно
   проверен: dispatch predicate есть, но license/subscription/registry boundary
   не проходят. Recommendation — DG-HOOK-01/B, decision остаётся pending.
+- Independent QA после remediation завершилась unconditional PASS на `010c5de`.
+  Final head `345e36d` PR #78 и merge `cf8caa6` прошли все 17 protected и
+  post-merge jobs. Завершение research не утверждает DG-HOOK-01.
 
 ### HOOK-01. Поставить выбранный context-aware manager
 
@@ -4618,6 +4629,8 @@ Scope:
   internal implementation только для явно утверждённого option C.
 - Subscription, context predicate, exact priority/accepted args/order и
   idempotent unsubscribe contract tests.
+- Action/filter feature boundary строго следует DG-HOOK-SCOPE-01; future filter
+  support остаётся additive при рекомендованном action-only первом release.
 - Active callback exception propagation и inactive callback non-delivery.
 - PHP 8.1+ compatibility, package CI, versioning и minimal usage docs.
 
@@ -4631,6 +4644,7 @@ DoR:
 
 - HOOK-00 completed.
 - DG-HOOK-01 явно утверждён владельцем.
+- DG-HOOK-SCOPE-01 явно утверждён владельцем.
 - Package ownership/release location доступен для выбранного варианта.
 
 DoD:
@@ -4651,7 +4665,7 @@ AC:
 Dependencies:
 
 - HOOK-00.
-- DG-HOOK-01.
+- DG-HOOK-01, DG-HOOK-SCOPE-01.
 
 Notes/Risks:
 
@@ -4660,7 +4674,7 @@ Notes/Risks:
 
 ### HOOK-02. Проаудировать все Client-owned hook registrations
 
-Status: todo
+Status: review
 
 Priority: P1
 
@@ -4711,6 +4725,191 @@ Notes/Risks:
 
 - Indirect registrations внутри constructors могут не находиться одним
   `add_action` search; audit обязан пройти factory graph и runtime probe.
+- Evidence и migration map находятся в
+  [`docs/client-owned-hook-inventory.md`](../client-owned-hook-inventory.md).
+  Найдены 5 registrations при `WP_DEBUG`: `deleted_post`, `rest_api_init` и
+  три `Settings` callbacks; library-owned filters отсутствуют.
+- Одноразовые PHP 8.1 / WordPress 6.7.7 probes подтвердили: два Client дают по
+  две регистрации каждого вида; один query event попадает в оба logger;
+  late-created Client не получает route до повторного `rest_api_init`; failed
+  constructor оставляет по callback каждого вида. True multisite подтвердил
+  delivery обоим same-name Clients и смешение callbacks обоих sites в одном
+  REST route. Диагностические файлы после запуска удалены.
+- GitHub search не нашёл consumer-owned direct removal в трёх известных public
+  consumers; absence не исключает private usage и не снимает HOOK-04 red flag.
+
+### LIFE-HOOK-01. Ввести полный lifecycle Client-owned subscriptions
+
+Status: waiting_decision
+
+Priority: P0 для 2.0
+
+Goal: сделать удержание, teardown и rollback всех принадлежащих Client
+регистраций явными и детерминированными.
+
+Scope:
+
+- Коллекция subscription handles, принадлежащая одному Client.
+- Идемпотентный terminal dispose contract согласно DG-HOOK-LIFE-01.
+- Reverse-order unsubscribe уже созданных subscriptions при любой ошибке
+  инициализации.
+- Согласованное поведение semantic cleanup API после dispose.
+- Tests для strong-reference release, repeated disposal и partial construction.
+
+Out of Scope:
+
+- Автоматическое создание/удаление Client при `switch_to_blog()`.
+- Garbage-collector/destructor как единственная lifecycle guarantee.
+- Изменение persistence data.
+
+DoR:
+
+- HOOK-01 completed и предоставляет idempotent subscription handle.
+- HOOK-02 completed.
+- DG-HOOK-LIFE-01 утверждён.
+
+DoD:
+
+- Ни один owned callback не остаётся после failed initialization или dispose.
+- Dispose безопасен при повторе и terminal-state behavior покрыт тестом.
+- Client каждого site остаётся явной ответственностью consumer.
+
+AC:
+
+- Given исключение после части initialization, when constructor завершается
+  ошибкой, then registry совпадает с pre-construction snapshot.
+- Given активный Client, when dispose вызывается дважды, then все owned
+  subscriptions отсутствуют и вторая операция harmless.
+- Given disposed Client, when API пытается повторно активировать subscription,
+  then возникает утверждённая deterministic lifecycle error.
+
+Dependencies:
+
+- HOOK-01, HOOK-02.
+- DG-HOOK-LIFE-01.
+
+Notes/Risks:
+
+- Hook registry удерживает callback objects, поэтому destructor не гарантирует
+  достижимость cleanup.
+- Публичное имя/error type terminal lifecycle фиксируются в реализации строго
+  по принятому gate и release contract.
+
+### REST-HOOK-01. Защитить hook и route lifecycle REST API
+
+Status: waiting_decision
+
+Priority: P0 для 2.0
+
+Goal: исключить registration и dispatch REST handler другого site context,
+включая reused server и Client, созданный после `rest_api_init`.
+
+Scope:
+
+- Manager-owned `rest_api_init` subscription.
+- Current-context activation/rebinding четырёх custom route patterns.
+- Context check на границе route handler до Client/storage code.
+- Утверждённое late-initialization поведение.
+- Same-name multisite, repeated activation и reused-server regressions.
+
+Out of Scope:
+
+- Изменение v1 route URLs, method set или response shape.
+- Автоматическая регистрация Client для site, которую consumer не выполнил.
+- Общая замена WordPress REST server.
+
+DoR:
+
+- HOOK-01, HOOK-02 и LIFE-HOOK-01 completed.
+- REST-01 harness completed.
+- DG-HOOK-REST-01 утверждён.
+
+DoD:
+
+- Route текущего site никогда не вызывает Client, созданный под другим blog ID
+  или prefix.
+- Late и repeated initialization следуют одному документированному contract.
+- Все четыре route patterns и двенадцать method/callback combinations сохранены.
+
+AC:
+
+- Given same-name Clients sites A/B и reused REST server, when request идёт в
+  context B, then только B handler достигает Client code.
+- Given Client создан после первого `rest_api_init`, then его текущий-site route
+  доступен или операция даёт ровно утверждённый deterministic outcome.
+- Given context mismatch, then storage callback не вызывается и stale handler
+  не маскируется случайным WordPress handler order.
+
+Dependencies:
+
+- HOOK-01, HOOK-02, LIFE-HOOK-01, REST-01.
+- DG-HOOK-REST-01.
+
+Notes/Risks:
+
+- Один manager wrapper не удаляет callbacks из уже заполненного
+  `WP_REST_Server`; требуется отдельная route-boundary реализация.
+- REST error representation при mismatch должна использовать утверждённый
+  REST error contract, если выбранный вариант возвращает response.
+
+### LOG-HOOK-01. Устранить cross-client automatic debug fanout
+
+Status: waiting_decision
+
+Priority: P1 для 2.0
+
+Goal: один storage operation создаёт одну debug запись через logger своего
+Client без изменения public storage hooks.
+
+Scope:
+
+- Удаление/замена трёх library-owned `Settings` subscriptions согласно
+  DG-HOOK-LOG-01.
+- Origin-aware logging для find query, meta removal и specific deletion.
+- Сохранение public hook names/arguments и `Logger::log()` compatibility action.
+- Same-site multi-client, multisite, `WP_DEBUG` on/off и custom logger tests.
+
+Out of Scope:
+
+- Управление consumer-owned listeners на public storage hooks.
+- Изменение PSR logger interface или public hook payloads.
+- Перенос logging callbacks в manager при выборе рекомендованного B.
+
+DoR:
+
+- HOOK-02 completed.
+- DG-HOOK-LOG-01 утверждён.
+- Применимые SPI hook compatibility решения доступны для touched operations.
+
+DoD:
+
+- Каждый instrumented operation создаёт ровно одну запись через origin Client
+  logger при включённом debug и ни одной при выключенном.
+- Другой Client/site logger не вызывается.
+- Public extension callbacks продолжают получать прежние hook arguments.
+
+AC:
+
+- Given два Client одного site, when storage A выполняет find query, then logger
+  A вызывается один раз, logger B — ни разу.
+- Given Client A/B разных sites, when operation выполняется на B, then logger A
+  не вызывается.
+- Given consumer listener на прежнем storage hook, then он получает неизменные
+  name, priority-independent dispatch timing и arguments.
+
+Dependencies:
+
+- HOOK-02.
+- DG-HOOK-LOG-01.
+- DG-SPI-06 для окончательного commit-aware timing, если task касается
+  post-commit mutation events.
+
+Notes/Risks:
+
+- `findConnections/dbQuery` не содержит Client argument; routing через прежний
+  global event без payload break невозможен.
+- Изменение duplicate log count является намеренным 2.0 correction и должно
+  войти в migration notes.
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
@@ -4724,7 +4923,6 @@ site-context boundary, начиная с `deleted_post`.
 Scope:
 
 - Manager-backed `deleted_post` registration.
-- Остальные registrations только по approved HOOK-02 migration map.
 - Active/inactive/restored multisite, same-name clients, ordering, args,
   unsubscribe и failure conformance.
 - Удаление 1.x `current_filter()` bridge только после equivalent manager tests.
@@ -4738,6 +4936,7 @@ Out of Scope:
 DoR:
 
 - HOOK-01 и HOOK-02 completed.
+- LIFE-HOOK-01 completed.
 - DB-04 completed для полного cascade contract.
 - Применимые delete/failure gates утверждены.
 - 2.0 release branch/version boundary открыт.
@@ -4761,7 +4960,7 @@ AC:
 
 Dependencies:
 
-- HOOK-01, HOOK-02, DB-04.
+- HOOK-01, HOOK-02, LIFE-HOOK-01, DB-04.
 - DG-HOOK-01.
 - DG-DELETE-06.
 
@@ -4785,6 +4984,7 @@ Scope:
 - Known-consumer repository search и migration checklist.
 - Before/after examples через semantic Client lifecycle API.
 - Clean 1.x-to-2.0 consumer fixture и rollback rehearsal.
+- REST/logging/lifecycle migration notes, где применимо.
 - REL-02/REL-03 compatibility evidence update.
 
 Out of Scope:
@@ -4794,7 +4994,7 @@ Out of Scope:
 
 DoR:
 
-- HOOK-03 completed.
+- HOOK-03, REST-HOOK-01, LOG-HOOK-01 и LIFE-HOOK-01 completed.
 - REL-02 hook/factory compatibility evidence доступен.
 - REL-03 release process активен.
 
@@ -4814,7 +5014,7 @@ AC:
 
 Dependencies:
 
-- HOOK-03, REL-02, REL-03.
+- HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03.
 
 Notes/Risks:
 
@@ -4849,6 +5049,9 @@ Notes/Risks:
 | `type` has no behavior | DG-M2, CORE-01, DOC-01 |
 | Direct storage mutation bypasses domain invariants | DG-M9, CORE-04, DB-05, REL-02 |
 | Process-global `deleted_post` callback after multisite switch | CORE-06R, HOOK-TRANS-01, HOOK-00—HOOK-04 |
+| Process-global REST hook plus reused route registry | HOOK-02, REST-HOOK-01, DG-HOOK-REST-01 |
+| `Settings` debug callbacks fan out to every Client logger | HOOK-02, LOG-HOOK-01, DG-HOOK-LOG-01 |
+| Failed Client construction leaves owned callbacks registered | HOOK-02, LIFE-HOOK-01, DG-HOOK-LIFE-01 |
 | Open issue #20 related entities | API-01, API-03, API-04, DOC-01 |
 | Missing route-level REST tests | REST-01—REST-05 |
 | Missing coverage/quality policy in CI | INFRA-04, TEST-03A, TEST-03B, TEST-03C |

@@ -15,8 +15,9 @@
    TEST-02F/CORE-07 завершены, CORE-04 влит PR #75 как `7ec7643`, CORE-06R
    влит PR #76 как `2371ed2`; post-merge 17/17 jobs зелёные.
 4. Batch 7 завершён: HOOK-TRANS-01 влит PR #77 как `5c2fc26`, final head и
-   post-merge `master` прошли по 17/17 jobs. Batch 8 активен: HOOK-00 manager
-   selection packet находится в review, HOOK-02 поставляется отдельной веткой.
+   post-merge `master` прошли по 17/17 jobs. HOOK-00 влит PR #78 как
+   `cf8caa6`, final head и post-merge также прошли 17/17. Batch 8 активен:
+   HOOK-02 owned-hook audit находится в review.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -61,7 +62,15 @@ map находятся в
   protected/post-merge jobs; HOOK-TRANS-01 завершён.
 - HOOK-00 decision packet не нашёл полностью conforming dependency и рекомендует
   отдельный project-owned package (DG-HOOK-01/B). Gate остаётся pending и
-  никакая dependency не установлена.
+  никакая dependency не установлена. Independent QA после remediation дала
+  unconditional PASS; PR #78 и merge `cf8caa6` прошли по 17/17 jobs.
+- [HOOK-02 audit](../client-owned-hook-inventory.md) нашёл пять Client-owned
+  action registrations при `WP_DEBUG` и ни одного owned filter:
+  `deleted_post`, `rest_api_init` и три debug callbacks. Runtime probes
+  подтвердили cross-site delivery, REST route mixing, late-init gap,
+  cross-client logging и leaked callbacks после failed construction.
+  Подготовлены pending gates DG-HOOK-SCOPE-01/A, DG-HOOK-REST-01/B,
+  DG-HOOK-LOG-01/B и DG-HOOK-LIFE-01/A; рекомендации не считаются решениями.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
 - Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных

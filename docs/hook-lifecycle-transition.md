@@ -1,9 +1,10 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; 1.x transition delivered, manager selection in review
+Status: executable staged plan; 1.x transition and manager research delivered,
+owned-hook audit in review
 
-Baseline: `master` merge `5c2fc26289a1ee2ae55d11967c15b2562093442c`
-(HOOK-TRANS-01, PR #77).
+Baseline: `master` merge `cf8caa6aa4cd61afc592161092492914f12eb25d`
+(HOOK-00, PR #78).
 
 Decision date: 2026-09-11.
 
@@ -75,9 +76,11 @@ merges:
   analysis are in the
   [manager selection packet](hook-manager-selection.md).
 - HOOK-02 inventories every hook registration owned by `Client`, its REST API,
-  settings and logger collaborators. It records registration context,
-  unregisterability, site sensitivity and 2.0 migration action. It does not
-  assume all hooks need the manager.
+  settings and logger collaborators. Its
+  [audit artifact](client-owned-hook-inventory.md) finds five action
+  subscriptions under `WP_DEBUG`, separates deletion, REST, logging and Client
+  lifetime work, and prepares four decision gates. It does not assume all hooks
+  need the manager.
 
 These tasks may be researched in parallel but produce separate reviewable
 artifacts. No dependency is selected or installed before DG-HOOK-01 is approved.
@@ -131,6 +134,17 @@ The selected manager or adapter must provide:
 The first integration target is `deleted_post`. Other hooks move only when the
 HOOK-02 audit demonstrates a site-context problem and defines compatibility.
 
+The audit found that wpConnections owns no filter subscriptions. Its
+[DG-HOOK-SCOPE-01](client-owned-hook-inventory.md#dg-hook-scope-01) recommends
+an action-only first stable manager release. REST registration has a second
+global route registry and waits for
+[DG-HOOK-REST-01](client-owned-hook-inventory.md#dg-hook-rest-01). Automatic
+debug logging should be routed separately after
+[DG-HOOK-LOG-01](client-owned-hook-inventory.md#dg-hook-log-01), and complete
+Client subscription lifetime waits for
+[DG-HOOK-LIFE-01](client-owned-hook-inventory.md#dg-hook-life-01). None of
+these recommendations is an approval.
+
 ## 2.0 breaking-change and upgrade boundary
 
 When HOOK-03 enables manager-backed delivery, this legacy operation is no
@@ -155,15 +169,18 @@ callback pattern.
 | --- | --- | --- | --- | --- |
 | 1.x safety | CORE-06R | Prefix-bound storage and compatible stale callback no-op | DG-NAME-06R | completed, PR #76 |
 | 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | completed, PR #77 |
-| 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | review |
-| 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | todo in separate branch |
-| Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, HOOK-00 | waiting decision |
-| 2.0 integration | HOOK-03 | Manager-backed context-safe registrations and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
-| 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REL-02, REL-03 | waiting dependency |
+| 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | completed, PR #78 |
+| 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | review |
+| Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, DG-HOOK-SCOPE-01, HOOK-00 | waiting decision |
+| Client lifetime | LIFE-HOOK-01 | Subscription retention, disposal and failed-init rollback | HOOK-01, DG-HOOK-LIFE-01 | waiting decision |
+| 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, LIFE-HOOK-01, HOOK-02, DB-04 | waiting dependency |
+| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, LIFE-HOOK-01, REST-01, DG-HOOK-REST-01 | waiting decision |
+| 2.0 logging | LOG-HOOK-01 | Origin-owned automatic debug logging | HOOK-02, DG-HOOK-LOG-01 | waiting decision |
+| 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
-protected-check run. The current branch contains only HOOK-00 discovery and the
-necessary prior-batch status closure; HOOK-02 remains a separate delivery.
+protected-check run. The current branch contains only HOOK-02 discovery and
+plan refinement; it installs no manager and changes no runtime registration.
 
 ## Verification matrix
 
