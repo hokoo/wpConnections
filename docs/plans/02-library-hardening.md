@@ -4627,7 +4627,7 @@ Notes/Risks:
 
 ### HOOK-01. Поставить выбранный context-aware manager
 
-Status: waiting_decision
+Status: waiting_dependency
 
 Priority: P1
 
@@ -4752,7 +4752,7 @@ Notes/Risks:
 
 ### LIFE-HOOK-01. Ввести полный lifecycle Client-owned subscriptions
 
-Status: waiting_decision
+Status: waiting_dependency
 
 Priority: P0 для 2.0
 
@@ -4822,7 +4822,7 @@ Notes/Risks:
 
 ### REST-HOOK-01. Защитить hook и route lifecycle REST API
 
-Status: waiting_decision
+Status: waiting_dependency
 
 Priority: P0 для 2.0
 
@@ -4917,7 +4917,7 @@ Notes/Risks:
 
 ### LOG-HOOK-01. Устранить cross-client automatic debug fanout
 
-Status: waiting_decision
+Status: waiting_dependency
 
 Priority: P1 для 2.0
 
