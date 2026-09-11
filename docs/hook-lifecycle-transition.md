@@ -1,18 +1,18 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; 1.x transition, manager research and owned-hook
-audit delivered
+Status: executable staged plan; manager delivery active after completed 1.x
+transition, research and owned-hook audit
 
-Baseline: `master` merge `cf8caa6aa4cd61afc592161092492914f12eb25d`
-(HOOK-00, PR #78).
+Baseline: `master` merge `cf67eee7cc439785bbd2b526f5934512b01a990c`
+(HOOK-02, PR #79).
 
-Decision date: 2026-09-11.
+Decision date: 2026-09-11; package coordinates confirmed 2026-09-12.
 
 ## Purpose
 
 This document turns the approved DG-NAME-06R A-to-D direction into separate,
-reviewable delivery steps. It does not make a package-selection decision and it
-does not move the 2.0 manager into the 1.x compatibility release.
+reviewable delivery steps and records the approved standalone package choice.
+It does not move the 2.0 manager into the 1.x compatibility release.
 
 The fixed ownership rule is:
 
@@ -82,13 +82,13 @@ merges:
   lifetime work, and prepares six integration decision gates plus the manager
   scope gate. It does not assume all hooks need the manager.
 
-These tasks may be researched in parallel but produce separate reviewable
-artifacts. No dependency is selected or installed before DG-HOOK-01 is approved.
+These tasks produced separate reviewable artifacts. Their decision-recording
+follow-up selects package coordinates but installs no dependency.
 
 <a id="dg-hook-01"></a>
 ## DG-HOOK-01 — manager source and package boundary
 
-**Status:** decision-ready; repository-owner decision pending.
+**Status:** approved B by the repository owner on 2026-09-11.
 
 **Problem:** the 2.0 behavior is approved, but the implementation source is not.
 Adopting an unsuitable abstraction could add more compatibility risk than the
@@ -110,9 +110,11 @@ without a compatibility fork; otherwise prefer B. C is the documented fallback,
 not an implicit default.
 
 **Evidence result:** no current candidate passes every mandatory criterion.
-Option B is recommended; see the
-[source-linked candidate matrix](hook-manager-selection.md). This recommendation
-does not approve the gate and no dependency has been selected or installed.
+Option B was approved; see the
+[source-linked candidate matrix](hook-manager-selection.md). Delivery uses the
+standalone package boundary `hokoo/wp-hooks-dispatcher` /
+`iTRON\wpHooksDispatcher\`. No dependency is installed by this
+decision-recording change.
 
 **Required evidence:** primary-source version/license/maintenance data, supported
 PHP range, dependency footprint, a contract-gap matrix, a minimal integration
@@ -135,20 +137,20 @@ The first integration target is `deleted_post`. Other hooks move only when the
 HOOK-02 audit demonstrates a site-context problem and defines compatibility.
 
 The audit found that wpConnections owns no filter subscriptions. Its
-[DG-HOOK-SCOPE-01](client-owned-hook-inventory.md#dg-hook-scope-01) recommends
-an action-only first stable manager release. REST registration has a second
-global route registry and waits for
+[DG-HOOK-SCOPE-01/A](client-owned-hook-inventory.md#dg-hook-scope-01) selects an
+action-only first stable manager release. REST registration has a second global
+route registry and consumes approved
 [DG-HOOK-REST-01](client-owned-hook-inventory.md#dg-hook-rest-01),
 [DG-HOOK-REST-02](client-owned-hook-inventory.md#dg-hook-rest-02) and
 [DG-HOOK-REST-03](client-owned-hook-inventory.md#dg-hook-rest-03), while the
-custom REST factory boundary waits for
+custom REST factory boundary consumes approved
 [DG-HOOK-REST-04](client-owned-hook-inventory.md#dg-hook-rest-04). Automatic
 debug logging needs a singleton origin-routed observer and documented custom
-Storage payload after
+Storage payload under approved
 [DG-HOOK-LOG-01](client-owned-hook-inventory.md#dg-hook-log-01), and complete
-Client subscription lifetime waits for
-[DG-HOOK-LIFE-01](client-owned-hook-inventory.md#dg-hook-life-01). None of
-these recommendations is an approval.
+Client subscription lifetime follows approved
+[DG-HOOK-LIFE-01](client-owned-hook-inventory.md#dg-hook-life-01). The
+repository owner approved all of these recommended options on 2026-09-11.
 
 ## 2.0 breaking-change and upgrade boundary
 
@@ -176,17 +178,17 @@ callback pattern.
 | 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | completed, PR #77 |
 | 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | completed, PR #78 |
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | completed, PR #79 |
-| Manager supply | HOOK-01 | Selected/adapted or separately published manager | DG-HOOK-01, DG-HOOK-SCOPE-01, HOOK-00 | waiting dependency |
-| 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01, DG-SPI-06 | waiting dependency |
+| Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | in progress |
+| 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | todo |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—04, DG-RESTERR-03 | waiting dependency |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
-protected-check run. The current branch contains HOOK-02 discovery, its plan
-refinement and HOOK-00 delivery-status closure; it installs no manager and
-changes no runtime registration.
+protected-check run. The decision-recording follow-up selects the package and
+activates HOOK-01/LOG-HOOK-01; it installs no manager and changes no runtime
+registration.
 
 ## Verification matrix
 

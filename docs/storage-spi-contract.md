@@ -1,7 +1,7 @@
 # Storage SPI and mutation boundary
 
-Status: partial approved decision contract; DG-SPI-01, DG-SPI-02 and DG-SPI-07
-approved A, while DG-SPI-03 through DG-SPI-06 remain pending
+Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-06
+and DG-SPI-07 approved A, while DG-SPI-03 through DG-SPI-05 remain pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -10,10 +10,10 @@ Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 This document is the canonical inventory and decision record for the storage
 extension boundary. It describes the source as it exists at the snapshot above,
 the already approved constraints from DG-M7 and DG-M9, the A decisions recorded
-for DG-SPI-01/02/07 on 2026-09-11, and the decisions still required before other
-production signatures or behavior change. Shared result gate DG-UPDATE-04/A
-was separately approved on 2026-09-11; it does not approve the still-pending
-adapter-failure signal in DG-SPI-03.
+for DG-SPI-01/02/06/07 on 2026-09-11, and the decisions still required before
+other production signatures or behavior change. Shared result gate
+DG-UPDATE-04/A was separately approved on 2026-09-11; neither it nor
+DG-SPI-06/A approves the still-pending adapter-failure signal in DG-SPI-03.
 
 The words **current** and **observed** describe compatibility evidence, not a
 promise that defective behavior should be retained. A **recommended** option is
@@ -337,6 +337,8 @@ public input shapes; replacing the existing hook outright would be breaking.
 **Blocked/refined tasks:** REL-02 and release compatibility documentation.
 
 ### DG-SPI-06 — mutation hook meaning across commit/rollback
+
+**Status:** approved A by the repository owner on 2026-09-11.
 
 **Problem:** several current “after”/“deleted” hooks fire with raw failure data
 or after only the last non-atomic statement. Atomic DB-05 cannot treat these as
