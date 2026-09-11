@@ -227,8 +227,21 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			64,
 			strlen( $wpdb->prefix . $boundary->getStorage()->get_meta_table() )
 		);
+		self::assertSame(
+			'post_connections_cf7_telegram',
+			$this->new_default_client( 'cf7-telegram' )->getStorage()->get_connections_table()
+		);
+		self::assertSame(
+			'post_connections_cf7_vk',
+			$this->new_default_client( 'cf7-vk' )->getStorage()->get_connections_table()
+		);
+		self::assertSame(
+			'post_connections_neural_seo',
+			$this->new_default_client( 'neural_seo' )->getStorage()->get_connections_table()
+		);
 
 		$tables_at_boundary = $wpdb->tables;
+		$options_at_boundary = $this->option_names();
 		$this->assert_client_registration_error(
 			'Client table identifier exceeds the 64-character database limit.',
 			function () use ( $maximum ): void {
@@ -236,6 +249,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			}
 		);
 		self::assertSame( $tables_at_boundary, $wpdb->tables );
+		self::assertSame( $options_at_boundary, $this->option_names() );
 	}
 
 	public function test_long_prefix_uses_the_same_64_character_complete_identifier_budget(): void
@@ -259,6 +273,58 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			function (): void {
 				$this->new_default_client( 'x' );
 			}
+		);
+	}
+
+	public function test_concurrent_same_owner_claim_reloads_the_persisted_winner(): void
+	{
+		global $wpdb;
+
+		$option_name = 'wpconnections_storage_owner_' . hash( 'sha256', 'race_client' );
+		$record = [
+			'version' => 1,
+			'postfix' => 'race_client',
+			'owner'   => 'race-client',
+		];
+		$injected = false;
+		$query_filter = function ( string $query ) use (
+			&$query_filter,
+			&$injected,
+			$option_name,
+			$record
+		): string {
+			if (
+				! $injected &&
+				0 === stripos( $query, 'INSERT INTO' ) &&
+				false !== strpos( $query, $option_name )
+			) {
+				$injected = true;
+				remove_filter( 'query', $query_filter );
+				add_option( $option_name, $record, '', false );
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $query_filter );
+
+		try {
+			$client = $this->new_default_client( 'race-client' );
+		} finally {
+			remove_filter( 'query', $query_filter );
+		}
+
+		self::assertTrue( $injected );
+		self::assertSame( $record, get_option( $option_name ) );
+		self::assertSame( 'race-client', $client->getName() );
+		self::assertSame( 'post_connections_race_client', $client->getStorage()->get_connections_table() );
+		self::assertSame(
+			1,
+			(int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name = %s",
+					$option_name
+				)
+			)
 		);
 	}
 
@@ -404,6 +470,8 @@ class ClientIsolationTest extends \WP_UnitTestCase
 	{
 		global $wpdb;
 
+		$post_id = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$post = get_post( $post_id );
 		$bound = $this->new_default_client( 'site-bound' );
 		$wpdb->prefix = 'alternate_';
 
@@ -415,8 +483,8 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		);
 		$this->assert_client_registration_error(
 			'Client storage is bound to a different WordPress site prefix.',
-			static function (): void {
-				do_action( 'deleted_post', 999999 );
+			static function () use ( $post_id, $post ): void {
+				do_action( 'deleted_post', $post_id, $post );
 			}
 		);
 
@@ -425,6 +493,57 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			'alternate_post_connections_site_fresh',
 			$wpdb->prefix . $fresh->getStorage()->get_connections_table()
 		);
+	}
+
+	public function test_prefix_change_inside_storage_callbacks_stops_before_registration_or_dml(): void
+	{
+		global $wpdb;
+
+		$prefix = $wpdb->prefix;
+		$tables_before = $wpdb->tables;
+		$install_filter = static function () use ( $wpdb ): bool {
+			$wpdb->prefix = 'callback_';
+			return true;
+		};
+		add_filter( 'wpConnections/storage/installOnInit', $install_filter, 999, 2 );
+
+		try {
+			$this->assert_client_registration_error(
+				'Client storage is bound to a different WordPress site prefix.',
+				static function (): void {
+					new Client( 'callback-init' );
+				}
+			);
+		} finally {
+			remove_filter( 'wpConnections/storage/installOnInit', $install_filter, 999 );
+			$wpdb->prefix = $prefix;
+		}
+		self::assertSame( $tables_before, $wpdb->tables );
+
+		$client = $this->new_default_client( 'callback-create', true );
+		$storage = $client->getStorage();
+		$table = $wpdb->prefix . $storage->get_connections_table();
+		$rows_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		$attempt_hook = static function () use ( $wpdb ): void {
+			$wpdb->prefix = 'callback_';
+		};
+		add_action( 'iTRON/wpConnections/storage/createConnection/attempt', $attempt_hook );
+
+		try {
+			$query = new ConnectionQuery( 1, 2 );
+			$query->set( 'relation', 'callback' );
+			$this->assert_client_registration_error(
+				'Client storage is bound to a different WordPress site prefix.',
+				static function () use ( $storage, $query ): void {
+					$storage->createConnection( $query );
+				}
+			);
+		} finally {
+			remove_action( 'iTRON/wpConnections/storage/createConnection/attempt', $attempt_hook );
+			$wpdb->prefix = $prefix;
+		}
+
+		self::assertSame( $rows_before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ) );
 	}
 
 	public function test_custom_non_table_storage_skips_physical_rules_but_not_logical_rules(): void
@@ -623,7 +742,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		try {
 			$operation();
 		} catch ( \Throwable $exception ) {
-			self::assertSame( ClientRegisterFail::class, get_class( $exception ) );
+			self::assertSame( ClientRegisterFail::class, get_class( $exception ), $exception->getMessage() );
 			self::assertSame( 4, $exception->getCode() );
 			self::assertSame( $message, $exception->getMessage() );
 			return;

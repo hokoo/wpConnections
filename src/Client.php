@@ -29,7 +29,16 @@ class Client
      */
     public function __construct($name)
     {
-        $this->name = sanitize_title($name);
+        if (! is_string($name)) {
+            throw new ClientRegisterFail('Client name must be a string.');
+        }
+
+        $canonicalName = sanitize_title($name);
+        if ('' === $canonicalName || ! preg_match('/^[a-z0-9_-]+$/D', $canonicalName)) {
+            throw new ClientRegisterFail('Client name is empty or unsafe after normalization.');
+        }
+
+        $this->name = $canonicalName;
         $this->entityValidator = new ConnectionEntityValidator();
         $this->init();
     }
