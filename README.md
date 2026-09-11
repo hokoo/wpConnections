@@ -162,8 +162,8 @@ but library-owned automatic logging safely skips that event. The default
 
 The observer remains a priority-10 callback inside each public action. This
 change does not move the mutation actions; their approved commit-aware timing
-is implemented with the transaction boundary tracked separately in DB-05 and
-verified by REL-02.
+will be implemented by DB-05 and verified by REL-02. Current mutation-event
+emission remains unchanged in this task.
 
 ## Deprecations
 
