@@ -517,8 +517,9 @@ HOOK-02 was complete when this artifact and the executable-plan hand-off passed
 independent traceability review and all protected repository checks. Completing
 the audit itself did not approve any gate or authorize a dependency, external
 repository or runtime behavior change. The repository owner subsequently
-approved every gate recorded here on 2026-09-11; package creation remains the
-separate HOOK-01 delivery task.
+approved every gate recorded here on 2026-09-11. The separate HOOK-01 task later
+published `hokoo/wp-hooks-dispatcher` `v1.0.1`; LOG-HOOK-01 is now the active
+Batch 9 implementation task.
 
 ## Independent QA evidence
 

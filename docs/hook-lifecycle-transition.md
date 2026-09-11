@@ -1,10 +1,13 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; manager delivery active after completed 1.x
-transition, research and owned-hook audit
+Status: executable staged plan; standalone manager delivered, logging correction
+active after completed 1.x transition, research and owned-hook audit
 
 Baseline: `master` merge `cf67eee7cc439785bbd2b526f5934512b01a990c`
 (HOOK-02, PR #79).
+
+Manager release: `hokoo/wp-hooks-dispatcher` `v1.0.1`, commit
+`7f449c41bd73fb40ce80ad790daeaa71fd253e36`.
 
 Decision date: 2026-09-11; package coordinates confirmed 2026-09-12.
 
@@ -120,6 +123,23 @@ decision-recording change.
 PHP range, dependency footprint, a contract-gap matrix, a minimal integration
 probe, release/ownership implications and a rollback path.
 
+## Delivered standalone manager
+
+HOOK-01 published <https://github.com/hokoo/wp-hooks-dispatcher> under the
+approved `iTRON\wpHooksDispatcher\` namespace. Package PR #1 final head
+`2c3c88f` and merge `ca0040f` passed independent QA plus `5/5` protected and
+post-merge jobs. README clarity PR #2 final head `1b1e59a` and merge `7f449c4`
+also passed independent QA and `5/5` protected/post-merge jobs.
+
+GitHub exposes `v1.0.1` as an immutable release after repository-level release
+immutability was enabled and the existing release was republished in place;
+Packagist resolves that version to the exact `7f449c4` dist. A clean PHP 8.1
+Composer project loaded
+`iTRON\wpHooksDispatcher\ActionDispatcher`, and reported no advisories. The
+package has no Composer runtime dependencies beyond PHP `^8.1`; its native
+adapters consume the loaded WordPress runtime. wpConnections does not pin the
+package until a runtime integration task needs it.
+
 ## 2.0 target contract
 
 The selected manager or adapter must provide:
@@ -178,17 +198,17 @@ callback pattern.
 | 1.x transition | HOOK-TRANS-01 | Idempotent semantic cleanup enable/disable API | CORE-06R, DG-NAME-06R | completed, PR #77 |
 | 2.0 discovery | HOOK-00 | Build-versus-buy evidence and selection packet | HOOK-TRANS-01 | completed, PR #78 |
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | completed, PR #79 |
-| Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | in progress |
-| 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | todo |
+| Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | completed, `v1.0.1` |
+| 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | in progress |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
-| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—04, DG-RESTERR-03 | waiting dependency |
+| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—04, DG-RESTERR-03 | todo |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
-protected-check run. The decision-recording follow-up selects the package and
-activates HOOK-01/LOG-HOOK-01; it installs no manager and changes no runtime
-registration.
+protected-check run. HOOK-01 is delivered independently and installs no
+wpConnections dependency. LOG-HOOK-01 is now active and changes logging only;
+manager-backed runtime registrations remain in their downstream tasks.
 
 ## Verification matrix
 
