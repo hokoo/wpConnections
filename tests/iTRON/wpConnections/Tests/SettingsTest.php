@@ -10,7 +10,7 @@ class SettingsTest extends TestCase
 {
 	public function test_logging_observer_is_not_registered_when_wp_debug_is_disabled(): void
 	{
-		if ( ! defined( 'UNIT_TESTS' ) ) {
+		if ( function_exists( 'add_action' ) ) {
 			self::assertTrue( defined( 'WP_DEBUG' ) && WP_DEBUG );
 			return;
 		}
