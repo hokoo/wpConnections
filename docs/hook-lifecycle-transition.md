@@ -212,7 +212,7 @@ this check in the consumer upgrade scan.
 | Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | completed, `v1.0.1` |
 | 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | completed, PR #82 |
 | 2.0 deletion | HOOK-03 | Manager-backed `deleted_post` registration and tests | HOOK-01, HOOK-02, DB-04 | waiting dependency |
-| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | completed, PR #83 candidate |
+| 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | completed, PR #83 / `33b659e` |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
 
@@ -224,8 +224,10 @@ Manager-backed runtime registrations remain in their downstream tasks.
 REST-HOOK-01 is the completed task in Batch 10 and first wpConnections runtime
 consumer of `hokoo/wp-hooks-dispatcher`. DG-HOOK-REST-05/A is approved; task
 scope remains limited to the REST integration boundary. Implementation commit
-`9d5b74e` received independent QA PASS and all 17 protected checks passed. PR
-#83 merge and post-merge checks remain before Batch 10 closes.
+`9d5b74e` received independent QA PASS; docs-only final head `7e1addc` passed
+independent closure QA and all 17 protected checks. PR #83 merged as `33b659e`,
+and all 17 post-merge checks passed on that exact `master` commit. Batch 10 is
+closed.
 
 ## Verification matrix
 
@@ -273,7 +275,9 @@ Independent QA repeated the matrix on exact head
 `9d5b74e421661061249bdb790fae79f4fe87a337` and returned unconditional PASS.
 Newest PHP 8.5.10 / WordPress 7.1 / Ramsey Collection 2.1.1 passed integration
 `124 / 1369` with only pre-existing deprecations. All 17 PR #83 protected
-checks passed on that head.
+checks passed on final head `7e1addc686050993658fbf3a46a4d4ec2f4664c2`.
+PR #83 merged as `33b659e20b69a0e3c5b94bdc508a9a88a9c25c43`; all 17
+post-merge checks passed on that exact `master` commit.
 
 ## HOOK-TRANS-01 verification evidence
 
