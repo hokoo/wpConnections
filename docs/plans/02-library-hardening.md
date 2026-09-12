@@ -25,6 +25,8 @@ checks. Final head `6554089`, merge `73bc71f` и post-merge `master` также
 independent QA PASS; docs-only final head `7e1addc` прошёл independent closure
 QA и 17/17 protected checks. PR #83 влит как `33b659e`, на exact merge SHA
 post-merge `master` также прошёл 17/17 checks. Batch 10 завершён.
+DG-UPDATE-03/A утверждён владельцем 2026-09-12; Batch 11 активирован для
+связного `TEST-02D + DB-02 + REST-02` red-to-green vertical slice.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -365,7 +367,7 @@ normalized input.
 
 ### DG-UPDATE-03. Где и как обновлять connection metadata
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-12.
 
 **Проблема:** scalar connection route не объявляет `meta` и фактически его не
 сохраняет, но create route и concrete `Connection::update()` работают с
@@ -392,7 +394,9 @@ replace supplied keys и PUT replace-all, однако empty PUT сейчас м
 добавляет второй публичный путь к тем же данным и требует определить
 atomicity/precedence scalar+meta. C ломает существующий subresource.
 
-**Блокирует:** DB-02 metadata matrix, REST-05 и DB-05 update atomicity.
+**Последствия решения:** DB-02 metadata matrix разблокирована. REST-05 и DB-05
+получили утверждённую metadata boundary, но сохраняют собственные прочие
+decision/dependency gates.
 
 ### DG-UPDATE-04. Результат changed, no-op, not-found и storage failure
 
@@ -661,7 +665,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-UPDATE-01 | approved A | repository owner | 2026-09-11 | Sparse PHP/PATCH; replacement Connection/PUT/legacy POST |
 | DG-UPDATE-02 | approved A | repository owner | 2026-09-11 | Field-specific omitted/null/empty/zero semantics |
 | DG-UPDATE-02R | approved A | repository owner | 2026-09-11 | Direct zero endpoint writes are supplied-invalid; materialized reads preserved |
-| DG-UPDATE-03 | pending; recommendation A | repository owner | — | Metadata update boundary не утверждена |
+| DG-UPDATE-03 | approved A | repository owner | 2026-09-12 | Scalar REST update не меняет meta; `/meta` и aggregate PHP update сохраняют свои boundaries |
 | DG-UPDATE-04 | approved A | repository owner | 2026-09-11 | Existing changed/no-op bool; not-found/failure are distinct exceptions |
 | DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
 | DG-SPI-01 | approved A | repository owner | 2026-09-11 | Domain sends fully materialized update state to SPI |
@@ -1339,7 +1343,7 @@ Exit criteria:
 
 ### Batch 11. Connection update vertical slice
 
-Status: waiting_dependency
+Status: active
 
 Goal: одним red-to-green vertical slice закрыть update без `title`, корректную
 передачу `order=0` и согласованные create/update/meta regressions.
@@ -1351,14 +1355,14 @@ Entry criteria:
 - TEST-01, REST-01, REST-00B, CORE-02, CORE-04 и CORE-07 completed.
 - DG-UPDATE-01/A, DG-UPDATE-02/A, DG-UPDATE-04/A, DG-SPI-01/A,
   DG-SPI-02/A, DG-ENT-04/A и DG-ENT-05/A утверждены.
-- DG-UPDATE-03 остаётся pending и блокирует начало связного vertical slice.
+- DG-UPDATE-03/A утверждён владельцем 2026-09-12.
 
 Tasks:
 
 - TEST-02D — `todo`; сначала зафиксировать full-dispatch red evidence для
   omitted `title`.
-- DB-02 — `waiting_dependency`; после DG-UPDATE-03 реализовать и проверить
-  create/update/meta contract, включая `order=0`.
+- DB-02 — `todo`; реализовать и проверить create/update/meta contract, включая
+  `order=0`, согласно DG-UPDATE-03/A.
 - REST-02 — `waiting_dependency`; в том же batch сделать TEST-02D зелёным после
   DB-02 и проверить POST/PUT/PATCH preserve semantics.
 
@@ -1372,7 +1376,7 @@ Execution model:
 
 Exit criteria:
 
-- DG-UPDATE-03 явно утверждён владельцем до production change.
+- DG-UPDATE-03/A соблюдён без добавления `meta` в scalar REST mutation input.
 - TEST-02D наблюдался красным по ожидаемой typed-property причине и стал
   зелёным вместе с DB-02/REST-02.
 - Все DoD/AC трёх задач выполнены, independent QA, protected и post-merge
@@ -2955,7 +2959,7 @@ Notes/Risks:
 
 ### DB-02. Защитить create/update и meta regressions
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 

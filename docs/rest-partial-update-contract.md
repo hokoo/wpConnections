@@ -1,8 +1,7 @@
 # Connection update contract discovery
 
-Status: partial approved decision contract; DG-UPDATE-01, DG-UPDATE-02,
-DG-UPDATE-02R and DG-UPDATE-04 approved A, while DG-UPDATE-03 and
-DG-UPDATE-05 remain pending
+Status: partial approved decision contract; DG-UPDATE-01—DG-UPDATE-04 and
+DG-UPDATE-02R approved A, while DG-UPDATE-05 remains pending
 
 Date: 2026-09-10
 
@@ -20,8 +19,9 @@ The five original material choices are recorded as `DG-UPDATE-01` through
 `DG-UPDATE-05` in the main execution plan. CORE-04 review exposed one required
 refinement, `DG-UPDATE-02R`, for same-value writes to legacy public endpoint
 properties. The repository owner approved option A for DG-UPDATE-01,
-DG-UPDATE-02, DG-UPDATE-02R and DG-UPDATE-04 on 2026-09-11; DG-UPDATE-03 and
-DG-UPDATE-05 remain decision-ready rather than approved.
+DG-UPDATE-02, DG-UPDATE-02R and DG-UPDATE-04 on 2026-09-11, and approved
+DG-UPDATE-03/A on 2026-09-12. DG-UPDATE-05 remains decision-ready rather than
+approved.
 
 ## Evidence and compatibility baseline
 
@@ -191,7 +191,7 @@ Under approved DG-UPDATE-04/A, an empty PATCH is a valid no-op and reports
 `updated=false` after verifying the target exists. A missing positive ID is a
 domain `ConnectionNotFound`, never a successful no-op.
 
-## Proposed metadata boundary and matrix
+## Approved metadata boundary and matrix
 
 Connection metadata is deliberately excluded from the scalar REST update
 request. REST clients use the existing `/meta` subresource. In v1, a `meta`
@@ -203,8 +203,8 @@ unknown body fields can be considered for v2.
 metadata collection, including an empty collection, is the desired final
 state. It therefore differs intentionally from a sparse query update.
 
-The recommended `/meta` behavior is subject to boundary/operation
-`DG-UPDATE-03` and response `DG-UPDATE-05`:
+The `/meta` operation boundary below is approved by DG-UPDATE-03/A. Its response
+column remains subject to pending `DG-UPDATE-05`:
 
 | Method/input | Persisted metadata result | Successful/no-op REST v1 response |
 |---|---|---|

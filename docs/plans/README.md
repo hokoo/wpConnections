@@ -32,8 +32,11 @@
    no-owner 404 path. REST-HOOK-01 completed на exact implementation head
    `9d5b74e`: independent QA PASS. Docs-only final head `7e1addc` прошёл
    independent closure QA и 17/17 protected checks; PR #83 влит как `33b659e`,
-   exact merge SHA прошёл 17/17 post-merge checks. Batch 10 завершён. Batch 11
-   (`TEST-02D + DB-02 + REST-02`) ожидает решение DG-UPDATE-03.
+   exact merge SHA прошёл 17/17 post-merge checks. Batch 10 завершён.
+7. DG-UPDATE-03/A утверждён владельцем 2026-09-12: scalar REST update не
+   изменяет metadata, REST clients используют `/meta`, а PHP
+   `Connection::update()` сохраняет aggregate replacement semantics. Batch 11
+   (`TEST-02D + DB-02 + REST-02`) активен.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
