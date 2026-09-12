@@ -62,8 +62,10 @@ The custom factory still selects the delegate and its `$namespace`, `$base`,
 permission and handler overrides. A custom `init()` must call `parent::init()`;
 an overridden `registerRestRoutes()` is no longer invoked automatically for the
 four library-owned routes. Arbitrary extra registrations remain implementer
-owned. The implementation is in review; this update does not declare
-REST-HOOK-01 complete before independent QA and protected checks.
+owned. Independent QA returned PASS on exact implementation head `9d5b74e`;
+all 17 protected checks passed without risk acceptance. REST-HOOK-01 is
+completed for its task scope, while PR merge and post-merge verification remain
+Batch 10 closure gates.
 
 ## LOG-HOOK-01 implementation update
 

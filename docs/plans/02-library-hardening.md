@@ -21,8 +21,9 @@ standalone manager package `hokoo/wp-hooks-dispatcher` и namespace
 на exact candidate `234216e` PR #82 с independent QA PASS и 17/17 protected
 checks. Final head `6554089`, merge `73bc71f` и post-merge `master` также
 прошли 17/17 checks. Batch 9 завершён. DG-HOOK-REST-05/A утверждён владельцем
-2026-09-12; implementation commit Batch 10 `d99b525` прошёл local review
-matrix, REST-HOOK-01 ожидает independent QA.
+2026-09-12. REST-HOOK-01 completed на exact implementation head `9d5b74e`:
+independent QA PASS и 17/17 protected checks; PR #83 ожидает merge и post-merge
+проверку для закрытия Batch 10.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1268,13 +1269,13 @@ Execution model:
 
 - Decision activation в wpConnections поставляется отдельно от нового package
   и не добавляет Composer dependency.
-- HOOK-01 поставлен отдельным repository/package; точная stable версия может
-  быть pinned consumer-репозиторием только в runtime integration task.
+- HOOK-01 поставлен отдельным repository/package; REST-HOOK-01 первым закрепил
+  compatible runtime dependency `hokoo/wp-hooks-dispatcher:^1.0.1`.
 - LOG-HOOK-01 выполнен после HOOK-01 как второй batch item и не переносит
   public storage emissions под manager ownership.
-- REST-HOOK-01 теперь `review`: REST-01 и все decision gates, включая
-  refinement DG-HOOK-REST-05/A, завершены; implementation и local verification
-  готовы, independent QA ещё не закрыт.
+- REST-HOOK-01 теперь `completed`: REST-01 и все decision gates, включая
+  refinement DG-HOOK-REST-05/A, завершены; exact implementation head `9d5b74e`
+  получил independent QA PASS и 17/17 protected checks.
   LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а
   HOOK-03 — DB-04/DG-DELETE-06.
 
@@ -1289,7 +1290,7 @@ Exit criteria:
 
 ### Batch 10. Context-safe REST registration and dispatch
 
-Status: active
+Status: review
 
 Goal: поставить REST-HOOK-01 отдельным vertical slice: manager ограничивает
 `rest_api_init` контекстом подписки, а library-owned route boundary выбирает
@@ -1307,8 +1308,9 @@ Entry criteria:
 
 Tasks:
 
-- REST-HOOK-01 — `review`; implementation commit `d99b525` и local verification
-  готовы, independent QA остаётся closure gate.
+- REST-HOOK-01 — `completed`; exact implementation head `9d5b74e` получил
+  independent QA PASS и 17/17 protected checks. PR #83 merge/post-merge остаются
+  closure gate Batch 10.
 
 Execution model:
 
@@ -4951,7 +4953,7 @@ Notes/Risks:
 
 ### REST-HOOK-01. Защитить hook и route lifecycle REST API
 
-Status: review
+Status: completed
 
 Priority: P0 для 2.0
 
@@ -5048,6 +5050,11 @@ Notes/Risks:
   Client code.
 - REST-HOOK-01 передаёт factory/delegate compatibility cases в REL-02; REL-02
   не является prerequisite этой implementation задачи.
+- Independent QA на exact head `9d5b74e421661061249bdb790fae79f4fe87a337`
+  вернула unconditional PASS без risk acceptance. Fixed-floor unit `13/61`,
+  integration `124/1369`, true multisite `11/590`, isolation unit `26/122` и
+  integration `248/2738`, coverage `1206/1328 (90.81%)`, newest integration
+  `124/1369`, PHPCS `51/51` и 17/17 protected checks PR #83 зелёные.
 
 ### LOG-HOOK-01. Устранить cross-client automatic debug fanout
 
