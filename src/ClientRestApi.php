@@ -91,7 +91,9 @@ class ClientRestApi
 
     public function updateConnection(WP_REST_Request $request)
     {
-        $q = $this->obtainConnectionDataFromRequest($request);
+        $scalarRequest = clone $request;
+        unset($scalarRequest['meta']);
+        $q = $this->obtainConnectionDataFromRequest($scalarRequest);
         $q->set('id', $this->getRouteSelector($request, 'connectionID'));
 
         if (in_array($request->get_method(), [ 'POST', 'PUT' ], true)) {
@@ -207,9 +209,6 @@ class ClientRestApi
     public function createConnection(WP_REST_Request $request)
     {
         $q = $this->obtainConnectionDataFromRequest($request);
-        if ($q->meta->isEmpty() && $request->has_param('meta')) {
-            $q->meta->fromArray((array) $request->get_param('meta'));
-        }
 
         try {
             return $this->ensureRestResponse($this->getClient()->getRelation($request->get_param('relation'))->createConnection($q));
@@ -225,6 +224,10 @@ class ClientRestApi
             if ($request->has_param($field)) {
                 $queryConnection->set($field, $request->get_param($field));
             }
+        }
+
+        if ($request->has_param('meta')) {
+            $queryConnection->meta->fromArray((array) $request->get_param('meta'));
         }
 
         return $queryConnection;
