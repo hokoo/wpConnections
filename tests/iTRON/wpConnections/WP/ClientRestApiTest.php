@@ -2,7 +2,6 @@
 
 namespace iTRON\wpConnections\Tests\iTRON\wpConnections\WP;
 
-use iTRON\wpConnections\ClientRestApi;
 use iTRON\wpConnections\Query\Connection;
 
 class ClientRestApiTest extends WPConnectionsTestCase
@@ -22,7 +21,7 @@ class ClientRestApiTest extends WPConnectionsTestCase
 		}
 	}
 
-	public function test_registers_all_routes_and_methods(): void
+	public function test_registers_all_route_patterns_and_methods(): void
 	{
 		$namespace_route = '/wp-connections/v1';
 		$client_route = $this->get_rest_route();
@@ -39,31 +38,31 @@ class ClientRestApiTest extends WPConnectionsTestCase
 		}
 
 		self::assertSame(
-			[ 'GET:getTheClient' ],
-			$this->get_method_callback_combinations( $routes[ $client_route ] )
+			[ 'GET' ],
+			$this->get_registered_methods( $routes[ $client_route ] )
 		);
 		self::assertSame(
-			[ 'GET:getRelation', 'POST:createConnection' ],
-			$this->get_method_callback_combinations( $routes[ $relation_route ] )
-		);
-		self::assertSame(
-			[
-				'DELETE:deleteConnection',
-				'GET:getConnection',
-				'PATCH:updateConnection',
-				'POST:updateConnection',
-				'PUT:updateConnection',
-			],
-			$this->get_method_callback_combinations( $routes[ $connection_route ] )
+			[ 'GET', 'POST' ],
+			$this->get_registered_methods( $routes[ $relation_route ] )
 		);
 		self::assertSame(
 			[
-				'DELETE:deleteConnectionMeta',
-				'PATCH:updateConnectionMeta',
-				'POST:updateConnectionMeta',
-				'PUT:updateConnectionMeta',
+				'DELETE',
+				'GET',
+				'PATCH',
+				'POST',
+				'PUT',
 			],
-			$this->get_method_callback_combinations( $routes[ $meta_route ] )
+			$this->get_registered_methods( $routes[ $connection_route ] )
+		);
+		self::assertSame(
+			[
+				'DELETE',
+				'PATCH',
+				'POST',
+				'PUT',
+			],
+			$this->get_registered_methods( $routes[ $meta_route ] )
 		);
 	}
 
@@ -164,34 +163,23 @@ class ClientRestApiTest extends WPConnectionsTestCase
 		self::assertSame( $expected_data, json_decode( wp_json_encode( $serialized_data ), true ) );
 	}
 
-	private function get_method_callback_combinations( array $handlers ): array
+	private function get_registered_methods( array $handlers ): array
 	{
-		$combinations = [];
+		$methods = [];
 
 		foreach ( $handlers as $handler ) {
 			if ( ! is_array( $handler ) || empty( $handler['methods'] ) || empty( $handler['callback'] ) ) {
 				continue;
 			}
 
-			$callback = $handler['callback'];
-			if (
-				! is_array( $callback ) ||
-				! isset( $callback[0], $callback[1] ) ||
-				! $callback[0] instanceof ClientRestApi
-			) {
-				continue;
-			}
-
-			self::assertSame( $this->client, $callback[0]->getClient() );
-
 			foreach ( array_keys( array_filter( $handler['methods'] ) ) as $method ) {
-				$combinations [] = $method . ':' . $callback[1];
+				$methods[] = $method;
 			}
 		}
 
-		sort( $combinations );
+		sort( $methods );
 
-		return $combinations;
+		return $methods;
 	}
 
 	private function get_postman_requests(): array

@@ -7,6 +7,7 @@ use iTRON\wpConnections\Abstracts\Storage;
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\Meta;
 use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
@@ -99,6 +100,9 @@ class ClientIsolationTest extends \WP_UnitTestCase
 
 		$wpdb->prefix = $this->original_prefix;
 		foreach ( $this->clients as $client ) {
+			if ( class_exists( RestRouteRegistry::class ) ) {
+				RestRouteRegistry::instance()->deactivateClient( $client );
+			}
 			remove_action( 'deleted_post', [ $client->getStorage(), 'deleteByObjectID' ] );
 		}
 
@@ -302,6 +306,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			true
 		);
 
+		RestRouteRegistry::instance()->deactivateClient( $first );
 		$same_owner = $this->new_default_client( 'MY CLIENT' );
 		self::assertSame( $first->getName(), $same_owner->getName() );
 		self::assertCount(
@@ -828,6 +833,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertCount( 1, $new_options );
 		$record = get_option( $new_options[0] );
 		self::assertIsArray( $record );
+		RestRouteRegistry::instance()->deactivateClient( $client );
 
 		return [ $new_options[0], $record, $client ];
 	}

@@ -36,7 +36,7 @@ The relation has properties:
 ## Why wpConnection?
 
 It can be used as multiple installed library being parts of different plugins in a WordPress installation.
-All you need is creating a client instance for your application. Every client has its own tables and REST API hooks, and does not influence to another clients. 
+All you need is creating a client instance for your application. Every client has its own tables and REST API identity and does not influence other clients.
 
 ## Ok, what should I do to start using?
 
@@ -164,6 +164,33 @@ The observer remains a priority-10 callback inside each public action. This
 change does not move the mutation actions; their approved commit-aware timing
 will be implemented by DB-05 and verified by REL-02. Current mutation-event
 emission remains unchanged in this task.
+
+### Multisite REST lifecycle and custom delegates
+
+A `Client` belongs to the WordPress site context in which it is constructed.
+Consumers that use `switch_to_blog()` must construct and initialize a separate
+client for every switched site; the library does not create clients during a
+blog switch. The REST transport keeps one live owner for each blog ID, database
+prefix and canonical client name, and rejects a second live owner with
+`ClientRegisterFail`. A client created after `rest_api_init` is bound to the
+existing REST server immediately.
+
+Library-owned REST routes use context-neutral callbacks. Before permissions or
+a route handler can reach client code, the current blog ID and database prefix
+must select that site's live client. A valid request to a route that remains in
+a reused server after its owner is unavailable receives WordPress's native
+`rest_no_route` response with HTTP 404. WordPress validates route arguments
+first, so a malformed request can instead receive its native validation 400;
+neither path invokes a stale client's permission, handler or storage code.
+
+The `wpConnections/factory/getRestApi/class` filter remains available. A custom
+`ClientRestApi` subclass may customize `$namespace`, `$base`, permissions and
+the built-in handlers, but an overridden `init()` must call `parent::init()`.
+The library now owns registration of its four built-in route patterns, so an
+override of `registerRestRoutes()` is not invoked automatically. Extra hooks or
+routes registered by a custom subclass remain the implementer's lifecycle and
+multisite responsibility. These are intentional 2.0 compatibility boundaries;
+review custom REST subclasses before upgrading.
 
 ## Deprecations
 

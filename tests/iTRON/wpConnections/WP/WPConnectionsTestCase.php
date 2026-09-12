@@ -4,6 +4,7 @@ namespace iTRON\wpConnections\Tests\iTRON\wpConnections\WP;
 
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\Helpers\Database;
+use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\Query\Relation;
 use iTRON\wpConnections\WPStorage;
 
@@ -33,6 +34,9 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 	public function tear_down()
 	{
 		try {
+			if ( class_exists( RestRouteRegistry::class ) ) {
+				RestRouteRegistry::instance()->deactivateClient( $this->client );
+			}
 			$this->drop_client_tables();
 		} finally {
 			parent::tear_down();

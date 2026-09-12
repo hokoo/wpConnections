@@ -1,6 +1,7 @@
 # Client-owned WordPress hook inventory
 
-Status: completed audit; all recorded gates approved; no runtime behavior changed
+Status: completed frozen audit; all recorded gates approved; downstream
+implementation updates recorded separately below
 
 Repository baseline: `cf8caa6aa4cd61afc592161092492914f12eb25d`
 (HOOK-00, PR #78).
@@ -37,6 +38,34 @@ It also resolves the deferred manager feature-scope question. wpConnections
 owns action subscriptions only, so approved DG-HOOK-SCOPE-01/A selects an
 action-only first stable manager release. Filter subscription semantics can be
 added later without expanding the first integration batch.
+
+## REST-HOOK-01 implementation update
+
+The construction graph, registration matrix and runtime probes below preserve
+the frozen HOOK-02 baseline that exposed the original REST defect. REST-HOOK-01
+subsequently makes `Client` retain a revocable internal REST mapping while one
+`wp-hooks-dispatcher` subscription per live site context owns
+`rest_api_init`. The route server retains context-neutral boundary callbacks,
+not concrete `ClientRestApi` delegates; permission and handler stages resolve
+the exact current `(blog ID, database prefix, canonical client name)` owner and
+validate an ABA-safe mapping token.
+
+The managed registrar preserves the four patterns, twelve method/callback
+combinations and WordPress's common route-argument inheritance. It also
+preserves WordPress namespace/path normalization and the existing stable route
+registration failure for an empty custom namespace. A valid route with no live
+current-context owner returns native `rest_no_route`/404, while native argument
+validation can return 400 first for malformed input under DG-HOOK-REST-05/A;
+neither path reaches stale Client code.
+
+The custom factory still selects the delegate and its `$namespace`, `$base`,
+permission and handler overrides. A custom `init()` must call `parent::init()`;
+an overridden `registerRestRoutes()` is no longer invoked automatically for the
+four library-owned routes. Arbitrary extra registrations remain implementer
+owned. Independent QA returned PASS on exact implementation head `9d5b74e`;
+all 17 protected checks passed without risk acceptance. REST-HOOK-01 is
+completed for its task scope, while PR merge and post-merge verification remain
+Batch 10 closure gates.
 
 ## LOG-HOOK-01 implementation update
 
@@ -106,7 +135,7 @@ keep those objects reachable. There is no general Client disposal path.
 | Owner / source | Hook and callback | Registration metadata | Retention and removal | Context finding | 2.0 action |
 | --- | --- | --- | --- | --- | --- |
 | `Client`, [`Client.php`](../src/Client.php#L63) | `deleted_post` → `[$storage, 'deleteByObjectID']` | priority 10; 1 accepted argument; auto-enabled in construction | `Client` retains storage. Exact direct removal and semantic `disablePostDeletionCleanup()` both work in 1.x; enable/disable are idempotent. | Site-sensitive. The default storage has the temporary 1.x prefix guard, but custom storage receives stale delivery. | HOOK-03: manager-required at the 2.0 boundary; preserve semantic API, intentionally break direct callback identity. |
-| `ClientRestApi`, [`ClientRestApi.php`](../src/ClientRestApi.php#L31) | `rest_api_init` → `[$restApi, 'registerRestRoutes']` | priority 10; default 1 accepted argument | Client does not retain the REST object; the hook does. No remove or semantic lifecycle API exists. | Site-sensitive registration plus a second global registry. Two site-bound same-name clients both execute and both place object handlers into one REST server. | REST-HOOK-01 after DG-HOOK-REST-01—DG-HOOK-REST-04; not folded silently into HOOK-03. |
+| `ClientRestApi`, [`ClientRestApi.php`](../src/ClientRestApi.php#L31) | `rest_api_init` → `[$restApi, 'registerRestRoutes']` | priority 10; default 1 accepted argument | Client does not retain the REST object; the hook does. No remove or semantic lifecycle API exists. | Site-sensitive registration plus a second global registry. Two site-bound same-name clients both execute and both place object handlers into one REST server. | REST-HOOK-01 after DG-HOOK-REST-01—DG-HOOK-REST-05; not folded silently into HOOK-03. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/findConnections/dbQuery` → one shared closure | priority 10; 2 accepted arguments | The local closure identity is discarded; the hook retains closure → Settings → logger. No unregister path exists. | Cross-client and cross-site fanout. Arguments are SQL string and result only, so the origin Client cannot be selected from the event. | LOG-HOOK-01 after DG-HOOK-LOG-01 and DG-SPI-06; recommendation is one origin-routed singleton observer, not manager wrapping. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/removeConnectionMeta/after` → the same closure | priority 10; 5 accepted arguments | Same lost identity and no unregister path. | First argument identifies Client, but the callback ignores it; every logger receives the event. | LOG-HOOK-01; route one record to the originating Client while keeping the public hook emission. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/deletedSpecificConnections` → the same closure | priority 10; 3 accepted arguments | Same lost identity and no unregister path. | First argument identifies Client, but the callback ignores it; every logger receives the event. | LOG-HOOK-01; route one record to the originating Client while keeping the public hook emission. |
@@ -241,7 +270,7 @@ release snapshot and keep the direct-`remove_action()` warning prominent.
 | Current responsibility | Owner task | Gate/dependencies | Compatibility boundary |
 | --- | --- | --- | --- |
 | `deleted_post` delivery | HOOK-03 | HOOK-01, DB-04, DG-DELETE-06 | 2.0 changes callback identity; semantic enable/disable remains the migration API and exposes its handle to final Client lifecycle |
-| REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, REST-01, DG-HOOK-REST-01—DG-HOOK-REST-04, DG-RESTERR-03; REL-02 hand-off | Preserve v1 request URLs/methods and factory-selected handler delegates; define duplicate ownership, late initialization, unavailable dispatch/route-index visibility and a revocable Client mapping before final lifecycle integration |
+| REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, REST-01, DG-HOOK-REST-01—DG-HOOK-REST-05, DG-RESTERR-03; REL-02 hand-off | Preserve v1 request URLs/methods and factory-selected handler delegates; define duplicate ownership, late initialization, unavailable dispatch/route-index visibility and a revocable Client mapping before final lifecycle integration |
 | Automatic debug routing | LOG-HOOK-01 | DG-HOOK-LOG-01, DG-SPI-06; REL-02 hand-off | Preserve event names, existing argument order and priority-10 logging; add a trailing origin Client to the query event and document the custom Storage obligation instead of retaining duplicate/wrong-client logging |
 | Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | Final 2.0 lifecycle surface; failed/disposed Client must be unreachable from hooks and routes |
 | Direct callback migration documentation | HOOK-04 | All applicable integration tasks, REL-02/REL-03 | Red-flag direct `remove_action()` break and repeat known-consumer scan |
@@ -394,6 +423,56 @@ ownership. D adds a new public REST error contract.
 **Rollback:** before release, disable late binding and restore constructor-only
 listener registration. There is no persisted-data effect.
 
+<a id="dg-hook-rest-05"></a>
+### DG-HOOK-REST-05 — no-owner availability versus native validation precedence
+
+**Status:** approved A by the repository owner on 2026-09-12.
+
+**Problem:** implementation discovery found a precedence constraint hidden by
+the earlier runtime probe. After WordPress matches a registered route and
+method, `WP_REST_Server::dispatch()` runs `has_valid_params()` and
+`sanitize_params()` before it invokes the route `permission_callback`. The
+approved context-neutral boundary naturally performs its no-owner check in that
+permission callback. It can therefore return native `rest_no_route`/404 for a
+structurally valid request without a current-context owner, while a malformed
+request can already have received a native validation 400. No stale Client code
+runs in either case.
+
+The current DG-HOOK-REST-03/A and REST-HOOK-01 AC say without qualification
+that a matched no-owner route returns 404. Narrowing that observable promise or
+adding a new earlier global integration point requires explicit approval.
+
+- **A — preserve WordPress validation precedence (recommended):** a valid
+  managed request without a current-context owner returns the WordPress-native
+  `rest_no_route` shape with HTTP 404. A malformed request may first return its
+  native WordPress validation 400. In both cases no stale permission callback,
+  handler or storage code runs. This preserves WordPress schema/error behavior,
+  DG-RESTERR-03/A and the no-new-filter rationale of DG-HOOK-REST-03/A.
+- **B — force no-owner precedence:** add one context-neutral process-global
+  `rest_pre_dispatch` filter for managed route patterns. It returns native
+  `rest_no_route`/404 before matching and schema validation whenever no current
+  owner exists. This fulfills the literal unconditional 404 promise, but adds a
+  new global filter ownership/ordering/lifecycle boundary and hides otherwise
+  native validation detail while a route is unavailable.
+- **C — move schema validation behind the managed gateway:** stop declaring the
+  current required schema at the WordPress route layer, resolve the owner first,
+  and reproduce validation later. This is not recommended because it changes
+  route discovery/schema behavior, duplicates WordPress validation and risks
+  version-dependent error drift.
+
+**Recommendation:** A. The safety invariant is that no stale Client code can
+execute. A guarantees it without replacing WordPress's established validation
+order or expanding the manager's action-only scope. The observable distinction
+is limited to malformed requests against a discoverable but unavailable stale
+route: native validation 400 instead of unconditional 404.
+
+**Compatibility:** A clarifies and narrows the previously approved 404 wording.
+B creates a new library-owned filter and changes error precedence. C changes
+the public route schema and is incompatible with the stated REST-HOOK-01 scope.
+
+**Decision:** A. REST-HOOK-01 preserves native WordPress validation precedence
+while making stale Client code unreachable on both validation and 404 paths.
+
 <a id="dg-hook-rest-04"></a>
 ### DG-HOOK-REST-04 — custom ClientRestApi factory boundary
 
@@ -541,7 +620,9 @@ HOOK-02 was complete when this artifact and the executable-plan hand-off passed
 independent traceability review and all protected repository checks. Completing
 the audit itself did not approve any gate or authorize a dependency, external
 repository or runtime behavior change. The repository owner subsequently
-approved every gate recorded here on 2026-09-11. The separate HOOK-01 task later
+approved every gate produced by HOOK-02 on 2026-09-11. REST-HOOK-01
+implementation discovery added DG-HOOK-REST-05; the repository owner approved
+recommendation A on 2026-09-12. The separate HOOK-01 task later
 published `hokoo/wp-hooks-dispatcher` `v1.0.1`; LOG-HOOK-01 subsequently
 completed as the second Batch 9 task in PR #82.
 

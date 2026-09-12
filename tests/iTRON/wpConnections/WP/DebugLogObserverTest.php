@@ -7,6 +7,7 @@ use iTRON\wpConnections\Abstracts\Storage;
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\DebugLogObserver;
+use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
 use iTRON\wpConnections\Query\MetaCollection as MetaQueryCollection;
@@ -140,6 +141,9 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 		remove_filter( 'wpConnections/factory/getStorage/class', $this->storage_filter );
 
 		foreach ( $this->clients as $client ) {
+			if ( class_exists( RestRouteRegistry::class ) ) {
+				RestRouteRegistry::instance()->deactivateClient( $client );
+			}
 			remove_action( 'deleted_post', [ $client->getStorage(), 'deleteByObjectID' ] );
 		}
 
