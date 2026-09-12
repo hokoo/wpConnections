@@ -11,7 +11,7 @@ class ConnectionQueryPresenceTest extends TestCase
     {
         $query = new Connection();
 
-        foreach ([ 'from', 'to', 'both' ] as $field) {
+        foreach ([ 'id', 'from', 'to', 'both' ] as $field) {
             self::assertSame(0, $query->{$field});
             self::assertSame(0, $query->get($field));
             self::assertFalse($query->isProvided($field));
@@ -27,13 +27,16 @@ class ConnectionQueryPresenceTest extends TestCase
     public function test_direct_nonzero_and_same_value_zero_writes_are_tracked(): void
     {
         $query       = new Connection();
+        $query->id   = 0;
         $query->from = 11;
         $query->to   = 22;
         $query->both = 0;
 
+        self::assertSame(0, $query->id);
         self::assertSame(11, $query->from);
         self::assertSame(22, $query->to);
         self::assertSame(0, $query->both);
+        self::assertTrue($query->isProvided('id'));
         self::assertTrue($query->isProvided('from'));
         self::assertTrue($query->isProvided('to'));
         self::assertTrue($query->isProvided('both'));
@@ -48,8 +51,9 @@ class ConnectionQueryPresenceTest extends TestCase
         self::assertTrue($constructed->isProvided('both'));
 
         $set = new Connection();
-        $set->set('from', 0)->set('to', 0)->set('both', 0);
+        $set->set('id', 0)->set('from', 0)->set('to', 0)->set('both', 0);
 
+        self::assertTrue($set->isProvided('id'));
         self::assertTrue($set->isProvided('from'));
         self::assertTrue($set->isProvided('to'));
         self::assertTrue($set->isProvided('both'));
@@ -72,6 +76,7 @@ class ConnectionQueryPresenceTest extends TestCase
         $omitted = new Connection();
 
         self::assertArrayNotHasKey('from', get_object_vars($omitted));
+        self::assertArrayNotHasKey('id', get_object_vars($omitted));
         self::assertArrayNotHasKey('to', get_object_vars($omitted));
         self::assertArrayNotHasKey('both', get_object_vars($omitted));
         self::assertArrayNotHasKey('from', (array) json_decode(json_encode($omitted), true));
