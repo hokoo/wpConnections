@@ -359,7 +359,7 @@ space or privilege reasons. It must be an explicit administrator operation with
 backup/rollback guidance. A normal mutation must never silently run `ALTER TABLE
 ... ENGINE=InnoDB`.
 
-## Pending decision gates
+## Decision gates
 
 <a id="dg-db-01"></a>
 ### DG-DB-01 — supported and blocking database matrix
@@ -378,6 +378,11 @@ families are release-blocking.
 **Recommendation:** A. It covers both ecosystems already named by WordPress,
 keeps the blocking cost bounded, and does not turn an untested future major into
 an automatic compatibility promise.
+
+**Decision:** approved A by the repository owner on 2026-09-13. The initial
+blocking pins are MySQL 8.0.46 and MariaDB 10.11.16, matching the DB-00 probes;
+changing either pin is dependency maintenance and requires the same blocking
+suite to pass before merge.
 
 **Compatibility impact:** A can expose MySQL-specific defects currently hidden
 by MariaDB-only CI but does not change runtime behavior. B contradicts the
@@ -401,6 +406,12 @@ tables can be MyISAM. Probes show that rollback then leaves writes committed.
 
 **Recommendation:** A. It is the only option compatible with DG-M7 without
 silently running locking DDL during a request.
+
+**Decision:** approved A by the repository owner on 2026-09-13. New tables are
+created as InnoDB. Existing missing, mixed-engine or non-transactional table
+pairs are reported before DML; normal requests never perform an implicit
+`ALTER TABLE ... ENGINE=InnoDB`. The actual legacy conversion remains a
+separate explicit administrator migration.
 
 **Compatibility impact:** legacy MyISAM installations must migrate before using
 the hardened mutation path. Existing reads and explicit cleanup can remain
@@ -445,18 +456,30 @@ later rollback misleading.
 - A: require schema readiness before the transaction. A mutation encountering
   missing/incompatible schema returns a stable pre-mutation error; installation
   and migration run through an explicit lifecycle outside DML transactions.
+- A-R: retain the useful v1 lazy first-write recovery as a bounded pre-DML
+  lifecycle: inspect both tables before the first insert; if either or both are
+  missing, perform at most one install/recovery outside any data transaction;
+  verify both tables and their engines again; only then start DML. Installation
+  failure or an incompatible/non-transactional engine fails before DML. Never
+  auto-convert an existing table's engine.
 - B: preserve install-and-retry inside the transaction and accept DDL's implicit
   commit behavior.
 - C: run schema recovery on a second connection while retaining the data
   transaction on the first.
 
-**Recommendation:** A. It separates an administrative schema lifecycle from
-request-time data atomicity and is deterministic on both supported products.
+**Recommendation:** A-R. It preserves the established first-write convenience
+without allowing failed DML to trigger DDL, and keeps schema recovery outside
+the atomic data boundary on both supported products.
 
-**Compatibility impact:** sites relying on lazy first-write table creation need
-an activation/upgrade step or a backward-compatible preflight before DML. B
-cannot meet DG-M7. C adds races, metadata locks and multi-connection complexity
-without making DDL rollback-safe.
+**Decision:** approved A-R by the repository owner on 2026-09-13. DB-06 owns
+the bounded pre-DML recovery and structural verification. Later DB-05 may begin
+a data transaction only after this readiness step succeeds.
+
+**Compatibility impact:** sites relying on lazy first-write table creation keep
+that behavior, but a failed insert is no longer used as the schema-discovery
+mechanism. Existing incompatible/MyISAM schemas require the explicit
+administrator path. B cannot meet DG-M7. C adds races, metadata locks and
+multi-connection complexity without making DDL rollback-safe.
 
 **Blocks:** DB-05, DB-06 and the create retry/migration portion of REL-01.
 
@@ -496,5 +519,6 @@ without making DDL rollback-safe.
 - The tested MariaDB exposes `@@in_transaction`; MySQL 8.0.46 returned error
   1193 for that variable, confirming vendor-specific detection cannot be the
   shared contract.
-- No production source, schema, workflow or supported-version policy is changed
-  by DB-00. All four material choices remain pending in the main registry.
+- DB-00 itself changed no production source, schema, workflow or
+  supported-version policy. DG-DB-01/A, DG-DB-02/A and the refined
+  DG-DB-04/A-R were approved on 2026-09-13; DG-DB-03 remains pending for DB-05.
