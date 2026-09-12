@@ -137,6 +137,26 @@ class ConnectionUpdateTest extends WPConnectionsTestCase
 		self::assertSame( 'Route-owned selectors', $this->find_connection( $connection->id )->title );
 	}
 
+	public function test_scalar_update_does_not_parse_non_authoritative_metadata(): void
+	{
+		$connection = $this->create_connection_with_metadata();
+
+		$response = $this->dispatch_rest_request(
+			'PATCH',
+			$this->connection_route( $connection ),
+			[
+				'title' => 'Scalar-only update',
+				'meta' => [ [ 'key' => [ 'malformed' ], 'value' => 'ignored' ] ],
+			]
+		);
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( [ 'updated' => true ], $response->get_data() );
+		$persisted = $this->find_connection( $connection->id );
+		self::assertSame( 'Scalar-only update', $persisted->title );
+		self::assertSame( [ 'marker' => [ 'preserved' ] ], $persisted->meta->toArray() );
+	}
+
 	/**
 	 * @dataProvider invalid_order_provider
 	 *

@@ -207,6 +207,9 @@ class ClientRestApi
     public function createConnection(WP_REST_Request $request)
     {
         $q = $this->obtainConnectionDataFromRequest($request);
+        if ($q->meta->isEmpty() && $request->has_param('meta')) {
+            $q->meta->fromArray((array) $request->get_param('meta'));
+        }
 
         try {
             return $this->ensureRestResponse($this->getClient()->getRelation($request->get_param('relation'))->createConnection($q));
@@ -222,10 +225,6 @@ class ClientRestApi
             if ($request->has_param($field)) {
                 $queryConnection->set($field, $request->get_param($field));
             }
-        }
-
-        if ($request->has_param('meta')) {
-            $queryConnection->meta->fromArray((array) $request->get_param('meta'));
         }
 
         return $queryConnection;

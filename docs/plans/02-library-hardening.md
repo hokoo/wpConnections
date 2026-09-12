@@ -3739,6 +3739,9 @@ Dependencies:
 - REST-00B.
 - DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-04.
 - DG-SPI-01.
+- DG-ENT-04, DG-ENT-05.
+- CORE-04.
+- DB-02.
 
 Notes/Risks:
 
@@ -3749,12 +3752,6 @@ Notes/Risks:
   полей; direct PHP handler calls сохраняют fallback через `get_param()`.
 - Protected green evidence приведён в Batch 11; задача остаётся в `review` до
   independent QA точного final candidate.
-- DG-ENT-04, DG-ENT-05.
-- CORE-04.
-- DB-02.
-
-Notes/Risks:
-
 - Нужно различать omitted, explicit null и falsy value.
 
 ### REST-03. Покрыть connection CRUD и error mapping
