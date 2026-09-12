@@ -363,6 +363,9 @@ replacement-compatible; запросы, передававшие невалид�
 **Compatibility impact:** A сохраняет материализованные query reads и
 `toArray()`, но raw object introspection/JSON больше не показывает untouched
 endpoint keys. Эти raw shapes не были документированной query representation;
+`DG-DELETE-04-R2/A` позднее уточняет implementation boundary: tracked
+selectors остаются virtual и после записи, поэтому `get_object_vars()` больше
+не является presence API, а JSON presence сохраняется явной сериализацией.
 явно присвоенный zero по-прежнему виден и теперь предсказуемо отклоняется до
 storage.
 
@@ -698,6 +701,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [DG-DELETE-02](../delete-result-contract.md#dg-delete-02--logical-affected-count-semantics) | approved A | repository owner | 2026-09-12 | Count committed connection rows, excluding metadata multiplicity |
 | [DG-DELETE-03](../delete-result-contract.md#dg-delete-03--valid-no-match-and-partial-match-semantics) | approved A | repository owner | 2026-09-12 | `0` is valid no-match; partial bulk match succeeds; invalid/failure remains attributable |
 | [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | approved A-R | repository owner | 2026-09-12 | Strict selected-selector/direct-SPI ID normalization coordinated with preserved domain precedence |
+| [DG-DELETE-04-R2](../delete-result-contract.md#dg-delete-04-r2--raw-selector-safety-versus-query-introspection) | approved A | repository owner | 2026-09-13 | Keep Query selectors virtual so repeated direct writes retain raw values; presence introspection uses `isProvided()` |
 | [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | pending; recommendation A | repository owner | — | REST-03 waits; DOC-01 refinement |
 | [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | pending; recommendation A | repository owner | — | DB-04 waits; REL-03/DOC-01 refinement |
 | [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | approved A | repository owner | 2026-09-11 | Compatibility normalization plus safe canonical identity |
@@ -1419,7 +1423,7 @@ Entry criteria:
   merge SHA прошли 17/17 post-merge checks.
 - TEST-01, DB-03A, DG-NAME-03 и CORE-06 completed.
 - DG-DELETE-01/A-R, DG-DELETE-02/A, DG-DELETE-03/A и DG-DELETE-04/A-R
-  утверждены владельцем 2026-09-12.
+  утверждены владельцем 2026-09-12; DG-DELETE-04-R2/A утверждён 2026-09-13.
 - Rerun `Relation::detachConnections()` и commit `0e72bdc` подтвердил, что
   `id → both → from+to → from → to` является историческим детерминированным
   порядком, а не основанием вводить новый v1 mutual-exclusion error.
@@ -1440,10 +1444,15 @@ Execution model:
   валидируется. Невалидный выбранный selector не падает вниз к потенциально
   более широкому lower-priority delete; lower-priority поля игнорируются после
   выбора валидной старшей ветки.
-- До выбора ветки Query сохраняет исходные selector values отдельно от
-  materialized typed public properties. Иначе weak-type coercion превращает
-  `1.5`, `"1e3"` или `true` в положительный `int` и позволяет удалить
-  реальную строку до strict normalization.
+- До выбора ветки Query сохраняет исходные selector values отдельно и держит
+  четыре tracked public properties виртуальными/uninitialized. Иначе повторная
+  direct write обходит `__set()`, а weak-type coercion превращает `1.5`,
+  `"1e3"` или `true` в положительный `int` и позволяет удалить реальную
+  строку до strict normalization.
+- `isProvided()` является поддерживаемой presence-интроспекцией;
+  `get_object_vars()` больше не материализует provided selectors.
+  Direct/get/set/toArray reads и явная JSON serialization сохраняются согласно
+  DG-DELETE-04-R2/A.
 - Не включать transaction/fault-injection/hook-commit work DB-05/DB-03B-B,
   REST response/error mapping REST-03 или `deleted_post` recovery DB-04.
 - Не интерпретировать `Query\Connection::$meta` как connection selector.
@@ -1456,8 +1465,8 @@ Exit criteria:
 
 - Все DB-03B-A DoD/AC и approved DG-DELETE-01—04 варианты доказаны tests.
 - Raw-value regressions покрывают `id`, `both`, pair, from-only и to-only,
-  no-SQL rejection и игнорирование invalid lower-priority поля после валидного
-  higher-priority selector.
+  initial/repeated direct writes, no-SQL rejection и игнорирование invalid
+  lower-priority поля после валидного higher-priority selector.
 - Independent QA проверяет exact candidate после реализации и после rebase.
 - Protected checks зелёные на final head и post-merge `master`; evidence и
   известные nonblocking limitations записаны до closeout.
@@ -2528,9 +2537,10 @@ Notes/Risks:
 
 - Строгая проверка может быть breaking для consumers, использующих IDs не из
   `wp_posts`.
-- Approved presence implementation меняет только undocumented raw
-  `get_object_vars()`/default JSON shape untouched query endpoints; `toArray()`
-  и direct reads остаются materialized.
+- Approved presence implementation вместе с DG-DELETE-04-R2/A меняет
+  undocumented raw `get_object_vars()` shape tracked query selectors;
+  `isProvided()` является presence API, explicit JSON сохраняет provided
+  selectors, а `toArray()` и direct reads сохраняются.
 - Entity deletion может произойти между validation и write; DB-04/DB-05 владеют
   cascade/transaction race, CORE-04 не заявляет cross-table atomicity.
 

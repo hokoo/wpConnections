@@ -4,7 +4,7 @@ namespace iTRON\wpConnections\Query;
 
 use iTRON\wpConnections\GSInterface;
 
-class Connection extends \iTRON\wpConnections\Abstracts\Connection
+class Connection extends \iTRON\wpConnections\Abstracts\Connection implements \JsonSerializable
 {
     use GSInterface {
         set as private setValue;
@@ -15,7 +15,6 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
     public int $both = 0;
     private array $providedFields = [];
     private array $providedValues = [];
-    private array $materializedValues = [];
 
     public function __construct($from = 0, $to = 0, $both = 0)
     {
@@ -47,6 +46,13 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function get(string $field)
     {
+        if (
+            $this->isPresenceTrackedField($field) &&
+            array_key_exists($field, $this->providedValues)
+        ) {
+            return $this->providedValues[ $field ];
+        }
+
         if ($this->isOmittedPresenceTrackedField($field)) {
             return 0;
         }
@@ -114,19 +120,30 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
     public function getProvidedValue(string $field)
     {
         if (array_key_exists($field, $this->providedValues)) {
-            $property = new \ReflectionProperty($this, $field);
-            if (
-                $property->isInitialized($this) &&
-                array_key_exists($field, $this->materializedValues) &&
-                $this->{$field} !== $this->materializedValues[ $field ]
-            ) {
-                return $this->{$field};
-            }
-
             return $this->providedValues[ $field ];
         }
 
         return $this->get($field);
+    }
+
+    public function jsonSerialize(): array
+    {
+        $values = [];
+        foreach ((new \ReflectionObject($this))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            $field = $property->getName();
+            if ($this->isPresenceTrackedField($field)) {
+                if (array_key_exists($field, $this->providedValues)) {
+                    $values[ $field ] = $this->providedValues[ $field ];
+                }
+                continue;
+            }
+
+            if ($property->isInitialized($this)) {
+                $values[ $field ] = $property->getValue($this);
+            }
+        }
+
+        return $values;
     }
 
     private function isPresenceTrackedField(string $field): bool
@@ -136,32 +153,15 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     private function isOmittedPresenceTrackedField(string $field): bool
     {
-        if (! $this->isPresenceTrackedField($field)) {
-            return false;
-        }
-
-        $property = new \ReflectionProperty($this, $field);
-
-        return ! $property->isInitialized($this);
+        return $this->isPresenceTrackedField($field) &&
+            ! array_key_exists($field, $this->providedValues);
     }
 
     private function setPresenceTrackedValue(string $field, $value): void
     {
         $this->providedFields[ $field ] = true;
         $this->providedValues[ $field ] = $value;
-
-        if (is_float($value)) {
-            unset($this->{$field}, $this->materializedValues[ $field ]);
-            return;
-        }
-
-        try {
-            $this->{$field} = $value;
-            $this->materializedValues[ $field ] = $this->{$field};
-        } catch (\TypeError) {
-            unset($this->{$field});
-            unset($this->materializedValues[ $field ]);
-        }
+        unset($this->{$field});
     }
 
     public function exists_relation(): bool

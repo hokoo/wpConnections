@@ -275,6 +275,79 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 		$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
 	}
 
+	/**
+	 * @dataProvider repeated_direct_domain_branch_provider
+	 */
+	public function test_repeated_direct_write_rejects_latest_raw_selector_before_sql(
+		string $branch,
+		$invalid
+	): void {
+		$connection = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
+
+		switch ( $branch ) {
+			case 'id':
+				$query = new ConnectionQuery();
+				$query->id = $connection->id;
+				$query->id = $invalid;
+				$query->both = $connection->from;
+				break;
+			case 'both':
+				$query = new ConnectionQuery( $connection->from, $connection->to );
+				$query->both = $connection->from;
+				$query->both = $invalid;
+				break;
+			case 'pair-from':
+				$query = new ConnectionQuery( $connection->from, $connection->to );
+				$query->from = $invalid;
+				break;
+			case 'pair-to':
+				$query = new ConnectionQuery( $connection->from, $connection->to );
+				$query->to = $invalid;
+				break;
+			case 'from':
+				$query = new ConnectionQuery();
+				$query->from = $connection->from;
+				$query->from = $invalid;
+				break;
+			case 'to':
+				$query = new ConnectionQuery();
+				$query->to = $connection->to;
+				$query->to = $invalid;
+				break;
+			default:
+				self::fail( 'Unknown repeated-write selector branch.' );
+		}
+
+		global $wpdb;
+		$queries_before = $wpdb->num_queries;
+		try {
+			$this->client->getRelation( RELATION_0_NAME )->detachConnections( $query );
+			self::fail( 'Expected the latest direct selector value to be rejected.' );
+		} catch ( ConnectionWrongData $exception ) {
+			self::assertSame( 'Positive integer ID expected.', $exception->getMessage() );
+			self::assertSame( $queries_before, $wpdb->num_queries );
+		}
+
+		$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
+	}
+
+	public function repeated_direct_domain_branch_provider(): array
+	{
+		return [
+			'id float'       => [ 'id', 1.5 ],
+			'id same boolean' => [ 'id', true ],
+			'both exponent'  => [ 'both', '1e3' ],
+			'pair from float' => [ 'pair-from', 1.5 ],
+			'pair to boolean' => [ 'pair-to', true ],
+			'from whitespace' => [ 'from', ' 1' ],
+			'to plus'         => [ 'to', '+1' ],
+		];
+	}
+
 	public function test_repeated_setter_write_validates_the_latest_raw_selector_value(): void
 	{
 		$connection = $this->create_connection(

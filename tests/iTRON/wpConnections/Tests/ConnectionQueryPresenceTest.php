@@ -71,7 +71,7 @@ class ConnectionQueryPresenceTest extends TestCase
         self::assertSame(0, $array['to']);
     }
 
-    public function test_raw_introspection_exposes_presence_instead_of_materialized_defaults(): void
+    public function test_virtual_selector_introspection_uses_contract_helpers_and_json(): void
     {
         $omitted = new Connection();
 
@@ -83,8 +83,9 @@ class ConnectionQueryPresenceTest extends TestCase
 
         $omitted->from = 0;
 
-        self::assertArrayHasKey('from', get_object_vars($omitted));
-        self::assertSame(0, get_object_vars($omitted)['from']);
+        self::assertArrayNotHasKey('from', get_object_vars($omitted));
+        self::assertTrue($omitted->isProvided('from'));
+        self::assertSame(0, $omitted->get('from'));
         self::assertSame(0, json_decode(json_encode($omitted), true)['from']);
     }
 
@@ -106,5 +107,34 @@ class ConnectionQueryPresenceTest extends TestCase
         $query->from = 33;
 
         self::assertSame(33, $query->getProvidedValue('from'));
+    }
+
+    /**
+     * @dataProvider repeated_direct_selector_provider
+     */
+    public function test_repeated_direct_write_preserves_the_latest_raw_selector(
+        string $field,
+        $rawValue
+    ): void {
+        $query = new Connection(11, 22, 33);
+        $query->id = 44;
+        $query->{$field} = 77;
+        $query->{$field} = $rawValue;
+
+        self::assertSame($rawValue, $query->get($field));
+        self::assertSame($rawValue, $query->getProvidedValue($field));
+        self::assertTrue($query->isProvided($field));
+        self::assertArrayNotHasKey($field, get_object_vars($query));
+        self::assertEquals($rawValue, json_decode(json_encode($query), true)[ $field ]);
+    }
+
+    public function repeated_direct_selector_provider(): array
+    {
+        return [
+            'id float'       => [ 'id', 1.5 ],
+            'both boolean'   => [ 'both', true ],
+            'from exponent'  => [ 'from', '1e3' ],
+            'to whitespace'  => [ 'to', ' 1' ],
+        ];
     }
 }

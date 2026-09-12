@@ -1,7 +1,8 @@
 # Connection delete result and failure contract
 
 Status: DG-DELETE-01—DG-DELETE-04 approved by the repository owner on
-2026-09-12; DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
+2026-09-12; implementation refinement DG-DELETE-04-R2/A approved on
+2026-09-13; DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 (the merge of CORE-00 after SPI-01 into `master`, 2026-09-10).
@@ -488,6 +489,41 @@ value to remain ignored after a valid higher-priority selector, as A-R
 requires. Regression coverage must prove every domain branch rejects raw
 float, exponent/whitespace/plus strings, boolean, overflow and incompatible
 values before SQL.
+
+### DG-DELETE-04-R2 — Raw selector safety versus Query introspection
+
+**Status:** approved A by the repository owner on 2026-09-13.
+
+**Problem:** the first raw-value ledger fixed constructor, setter and first
+direct writes, but a materialized typed public property allowed a later direct
+write to bypass `__set()`. PHP could again coerce `1.5`, `true` or
+`"1e3"` into a valid positive integer and make deletion target a real row.
+On PHP 8.1 it is impossible both to keep these public typed properties
+initialized for `get_object_vars()` and to intercept every later direct write.
+
+- A: keep the four tracked Query selectors permanently uninitialized and store
+  every provided value in the Query ledger. Preserve direct reads, `get()`,
+  `set()`, `isset()`, `property_exists()`, `isProvided()`, `toArray()`
+  and explicit JSON serialization. Presence introspection is supported through
+  `isProvided()`; `get_object_vars()` is not a supported Query presence API.
+- B: remove the shared property types from `Abstracts\Connection`, preserving
+  raw object introspection but broadening the change to hydrated connections,
+  reflection and consumer subclasses.
+- C: keep materialized properties and document the repeated-write destructive
+  hole.
+- D: defer an immutable delete-command DTO to 2.0 and leave v1 incomplete.
+
+**Decision:** A. It confines the compatibility refinement to query
+introspection while making all constructor, setter and repeated direct-write
+paths safe. B has a materially broader v1 compatibility cost; C violates
+DG-DELETE-04/A-R; D does not satisfy Batch 12.
+
+**Compatibility impact:** callers must use `isProvided()` rather than
+`get_object_vars()` to distinguish omitted and explicitly provided selector
+fields. Direct property reads retain the declared typed-property behavior;
+`get()` and selector validation retain the exact recorded input. JSON
+serialization explicitly includes provided selector fields and omits
+unprovided ones.
 
 ### DG-DELETE-05 — REST connection-delete success representation
 
