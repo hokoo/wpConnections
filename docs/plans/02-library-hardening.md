@@ -25,8 +25,9 @@ checks. Final head `6554089`, merge `73bc71f` и post-merge `master` также
 independent QA PASS; docs-only final head `7e1addc` прошёл independent closure
 QA и 17/17 protected checks. PR #83 влит как `33b659e`, на exact merge SHA
 post-merge `master` также прошёл 17/17 checks. Batch 10 завершён.
-DG-UPDATE-03/A утверждён владельцем 2026-09-12; Batch 11 активирован для
-связного `TEST-02D + DB-02 + REST-02` red-to-green vertical slice.
+DG-UPDATE-03/A утверждён владельцем 2026-09-12. Batch 11 завершён PR #85:
+exact head `6e2ffc4` получил independent QA PASS_WITH_NOTES и 17/17 protected
+checks; merge `3d954ec` также прошёл 17/17 post-merge checks.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1343,7 +1344,7 @@ Exit criteria:
 
 ### Batch 11. Connection update vertical slice
 
-Status: active
+Status: completed
 
 Goal: одним red-to-green vertical slice закрыть update без `title`, корректную
 передачу `order=0` и согласованные create/update/meta regressions.
@@ -1359,14 +1360,15 @@ Entry criteria:
 
 Tasks:
 
-- TEST-02D — `review`; corrected full-dispatch red evidence зафиксирован на
+- TEST-02D — `completed`; corrected full-dispatch red evidence зафиксирован на
   candidate `d526d72`: `147 tests / 1426 assertions / 3 errors / 16 failures`
-  во всех пяти integration jobs.
-- DB-02 — `review`; create/update/meta contract зелёный на production candidate
-  `28e0193`, включая `order=0`, defaults, duplicate/falsy values, replace/clear
+  во всех пяти integration jobs; regression зелёный на final head `6e2ffc4`.
+- DB-02 — `completed`; create/update/meta contract зелёный на final head
+  `6e2ffc4`, включая `order=0`, defaults, duplicate/falsy values, replace/clear
   и deterministic pre-mutation validation.
-- REST-02 — `review`; method-specific POST/PUT/PATCH schema и preserve semantics
-  зелёные на production candidate `28e0193`.
+- REST-02 — `completed`; method-specific POST/PUT/PATCH schema, custom delegate
+  defaults, scalar metadata boundary и preserve semantics зелёные на final head
+  `6e2ffc4`.
 
 Execution model:
 
@@ -1375,11 +1377,19 @@ Execution model:
 - Не предрешать DG-UPDATE-05 и новый REST response format: они вне REST-02.
 - Не включать transaction implementation DB-05 или общую CRUD/error matrix
   REST-03.
-- Green evidence candidate `28e0193`: protected checks 17/17; representative
-  integration PHP 8.1 / WordPress 6.7 — `147 tests / 1576 assertions`; полный
-  reverse и random isolation passes — по `294 / 3152`; statement coverage
-  `1243/1365 (91.06%)`, release gate READY; PHPCS green. Та же integration
-  suite зелёная на PHP 8.2—8.5 / WordPress 6.7—7.1.
+- Final evidence exact head `6e2ffc4`: independent QA PASS_WITH_NOTES,
+  protected checks 17/17; representative integration PHP 8.1 / WordPress 6.7
+  — `149 tests / 1596 assertions`; full reverse и random isolation passes — по
+  `298 / 3192`; coverage suite `162 / 1655`, statement coverage `1247/1370
+  (91.02%)`, release gate READY; PHPCS green. Та же integration suite зелёная
+  на PHP 8.2—8.5 / WordPress 6.7—7.1.
+- PR #85 влит как `3d954ec`; exact merge SHA прошёл 17/17 post-merge checks.
+- Единственная independent QA note — отдельный локальный `--filter` transcript
+  не мог быть выполнен без Docker при host PHP 8.0 ниже Composer floor 8.1.
+  Принято явно документированное evidence-исключение: corrected full-suite red
+  `d526d72`, full-dispatch green во всех пяти integration jobs и по два reverse
+  и seeded-random isolation pass на exact final head. Это не active test
+  exception и не дефект реализации.
 
 Exit criteria:
 
@@ -1657,12 +1667,12 @@ Notes/Risks:
 
 ### TEST-02D. Зафиксировать REST update без `title`
 
-Status: review
+Status: completed
 
 Priority: P0
 
-Goal: воспроизвести typed-property failure обычного update payload без `title`
-через WordPress REST dispatch.
+Goal: зафиксировать полный путь update без `title`: historical typed-property
+failure до CORE-04 и текущий full-dispatch blocker в общей EDITABLE schema.
 
 Scope:
 
@@ -1683,7 +1693,8 @@ DoR:
 
 DoD:
 
-- Test наблюдался красным на исходном handler по ожидаемой причине.
+- Historical fatal и corrected current-base full-dispatch red разделены и
+  зафиксированы по своим фактическим причинам.
 - Test зелёный вместе с REST-02 в финальном vertical PR.
 - Red/green evidence записан.
 
@@ -1714,6 +1725,14 @@ Notes/Risks:
   подтверждён всеми пятью integration jobs; unit matrix и PHPCS зелёные.
 - Первый red-test commit `ea84805` содержал неверный concrete/query Meta fixture;
   это test-only отклонение исправлено в `d526d72` до принятия baseline.
+- Green на exact final head `6e2ffc4`: representative integration `149 tests /
+  1596 assertions`; тот же full-dispatch suite прошёл все пять compatibility
+  jobs и дважды по `298 / 3192` в reverse/seeded-random isolation. Independent
+  QA PASS_WITH_NOTES; merge `3d954ec` прошёл 17/17 post-merge checks.
+- Буквальный локальный `--filter` transcript заменён этим более широким
+  evidence, поскольку Docker недоступен, а host PHP 8.0 ниже Composer floor
+  8.1. Исключение относится только к способу фиксации evidence; regression и
+  его acceptance assertions выполнены, active test exception не создан.
 
 ### TEST-02E. Зафиксировать поиск по `both`
 
@@ -2980,7 +2999,7 @@ Notes/Risks:
 
 ### DB-02. Защитить create/update и meta regressions
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -3040,13 +3059,13 @@ Notes/Risks:
 
 - Таблица объявляет `meta_value NOT NULL`, тогда как object model допускает null;
   контракт нужно зафиксировать тестом и при необходимости schema change.
-- Candidate `28e0193` валидирует только metadata, передаваемую на persistence
+- Final candidate `6e2ffc4` валидирует только metadata, передаваемую на persistence
   boundary: пустой key и null value отклоняются code 300 до DML; null в
   `Query\Meta` остаётся разрешённым selector wildcard для удаления.
 - DB-normalized falsy values зафиксированы явно: integer/string zero читаются
   как `"0"`, false/empty string — как `""`; duplicate rows сохраняются.
-- Green evidence совпадает с Batch 11 evidence выше; задача остаётся в `review`
-  до independent QA точного final candidate.
+- Green, independent QA и post-merge evidence совпадает с Batch 11 evidence
+  выше; все DoD/AC выполнены.
 
 ### DB-03A. Зафиксировать delete result и failure contract
 
@@ -3692,7 +3711,7 @@ Notes/Risks:
 
 ### REST-02. Исправить fatal error при update connection
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -3745,13 +3764,17 @@ Dependencies:
 
 Notes/Risks:
 
-- Candidate `28e0193` сохраняет четыре route patterns и 12 method/callback
+- Final candidate `6e2ffc4` сохраняет четыре route patterns и 12 method/callback
   combinations, но разделяет scalar update registration на PATCH, PUT и POST,
   чтобы required/default semantics задавались по методу.
+- POST/PUT materialize `order=0` на route boundary и для custom delegates;
+  PATCH не получает synthetic default. Scalar update удаляет non-authoritative
+  `meta` из клона request до вызова совместимого protected helper, поэтому даже
+  malformed metadata не парсится и оригинальный request не изменяется.
 - URL `relation` и `connectionID` авторитетны относительно одноимённых body
   полей; direct PHP handler calls сохраняют fallback через `get_param()`.
-- Protected green evidence приведён в Batch 11; задача остаётся в `review` до
-  independent QA точного final candidate.
+- Protected green, independent QA и post-merge evidence приведён в Batch 11;
+  все DoD/AC выполнены.
 - Нужно различать omitted, explicit null и falsy value.
 
 ### REST-03. Покрыть connection CRUD и error mapping
