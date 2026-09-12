@@ -5,6 +5,7 @@ namespace iTRON\wpConnections;
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Helpers\Database;
+use iTRON\wpConnections\Internal\ConnectionIdNormalizer;
 
 class WPStorage extends Abstracts\Storage
 {
@@ -306,18 +307,25 @@ class WPStorage extends Abstracts\Storage
         // MySQL Query
         $db = $this->fullTableName($this->connections_table);
         $db_meta = $this->fullTableName($this->meta_table);
-        $in = implode(',', $connectionIDs);
+        $in = $this->idPlaceholders($connectionIDs);
 
-        $query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
-        $query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})";
+        $query = $wpdb->prepare(
+            "DELETE FROM {$db} WHERE `ID` IN ({$in})",
+            ...$connectionIDs
+        );
+        $query_meta = $wpdb->prepare(
+            "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})",
+            ...$connectionIDs
+        );
 
-        $wpdb->query(esc_sql($query_meta));
-        $wpdb->query(esc_sql($query));
+        $wpdb->query($query_meta);
+        $wpdb->query($query);
+        $rowsAffected = (int) $wpdb->rows_affected;
 
-        do_action('wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $wpdb->rows_affected);
-        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $wpdb->rows_affected);
+        do_action('wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $rowsAffected);
+        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $rowsAffected);
 
-        return $wpdb->rows_affected;
+        return $rowsAffected;
     }
 
     /**
@@ -348,29 +356,38 @@ class WPStorage extends Abstracts\Storage
 
         // Only one of direction restricts may be set true.
         if ($onlyFrom && $onlyTo) {
-            return 0;
+            throw new ConnectionWrongData('Only one object-side direction restriction may be enabled.');
         }
 
-        $in = implode(',', $this->prepareIDs($objectIDs));
+        $objectIDs = $this->prepareIDs($objectIDs);
+        $in = $this->idPlaceholders($objectIDs);
 
         $where = [];
+        $whereArguments = [];
 
         if (! $onlyFrom) {
             $where [] = "`to` IN ({$in})";
+            array_push($whereArguments, ...$objectIDs);
         }
 
         if (! $onlyTo) {
             $where [] = "`from` IN ({$in})";
+            array_push($whereArguments, ...$objectIDs);
         }
 
         $where_str = implode(' OR ', $where);
 
-        $relation_query = empty($relation) ? '1=1' : "`relation` LIKE '{$relation}'";
+        $relationQuery = '' === $relation ? '1=1' : '`relation` = %s';
+        $queryArguments = '' === $relation ? [] : [ $relation ];
+        array_push($queryArguments, ...$whereArguments);
         $db = $this->fullTableName($this->connections_table);
         $db_meta = $this->fullTableName($this->meta_table);
 
         // Get ID's
-        $query_ids = "SELECT `ID` FROM {$db} WHERE {$relation_query} AND ({$where_str})";
+        $query_ids = $wpdb->prepare(
+            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND ({$where_str})",
+            ...$queryArguments
+        );
         $result_ids = $wpdb->get_results($query_ids);
         $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
 
@@ -380,30 +397,38 @@ class WPStorage extends Abstracts\Storage
         }
 
         // Delete
-        $in = implode(',', $ids);
-        $query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})";
-        $query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
+        $ids = $this->prepareIDs($ids);
+        $in = $this->idPlaceholders($ids);
+        $query_meta = $wpdb->prepare(
+            "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})",
+            ...$ids
+        );
+        $query = $wpdb->prepare(
+            "DELETE FROM {$db} WHERE `ID` IN ({$in})",
+            ...$ids
+        );
 
-        $wpdb->query(esc_sql($query_meta));
-        $wpdb->query(esc_sql($query));
+        $wpdb->query($query_meta);
+        $wpdb->query($query);
+        $rowsAffected = (int) $wpdb->rows_affected;
 
         do_action('wpConnections/storage/deletedByObjectID', $this->getClient(), $ids);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedByObjectID", $ids);
 
-        return $wpdb->rows_affected;
+        return $rowsAffected;
     }
 
     /**
      * Deletes exactly specified connections.
      * Able to erase multiple connections (e.g. if duplicatable is set true)
      *
-     * @param int|null $from    `from` object
-     * @param int|null $to      `to` object
+     * @param mixed       $from      `from` object
+     * @param mixed       $to        `to` object
      * @param string $relation  Relation name. Default all relations
      *
      * @return int              Rows number affected.
      */
-    public function deleteDirectedConnections(int $from = null, int $to = null, string $relation = ''): int
+    public function deleteDirectedConnections($from = null, $to = null, string $relation = ''): int
     {
         global $wpdb;
 
@@ -413,18 +438,22 @@ class WPStorage extends Abstracts\Storage
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deleteDirectedConnections", $from, $to, $relation);
         $this->assertSitePrefix();
 
-        // Only exactly specified connections may be deleted.
-        if (empty($from) || empty($to)) {
-            return 0;
-        }
+        $from = ConnectionIdNormalizer::one($from);
+        $to = ConnectionIdNormalizer::one($to);
 
         // MySQL Query
         $db = $this->fullTableName($this->connections_table);
         $db_meta = $this->fullTableName($this->meta_table);
-        $relation_query = empty($relation) ? '1=1' : "`relation` LIKE '{$relation}'";
+        $relationQuery = '' === $relation ? '1=1' : '`relation` = %s';
+        $queryArguments = '' === $relation ? [] : [ $relation ];
+        $queryArguments[] = $from;
+        $queryArguments[] = $to;
 
         // Get ID's
-        $query_ids = "SELECT `ID` FROM {$db} WHERE {$relation_query} AND `from` = {$from} AND `to` = {$to}";
+        $query_ids = $wpdb->prepare(
+            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND `from` = %d AND `to` = %d",
+            ...$queryArguments
+        );
         $result_ids = $wpdb->get_results($query_ids);
         $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
 
@@ -434,18 +463,26 @@ class WPStorage extends Abstracts\Storage
         }
 
         // Delete
-        $in = implode(',', $ids);
-        $query = "DELETE FROM {$db} WHERE `ID` IN ({$in})";
-        $query_meta = "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})";
+        $ids = $this->prepareIDs($ids);
+        $in = $this->idPlaceholders($ids);
+        $query = $wpdb->prepare(
+            "DELETE FROM {$db} WHERE `ID` IN ({$in})",
+            ...$ids
+        );
+        $query_meta = $wpdb->prepare(
+            "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})",
+            ...$ids
+        );
 
         // @TODO Transaction
-        $wpdb->query(esc_sql($query_meta));
-        $wpdb->query(esc_sql($query));
+        $wpdb->query($query_meta);
+        $wpdb->query($query);
+        $rowsAffected = (int) $wpdb->rows_affected;
 
         do_action('wpConnections/storage/deletedDirectedConnections', $this->getClient(), $ids);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedDirectedConnections", $ids);
 
-        return $wpdb->rows_affected;
+        return $rowsAffected;
     }
 
     /**
@@ -457,23 +494,15 @@ class WPStorage extends Abstracts\Storage
      */
     protected function prepareIDs($connectionIDs): array
     {
-        $connectionIDs = is_numeric($connectionIDs) ? [ $connectionIDs ] : $connectionIDs;
-        $e = new ConnectionWrongData('Integer or array of integer expected.');
+        return ConnectionIdNormalizer::many($connectionIDs);
+    }
 
-        if (! is_array($connectionIDs)) {
-            throw $e;
-        }
-
-        // Filter out non-numeric array items
-        $connectionIDs = array_filter($connectionIDs, function ($item) {
-            return is_numeric($item);
-        });
-
-        if (empty($connectionIDs)) {
-            throw $e;
-        }
-
-        return $connectionIDs;
+    /**
+     * @param int[] $connectionIDs
+     */
+    private function idPlaceholders(array $connectionIDs): string
+    {
+        return implode(',', array_fill(0, count($connectionIDs), '%d'));
     }
 
     /**

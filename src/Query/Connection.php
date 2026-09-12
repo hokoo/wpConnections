@@ -18,6 +18,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
     public function __construct(int $from = 0, int $to = 0, int $both = 0)
     {
         parent::__construct();
+        unset($this->id);
 
         $providedArguments = func_num_args();
         if (0 < $providedArguments) {
@@ -49,7 +50,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function get(string $field)
     {
-        if ($this->isOmittedEndpoint($field)) {
+        if ($this->isOmittedPresenceTrackedField($field)) {
             return 0;
         }
 
@@ -58,7 +59,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function __get($field)
     {
-        if ($this->isOmittedEndpoint($field)) {
+        if ($this->isOmittedPresenceTrackedField($field)) {
             return 0;
         }
 
@@ -67,7 +68,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function __set($field, $value): void
     {
-        if ($this->isEndpointField($field)) {
+        if ($this->isPresenceTrackedField($field)) {
             $this->providedFields[ $field ] = true;
         }
 
@@ -76,7 +77,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function __isset($field): bool
     {
-        return $this->isEndpointField($field);
+        return $this->isPresenceTrackedField($field);
     }
 
     public function isProvided(string $field): bool
@@ -85,7 +86,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
             return true;
         }
 
-        if ($this->isEndpointField($field)) {
+        if ($this->isPresenceTrackedField($field)) {
             return false;
         }
 
@@ -98,14 +99,14 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
         return $property->isInitialized($this);
     }
 
-    private function isEndpointField(string $field): bool
+    private function isPresenceTrackedField(string $field): bool
     {
-        return in_array($field, [ 'from', 'to', 'both' ], true);
+        return in_array($field, [ 'id', 'from', 'to', 'both' ], true);
     }
 
-    private function isOmittedEndpoint(string $field): bool
+    private function isOmittedPresenceTrackedField(string $field): bool
     {
-        if (! $this->isEndpointField($field)) {
+        if (! $this->isPresenceTrackedField($field)) {
             return false;
         }
 

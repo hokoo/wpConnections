@@ -120,7 +120,10 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 		self::assertSame( 0, $this->meta_row_count( $both_target->id ) );
 	}
 
-	public function test_invalid_selected_selector_does_not_fall_through_to_valid_lower_priority_fields(): void
+	/**
+	 * @dataProvider invalid_domain_id_provider
+	 */
+	public function test_invalid_selected_id_does_not_fall_through_to_valid_lower_priority_fields( $invalid_id ): void
 	{
 		$connection = $this->create_connection(
 			RELATION_0_NAME,
@@ -128,7 +131,7 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 			$this->post_ids[0]
 		);
 		$query = new ConnectionQuery();
-		$query->set( 'id', -1 );
+		$query->set( 'id', $invalid_id );
 		$query->set( 'both', $connection->from );
 
 		try {
@@ -140,6 +143,54 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 
 		$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
 		self::assertSame( 1, $this->meta_row_count( $connection->id ) );
+	}
+
+	public function invalid_domain_id_provider(): array
+	{
+		return [
+			'explicit zero'     => [ 0 ],
+			'negative integer'  => [ -1 ],
+			'explicit null'     => [ null ],
+		];
+	}
+
+	public function test_invalid_selected_both_does_not_fall_through_to_valid_pair(): void
+	{
+		$connection = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
+		$query = new ConnectionQuery( $connection->from, $connection->to );
+		$query->set( 'both', 0 );
+
+		$this->expectException( ConnectionWrongData::class );
+		$this->expectExceptionMessage( 'Positive integer ID expected.' );
+		try {
+			$this->client->getRelation( RELATION_0_NAME )->detachConnections( $query );
+		} finally {
+			$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
+			self::assertSame( 1, $this->meta_row_count( $connection->id ) );
+		}
+	}
+
+	public function test_invalid_explicit_pair_does_not_fall_back_to_from_only(): void
+	{
+		$connection = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
+		$query = new ConnectionQuery( $connection->from, 0 );
+
+		$this->expectException( ConnectionWrongData::class );
+		$this->expectExceptionMessage( 'Positive integer ID expected.' );
+		try {
+			$this->client->getRelation( RELATION_0_NAME )->detachConnections( $query );
+		} finally {
+			$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
+			self::assertSame( 1, $this->meta_row_count( $connection->id ) );
+		}
 	}
 
 	public function test_domain_pair_from_and_to_branches_delete_only_their_matches(): void
@@ -450,6 +501,43 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 		self::assertSame( 0, $this->meta_row_count( $second->id ) );
 	}
 
+	public function test_empty_direct_spi_relation_keeps_all_relations_scope(): void
+	{
+		$first_relation = 'delete-all-relations-first';
+		$second_relation = 'delete-all-relations-second';
+		$this->register_relation( $first_relation, 'page', 'post', true );
+		$this->register_relation( $second_relation, 'page', 'post', true );
+
+		$directed = [
+			$this->create_connection( $first_relation, $this->page_ids[0], $this->post_ids[0] ),
+			$this->create_connection( $second_relation, $this->page_ids[0], $this->post_ids[0] ),
+		];
+		self::assertSame(
+			2,
+			$this->client->getStorage()->deleteDirectedConnections(
+				$this->page_ids[0],
+				$this->post_ids[0]
+			)
+		);
+		foreach ( $directed as $connection ) {
+			self::assertSame( 0, $this->meta_row_count( $connection->id ) );
+		}
+
+		$by_object = [
+			$this->create_connection( $first_relation, $this->page_ids[0], $this->post_ids[1] ),
+			$this->create_connection( $second_relation, $this->page_ids[0], $this->post_ids[1] ),
+		];
+		self::assertSame(
+			2,
+			$this->client->getStorage()->deleteByObjectID( $this->page_ids[0], '', true )
+		);
+		foreach ( $by_object as $connection ) {
+			self::assertSame( 0, $this->meta_row_count( $connection->id ) );
+		}
+		self::assertTrue( $this->find_connections( $first_relation )->isEmpty() );
+		self::assertTrue( $this->find_connections( $second_relation )->isEmpty() );
+	}
+
 	public function test_directed_delete_removes_all_duplicate_rows_and_their_metadata(): void
 	{
 		$relation_name = 'delete-directed-duplicates';
@@ -502,10 +590,10 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 	/**
 	 * @dataProvider invalid_directed_selector_provider
 	 */
-	public function test_directed_delete_rejects_non_positive_selected_endpoint( int $from, int $to ): void
+	public function test_directed_delete_rejects_invalid_selected_endpoint( $from, $to ): void
 	{
 		$this->expectException( ConnectionWrongData::class );
-		$this->expectExceptionMessage( 'Positive integer ID or a non-empty array of positive integer IDs expected.' );
+		$this->expectExceptionMessage( 'Positive integer ID expected.' );
 		$this->client->getStorage()->deleteDirectedConnections( $from, $to, RELATION_0_NAME );
 	}
 
@@ -514,8 +602,14 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 		return [
 			'zero from'     => [ 0, 1 ],
 			'negative from' => [ -1, 1 ],
+			'float from'    => [ 1.5, 1 ],
+			'exponent from' => [ '1e3', 1 ],
+			'boolean from'  => [ true, 1 ],
+			'null from'     => [ null, 1 ],
 			'zero to'       => [ 1, 0 ],
 			'negative to'   => [ 1, -1 ],
+			'float to'      => [ 1, 1.5 ],
+			'exponent to'   => [ 1, '1e3' ],
 		];
 	}
 
