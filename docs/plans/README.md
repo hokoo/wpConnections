@@ -36,7 +36,9 @@
 7. DG-UPDATE-03/A утверждён владельцем 2026-09-12: scalar REST update не
    изменяет metadata, REST clients используют `/meta`, а PHP
    `Connection::update()` сохраняет aggregate replacement semantics. Batch 11
-   (`TEST-02D + DB-02 + REST-02`) активен.
+   (`TEST-02D + DB-02 + REST-02`) завершён PR #85: exact head `6e2ffc4`
+   получил independent QA PASS_WITH_NOTES и 17/17 protected checks, merge
+   `3d954ec` также прошёл 17/17 post-merge checks.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

@@ -102,13 +102,25 @@ jobs remain green. The earlier `ea84805` result is not accepted as behavioral
 evidence because it contained a test-only concrete/query Meta fixture error,
 fixed by `d526d72`.
 
-Production candidate `28e0193` makes that contract green without changing the
-four route patterns, twelve method/callback combinations, or v1 scalar update
-response. Protected evidence is 17/17 checks: the representative PHP 8.1 /
-WordPress 6.7 integration job reports `147 tests / 1576 assertions`; reverse
-and random two-pass isolation each report `294 / 3152`; statement coverage is
-`1243/1365 (91.06%)` and PHPCS is green. Equivalent integration jobs pass on
-PHP 8.2 through 8.5 and WordPress 6.7 through 7.1.
+Final candidate `6e2ffc4` makes that contract green without changing the four
+route patterns, twelve method/callback combinations, or v1 scalar update
+response. It also preserves method-specific defaults at the custom-delegate
+boundary and removes non-authoritative `meta` before any scalar helper can
+parse it. Independent QA is PASS_WITH_NOTES and protected evidence is 17/17
+checks: the representative PHP 8.1 / WordPress 6.7 integration job reports
+`149 tests / 1596 assertions`; reverse and random two-pass isolation each
+report `298 / 3192`; the coverage suite reports `162 / 1655`, statement
+coverage is `1247/1370 (91.02%)`, and PHPCS is green. Equivalent integration
+jobs pass on PHP 8.2 through 8.5 and WordPress 6.7 through 7.1. PR #85 merged as
+`3d954ec`, whose 17/17 post-merge checks are also green.
+
+The only QA note is procedural: the local Docker runtime was unavailable and
+the host PHP 8.0 is below the Composer 8.1 floor, so a separate isolated
+`--filter` green transcript could not be produced. The accepted evidence is
+the corrected full-suite red at `d526d72`, followed by full-dispatch green in
+all five integration jobs and both reverse and seeded-random isolation passes
+on the exact final head. This is an evidence substitution, not an active test
+exception.
 
 ## Update modes that the implementation must keep distinct
 
