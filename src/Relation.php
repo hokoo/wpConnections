@@ -3,7 +3,9 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
+use iTRON\wpConnections\Internal\ConnectionIdNormalizer;
 use iTRON\wpConnections\Internal\PersistableMetadataValidator;
 
 class Relation extends Abstracts\Relation
@@ -128,39 +130,52 @@ class Relation extends Abstracts\Relation
      */
     public function detachConnections(Query\Connection $connectionQuery): int
     {
+        // Detach one specific connection. Lower-priority selectors are ignored.
+        if ($connectionQuery->isProvided('id')) {
+            $connectionID = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('id'));
 
-        try {
-            // Detach specific connection.
-            if (! empty($connectionQuery->get('id'))) {
-                return $this->getClient()->getStorage()->deleteSpecificConnections($connectionQuery->get('id'));
+            try {
+                $connection = $this->getClient()->findConnection($connectionID);
+            } catch (ConnectionNotFound $exception) {
+                return 0;
             }
 
-            // Detach any connection with $connectionQuery->both as object ID.
-            if (! empty($connectionQuery->get('both'))) {
-                return $this->getClient()->getStorage()->deleteByObjectID($connectionQuery->get('both'), $this->name);
+            if ($this->name !== $connection->relation) {
+                return 0;
             }
 
-            // Detach directed connection(s).
-            if (! empty($connectionQuery->get('from')) && ! empty($connectionQuery->get('to'))) {
-                return $this->getClient()->getStorage()->deleteDirectedConnections($connectionQuery->get('from'), $connectionQuery->get('to'), $this->name);
-            }
-
-            // Detach `from` directed connections.
-            if (! empty($connectionQuery->get('from'))) {
-                return $this->getClient()->getStorage()->deleteByObjectID($connectionQuery->get('from'), $this->name, true);
-            }
-
-            // Detach `to` directed connections.
-            if (! empty($connectionQuery->get('to'))) {
-                return $this->getClient()->getStorage()->deleteByObjectID($connectionQuery->get('to'), $this->name, false, true);
-            }
-        } catch (ConnectionWrongData $e) {
-            // There are no ideas what went wrong.
-            return 0;
+            return $this->getClient()->getStorage()->deleteSpecificConnections($connectionID);
         }
 
-        // Seems, we have received empty query.
-        return 0;
+        // Detach any connection with $connectionQuery->both as object ID.
+        if ($connectionQuery->isProvided('both')) {
+            $both = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('both'));
+            return $this->getClient()->getStorage()->deleteByObjectID($both, $this->name);
+        }
+
+        $fromProvided = $connectionQuery->isProvided('from');
+        $toProvided = $connectionQuery->isProvided('to');
+
+        // Detach directed connection(s).
+        if ($fromProvided && $toProvided) {
+            $from = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('from'));
+            $to = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('to'));
+            return $this->getClient()->getStorage()->deleteDirectedConnections($from, $to, $this->name);
+        }
+
+        // Detach `from` directed connections.
+        if ($fromProvided) {
+            $from = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('from'));
+            return $this->getClient()->getStorage()->deleteByObjectID($from, $this->name, true);
+        }
+
+        // Detach `to` directed connections.
+        if ($toProvided) {
+            $to = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('to'));
+            return $this->getClient()->getStorage()->deleteByObjectID($to, $this->name, false, true);
+        }
+
+        throw new ConnectionWrongData('A connection delete selector is required.');
     }
 
     /**

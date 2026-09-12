@@ -11,7 +11,7 @@ class ConnectionQueryPresenceTest extends TestCase
     {
         $query = new Connection();
 
-        foreach ([ 'from', 'to', 'both' ] as $field) {
+        foreach ([ 'id', 'from', 'to', 'both' ] as $field) {
             self::assertSame(0, $query->{$field});
             self::assertSame(0, $query->get($field));
             self::assertFalse($query->isProvided($field));
@@ -27,13 +27,16 @@ class ConnectionQueryPresenceTest extends TestCase
     public function test_direct_nonzero_and_same_value_zero_writes_are_tracked(): void
     {
         $query       = new Connection();
+        $query->id   = 0;
         $query->from = 11;
         $query->to   = 22;
         $query->both = 0;
 
+        self::assertSame(0, $query->id);
         self::assertSame(11, $query->from);
         self::assertSame(22, $query->to);
         self::assertSame(0, $query->both);
+        self::assertTrue($query->isProvided('id'));
         self::assertTrue($query->isProvided('from'));
         self::assertTrue($query->isProvided('to'));
         self::assertTrue($query->isProvided('both'));
@@ -48,8 +51,9 @@ class ConnectionQueryPresenceTest extends TestCase
         self::assertTrue($constructed->isProvided('both'));
 
         $set = new Connection();
-        $set->set('from', 0)->set('to', 0)->set('both', 0);
+        $set->set('id', 0)->set('from', 0)->set('to', 0)->set('both', 0);
 
+        self::assertTrue($set->isProvided('id'));
         self::assertTrue($set->isProvided('from'));
         self::assertTrue($set->isProvided('to'));
         self::assertTrue($set->isProvided('both'));
@@ -67,19 +71,70 @@ class ConnectionQueryPresenceTest extends TestCase
         self::assertSame(0, $array['to']);
     }
 
-    public function test_raw_introspection_exposes_presence_instead_of_materialized_defaults(): void
+    public function test_virtual_selector_introspection_uses_contract_helpers_and_json(): void
     {
         $omitted = new Connection();
 
         self::assertArrayNotHasKey('from', get_object_vars($omitted));
+        self::assertArrayNotHasKey('id', get_object_vars($omitted));
         self::assertArrayNotHasKey('to', get_object_vars($omitted));
         self::assertArrayNotHasKey('both', get_object_vars($omitted));
         self::assertArrayNotHasKey('from', (array) json_decode(json_encode($omitted), true));
 
         $omitted->from = 0;
 
-        self::assertArrayHasKey('from', get_object_vars($omitted));
-        self::assertSame(0, get_object_vars($omitted)['from']);
+        self::assertArrayNotHasKey('from', get_object_vars($omitted));
+        self::assertTrue($omitted->isProvided('from'));
+        self::assertSame(0, $omitted->get('from'));
         self::assertSame(0, json_decode(json_encode($omitted), true)['from']);
+    }
+
+    public function test_selector_values_preserve_raw_input_for_deferred_branch_validation(): void
+    {
+        $query = new Connection(1.5, '1e3');
+        $query->set('both', new \stdClass());
+        $query->id = true;
+
+        self::assertSame(1.5, $query->getProvidedValue('from'));
+        self::assertSame('1e3', $query->getProvidedValue('to'));
+        self::assertInstanceOf(\stdClass::class, $query->getProvidedValue('both'));
+        self::assertTrue($query->getProvidedValue('id'));
+    }
+
+    public function test_later_valid_direct_write_remains_the_effective_selector_value(): void
+    {
+        $query = new Connection(11, 22);
+        $query->from = 33;
+
+        self::assertSame(33, $query->getProvidedValue('from'));
+    }
+
+    /**
+     * @dataProvider repeated_direct_selector_provider
+     */
+    public function test_repeated_direct_write_preserves_the_latest_raw_selector(
+        string $field,
+        $rawValue
+    ): void {
+        $query = new Connection(11, 22, 33);
+        $query->id = 44;
+        $query->{$field} = 77;
+        $query->{$field} = $rawValue;
+
+        self::assertSame($rawValue, $query->get($field));
+        self::assertSame($rawValue, $query->getProvidedValue($field));
+        self::assertTrue($query->isProvided($field));
+        self::assertArrayNotHasKey($field, get_object_vars($query));
+        self::assertEquals($rawValue, json_decode(json_encode($query), true)[ $field ]);
+    }
+
+    public function repeated_direct_selector_provider(): array
+    {
+        return [
+            'id float'       => [ 'id', 1.5 ],
+            'both boolean'   => [ 'both', true ],
+            'from exponent'  => [ 'from', '1e3' ],
+            'to whitespace'  => [ 'to', ' 1' ],
+        ];
     }
 }

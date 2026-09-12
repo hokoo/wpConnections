@@ -4,7 +4,7 @@ namespace iTRON\wpConnections\Query;
 
 use iTRON\wpConnections\GSInterface;
 
-class Connection extends \iTRON\wpConnections\Abstracts\Connection
+class Connection extends \iTRON\wpConnections\Abstracts\Connection implements \JsonSerializable
 {
     use GSInterface {
         set as private setValue;
@@ -14,42 +14,46 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public int $both = 0;
     private array $providedFields = [];
+    private array $providedValues = [];
 
-    public function __construct(int $from = 0, int $to = 0, int $both = 0)
+    public function __construct($from = 0, $to = 0, $both = 0)
     {
         parent::__construct();
+        unset($this->id, $this->from, $this->to, $this->both);
 
         $providedArguments = func_num_args();
         if (0 < $providedArguments) {
-            $this->from = $from;
-            $this->providedFields['from'] = true;
-        } else {
-            unset($this->from);
+            $this->setPresenceTrackedValue('from', $from);
         }
         if (1 < $providedArguments) {
-            $this->to = $to;
-            $this->providedFields['to'] = true;
-        } else {
-            unset($this->to);
+            $this->setPresenceTrackedValue('to', $to);
         }
         if (2 < $providedArguments) {
-            $this->both = $both;
-            $this->providedFields['both'] = true;
-        } else {
-            unset($this->both);
+            $this->setPresenceTrackedValue('both', $both);
         }
     }
 
     public function set(string $field, $value): self
     {
-        $this->providedFields[ $field ] = true;
+        if ($this->isPresenceTrackedField($field)) {
+            $this->setPresenceTrackedValue($field, $value);
+
+            return $this;
+        }
 
         return $this->setValue($field, $value);
     }
 
     public function get(string $field)
     {
-        if ($this->isOmittedEndpoint($field)) {
+        if (
+            $this->isPresenceTrackedField($field) &&
+            array_key_exists($field, $this->providedValues)
+        ) {
+            return $this->providedValues[ $field ];
+        }
+
+        if ($this->isOmittedPresenceTrackedField($field)) {
             return 0;
         }
 
@@ -58,7 +62,14 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function __get($field)
     {
-        if ($this->isOmittedEndpoint($field)) {
+        if (
+            $this->isPresenceTrackedField($field) &&
+            array_key_exists($field, $this->providedValues)
+        ) {
+            return $this->providedValues[ $field ];
+        }
+
+        if ($this->isOmittedPresenceTrackedField($field)) {
             return 0;
         }
 
@@ -67,8 +78,10 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function __set($field, $value): void
     {
-        if ($this->isEndpointField($field)) {
-            $this->providedFields[ $field ] = true;
+        if ($this->isPresenceTrackedField($field)) {
+            $this->setPresenceTrackedValue($field, $value);
+
+            return;
         }
 
         $this->{$field} = $value;
@@ -76,7 +89,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
 
     public function __isset($field): bool
     {
-        return $this->isEndpointField($field);
+        return $this->isPresenceTrackedField($field);
     }
 
     public function isProvided(string $field): bool
@@ -85,7 +98,7 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
             return true;
         }
 
-        if ($this->isEndpointField($field)) {
+        if ($this->isPresenceTrackedField($field)) {
             return false;
         }
 
@@ -98,20 +111,57 @@ class Connection extends \iTRON\wpConnections\Abstracts\Connection
         return $property->isInitialized($this);
     }
 
-    private function isEndpointField(string $field): bool
+    /**
+     * Returns the exact value supplied before PHP coerces a typed public
+     * property. Selector dispatch must choose a field before normalizing it.
+     *
+     * @internal
+     */
+    public function getProvidedValue(string $field)
     {
-        return in_array($field, [ 'from', 'to', 'both' ], true);
-    }
-
-    private function isOmittedEndpoint(string $field): bool
-    {
-        if (! $this->isEndpointField($field)) {
-            return false;
+        if (array_key_exists($field, $this->providedValues)) {
+            return $this->providedValues[ $field ];
         }
 
-        $property = new \ReflectionProperty($this, $field);
+        return $this->get($field);
+    }
 
-        return ! $property->isInitialized($this);
+    public function jsonSerialize(): array
+    {
+        $values = [];
+        foreach ((new \ReflectionObject($this))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            $field = $property->getName();
+            if ($this->isPresenceTrackedField($field)) {
+                if (array_key_exists($field, $this->providedValues)) {
+                    $values[ $field ] = $this->providedValues[ $field ];
+                }
+                continue;
+            }
+
+            if ($property->isInitialized($this)) {
+                $values[ $field ] = $property->getValue($this);
+            }
+        }
+
+        return $values;
+    }
+
+    private function isPresenceTrackedField(string $field): bool
+    {
+        return in_array($field, [ 'id', 'from', 'to', 'both' ], true);
+    }
+
+    private function isOmittedPresenceTrackedField(string $field): bool
+    {
+        return $this->isPresenceTrackedField($field) &&
+            ! array_key_exists($field, $this->providedValues);
+    }
+
+    private function setPresenceTrackedValue(string $field, $value): void
+    {
+        $this->providedFields[ $field ] = true;
+        $this->providedValues[ $field ] = $value;
+        unset($this->{$field});
     }
 
     public function exists_relation(): bool
