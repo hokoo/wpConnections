@@ -17,19 +17,113 @@ class WPStorage extends Abstracts\Storage
     private const OWNERSHIP_OPTION_PREFIX = 'wpconnections_storage_owner_';
     private const OWNERSHIP_VERSION = 1;
     private const REQUIRED_ENGINE = 'INNODB';
-    private const CONNECTIONS_COLUMNS = [ 'ID', 'relation', 'from', 'to', 'order', 'title' ];
-    private const META_COLUMNS = [ 'meta_id', 'connection_id', 'meta_key', 'meta_value' ];
+    private const CONNECTIONS_COLUMNS = [
+        'ID'       => [
+            'type' => 'bigint unsigned',
+            'nullable' => false,
+            'default' => null,
+            'extra' => 'auto_increment',
+        ],
+        'relation' => [
+            'type' => 'varchar(255)',
+            'nullable' => false,
+            'default' => null,
+            'extra' => '',
+        ],
+        'from'     => [
+            'type' => 'bigint unsigned',
+            'nullable' => false,
+            'default' => null,
+            'extra' => '',
+        ],
+        'to'       => [
+            'type' => 'bigint unsigned',
+            'nullable' => false,
+            'default' => null,
+            'extra' => '',
+        ],
+        'order'    => [
+            'type' => 'bigint unsigned',
+            'nullable' => true,
+            'default' => '0',
+            'extra' => '',
+        ],
+        'title'    => [
+            'type' => 'varchar(63)',
+            'nullable' => true,
+            'default' => '',
+            'extra' => '',
+        ],
+    ];
+    private const META_COLUMNS = [
+        'meta_id'       => [
+            'type' => 'bigint unsigned',
+            'nullable' => false,
+            'default' => null,
+            'extra' => 'auto_increment',
+        ],
+        'connection_id' => [
+            'type' => 'bigint unsigned',
+            'nullable' => false,
+            'default' => '0',
+            'extra' => '',
+        ],
+        'meta_key'      => [
+            'type' => 'varchar(255)',
+            'nullable' => false,
+            'default' => null,
+            'extra' => '',
+        ],
+        'meta_value'    => [
+            'type' => 'longtext',
+            'nullable' => false,
+            'default' => null,
+            'extra' => '',
+        ],
+    ];
     private const CONNECTIONS_INDEXES = [
-        'PRIMARY'  => [ 'ID' ],
-        'from'     => [ 'from' ],
-        'to'       => [ 'to' ],
-        'order'    => [ 'order' ],
-        'relation' => [ 'relation' ],
+        'PRIMARY'  => [
+            'non_unique' => 0,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'ID', 'prefix' => null ] ],
+        ],
+        'from'     => [
+            'non_unique' => 1,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'from', 'prefix' => null ] ],
+        ],
+        'to'       => [
+            'non_unique' => 1,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'to', 'prefix' => null ] ],
+        ],
+        'order'    => [
+            'non_unique' => 1,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'order', 'prefix' => null ] ],
+        ],
+        'relation' => [
+            'non_unique' => 1,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'relation', 'prefix' => null ] ],
+        ],
     ];
     private const META_INDEXES = [
-        'PRIMARY'       => [ 'meta_id' ],
-        'connection_id' => [ 'connection_id' ],
-        'meta_key'      => [ 'meta_key' ],
+        'PRIMARY'       => [
+            'non_unique' => 0,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'meta_id', 'prefix' => null ] ],
+        ],
+        'connection_id' => [
+            'non_unique' => 1,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'connection_id', 'prefix' => null ] ],
+        ],
+        'meta_key'      => [
+            'non_unique' => 1,
+            'type' => 'BTREE',
+            'columns' => [ [ 'name' => 'meta_key', 'prefix' => null ] ],
+        ],
     ];
 
     private string $connections_table;
@@ -272,12 +366,72 @@ class WPStorage extends Abstracts\Storage
 
     private function hasExpectedSchema(string $table, array $expectedColumns): bool
     {
+        return null === $this->columnSchemaIssue($table, $expectedColumns);
+    }
+
+    private function columnSchemaIssue(string $table, array $expectedColumns): ?string
+    {
         global $wpdb;
 
         $escapedTable = str_replace('`', '``', $table);
-        $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$escapedTable}`");
+        $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `{$escapedTable}`", ARRAY_A);
+        if (count($expectedColumns) !== count($columns)) {
+            return sprintf(
+                'expected %d columns, found %d',
+                count($expectedColumns),
+                count($columns)
+            );
+        }
 
-        return $expectedColumns === $columns;
+        $position = 0;
+        foreach ($expectedColumns as $name => $expected) {
+            $column = $columns[$position] ?? [];
+            $actual = [
+                'type' => $this->normalizeColumnType((string) ($column['Type'] ?? '')),
+                'nullable' => 'YES' === ($column['Null'] ?? ''),
+                'default' => $column['Default'] ?? null,
+                'extra' => $this->normalizeColumnExtra((string) ($column['Extra'] ?? '')),
+            ];
+
+            if ($name !== ($column['Field'] ?? null)) {
+                return sprintf(
+                    'expected column %s at position %d, found %s',
+                    $name,
+                    $position + 1,
+                    (string) ($column['Field'] ?? 'none')
+                );
+            }
+
+            if ($expected !== $actual) {
+                return sprintf(
+                    'column %s expected %s, found %s',
+                    $name,
+                    wp_json_encode($expected),
+                    wp_json_encode($actual)
+                );
+            }
+            $position++;
+        }
+
+        return null;
+    }
+
+    private function normalizeColumnType(string $type): string
+    {
+        $type = strtolower(trim(preg_replace('/\s+/', ' ', $type)));
+
+        return preg_replace(
+            '/\b(tinyint|smallint|mediumint|int|integer|bigint)\([0-9]+\)/',
+            '$1',
+            $type
+        );
+    }
+
+    private function normalizeColumnExtra(string $extra): string
+    {
+        $extra = strtolower(trim($extra));
+
+        return 'null' === $extra ? '' : $extra;
     }
 
     /**
@@ -352,8 +506,9 @@ class WPStorage extends Abstracts\Storage
                 continue;
             }
 
-            if (! $this->hasExpectedSchema($table, $expected['columns'])) {
-                $issues[$table] = 'unexpected columns';
+            $columnIssue = $this->columnSchemaIssue($table, $expected['columns']);
+            if (null !== $columnIssue) {
+                $issues[$table] = "incompatible columns ({$columnIssue})";
                 continue;
             }
 
@@ -378,17 +533,47 @@ class WPStorage extends Abstracts\Storage
         $escapedTable = str_replace('`', '``', $table);
         $indexes = [];
         foreach ($wpdb->get_results("SHOW INDEX FROM `{$escapedTable}`", ARRAY_A) as $row) {
-            $indexes[$row['Key_name']][(int) $row['Seq_in_index']] = $row['Column_name'];
+            $name = (string) $row['Key_name'];
+            $nonUnique = (int) $row['Non_unique'];
+            $type = strtoupper((string) $row['Index_type']);
+            $usable = (! isset($row['Visible']) || 'YES' === strtoupper((string) $row['Visible'])) &&
+                (! isset($row['Ignored']) || 'NO' === strtoupper((string) $row['Ignored']));
+
+            if (! isset($indexes[$name])) {
+                $indexes[$name] = [
+                    'non_unique' => $nonUnique,
+                    'type' => $type,
+                    'usable' => $usable,
+                    'columns' => [],
+                ];
+            } elseif (
+                $indexes[$name]['non_unique'] !== $nonUnique ||
+                $indexes[$name]['type'] !== $type ||
+                $indexes[$name]['usable'] !== $usable
+            ) {
+                return false;
+            }
+
+            $subPart = $row['Sub_part'] ?? null;
+            $indexes[$name]['columns'][(int) $row['Seq_in_index']] = [
+                'name' => (string) $row['Column_name'],
+                'prefix' => null === $subPart ? null : (int) $subPart,
+            ];
         }
 
-        foreach ($indexes as &$columns) {
-            ksort($columns, SORT_NUMERIC);
-            $columns = array_values($columns);
+        foreach ($indexes as &$index) {
+            ksort($index['columns'], SORT_NUMERIC);
+            $index['columns'] = array_values($index['columns']);
         }
-        unset($columns);
+        unset($index);
 
-        foreach ($expectedIndexes as $name => $columns) {
-            if (! isset($indexes[$name]) || $columns !== $indexes[$name]) {
+        foreach ($expectedIndexes as $name => $expected) {
+            if (! isset($indexes[$name]) || ! $indexes[$name]['usable']) {
+                return false;
+            }
+
+            unset($indexes[$name]['usable']);
+            if ($expected !== $indexes[$name]) {
                 return false;
             }
         }

@@ -263,6 +263,84 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 		];
 	}
 
+	/**
+	 * @dataProvider incompatible_schema_provider
+	 */
+	public function test_incompatible_schema_fails_before_dml_without_implicit_alter(
+		string $table_key,
+		string $alter,
+		string $expected_issue
+	): void {
+		global $wpdb;
+
+		$tables = $this->storage_tables();
+		$wpdb->query( sprintf( $alter, $tables[ $table_key ] ) );
+		self::assertSame( '', $wpdb->last_error );
+
+		$queries = [];
+		$query_recorder = static function ( string $query ) use ( &$queries ): string {
+			$queries[] = $query;
+			return $query;
+		};
+		add_filter( 'query', $query_recorder );
+
+		$failure = null;
+		try {
+			$this->create_storage_connection( 'incompatible-schema' );
+		} catch ( Throwable $exception ) {
+			$failure = $exception;
+		} finally {
+			remove_filter( 'query', $query_recorder );
+		}
+
+		self::assertInstanceOf( ConnectionWrongData::class, $failure );
+		self::assertStringContainsString( $tables[ $table_key ], $failure->getMessage() );
+		self::assertStringContainsString( $expected_issue, $failure->getMessage() );
+		self::assertSame( [], $this->table_dml_queries( $queries, $tables ) );
+		self::assertSame( [], $this->table_alter_queries( $queries, $tables ) );
+	}
+
+	public function incompatible_schema_provider(): array
+	{
+		return [
+			'wrong varchar length' => [
+				'connections',
+				'ALTER TABLE `%s` MODIFY `relation` varchar(1) NOT NULL',
+				'incompatible columns',
+			],
+			'missing unsigned attribute' => [
+				'connections',
+				'ALTER TABLE `%s` MODIFY `from` bigint(20) NOT NULL',
+				'incompatible columns',
+			],
+			'wrong nullability' => [
+				'connections',
+				'ALTER TABLE `%s` MODIFY `relation` varchar(255) NULL',
+				'incompatible columns',
+			],
+			'wrong default' => [
+				'connections',
+				"ALTER TABLE `%s` MODIFY `order` bigint(20) unsigned NULL default '7'",
+				'incompatible columns',
+			],
+			'missing auto increment' => [
+				'connections',
+				'ALTER TABLE `%s` MODIFY `ID` bigint(20) unsigned NOT NULL',
+				'incompatible columns',
+			],
+			'wrong index uniqueness' => [
+				'connections',
+				'ALTER TABLE `%s` DROP INDEX `from`, ADD UNIQUE KEY `from` (`from`)',
+				'missing or incompatible indexes',
+			],
+			'prefix index instead of full column' => [
+				'connections',
+				'ALTER TABLE `%s` DROP INDEX `relation`, ADD KEY `relation` (`relation`(16))',
+				'missing or incompatible indexes',
+			],
+		];
+	}
+
 	private function create_storage_connection(
 		string $marker,
 		bool $with_meta = true,
@@ -300,28 +378,40 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 		$tables = $this->storage_tables( $client );
 
 		self::assertSame(
-			[ 'ID', 'relation', 'from', 'to', 'order', 'title' ],
+			[
+				'ID'       => [ 'type' => 'bigint unsigned', 'nullable' => false, 'default' => null, 'extra' => 'auto_increment' ],
+				'relation' => [ 'type' => 'varchar(255)', 'nullable' => false, 'default' => null, 'extra' => '' ],
+				'from'     => [ 'type' => 'bigint unsigned', 'nullable' => false, 'default' => null, 'extra' => '' ],
+				'to'       => [ 'type' => 'bigint unsigned', 'nullable' => false, 'default' => null, 'extra' => '' ],
+				'order'    => [ 'type' => 'bigint unsigned', 'nullable' => true, 'default' => '0', 'extra' => '' ],
+				'title'    => [ 'type' => 'varchar(63)', 'nullable' => true, 'default' => '', 'extra' => '' ],
+			],
 			$this->table_columns( $tables['connections'] )
 		);
 		self::assertSame(
 			[
-				'PRIMARY'  => [ 'ID' ],
-				'from'     => [ 'from' ],
-				'order'    => [ 'order' ],
-				'relation' => [ 'relation' ],
-				'to'       => [ 'to' ],
+				'PRIMARY'  => [ 'non_unique' => 0, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'ID', 'prefix' => null ] ] ],
+				'from'     => [ 'non_unique' => 1, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'from', 'prefix' => null ] ] ],
+				'order'    => [ 'non_unique' => 1, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'order', 'prefix' => null ] ] ],
+				'relation' => [ 'non_unique' => 1, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'relation', 'prefix' => null ] ] ],
+				'to'       => [ 'non_unique' => 1, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'to', 'prefix' => null ] ] ],
 			],
 			$this->table_indexes( $tables['connections'] )
 		);
 		self::assertSame(
-			[ 'meta_id', 'connection_id', 'meta_key', 'meta_value' ],
+			[
+				'meta_id'       => [ 'type' => 'bigint unsigned', 'nullable' => false, 'default' => null, 'extra' => 'auto_increment' ],
+				'connection_id' => [ 'type' => 'bigint unsigned', 'nullable' => false, 'default' => '0', 'extra' => '' ],
+				'meta_key'      => [ 'type' => 'varchar(255)', 'nullable' => false, 'default' => null, 'extra' => '' ],
+				'meta_value'    => [ 'type' => 'longtext', 'nullable' => false, 'default' => null, 'extra' => '' ],
+			],
 			$this->table_columns( $tables['meta'] )
 		);
 		self::assertSame(
 			[
-				'PRIMARY'       => [ 'meta_id' ],
-				'connection_id' => [ 'connection_id' ],
-				'meta_key'      => [ 'meta_key' ],
+				'PRIMARY'       => [ 'non_unique' => 0, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'meta_id', 'prefix' => null ] ] ],
+				'connection_id' => [ 'non_unique' => 1, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'connection_id', 'prefix' => null ] ] ],
+				'meta_key'      => [ 'non_unique' => 1, 'type' => 'BTREE', 'usable' => true, 'columns' => [ [ 'name' => 'meta_key', 'prefix' => null ] ] ],
 			],
 			$this->table_indexes( $tables['meta'] )
 		);
@@ -363,7 +453,39 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 	{
 		global $wpdb;
 
-		return $wpdb->get_col( 'SHOW COLUMNS FROM `' . str_replace( '`', '``', $table ) . '`' );
+		$columns = [];
+		$rows    = $wpdb->get_results(
+			'SHOW FULL COLUMNS FROM `' . str_replace( '`', '``', $table ) . '`',
+			ARRAY_A
+		);
+		foreach ( $rows as $row ) {
+			$columns[ $row['Field'] ] = [
+				'type'     => $this->normalize_column_type( (string) $row['Type'] ),
+				'nullable' => 'YES' === $row['Null'],
+				'default'  => $row['Default'],
+				'extra'    => $this->normalize_column_extra( (string) $row['Extra'] ),
+			];
+		}
+
+		return $columns;
+	}
+
+	private function normalize_column_type( string $type ): string
+	{
+		$type = strtolower( trim( preg_replace( '/\s+/', ' ', $type ) ) );
+
+		return preg_replace(
+			'/\b(tinyint|smallint|mediumint|int|integer|bigint)\([0-9]+\)/',
+			'$1',
+			$type
+		);
+	}
+
+	private function normalize_column_extra( string $extra ): string
+	{
+		$extra = strtolower( trim( $extra ) );
+
+		return 'null' === $extra ? '' : $extra;
 	}
 
 	private function table_indexes( string $table ): array
@@ -376,14 +498,27 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 			ARRAY_A
 		);
 		foreach ( $rows as $row ) {
-			$indexes[ $row['Key_name'] ][ (int) $row['Seq_in_index'] ] = $row['Column_name'];
+			$name = $row['Key_name'];
+			if ( ! isset( $indexes[ $name ] ) ) {
+				$indexes[ $name ] = [
+					'non_unique' => (int) $row['Non_unique'],
+					'type'       => strtoupper( (string) $row['Index_type'] ),
+					'usable'     => ( ! isset( $row['Visible'] ) || 'YES' === strtoupper( (string) $row['Visible'] ) ) &&
+						( ! isset( $row['Ignored'] ) || 'NO' === strtoupper( (string) $row['Ignored'] ) ),
+					'columns'    => [],
+				];
+			}
+			$indexes[ $name ]['columns'][ (int) $row['Seq_in_index'] ] = [
+				'name'   => $row['Column_name'],
+				'prefix' => null === $row['Sub_part'] ? null : (int) $row['Sub_part'],
+			];
 		}
 
-		foreach ( $indexes as &$columns ) {
-			ksort( $columns, SORT_NUMERIC );
-			$columns = array_values( $columns );
+		foreach ( $indexes as &$index ) {
+			ksort( $index['columns'], SORT_NUMERIC );
+			$index['columns'] = array_values( $index['columns'] );
 		}
-		unset( $columns );
+		unset( $index );
 		ksort( $indexes, SORT_STRING );
 
 		return $indexes;

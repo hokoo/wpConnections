@@ -349,8 +349,10 @@ Batch 13 implements the approved portion of this contract on branch
 
 - new client tables include an explicit `ENGINE=InnoDB` clause;
 - the create path inspects both tables before its first INSERT, runs one bounded
-  recovery cycle only for missing tables, verifies columns, required indexes and
-  engine again, and never uses a failed INSERT as the trigger for DDL;
+  recovery cycle only for missing tables, verifies column order, type, length,
+  unsigned/null/default/extra attributes, index uniqueness, type, usability,
+  column order and full-versus-prefix coverage, plus the engine, and never uses
+  a failed INSERT as the trigger for DDL;
 - an existing compatible table is not passed back through `dbDelta()` while its
   missing peer is recovered, preventing incidental `ALTER TABLE` statements;
 - existing MyISAM, mixed-engine or structurally incompatible tables fail before
