@@ -1518,6 +1518,8 @@ Entry criteria:
 Tasks:
 
 - DB-06 — `in_progress`; tests-first schema install/recovery vertical.
+- DB-06R — `needs_design`; post-Batch-13 policy for additional custom database
+  constraints discovered by independent QA.
 
 Execution model:
 
@@ -1542,7 +1544,8 @@ Exit criteria:
 - Все DB-06 DoD/AC и SCHEMA-INSTALL-01, SCHEMA-RECOVER-01, SCHEMA-FAIL-01
   доказаны tests; red evidence сохранён до production fix.
 - Ни один путь не выполняет failed INSERT → DDL → retry; recovery ограничен
-  одним pre-DML install attempt и повторной структурной/engine проверкой.
+  одним pre-DML install attempt и повторной проверкой required schema
+  descriptors/engine.
 - Exact candidate проходит full unit/integration/PHPCS, reverse/random
   isolation, обе blocking DB lanes и independent QA.
 - Protected checks зелёные на final head и post-merge `master`; evidence и
@@ -3569,7 +3572,8 @@ Scope:
 - Clean create обеих tables и индексов.
 - Idempotent install/upgrade.
 - Удаление одной/обеих tables после client init и bounded pre-DML recovery.
-- Явный `ENGINE=InnoDB`, structural/engine preflight до первого INSERT.
+- Явный `ENGINE=InnoDB`, preflight required schema descriptors/engine до первого
+  INSERT.
 - Blocking conformance на точных MySQL 8.0.46 и MariaDB 10.11.16.
 - Table naming assertions из DG-M6.
 
@@ -3595,7 +3599,8 @@ DoR:
 DoD:
 
 - Issue #45 защищён regression test.
-- Schema проверяется структурно, а не только косвенным create/read.
+- Owned columns и required named indexes проверяются по полным значимым
+  descriptors, а не только косвенным create/read.
 - Recovery выполняется не более одного раза до DML и сообщает информативную
   schema/engine error при неуспехе.
 - Новые tables являются InnoDB на обеих blocking DB lanes; legacy engine не
@@ -3630,6 +3635,72 @@ Dependencies:
 Notes/Risks:
 
 - MariaDB-only test недостаточен, если production contract включает MySQL.
+- Дополнительные non-unique indexes допустимы. Политика для custom unique
+  indexes, foreign keys, CHECK constraints и triggers не входит в Batch 13 и
+  выделена в DB-06R; до её решения контракт не обещает pre-DML detection любой
+  возможной сторонней модификации schema.
+
+### DB-06R. Определить политику дополнительных database constraints
+
+Status: needs_design
+
+Priority: P1
+
+Goal: определить, какие сторонние ограничения на принадлежащих библиотеке
+таблицах совместимы с storage contract, и обеспечить предсказуемую pre-DML
+диагностику для несовместимых вариантов.
+
+Scope:
+
+- Инвентаризация дополнительных unique indexes, foreign keys, CHECK constraints
+  и triggers на MySQL/MariaDB.
+- Compatibility policy: разрешённые, предупреждаемые и запрещённые конструкции.
+- Preflight и regression tests для утверждённых запрещённых конструкций.
+- Migration/operator guidance для уже существующих custom constraints.
+
+Out of Scope:
+
+- Запрет дополнительных non-unique indexes без evidence их вреда.
+- Автоматический DROP/ALTER сторонних constraints.
+- Связанное с DB-05 transaction/savepoint orchestration.
+
+DoR:
+
+- DB-06 завершён и его required-descriptor contract стабилен.
+- Собран inventory реальных или воспроизводимых custom-constraint сценариев.
+- Владелец утвердил compatibility и migration policy.
+
+DoD:
+
+- Контракт явно классифицирует каждый включённый вид constraint.
+- Несовместимые варианты обнаруживаются до library DML на обеих blocking DB
+  lanes либо документированно остаются runtime database errors.
+- Существующие установки получают неразрушающий migration/runbook path.
+- Automated tests и release notes соответствуют утверждённой политике.
+
+AC:
+
+- Given таблица имеет дополнительный constraint из запрещённого класса, when
+  начинается compound mutation, then library возвращает стабильную pre-DML
+  ошибку без автоматического ALTER/DROP.
+- Given таблица имеет разрешённый дополнительный non-unique index, when
+  выполняется mutation, then preflight не отвергает совместимую schema.
+- Given обнаружена legacy customization, then operator может определить точный
+  объект и выполнить документированный manual migration.
+
+Dependencies:
+
+- DB-06.
+- DB-05 для общей границы preflight compound mutations.
+- REL-03 для operator migration/runbook surface.
+- Новое owner decision по compatibility/migration policy.
+
+Notes/Risks:
+
+- Слишком строгая проверка может сломать installations с полезными custom
+  indexes; слишком мягкая оставляет поздние или неожиданные DML failures.
+- `SHOW CREATE TABLE`, information schema и trigger inventory различаются между
+  MySQL/MariaDB и temporary/permanent tables; design должен оставаться portable.
 
 ## E4. REST v1 contract, errors и permissions
 

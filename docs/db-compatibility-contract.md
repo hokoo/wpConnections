@@ -355,9 +355,10 @@ Batch 13 implements the approved portion of this contract on branch
   a failed INSERT as the trigger for DDL;
 - an existing compatible table is not passed back through `dbDelta()` while its
   missing peer is recovered, preventing incidental `ALTER TABLE` statements;
-- existing MyISAM, mixed-engine or structurally incompatible tables fail before
-  create DML and are never converted automatically; DB-05 owns equivalent
-  transaction preflight for the remaining compound mutations;
+- existing MyISAM, mixed-engine or tables with incompatible required schema
+  descriptors fail before create DML and are never converted automatically;
+  DB-05 owns equivalent transaction preflight for the remaining compound
+  mutations;
 - a matching ownership record permits a later client instance to recover one
   missing table; unowned or malformed mappings remain fail-closed;
 - [`.github/workflows/db-compatibility.yml`](../.github/workflows/db-compatibility.yml)
@@ -369,6 +370,14 @@ its per-test query filter creates temporary plugin tables. MariaDB exposes those
 through `information_schema.tables`, while MySQL 8.0 does not. Runtime schema
 inspection therefore uses `SHOW COLUMNS` and `SHOW CREATE TABLE`, which work for
 both temporary test tables and permanent production tables.
+
+The Batch 13 verifier is exact for owned columns and required named indexes,
+while allowing additional non-unique indexes. It does not yet classify custom
+unique indexes, foreign keys, check constraints or triggers added under other
+names. Those can change later DML semantics, so DB-06R owns their inventory,
+compatibility policy and migration contract; until then, this document does not
+claim that every possible third-party schema customization is rejected before
+DML.
 
 ## Existing-table audit and migration
 
@@ -590,3 +599,6 @@ readiness and REL-01 lifecycle documentation.
   2026-09-13. Batch 13 implements and locally verifies their unblocked DB-06
   portion on both pinned database images. DG-DB-06-FAIL remains pending for the
   exact partial-schema failure contract; DG-DB-03 remains pending for DB-05.
+- Independent QA for commit `3418c17` passed the required-descriptor remediation
+  with a non-blocking scope note: custom additional constraints remain assigned
+  to DB-06R rather than being silently represented as covered by DB-06.
