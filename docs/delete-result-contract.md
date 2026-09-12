@@ -1,16 +1,19 @@
 # Connection delete result and failure contract
 
-Status: decision-ready; no decision in this document is approved.
+Status: DG-DELETE-01—DG-DELETE-04 approved by the repository owner on
+2026-09-12; DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 (the merge of CORE-00 after SPI-01 into `master`, 2026-09-10).
 
 This is the canonical DB-03A artifact. It inventories the existing connection
 delete behavior and makes the remaining public choices reviewable before
-DB-03B-A/DB-03B-B change production code. The six `DG-DELETE-*` sections are
-pending human decision gates. Recommendations describe a coherent implementation
-candidate; they are not the current contract and do not authorize code, REST,
-SPI, hook, or schema changes.
+DB-03B-A/DB-03B-B change production code. The six `DG-DELETE-*` sections record
+the delete decision gates. DG-DELETE-01 and DG-DELETE-04 were refined after an
+owner-requested reread of `Relation::detachConnections()` and its introduction
+history: the branch order is a deterministic compatibility rule, not an
+inherently ambiguous query. Recommendations for the two remaining pending gates
+do not authorize REST, hook, or recovery changes.
 
 ## Ownership and boundaries
 
@@ -53,7 +56,7 @@ an explicit capability error before mutation.
 | `Storage::deleteSpecificConnections()` | Untyped value documented as `int\|int[]` | `int`, documented only as rows affected | Client-wide connection IDs; metadata delete, then connection delete | Relation isolation, input normalization, logical count, no-match, failure |
 | `Storage::deleteByObjectID()` | Untyped `int\|int[]`; optional relation; `onlyFrom`/`onlyTo` flags | `int` | Resolves IDs on either or one endpoint side, then deletes metadata and connections | Direction truth table, relation identity, invalid flags, count, no-match, failure |
 | `Storage::deleteDirectedConnections()` | Implicitly nullable integer `from`/`to`; optional relation | `int` | Resolves every matching directed row, then deletes metadata and connections | Required endpoints, exact relation, duplicates, count, no-match, failure |
-| `Relation::detachConnections()` | One typed `Query\Connection` | `int` | Chooses one storage method by field priority and forces its relation only on endpoint selectors | Cross-relation ID deletion, ambiguous selector priority, swallowed invalid-input errors |
+| `Relation::detachConnections()` | One typed `Query\Connection` | `int` | Chooses one storage method by the historical `id`, `both`, pair, `from`, `to` priority and forces its relation only on endpoint selectors | Cross-relation ID deletion, undocumented precedence, swallowed invalid-input errors |
 | REST connection `DELETE` | Authenticated `/relation/{relation}/{connectionID}` | `200 {"deleted":true}` for positive count; otherwise `WP_Error` | Delegates to `Relation::detachConnections()` with ID only | Relation path currently does not scope the ID; success and not-found representation |
 | `Storage::removeConnectionMeta()` | Positive-looking connection ID and a meta selector collection | No abstract return type; `WPStorage` returns `int\|false` | Deletes all metadata for an empty selector, or matching key/value rows | Generic SPI failure plus DB-02/REST-05 metadata semantics, not a connection count |
 | REST meta `DELETE` | `/relation/{relation}/{connectionID}/meta`; body is used although route args omit `meta` | `{ "deleted": <int> }`; `false` is cast to `0` by the relation wrapper | Does not verify that ID belongs to the route relation; selective path currently meets the separate `Query\Meta` fatal | REST-05/DB-02 own metadata behavior; relation ownership must align with DG-DELETE-01 |
@@ -77,12 +80,18 @@ order:
 5. non-empty `to` -> `deleteByObjectID(to, relation, false, true)`;
 6. no selector -> return `0` without calling storage.
 
-Lower-priority populated fields are silently ignored. The ID branch does not
-pass the owning relation at all, so calling `relation-A->detachConnections()`
-with an ID owned by relation B deletes B's row. The REST route contains a
-relation path parameter but inherits the same behavior. A fixed-floor
-integration probe against the source snapshot reproduced a cross-relation
-delete with result `1`.
+Lower-priority populated fields are ignored after the first matching branch.
+The owner-requested rerun confirmed that this order was introduced together
+with the method in commit `0e72bdc` and each branch was labelled by intent. It
+is therefore deterministic historical precedence, not evidence that one call
+was meant to compose several delete operations. It does differ from
+`findConnections()`, where non-ID endpoint predicates are combined with `AND`,
+so the precedence must be documented and tested rather than inferred from read
+semantics. The ID branch does not pass the owning relation at all, so calling
+`relation-A->detachConnections()` with an ID owned by relation B deletes B's
+row. The REST route contains a relation path parameter but inherits the same
+behavior. A fixed-floor integration probe against the source snapshot
+reproduced a cross-relation delete with result `1`.
 
 `Relation::detachConnections()` catches `ConnectionWrongData` from the adapter
 and returns `0`. It therefore makes malformed storage input indistinguishable
@@ -193,7 +202,7 @@ isolated choices.
 | Object, neither direction flag | Incoming union outgoing in exact optional relation | Self-row selected once; other relation remains | DG-DELETE-01/02; DB-03B-A |
 | Object, one direction flag | Only the named endpoint side | Mirrored from/to fixtures | DG-DELETE-01/04; DB-03B-A |
 | Valid selector, no rows | `0`, never an adapter failure | No writes; no committed-success hook | DG-DELETE-03 plus DG-SPI-03/06 |
-| Empty, invalid, mixed-invalid, or ambiguous selector | Stable attributable domain error before SQL | No storage mutation or committed-success hook | DG-DELETE-01/04 plus DG-SPI-03/06 |
+| Empty or invalid selected selector; mixed-invalid direct-SPI ID list | Stable attributable domain error before SQL | No storage mutation or committed-success hook | DG-DELETE-01/04 plus DG-SPI-03/06 |
 | Any selector read/write failure | Stable adapter/domain failure, never `0` or partial success | Original state restored; failure context retained outside default REST body | DG-SPI-03/04/06; DB-03B-B/DB-05/REST-00A |
 | Connection plus any number of metadata rows | One logical connection contributes `1` | All-or-nothing rollback at every fault point | Approved DG-M7; pending DG-SPI-04; DB-03B-B/DB-05 |
 | REST existing connection delete | Preserve default v1 HTTP 200 `{deleted:true}` | Full dispatch plus persisted-state assertion | DG-DELETE-05; REST-03 |
@@ -269,6 +278,15 @@ REST-05/DB-02 retain ownership of selected/all metadata semantics and response
 shape. They must reuse the approved relation-ownership and generic failure
 rules, without treating DG-DELETE-02's connection count as a metadata count.
 
+Neither `findConnections()` nor `detachConnections()` currently selects
+connection rows by stored connection metadata. `Query\Connection::$meta` is a
+mutation payload and a selector for removing metadata rows from one known
+connection; it is not a connection-row predicate. Adding metadata-based
+connection selection would require explicit key/value, duplicate, AND/OR,
+indexing, adapter-capability, REST and atomic selection/delete semantics. It is
+therefore recorded as the separate deferred API-05 design task and is not
+implicitly added to DB-03B-A.
+
 ## Security and compatibility findings
 
 - The REST relation path is currently not an authorization or data-isolation
@@ -289,6 +307,10 @@ rules, without treating DG-DELETE-02's connection count as a metadata count.
   direct method or making it relation-scoped without a replacement is a breaking
   change. The recommended gates retain the client-wide direct SPI primitive and
   harden its input/result/failure contract.
+- The delete branch priority is historical and deterministic. Rejecting a
+  populated lower-priority selector would introduce a new v1 failure mode with
+  no consumer evidence requiring it. The approved contract preserves the order
+  while requiring the selected branch to be valid and relation-safe.
 - Private consumers and hook callbacks cannot be enumerated. Exact input
   permissiveness, return values, hook timing, and exception behavior remain
   compatibility-sensitive even where public evidence is absent.
@@ -297,33 +319,47 @@ rules, without treating DG-DELETE-02's connection count as a metadata count.
 
 ### DG-DELETE-01 — relation ownership and selector composition
 
-**Problem:** a relation-scoped domain call and REST URL can currently delete an
-ID belonging to another relation. A query containing several selector families
-silently uses the first non-empty one. Object/directed storage relation filters
-use wildcard-capable `LIKE` rather than identity.
+**Status:** approved A-R by the repository owner on 2026-09-12 after an
+owner-requested rerun against `Relation::detachConnections()` and commit
+`0e72bdc`.
 
-- A: the domain relation is authoritative. Require exactly one selector family;
-  scope ID deletion to the receiving relation; use exact optional relation
+**Problem:** a relation-scoped domain call and REST URL can currently delete an
+ID belonging to another relation. Object/directed storage relation filters use
+wildcard-capable `LIKE` rather than identity. The original gate also called a
+query with several populated selector fields ambiguous. The rerun found a
+deterministic, intentional-looking historical order — `id`, `both`, `from+to`,
+`from`, `to` — although that delete order is undocumented and differs from
+non-ID read-query predicate composition.
+
+- A-R: the domain relation is authoritative. Preserve and document the existing
+  selector precedence; validate and execute only the first selected branch.
+  Scope ID deletion to the receiving relation and use exact optional relation
   identity for endpoint deletes. Retain direct
   `Storage::deleteSpecificConnections()` as an explicitly client-wide legacy
   SPI primitive because its signature has no relation.
-- B: preserve current priority and client-wide ID behavior; document that the
-  domain relation and REST path relation do not constrain an ID delete, and keep
-  `LIKE` pattern semantics for direct endpoint methods.
+- B: make selector families mutually exclusive and reject a query containing a
+  populated lower-priority family, while applying the same relation ownership
+  and exact-match hardening as A-R.
 - C: add a new typed delete command/result service with explicit scope and match
   mode, then deprecate the existing domain/storage entrypoints in a major-version
   migration.
+- D: preserve current priority and client-wide ID behavior; document that the
+  domain relation and REST path relation do not constrain an ID delete, and keep
+  `LIKE` pattern semantics for direct endpoint methods.
 
-**Recommendation:** A for v1 hardening, with C as a possible next-major API.
+**Decision:** A-R for v1 hardening, with C as a possible next-major API.
 Relation identity is already present at the supported domain/REST boundary, and
-silently deleting across it is a data-integrity/security defect. A retains the
-observed CF7 VK client-wide orphan-cleanup primitive at the explicitly direct SPI
-surface.
+silently deleting across it is a data-integrity/security defect. Preserving the
+branch order respects the original method structure and the owner's clarification
+that lower-priority fields have no effect after a selector is chosen. A-R also
+retains the observed CF7 VK client-wide orphan-cleanup primitive at the explicitly
+direct SPI surface.
 
-**Compatibility impact:** A rejects ambiguous multi-selector domain queries,
-changes cross-relation ID calls from deletion to no-match, and removes
-undocumented wildcard relation matching. Direct ID deletion remains client-wide.
-B preserves dangerous behavior. C breaks or deprecates public surfaces.
+**Compatibility impact:** A-R keeps the historical branch choice, changes
+cross-relation ID calls from deletion to no-match, and removes undocumented
+wildcard relation matching. Direct ID deletion remains client-wide. B would add
+a new v1 validation failure for previously deterministic calls. C breaks or
+deprecates public surfaces. D preserves dangerous cross-relation behavior.
 
 **Consequences:** DB-03B-A, REST-03, REST-05 relation ownership, and REL-02 are
 blocked until this gate is approved. DOC-01 is a nonblocking downstream
@@ -332,6 +368,8 @@ existing REST dependencies and must not document the current cross-relation
 behavior as supported.
 
 ### DG-DELETE-02 — logical affected-count semantics
+
+**Status:** approved A by the repository owner on 2026-09-12.
 
 **Problem:** all connection-delete methods declare `int`, but “rows affected”
 does not say whether the value counts input IDs, connection rows, metadata rows,
@@ -347,7 +385,7 @@ stored connections, self-connections, and partial matches make these differ.
 - C: replace the integer with a result object containing requested, matched,
   deleted-connection, deleted-meta, skipped, and failure fields.
 
-**Recommendation:** A. It matches the abstract methods' connection-delete
+**Decision:** A. It matches the abstract methods' connection-delete
 purpose and normal successful `WPStorage` result without a signature break. A
 future major version may add C without redefining the v1 integer.
 
@@ -362,6 +400,8 @@ because DB-05 already waits for DB-03B-A's approved and implemented count
 semantics.
 
 ### DG-DELETE-03 — valid no-match and partial-match semantics
+
+**Status:** approved A by the repository owner on 2026-09-12.
 
 **Problem:** `0` currently represents a valid selector with no row, invalid or
 empty input after domain coercion, selector-query failure, write failure, and
@@ -380,7 +420,7 @@ whole request. REST converts every zero to not-found.
 - C: return a result object with deleted and missing IDs; for REST, treat a
   missing single resource as idempotent success.
 
-**Recommendation:** A. It preserves the useful v1 integer/no-match behavior for
+**Decision:** A. It preserves the useful v1 integer/no-match behavior for
 PHP, current partial-match cleanup, and the current REST distinction, while
 ending failure masking. B changes bulk PHP behavior; C breaks the integer return
 and changes the existing REST error contract.
@@ -397,30 +437,38 @@ conditional on this gate.
 
 ### DG-DELETE-04 — ID normalization and invalid or ambiguous input
 
+**Status:** approved A-R by the repository owner on 2026-09-12, coordinated with
+the preserved precedence in DG-DELETE-01/A-R.
+
 **Problem:** the untyped SPI accepts `is_numeric()` values, silently drops bad
 members from mixed arrays, permits non-positive/non-integral forms, and returns
 `0` for conflicting direction flags or missing directed endpoints. Destructive
-partial acceptance and no-op coercion hide caller defects.
+partial acceptance and no-op coercion hide caller defects. The original option A
+also rejected multiple populated domain selector families; the rerun moved that
+question to DG-DELETE-01 and preserved the historical priority.
 
-- A: retain v1 signatures but accept only positive PHP integers or losslessly
+- A-R: retain v1 signatures but accept only positive PHP integers or losslessly
   normalizable decimal digit strings, and a non-empty array composed entirely of
   those values. Normalize to unique integers. Reject zero, negatives, floats,
   exponent notation, booleans, null, empty/all-invalid/mixed-invalid arrays,
-  missing required endpoints, conflicting flags, and multiple domain selector
-  families with a stable domain error before SQL.
+  missing required values for the selected branch, and conflicting direct-SPI
+  direction flags with a stable domain error before SQL. At the domain boundary,
+  lower-priority fields are ignored according to DG-DELETE-01/A-R rather than
+  treated as a second operation.
 - B: preserve current `is_numeric()` filtering and `0` results, changing only SQL
   construction to use placeholders.
 - C: add typed ID-list and selector value objects/new methods, then deprecate the
   untyped signatures in the next major version.
 
-**Recommendation:** A for current signatures, with C as a next-major cleanup.
+**Decision:** A-R for current signatures, with C as a next-major cleanup.
 It preserves common integer/numeric-path usage while preventing destructive
 partial acceptance. SQL must be parameterized under every option.
 
-**Compatibility impact:** A breaks callers passing mixed lists, floats,
+**Compatibility impact:** A-R breaks callers passing mixed lists, floats,
 scientific notation, non-positive values, or relying on invalid input as no-op.
-The documented `int|int[]` surface and observed CF7 VK integer ID remain valid.
-B preserves ambiguity; C is an explicit SPI/API migration.
+The documented `int|int[]` surface, historical domain selector precedence and
+observed CF7 VK integer ID remain valid. B preserves unsafe coercion; C is an
+explicit SPI/API migration.
 
 **Consequences:** DB-03B-A, DB-04's destructive-input contract, REST-03, and
 REL-02 are blocked until this gate is approved.
@@ -488,14 +536,15 @@ atomic primitive.
 ### DB-03B-A and DB-03B-B
 
 - Cover each storage method plus every `Relation::detachConnections()` branch.
-- Assert exact relation isolation and selector-family behavior selected by
-  DG-DELETE-01.
+- Assert exact relation isolation and the approved historical precedence:
+  `id`, `both`, `from+to`, `from`, `to`. Prove that a populated lower-priority
+  field neither broadens the deletion nor changes the selected operation.
 - Test single ID, multiple IDs, duplicate inputs, partial ID matches, duplicate
   stored pairs, self-connections, from/to/both sides, exact relation and empty
   direct-SPI relation.
 - Apply DG-DELETE-04 to zero, negative, float, exponent, numeric string, boolean,
-  null, scalar garbage, empty, all-invalid and mixed arrays, missing directed
-  endpoints, conflicting flags, and ambiguous domain queries.
+  null, scalar garbage, empty, all-invalid and mixed arrays, missing selected
+  directed endpoints, and conflicting direct-SPI flags.
 - Assert the DG-DELETE-02 logical count independently of metadata multiplicity.
 - Parameterize IDs and relation; prove wildcard/metacharacter input cannot
   broaden selection or produce a `wpdb::prepare` warning.

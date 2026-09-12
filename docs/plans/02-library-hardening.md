@@ -28,6 +28,10 @@ post-merge `master` также прошёл 17/17 checks. Batch 10 заверш�
 DG-UPDATE-03/A утверждён владельцем 2026-09-12. Batch 11 завершён PR #85:
 exact head `6e2ffc4` получил independent QA PASS_WITH_NOTES и 17/17 protected
 checks; merge `3d954ec` также прошёл 17/17 post-merge checks.
+DG-DELETE-01/A-R, DG-DELETE-02/A, DG-DELETE-03/A и DG-DELETE-04/A-R
+утверждены владельцем 2026-09-12 после повторной проверки исторического
+selector precedence. Batch 12 активен для DB-03B-A; connection selection по
+stored metadata вынесен в отдельный deferred design task API-05.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -690,10 +694,10 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | pending; recommendation A | repository owner | — | Default v1 library error body; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | approved A | repository owner | 2026-09-11 | Preserve native WordPress gateway status/code/data shape |
 | [DG-RESTERR-04](../rest-error-contract.md#dg-resterr-04) | pending; recommendation A | repository owner | — | Safe storage/unknown boundary; REST-03/REST-05/DOC-01/REL-02 wait |
-| [DG-DELETE-01](../delete-result-contract.md#dg-delete-01--relation-ownership-and-selector-composition) | pending; recommendation A | repository owner | — | DB-03B-A/REST-03/REST-05/REL-02 wait; DOC-01 refinement |
-| [DG-DELETE-02](../delete-result-contract.md#dg-delete-02--logical-affected-count-semantics) | pending; recommendation A | repository owner | — | DB-03B-A/DB-03B-B/REST-03/REL-02 wait; DB-05 assertion refinement |
-| [DG-DELETE-03](../delete-result-contract.md#dg-delete-03--valid-no-match-and-partial-match-semantics) | pending; recommendation A | repository owner | — | DB-03B-A/DB-03B-B/REST-03/REL-02 wait; REST-00A mapping refinement |
-| [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | pending; recommendation A | repository owner | — | DB-03B-A/DB-04/REST-03/REL-02 wait |
+| [DG-DELETE-01](../delete-result-contract.md#dg-delete-01--relation-ownership-and-selector-composition) | approved A-R | repository owner | 2026-09-12 | Preserve `id`/`both`/pair/`from`/`to` precedence; relation-scoped domain delete and exact relation identity |
+| [DG-DELETE-02](../delete-result-contract.md#dg-delete-02--logical-affected-count-semantics) | approved A | repository owner | 2026-09-12 | Count committed connection rows, excluding metadata multiplicity |
+| [DG-DELETE-03](../delete-result-contract.md#dg-delete-03--valid-no-match-and-partial-match-semantics) | approved A | repository owner | 2026-09-12 | `0` is valid no-match; partial bulk match succeeds; invalid/failure remains attributable |
+| [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | approved A-R | repository owner | 2026-09-12 | Strict selected-selector/direct-SPI ID normalization coordinated with preserved domain precedence |
 | [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | pending; recommendation A | repository owner | — | REST-03 waits; DOC-01 refinement |
 | [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | pending; recommendation A | repository owner | — | DB-04 waits; REL-03/DOC-01 refinement |
 | [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | approved A | repository owner | 2026-09-11 | Compatibility normalization plus safe canonical identity |
@@ -1059,7 +1063,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | partial: UPDATE-04 and SPI-06 approved A 2026-09-11; остальные pending A recommended | DB-02/DB-05/DB-06 и failure contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | pending; все A recommended | DB-03B-A/DB-03B-B/DB-04 |
+| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A unblocked; DB-03B-B additionally waits DP-4; DB-04 waits DELETE-06 and implementation dependencies |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | partial: RESTERR-03 approved A 2026-09-11; остальные pending A recommended | REST-03—REST-05 exact wire contract |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
@@ -1400,6 +1404,49 @@ Exit criteria:
   зелёным вместе с DB-02/REST-02.
 - Все DoD/AC трёх задач выполнены, independent QA, protected и post-merge
   checks зелёные.
+
+### Batch 12. Relation-safe successful connection deletion
+
+Status: in_progress
+
+Goal: закрыть DB-03B-A одним red-to-green vertical slice: сохранить
+исторический selector precedence, сделать relation реальной domain/REST
+границей и доказать точный successful delete/count/meta-cascade contract.
+
+Entry criteria:
+
+- Batch 11 влит PR #85 как `3d954ec`, closeout PR #86 как `333c860`; оба exact
+  merge SHA прошли 17/17 post-merge checks.
+- TEST-01, DB-03A, DG-NAME-03 и CORE-06 completed.
+- DG-DELETE-01/A-R, DG-DELETE-02/A, DG-DELETE-03/A и DG-DELETE-04/A-R
+  утверждены владельцем 2026-09-12.
+- Rerun `Relation::detachConnections()` и commit `0e72bdc` подтвердил, что
+  `id → both → from+to → from → to` является историческим детерминированным
+  порядком, а не основанием вводить новый v1 mutual-exclusion error.
+
+Tasks:
+
+- DB-03B-A — `in_progress`; tests-first selector/count/isolation/cascade
+  vertical с production fix в той же ветке после сохранённого red evidence.
+
+Execution model:
+
+- Сначала зафиксировать red regression для cross-relation ID, exact relation,
+  всех selector branches, precedence, normalization, logical count и metadata
+  cascade; затем менять production.
+- Сохранить direct `Storage::deleteSpecificConnections()` как client-wide
+  legacy SPI; relation scoping применяется на supported domain boundary.
+- Не включать transaction/fault-injection/hook-commit work DB-05/DB-03B-B,
+  REST response/error mapping REST-03 или `deleted_post` recovery DB-04.
+- Не интерпретировать `Query\Connection::$meta` как connection selector.
+  Metadata-based connection filtering/deletion принадлежит deferred API-05.
+
+Exit criteria:
+
+- Все DB-03B-A DoD/AC и approved DG-DELETE-01—04 варианты доказаны tests.
+- Independent QA проверяет exact candidate после реализации и после rebase.
+- Protected checks зелёные на final head и post-merge `master`; evidence и
+  известные nonblocking limitations записаны до closeout.
 
 ## E1. Test foundation и regression harness
 
@@ -3082,8 +3129,8 @@ Scope:
   `deleted_post` delete paths, SQL, metadata cascade и hooks.
 - Result semantics для single/multiple IDs, directed pair, object side/direction,
   relation scope, duplicates, partial match и valid no-match.
-- Invalid/empty/mixed identifiers, ambiguous domain selectors, conflicting
-  direction flags и exact-vs-pattern relation filter.
+- Invalid/empty/mixed identifiers, historical domain selector precedence,
+  conflicting direction flags и exact-vs-pattern relation filter.
 - Logical affected-connection count отдельно от metadata/physical row counts.
 - Partial SQL failures и атомарная connection-plus-meta boundary approved DG-M7;
   generic adapter failure/capability/hook policy остаются DG-SPI-03/04/06.
@@ -3145,10 +3192,10 @@ Notes/Risks:
 - Temporary fixed-floor probe подтвердил cross-relation ID deletion `1`, mixed
   `[valid, invalid]` partial acceptance `1`, missing ID `0`, conflicting flags
   `0` и attempt-only hook; probe не входит в repository tests.
-- DG-DELETE-01—DG-DELETE-06 остаются pending. Completion означает готовность
-  design artifact к owner decision, а не утверждение production/API/SPI/REST или
-  hook changes. DB-03B-A, DB-03B-B, DB-04 и REST-03 сохраняют
-  `waiting_dependency`.
+- На момент DB-03A closeout DG-DELETE-01—DG-DELETE-06 оставались pending:
+  completion означал готовность design artifact к owner decision, а не
+  утверждение production/API/SPI/REST или hook changes. Позднее
+  DG-DELETE-01—04 утверждены 2026-09-12; DELETE-05/06 остаются pending.
 - Public inventory нашёл direct
   `getStorage()->deleteSpecificConnections()` consumer для orphan cleanup;
   private consumers/hooks остаются неизвестным compatibility risk.
@@ -3158,8 +3205,9 @@ Verification:
 - Source/history traceability охватывает 3/3 connection-delete SPI methods,
   Relation dispatch, отсутствие Connection delete API, оба REST DELETE paths,
   metadata cascade, `deleted_post` registration и все delete hook families.
-- Structural checks подтверждают шесть полных pending gate definitions, registry
-  anchors, обязательные task attributes и валидные relative repository links.
+- Historical closeout structural checks подтвердили шесть полных gate
+  definitions, registry anchors, обязательные task attributes и валидные
+  relative repository links; их current approval state ведётся в registry.
 - Post-rebase integrity на `b36fa85`: fixed-floor PHP 8.1.34 / WordPress 6.7.7 /
   Ramsey 1.3.0: unit `6 / 14`, integration `67 / 345`; PHPCS `36/36`, exit 0
   с известным ruleset deprecation warning. Docs-only diff не меняет
@@ -3167,7 +3215,7 @@ Verification:
 
 ### DB-03B-A. Покрыть delete selectors и successful meta cascade
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P0
 
@@ -3181,6 +3229,8 @@ Scope:
 - `deleteByObjectID` для both/onlyFrom/onlyTo и relation filter.
 - `deleteDirectedConnections`, duplicate rows и not-found.
 - Все branches `Relation::detachConnections`.
+- Исторический selector precedence `id → both → from+to → from → to`, включая
+  harmless ignored lower-priority fields.
 - Invalid IDs и обе direction flags одновременно.
 - Успешная connection-plus-meta cascade для каждого selector variant.
 
@@ -3189,6 +3239,7 @@ Out of Scope:
 - Автоматический `deleted_post` hook — DB-04.
 - Fault injection, rollback и success-hook timing — DB-03B-B после DB-05.
 - Transaction implementation — DB-05.
+- Поиск или удаление connection rows по stored metadata — API-05.
 
 DoR:
 
@@ -4305,6 +4356,66 @@ Notes/Risks:
 
 - Entity filtering и pagination должны выполняться в утверждённом порядке, иначе
   страницы и totals будут вводить consumer в заблуждение.
+
+### API-05. Спроектировать selection connections по stored metadata
+
+Status: deferred
+
+Priority: P2
+
+Goal: определить, нужен ли public read/delete selector по metadata самой
+connection, и подготовить отдельный совместимый контракт до production work.
+
+Scope:
+
+- Consumer use cases для поиска и bulk deletion по meta key/value.
+- Семантика key-only/value, duplicate keys, AND/OR, нескольких значений, null,
+  falsy values и сочетания с relation/from/to/both.
+- Read-first boundary: один selector contract для поиска IDs и последующего
+  удаления, без неявного переиспользования mutation payload.
+- PHP/REST grammar, custom Storage capability, indexes/query plan и лимиты.
+- Atomic selection/delete и concurrent-change behavior.
+
+Out of Scope:
+
+- Реализация metadata-filtered delete в DB-03B-A.
+- Неявная трактовка существующего `Query\Connection::$meta` как фильтра:
+  сейчас это persistence payload и selector удаления meta rows одной connection.
+- Полнотекстовый или произвольный SQL-like query language.
+
+DoR:
+
+- DB-02 и DB-03A завершены.
+- DB-03B-A предоставляет стабильный базовый delete selector/count contract.
+- Владелец подтверждает реальный consumer use case либо принимает design-only
+  discovery без обязательства включать feature в hardening release.
+
+DoD:
+
+- Current-state gap, use cases, alternatives, compatibility/security/performance
+  impact и recommendation оформлены в canonical artifact.
+- Все material choices вынесены в отдельные owner decision gates.
+- Implementation tasks создаются только для утверждённого public contract.
+
+AC:
+
+- Given одинаковый meta key у нескольких relations/clients, when оценивается
+  selector, then proposed scope не допускает cross-relation/client deletion.
+- Given duplicate keys и несколько meta predicates, then match/count semantics
+  однозначны и тестируемы.
+- Given custom non-SQL Storage, then contract либо предоставляет portable
+  capability, либо явно сообщает unsupported до mutation.
+
+Dependencies:
+
+- DB-02, DB-03A, DB-03B-A.
+
+Notes/Risks:
+
+- Добавление meta JOIN/EXISTS без индекса и pagination budget может сделать
+  destructive запрос непредсказуемо дорогим.
+- Без единого read/delete selector contract реализация через «сначала найти,
+  потом удалить ID» создаёт race и расходится между adapters.
 
 ### DOC-01. Создать OpenAPI contract из проверенных REST routes
 
