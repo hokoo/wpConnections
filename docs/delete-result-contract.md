@@ -2,7 +2,8 @@
 
 Status: DG-DELETE-01—DG-DELETE-04 approved by the repository owner on
 2026-09-12; implementation refinement DG-DELETE-04-R2/A approved on
-2026-09-13; DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
+2026-09-13; DB-03B-A implemented and merged as `2d52f087`; DG-DELETE-05
+and DG-DELETE-06 remain decision-ready and pending.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 (the merge of CORE-00 after SPI-01 into `master`, 2026-09-10).
@@ -15,6 +16,32 @@ owner-requested reread of `Relation::detachConnections()` and its introduction
 history: the branch order is a deterministic compatibility rule, not an
 inherently ambiguous query. Recommendations for the two remaining pending gates
 do not authorize REST, hook, or recovery changes.
+
+## DB-03B-A implementation status
+
+The successful connection-delete contract was implemented by PR #87 and merged
+to `master` as `2d52f087a1417b1fbab164a9606df4fc96906ccf` on
+2026-09-13. The source snapshot below remains the historical pre-implementation
+inventory used to make the decisions; current production behavior is governed
+by the approved matrix and protected regressions.
+
+- Relation-level ID deletion verifies exact relation ownership before invoking
+  the unchanged client-wide direct SPI.
+- Explicit presence selects `id → both → from+to → from → to`; invalid selected
+  values throw before SQL and never fall through.
+- Query selectors retain raw constructor, setter and repeated direct-write
+  values through the approved virtual-property ledger.
+- Default storage normalizes positive integer IDs, parameterizes exact relation
+  identity and returns logical connection-row counts after successful cascades.
+- Successful ID, pair, from, to and both-side deletions remove all matching
+  metadata; valid no-match remains `0`.
+- The relation lookup followed by client-wide ID deletion remains an explicitly
+  documented TOCTOU limitation until DB-05/DB-03B-B add the approved atomic
+  boundary.
+
+Exact candidate `9e88eef` received independent QA PASS, 17/17 protected
+checks, combined coverage `237 tests / 2030 assertions` and statement coverage
+`1335/1453 (91.88%)`. Exact merge `2d52f087` passed all 17 post-merge jobs.
 
 ## Ownership and boundaries
 

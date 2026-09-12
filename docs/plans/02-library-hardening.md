@@ -30,8 +30,10 @@ exact head `6e2ffc4` получил independent QA PASS_WITH_NOTES и 17/17 prot
 checks; merge `3d954ec` также прошёл 17/17 post-merge checks.
 DG-DELETE-01/A-R, DG-DELETE-02/A, DG-DELETE-03/A и DG-DELETE-04/A-R
 утверждены владельцем 2026-09-12 после повторной проверки исторического
-selector precedence. Batch 12 активен для DB-03B-A; connection selection по
-stored metadata вынесен в отдельный deferred design task API-05.
+selector precedence; DG-DELETE-04-R2/A утверждён 2026-09-13. Batch 12 завершён:
+PR #87 влит как `2d52f087`, exact candidate и merge прошли по 17/17 checks.
+Connection selection по stored metadata вынесен в отдельный deferred design
+task API-05.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1411,7 +1413,7 @@ Exit criteria:
 
 ### Batch 12. Relation-safe successful connection deletion
 
-Status: in_progress
+Status: completed
 
 Goal: закрыть DB-03B-A одним red-to-green vertical slice: сохранить
 исторический selector precedence, сделать relation реальной domain/REST
@@ -1430,8 +1432,8 @@ Entry criteria:
 
 Tasks:
 
-- DB-03B-A — `in_progress`; tests-first selector/count/isolation/cascade
-  vertical с production fix в той же ветке после сохранённого red evidence.
+- DB-03B-A — `completed`; tests-first selector/count/isolation/cascade
+  vertical влит PR #87.
 
 Execution model:
 
@@ -1470,6 +1472,30 @@ Exit criteria:
 - Independent QA проверяет exact candidate после реализации и после rebase.
 - Protected checks зелёные на final head и post-merge `master`; evidence и
   известные nonblocking limitations записаны до closeout.
+
+Verification:
+
+- Red-first commit `5b11fc4` зафиксировал исходные failures: targeted
+  integration `32 tests / 101 assertions / 25 failures` и unit presence
+  `5 tests / 2 failures`.
+- Production contract реализован в `db7fd24`; mandatory independent QA defect
+  typed-property coercion исправлен в `4b9fdff`, а утверждённая
+  DG-DELETE-04-R2/A virtual-property boundary завершена в exact candidate
+  `9e88eef`.
+- Independent QA на `9e88eef`: PASS; focused Query `11 / 74`, focused delete
+  integration `69 / 340`, full unit `19 / 96`, full integration `218 / 1936`,
+  PHPCS `53/53`, `git diff --check` clean.
+- Local isolation seed `1785006631`: unit reverse/random по два раза
+  `38 / 192`, integration reverse/random по два раза `436 / 3872`.
+- Exact candidate `9e88eef` прошёл 17/17 protected jobs. Coverage:
+  `237 tests / 2030 assertions`, statements `1335/1453 (91.88%)`, PR gate
+  PASSED, release-candidate threshold READY.
+- PR #87 влит в `master` как
+  `2d52f087a1417b1fbab164a9606df4fc96906ccf`; exact merge SHA прошёл 17/17
+  post-merge jobs.
+- Единственное nonblocking замечание — существующий PHPCS ruleset deprecation.
+  TOCTOU read-before-delete остаётся явно назначен DB-05/DB-03B-B; это не
+  заявленная concurrency guarantee Batch 12.
 
 ## E1. Test foundation и regression harness
 
@@ -3239,7 +3265,7 @@ Verification:
 
 ### DB-03B-A. Покрыть delete selectors и successful meta cascade
 
-Status: in_progress
+Status: completed
 
 Priority: P0
 
@@ -3303,6 +3329,14 @@ Notes/Risks:
   `DB-03B`; текущие canonical artifacts и task references разделены явно:
   selector/count/normalization/successful-cascade относятся к DB-03B-A, а
   atomic failure и commit-hook conformance — к DB-03B-B.
+
+Verification:
+
+- PR #87, exact candidate `9e88eef`, merge
+  `2d52f087a1417b1fbab164a9606df4fc96906ccf`.
+- Independent QA PASS и 17/17 protected/post-merge jobs.
+- Focused delete `69 tests / 340 assertions`; combined coverage
+  `237 / 2030`; statement coverage `91.88%`.
 
 ### DB-04. Проверить WordPress `deleted_post` cascade
 
