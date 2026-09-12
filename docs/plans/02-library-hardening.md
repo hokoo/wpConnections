@@ -1436,10 +1436,17 @@ Execution model:
   cascade; затем менять production.
 - Сохранить direct `Storage::deleteSpecificConnections()` как client-wide
   legacy SPI; relation scoping применяется на supported domain boundary.
+- Selector выбирается по explicit presence в историческом порядке, затем
+  валидируется. Невалидный выбранный selector не падает вниз к потенциально
+  более широкому lower-priority delete; lower-priority поля игнорируются после
+  выбора валидной старшей ветки.
 - Не включать transaction/fault-injection/hook-commit work DB-05/DB-03B-B,
   REST response/error mapping REST-03 или `deleted_post` recovery DB-04.
 - Не интерпретировать `Query\Connection::$meta` как connection selector.
   Metadata-based connection filtering/deletion принадлежит deferred API-05.
+- Domain relation-scoped ID в этом successful-contract slice использует
+  read-before-delete поверх неизменённого client-wide SPI. Его TOCTOU boundary
+  остаётся явно промежуточным до atomic/locking work DB-05/DB-03B-B.
 
 Exit criteria:
 

@@ -39,13 +39,14 @@ storage implementer SPI:
   records its current boundary and exposes the unresolved failure policy in
   `DG-DELETE-06`.
 
-Generic adapter failures, transaction capability, and commit-aware hook meaning
-remain owned by pending
+Generic adapter failures and transaction capability remain owned by pending
 [`DG-SPI-03`](./storage-spi-contract.md#dg-spi-03--non-update-result-and-failure-protocol),
-[`DG-SPI-04`](./storage-spi-contract.md#dg-spi-04--transaction-capability-and-orchestration-shape),
 and
-[`DG-SPI-06`](./storage-spi-contract.md#dg-spi-06--mutation-hook-meaning-across-commitrollback).
-This artifact refines their delete scenarios without selecting their options.
+[`DG-SPI-04`](./storage-spi-contract.md#dg-spi-04--transaction-capability-and-orchestration-shape).
+Commit-aware hook meaning is owned by approved
+[`DG-SPI-06/A`](./storage-spi-contract.md#dg-spi-06--mutation-hook-meaning-across-commitrollback).
+This artifact refines their delete scenarios without selecting pending SPI
+options.
 Approved DG-M7/A already requires an atomic connection-plus-metadata outcome or
 an explicit capability error before mutation.
 
@@ -187,11 +188,11 @@ selected and each distinct connection row contributes one to the count.
 | REST meta delete | `{deleted: int}`; failure may become `0` | Meta-only delete and its own hooks | DB-02/REST-05 scope; not a logical connection count |
 | `deleted_post` | Callback result ignored | Adapter deletes both sides/all relations for one client | Post is already deleted; its transaction cannot be rolled back here |
 
-## Conditional implementation matrix
+## Implementation decision matrix
 
-This matrix is executable only after its cited gates are approved. It shows the
-recommended A path so reviewers can judge a complete contract rather than
-isolated choices.
+The DG-DELETE-01—04 rows below are approved and executable in DB-03B-A. Rows
+that cite pending SPI, REST or recovery gates remain conditional until those
+specific decisions and dependencies are complete.
 
 | Scenario | Recommended observable outcome | Required proof | Gate/owner |
 | --- | --- | --- | --- |
@@ -224,7 +225,7 @@ DG-M7/A already fixes these requirements; they are not a new DB-03A decision:
    positive count. The pre-call state is restored and the original failure stays
    attributable.
 5. Result and committed-success hooks cannot escape before commit. Exact legacy
-   hook timing/name compatibility is conditional on DG-SPI-06.
+   hook timing/name compatibility follows approved DG-SPI-06/A.
 
 The transaction API and backend feasibility are still pending DG-SPI-04 and
 DB-00. DB-03B-A adds selector/count/SQL-safety regressions after the
@@ -248,9 +249,9 @@ The following are observations, not approval of hook compatibility:
 | `deleteDirectedConnections` | Global receives client, from, to, relation; client hook omits client | Both receive resolved connection IDs | Empty endpoint/no match: attempt hooks only |
 | `removeConnectionMeta` | Global `before` receives client, ID, selector and SQL | Global `after` receives client, ID, selector, SQL and `int\|false` | Failure is exposed raw to the after hook |
 
-DG-SPI-06 owns whether existing names and argument order remain public, and
-whether success-named hooks move to after commit. DB-03B-B must capture the
-current arguments before refactoring; REL-02 supplies adapter-neutral hook conformance.
+DG-SPI-06/A preserves existing names and argument order and moves
+success-named hooks to after commit. DB-03B-B must capture the current arguments
+before refactoring; REL-02 supplies adapter-neutral hook conformance.
 DB-03A does not rename hooks, require a SQL payload from custom adapters, or
 choose attempt/commit/rollback notifications.
 
@@ -315,7 +316,7 @@ implicitly added to DB-03B-A.
   permissiveness, return values, hook timing, and exception behavior remain
   compatibility-sensitive even where public evidence is absent.
 
-## Pending decision gates
+## Decision gates
 
 ### DG-DELETE-01 — relation ownership and selector composition
 
@@ -332,7 +333,8 @@ deterministic, intentional-looking historical order — `id`, `both`, `from+to`,
 non-ID read-query predicate composition.
 
 - A-R: the domain relation is authoritative. Preserve and document the existing
-  selector precedence; validate and execute only the first selected branch.
+  selector precedence; choose the highest-priority explicitly provided family,
+  then validate and execute only that branch without invalid-to-lower fallback.
   Scope ID deletion to the receiving relation and use exact optional relation
   identity for endpoint deletes. Retain direct
   `Storage::deleteSpecificConnections()` as an explicitly client-wide legacy
@@ -361,11 +363,10 @@ wildcard relation matching. Direct ID deletion remains client-wide. B would add
 a new v1 validation failure for previously deterministic calls. C breaks or
 deprecates public surfaces. D preserves dangerous cross-relation behavior.
 
-**Consequences:** DB-03B-A, REST-03, REST-05 relation ownership, and REL-02 are
-blocked until this gate is approved. DOC-01 is a nonblocking downstream
-refinement: it consumes the verified implementation contract through its
-existing REST dependencies and must not document the current cross-relation
-behavior as supported.
+**Consequences:** approval unblocks the relation-ownership and selector-order
+parts of DB-03B-A and provides required input to REST-03, REST-05 and REL-02.
+DOC-01 consumes the later verified implementation and must not document the
+current cross-relation behavior as supported.
 
 ### DG-DELETE-02 — logical affected-count semantics
 
@@ -394,10 +395,10 @@ multiplicity; callers relying on raw database-row totals would need migration,
 although current code normally returns only the final connection delete count.
 B leaks adapter schema. C breaks domain/SPI consumers and implementers.
 
-**Consequences:** DB-03B-A, DB-03B-B, REST-03, and REL-02 are blocked until this
-gate is approved. DB-05 delete assertions are a nonblocking refinement here
-because DB-05 already waits for DB-03B-A's approved and implemented count
-semantics.
+**Consequences:** approval unblocks DB-03B-A's successful-count work and
+provides required input to DB-03B-B, REST-03 and REL-02. DB-05 delete assertions
+remain a downstream refinement because DB-05 waits for DB-03B-A's implemented
+count semantics.
 
 ### DG-DELETE-03 — valid no-match and partial-match semantics
 
@@ -430,10 +431,9 @@ throw instead of returning `0`; valid no-match and partial-match callers remain
 compatible. B can break idempotent/best-effort cleanup. C changes PHP/SPI and
 observable REST responses.
 
-**Consequences:** DB-03B-A, DB-03B-B, REST-03, and REL-02 are blocked until this gate is
-approved. REST-00A is a nonblocking mapping refinement: it may complete a
-decision-ready error taxonomy while leaving delete no-match classification
-conditional on this gate.
+**Consequences:** approval unblocks DB-03B-A's no-match work and provides
+required input to DB-03B-B, REST-03 and REL-02. REST-00A remains the owner of
+the downstream HTTP mapping.
 
 ### DG-DELETE-04 — ID normalization and invalid or ambiguous input
 
@@ -453,8 +453,11 @@ question to DG-DELETE-01 and preserved the historical priority.
   exponent notation, booleans, null, empty/all-invalid/mixed-invalid arrays,
   missing required values for the selected branch, and conflicting direct-SPI
   direction flags with a stable domain error before SQL. At the domain boundary,
-  lower-priority fields are ignored according to DG-DELETE-01/A-R rather than
-  treated as a second operation.
+  choose the highest-priority explicitly provided selector before validation.
+  An invalid chosen selector is an error and never falls through to a
+  lower-priority field. Lower-priority fields are ignored only after the chosen
+  selector is valid. Explicit `from+to` selects the pair; an invalid side does
+  not fall back to one-sided deletion.
 - B: preserve current `is_numeric()` filtering and `0` results, changing only SQL
   construction to use placeholders.
 - C: add typed ID-list and selector value objects/new methods, then deprecate the
@@ -470,8 +473,8 @@ The documented `int|int[]` surface, historical domain selector precedence and
 observed CF7 VK integer ID remain valid. B preserves unsafe coercion; C is an
 explicit SPI/API migration.
 
-**Consequences:** DB-03B-A, DB-04's destructive-input contract, REST-03, and
-REL-02 are blocked until this gate is approved.
+**Consequences:** approval unblocks DB-03B-A's normalization work and provides
+required input to DB-04, REST-03 and REL-02.
 
 ### DG-DELETE-05 — REST connection-delete success representation
 
