@@ -6,6 +6,7 @@ use iTRON\wpConnections\Connection as StoredConnection;
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Meta;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
+use iTRON\wpConnections\Query\Meta as QueryMeta;
 
 class ConnectionUpdateTest extends WPConnectionsTestCase
 {
@@ -243,7 +244,7 @@ class ConnectionUpdateTest extends WPConnectionsTestCase
 	public function test_rejects_invalid_metadata_before_create_mutation( string $key, $value ): void
 	{
 		$query = new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] );
-		$query->meta->add( new Meta( $key, $value ) );
+		$query->meta->add( new QueryMeta( $key, $value ) );
 
 		try {
 			$this->client->getRelation( RELATION_0_NAME )->createConnection( $query );
@@ -344,7 +345,7 @@ class ConnectionUpdateTest extends WPConnectionsTestCase
 		$query = new ConnectionQuery( $this->page_ids[0], $this->post_ids[0] );
 		$query->set( 'title', 'Original title' );
 		$query->set( 'order', 10 );
-		$query->meta->add( new Meta( 'marker', 'preserved' ) );
+		$query->meta->add( new QueryMeta( 'marker', 'preserved' ) );
 
 		return $this->client->getRelation( RELATION_0_NAME )->createConnection( $query );
 	}
