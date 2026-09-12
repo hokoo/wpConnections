@@ -90,46 +90,52 @@ class WPStorage extends Abstracts\Storage
     private function install(): void
     {
         $this->assertSitePrefix();
+        $issues = $this->schemaIssues();
         $this->assertPresentTablesCompatible();
 
-        Database::install_table(
-            $this->connections_table,
-            "
-            `ID`        bigint(20) unsigned NOT NULL auto_increment,
-            `relation`  varchar(255) NOT NULL,
-            `from`      bigint(20) unsigned NOT NULL,
-            `to`        bigint(20) unsigned NOT NULL,
-            `order`     bigint(20) unsigned NULL default '0',
-            `title`     varchar(63)  NULL default '',
-            PRIMARY KEY  (`ID`),
-            KEY `from` (`from`),
-            KEY `to` (`to`),
-            KEY `order` (`order`),
-            KEY `relation` (`relation`)
-            ",
-            [ 'table_options' => 'ENGINE=InnoDB' ]
-        );
-        $connectionsError = $this->databaseError();
+        $connectionsTable = $this->fullTableName($this->connections_table);
+        $metaTable = $this->fullTableName($this->meta_table);
+        $errors = [];
 
-        Database::install_table(
-            $this->meta_table,
-            "
-            `meta_id`       bigint(20) unsigned NOT NULL auto_increment,
-            `connection_id` bigint(20) unsigned NOT NULL default '0',
-            `meta_key`      varchar(255) NOT NULL,
-            `meta_value`    longtext     NOT NULL,
-            PRIMARY KEY  (`meta_id`),
-            KEY `connection_id` (`connection_id`),
-            KEY `meta_key` (`meta_key`)
-            ",
-            [ 'table_options' => 'ENGINE=InnoDB' ]
-        );
-        $metaError = $this->databaseError();
+        if ('missing' === ($issues[$connectionsTable] ?? null)) {
+            Database::install_table(
+                $this->connections_table,
+                "
+                `ID`        bigint(20) unsigned NOT NULL auto_increment,
+                `relation`  varchar(255) NOT NULL,
+                `from`      bigint(20) unsigned NOT NULL,
+                `to`        bigint(20) unsigned NOT NULL,
+                `order`     bigint(20) unsigned NULL default '0',
+                `title`     varchar(63)  NULL default '',
+                PRIMARY KEY  (`ID`),
+                KEY `from` (`from`),
+                KEY `to` (`to`),
+                KEY `order` (`order`),
+                KEY `relation` (`relation`)
+                ",
+                [ 'table_options' => 'ENGINE=InnoDB' ]
+            );
+            $errors[$connectionsTable] = $this->databaseError();
+        }
 
-        $errors = array_filter([
-            $this->fullTableName($this->connections_table) => $connectionsError,
-            $this->fullTableName($this->meta_table) => $metaError,
-        ]);
+        if ('missing' === ($issues[$metaTable] ?? null)) {
+            Database::install_table(
+                $this->meta_table,
+                "
+                `meta_id`       bigint(20) unsigned NOT NULL auto_increment,
+                `connection_id` bigint(20) unsigned NOT NULL default '0',
+                `meta_key`      varchar(255) NOT NULL,
+                `meta_value`    longtext     NOT NULL,
+                PRIMARY KEY  (`meta_id`),
+                KEY `connection_id` (`connection_id`),
+                KEY `meta_key` (`meta_key`)
+                ",
+                [ 'table_options' => 'ENGINE=InnoDB' ]
+            );
+            $errors[$metaTable] = $this->databaseError();
+        }
+
+        $errors = array_filter($errors);
         if ([] !== $errors) {
             throw $this->schemaException('installation failed', $errors);
         }
@@ -253,12 +259,15 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
-        return 1 === (int) $wpdb->get_var(
-            $wpdb->prepare(
-                'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-                $table
-            )
-        );
+        $escapedTable = str_replace('`', '``', $table);
+        $suppressErrors = $wpdb->suppress_errors();
+        try {
+            $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$escapedTable}`");
+        } finally {
+            $wpdb->suppress_errors($suppressErrors);
+        }
+
+        return is_array($columns) && [] !== $columns;
     }
 
     private function hasExpectedSchema(string $table, array $expectedColumns): bool
@@ -391,14 +400,15 @@ class WPStorage extends Abstracts\Storage
     {
         global $wpdb;
 
-        return strtoupper(
-            (string) $wpdb->get_var(
-                $wpdb->prepare(
-                    'SELECT ENGINE FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-                    $table
-                )
-            )
-        );
+        $escapedTable = str_replace('`', '``', $table);
+        $definition = $wpdb->get_row("SHOW CREATE TABLE `{$escapedTable}`", ARRAY_N);
+        if (! is_array($definition) || ! isset($definition[1])) {
+            return '';
+        }
+
+        return preg_match('/\bENGINE=([A-Za-z0-9_]+)/i', $definition[1], $matches)
+            ? strtoupper($matches[1])
+            : '';
     }
 
     private function databaseError(): string

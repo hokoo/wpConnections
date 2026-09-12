@@ -147,6 +147,7 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 				"Recovery for {$table} must happen before the first connection INSERT attempt."
 			);
 		}
+		self::assertSame( [], $this->table_alter_queries( $queries, $tables ) );
 
 		$this->assert_storage_schema();
 		self::assertSame( 1, $this->connection_row_count( $created_id ) );
@@ -332,26 +333,30 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 	{
 		global $wpdb;
 
-		return 1 === (int) $wpdb->get_var(
-			$wpdb->prepare(
-				'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-				$table
-			)
-		);
+		$escaped_table = str_replace( '`', '``', $table );
+		$suppress       = $wpdb->suppress_errors();
+		try {
+			$columns = $wpdb->get_col( "SHOW COLUMNS FROM `{$escaped_table}`" );
+		} finally {
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		return is_array( $columns ) && [] !== $columns;
 	}
 
 	private function table_engine( string $table ): string
 	{
 		global $wpdb;
 
-		return strtoupper(
-			(string) $wpdb->get_var(
-				$wpdb->prepare(
-					'SELECT ENGINE FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-					$table
-				)
-			)
-		);
+		$escaped_table = str_replace( '`', '``', $table );
+		$definition    = $wpdb->get_row( "SHOW CREATE TABLE `{$escaped_table}`", ARRAY_N );
+		if ( ! is_array( $definition ) || ! isset( $definition[1] ) ) {
+			return '';
+		}
+
+		return preg_match( '/\bENGINE=([A-Za-z0-9_]+)/i', $definition[1], $matches )
+			? strtoupper( $matches[1] )
+			: '';
 	}
 
 	private function table_columns( string $table ): array
@@ -431,7 +436,7 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 
 	private function is_create_table_query( string $query, string $table ): bool
 	{
-		return 1 === preg_match( '/CREATE\s+(?:TEMPORARY\s+)?TABLE\b/i', $query ) &&
+		return 1 === preg_match( '/^\s*CREATE\s+(?:TEMPORARY\s+)?TABLE\b/i', $query ) &&
 			false !== strpos( $query, $table );
 	}
 

@@ -936,12 +936,15 @@ class ClientIsolationTest extends \WP_UnitTestCase
 	private function table_exists( string $table ): bool
 	{
 		global $wpdb;
-		return 1 === (int) $wpdb->get_var(
-			$wpdb->prepare(
-				'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-				$table
-			)
-		);
+		$escaped_table = str_replace( '`', '``', $table );
+		$suppress       = $wpdb->suppress_errors();
+		try {
+			$columns = $wpdb->get_col( "SHOW COLUMNS FROM `{$escaped_table}`" );
+		} finally {
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		return is_array( $columns ) && [] !== $columns;
 	}
 
 	private function option_names(): array
