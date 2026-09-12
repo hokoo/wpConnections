@@ -22,8 +22,9 @@ standalone manager package `hokoo/wp-hooks-dispatcher` и namespace
 checks. Final head `6554089`, merge `73bc71f` и post-merge `master` также
 прошли 17/17 checks. Batch 9 завершён. DG-HOOK-REST-05/A утверждён владельцем
 2026-09-12. REST-HOOK-01 completed на exact implementation head `9d5b74e`:
-independent QA PASS и 17/17 protected checks; PR #83 ожидает merge и post-merge
-проверку для закрытия Batch 10.
+independent QA PASS; docs-only final head `7e1addc` прошёл independent closure
+QA и 17/17 protected checks. PR #83 влит как `33b659e`, на exact merge SHA
+post-merge `master` также прошёл 17/17 checks. Batch 10 завершён.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1290,7 +1291,7 @@ Exit criteria:
 
 ### Batch 10. Context-safe REST registration and dispatch
 
-Status: review
+Status: completed
 
 Goal: поставить REST-HOOK-01 отдельным vertical slice: manager ограничивает
 `rest_api_init` контекстом подписки, а library-owned route boundary выбирает
@@ -1309,8 +1310,9 @@ Entry criteria:
 Tasks:
 
 - REST-HOOK-01 — `completed`; exact implementation head `9d5b74e` получил
-  independent QA PASS и 17/17 protected checks. PR #83 merge/post-merge остаются
-  closure gate Batch 10.
+  independent QA PASS. Docs-only final head `7e1addc` прошёл independent
+  closure QA и 17/17 protected checks; PR #83 влит как `33b659e`, exact merge
+  SHA прошёл 17/17 post-merge checks.
 
 Execution model:
 
@@ -1334,6 +1336,47 @@ Exit criteria:
   документированы.
 - Independent QA, protected checks и post-merge checks зелёные до перехода к
   следующему batch.
+
+### Batch 11. Connection update vertical slice
+
+Status: waiting_dependency
+
+Goal: одним red-to-green vertical slice закрыть update без `title`, корректную
+передачу `order=0` и согласованные create/update/meta regressions.
+
+Entry criteria:
+
+- Batch 10 завершён и влит PR #83 как `33b659e`; final-head и post-merge checks
+  прошли 17/17.
+- TEST-01, REST-01, REST-00B, CORE-02, CORE-04 и CORE-07 completed.
+- DG-UPDATE-01/A, DG-UPDATE-02/A, DG-UPDATE-04/A, DG-SPI-01/A,
+  DG-SPI-02/A, DG-ENT-04/A и DG-ENT-05/A утверждены.
+- DG-UPDATE-03 остаётся pending и блокирует начало связного vertical slice.
+
+Tasks:
+
+- TEST-02D — `todo`; сначала зафиксировать full-dispatch red evidence для
+  omitted `title`.
+- DB-02 — `waiting_dependency`; после DG-UPDATE-03 реализовать и проверить
+  create/update/meta contract, включая `order=0`.
+- REST-02 — `waiting_dependency`; в том же batch сделать TEST-02D зелёным после
+  DB-02 и проверить POST/PUT/PATCH preserve semantics.
+
+Execution model:
+
+- Не публиковать orphan red-test PR: TEST-02D переходит в `review` и paired
+  production tasks выполняются в той же утверждённой ветке.
+- Не предрешать DG-UPDATE-05 и новый REST response format: они вне REST-02.
+- Не включать transaction implementation DB-05 или общую CRUD/error matrix
+  REST-03.
+
+Exit criteria:
+
+- DG-UPDATE-03 явно утверждён владельцем до production change.
+- TEST-02D наблюдался красным по ожидаемой typed-property причине и стал
+  зелёным вместе с DB-02/REST-02.
+- Все DoD/AC трёх задач выполнены, independent QA, protected и post-merge
+  checks зелёные.
 
 ## E1. Test foundation и regression harness
 

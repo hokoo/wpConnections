@@ -63,9 +63,9 @@ permission and handler overrides. A custom `init()` must call `parent::init()`;
 an overridden `registerRestRoutes()` is no longer invoked automatically for the
 four library-owned routes. Arbitrary extra registrations remain implementer
 owned. Independent QA returned PASS on exact implementation head `9d5b74e`;
-all 17 protected checks passed without risk acceptance. REST-HOOK-01 is
-completed for its task scope, while PR merge and post-merge verification remain
-Batch 10 closure gates.
+docs-only final head `7e1addc` and all 17 protected checks passed without risk
+acceptance. PR #83 merged as `33b659e`; all 17 post-merge checks passed on that
+exact `master` commit. REST-HOOK-01 and Batch 10 are completed.
 
 ## LOG-HOOK-01 implementation update
 

@@ -30,8 +30,10 @@
 6. DG-HOOK-REST-05/A утверждён владельцем: WordPress сохраняет native
    validation precedence, а stale Client code не вызывается ни на 400, ни на
    no-owner 404 path. REST-HOOK-01 completed на exact implementation head
-   `9d5b74e`: independent QA PASS и 17/17 protected checks PR #83. Batch 10
-   ожидает merge и post-merge verification.
+   `9d5b74e`: independent QA PASS. Docs-only final head `7e1addc` прошёл
+   independent closure QA и 17/17 protected checks; PR #83 влит как `33b659e`,
+   exact merge SHA прошёл 17/17 post-merge checks. Batch 10 завершён. Batch 11
+   (`TEST-02D + DB-02 + REST-02`) ожидает решение DG-UPDATE-03.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
