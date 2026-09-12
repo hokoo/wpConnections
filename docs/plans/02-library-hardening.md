@@ -1362,10 +1362,11 @@ Tasks:
 - TEST-02D — `review`; corrected full-dispatch red evidence зафиксирован на
   candidate `d526d72`: `147 tests / 1426 assertions / 3 errors / 16 failures`
   во всех пяти integration jobs.
-- DB-02 — `active`; реализовать и проверить create/update/meta contract, включая
-  `order=0`, согласно DG-UPDATE-03/A.
-- REST-02 — `active`; в том же batch сделать TEST-02D зелёным после DB-02 и
-  проверить POST/PUT/PATCH preserve semantics.
+- DB-02 — `review`; create/update/meta contract зелёный на production candidate
+  `28e0193`, включая `order=0`, defaults, duplicate/falsy values, replace/clear
+  и deterministic pre-mutation validation.
+- REST-02 — `review`; method-specific POST/PUT/PATCH schema и preserve semantics
+  зелёные на production candidate `28e0193`.
 
 Execution model:
 
@@ -1374,6 +1375,11 @@ Execution model:
 - Не предрешать DG-UPDATE-05 и новый REST response format: они вне REST-02.
 - Не включать transaction implementation DB-05 или общую CRUD/error matrix
   REST-03.
+- Green evidence candidate `28e0193`: protected checks 17/17; representative
+  integration PHP 8.1 / WordPress 6.7 — `147 tests / 1576 assertions`; полный
+  reverse и random isolation passes — по `294 / 3152`; statement coverage
+  `1243/1365 (91.06%)`, release gate READY; PHPCS green. Та же integration
+  suite зелёная на PHP 8.2—8.5 / WordPress 6.7—7.1.
 
 Exit criteria:
 
@@ -2974,7 +2980,7 @@ Notes/Risks:
 
 ### DB-02. Защитить create/update и meta regressions
 
-Status: active
+Status: review
 
 Priority: P0
 
@@ -3034,6 +3040,13 @@ Notes/Risks:
 
 - Таблица объявляет `meta_value NOT NULL`, тогда как object model допускает null;
   контракт нужно зафиксировать тестом и при необходимости schema change.
+- Candidate `28e0193` валидирует только metadata, передаваемую на persistence
+  boundary: пустой key и null value отклоняются code 300 до DML; null в
+  `Query\Meta` остаётся разрешённым selector wildcard для удаления.
+- DB-normalized falsy values зафиксированы явно: integer/string zero читаются
+  как `"0"`, false/empty string — как `""`; duplicate rows сохраняются.
+- Green evidence совпадает с Batch 11 evidence выше; задача остаётся в `review`
+  до independent QA точного final candidate.
 
 ### DB-03A. Зафиксировать delete result и failure contract
 
@@ -3679,7 +3692,7 @@ Notes/Risks:
 
 ### REST-02. Исправить fatal error при update connection
 
-Status: active
+Status: review
 
 Priority: P0
 
@@ -3726,6 +3739,16 @@ Dependencies:
 - REST-00B.
 - DG-UPDATE-01, DG-UPDATE-02, DG-UPDATE-04.
 - DG-SPI-01.
+
+Notes/Risks:
+
+- Candidate `28e0193` сохраняет четыре route patterns и 12 method/callback
+  combinations, но разделяет scalar update registration на PATCH, PUT и POST,
+  чтобы required/default semantics задавались по методу.
+- URL `relation` и `connectionID` авторитетны относительно одноимённых body
+  полей; direct PHP handler calls сохраняют fallback через `get_param()`.
+- Protected green evidence приведён в Batch 11; задача остаётся в `review` до
+  independent QA точного final candidate.
 - DG-ENT-04, DG-ENT-05.
 - CORE-04.
 - DB-02.

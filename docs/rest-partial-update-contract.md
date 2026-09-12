@@ -102,6 +102,14 @@ jobs remain green. The earlier `ea84805` result is not accepted as behavioral
 evidence because it contained a test-only concrete/query Meta fixture error,
 fixed by `d526d72`.
 
+Production candidate `28e0193` makes that contract green without changing the
+four route patterns, twelve method/callback combinations, or v1 scalar update
+response. Protected evidence is 17/17 checks: the representative PHP 8.1 /
+WordPress 6.7 integration job reports `147 tests / 1576 assertions`; reverse
+and random two-pass isolation each report `294 / 3152`; statement coverage is
+`1243/1365 (91.06%)` and PHPCS is green. Equivalent integration jobs pass on
+PHP 8.2 through 8.5 and WordPress 6.7 through 7.1.
+
 ## Update modes that the implementation must keep distinct
 
 There are three externally visible operations, even though they currently
