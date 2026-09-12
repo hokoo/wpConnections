@@ -90,6 +90,18 @@ Relevant repository evidence:
   [#22](https://github.com/hokoo/wpConnections/issues/22)
 - commits `7f800b8` and `2b7bacc`
 
+Batch 11 separates two failure layers that must not be conflated. On the
+historical pre-CORE-04 direct-handler implementation (`36bf8fd^`), an update
+without `title` reaches storage and raises an uninitialized typed-property
+fatal. On current production, the same sparse PATCH sent through full WordPress
+dispatch is rejected earlier with native `rest_missing_callback_param` 400
+because the shared EDITABLE schema requires `from` and `to`. The corrected red
+candidate `d526d72` records the latter behavior across all five integration
+jobs (`147 tests / 1426 assertions / 3 errors / 16 failures`); unit and PHPCS
+jobs remain green. The earlier `ea84805` result is not accepted as behavioral
+evidence because it contained a test-only concrete/query Meta fixture error,
+fixed by `d526d72`.
+
 ## Update modes that the implementation must keep distinct
 
 There are three externally visible operations, even though they currently

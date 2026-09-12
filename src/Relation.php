@@ -4,6 +4,7 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
+use iTRON\wpConnections\Internal\PersistableMetadataValidator;
 
 class Relation extends Abstracts\Relation
 {
@@ -28,7 +29,6 @@ class Relation extends Abstracts\Relation
      */
     public function createConnection(Query\Connection $connectionQuery): Connection
     {
-
         // Required fields
         $missingParameters = new Exceptions\MissingParameters();
 
@@ -44,6 +44,10 @@ class Relation extends Abstracts\Relation
 
         $this->getClient()->assertConnectionEndpoints($this, $connectionQuery);
         $this->assertConnectionInvariants($connectionQuery);
+
+        if (! $connectionQuery->isProvided('order')) {
+            $connectionQuery->set('order', 0);
+        }
 
         // Create connection
         $connectionQuery->set('relation', $this->name);
@@ -68,6 +72,9 @@ class Relation extends Abstracts\Relation
             $this->getClient()->assertConnectionEndpoints($this, $connectionQuery);
             $this->assertConnectionInvariants($connectionQuery);
         }
+
+        $this->assertPersistableOrder($connectionQuery);
+        PersistableMetadataValidator::assertValid($connectionQuery->meta);
 
         $connectionId = $this->getClient()->getStorage()->createConnection($connectionQuery);
         $connectionQuery->set('id', $connectionId);
@@ -183,8 +190,16 @@ class Relation extends Abstracts\Relation
      */
     public function assertUpdateCandidate(Abstracts\Connection $connection): void
     {
+        $this->assertPersistableOrder($connection);
         $this->getClient()->assertConnectionEndpoints($this, $connection);
         $this->assertConnectionInvariants($connection);
+    }
+
+    private function assertPersistableOrder(Abstracts\Connection $connection): void
+    {
+        if (null === $connection->order || 0 > $connection->order) {
+            throw new ConnectionWrongData('Connection order must be a non-negative integer.');
+        }
     }
 
     private function assertConnectionInvariants(Abstracts\Connection $connection): void

@@ -53,7 +53,7 @@ class ConnectionCollection extends Collection implements IArrayConvertable
                 ->set('from', $item->from)
                 ->set('to', $item->to)
                 ->set('order', $item->order ?? 0)
-                ->set('title', $item->title ?? '')
+                ->set('title', property_exists($item, 'title') ? $item->title : '')
                 ->set('client', $item->client ?? null)
                 ->set('relation', $item->relation ?? null);
 

@@ -1359,12 +1359,13 @@ Entry criteria:
 
 Tasks:
 
-- TEST-02D — `todo`; сначала зафиксировать full-dispatch red evidence для
-  omitted `title`.
-- DB-02 — `todo`; реализовать и проверить create/update/meta contract, включая
+- TEST-02D — `review`; corrected full-dispatch red evidence зафиксирован на
+  candidate `d526d72`: `147 tests / 1426 assertions / 3 errors / 16 failures`
+  во всех пяти integration jobs.
+- DB-02 — `active`; реализовать и проверить create/update/meta contract, включая
   `order=0`, согласно DG-UPDATE-03/A.
-- REST-02 — `waiting_dependency`; в том же batch сделать TEST-02D зелёным после
-  DB-02 и проверить POST/PUT/PATCH preserve semantics.
+- REST-02 — `active`; в том же batch сделать TEST-02D зелёным после DB-02 и
+  проверить POST/PUT/PATCH preserve semantics.
 
 Execution model:
 
@@ -1377,7 +1378,9 @@ Execution model:
 Exit criteria:
 
 - DG-UPDATE-03/A соблюдён без добавления `meta` в scalar REST mutation input.
-- TEST-02D наблюдался красным по ожидаемой typed-property причине и стал
+- TEST-02D наблюдался красным через full dispatch: текущая route schema сначала
+  возвращает native 400 для sparse PATCH; historical direct-handler path до
+  CORE-04 отдельно подтверждает uninitialized `title` fatal. Regression стал
   зелёным вместе с DB-02/REST-02.
 - Все DoD/AC трёх задач выполнены, independent QA, protected и post-merge
   checks зелёные.
@@ -1648,7 +1651,7 @@ Notes/Risks:
 
 ### TEST-02D. Зафиксировать REST update без `title`
 
-Status: todo
+Status: review
 
 Priority: P0
 
@@ -1693,6 +1696,18 @@ Dependencies:
 Notes/Risks:
 
 - Нельзя подменять full-dispatch test прямым вызовом handler.
+- Historical pre-CORE-04 handler (`36bf8fd^`) воспроизводил
+  `Typed property ... Connection::$title must not be accessed before
+  initialization`.
+- Corrected current-production red на candidate `d526d72`, workflow
+  `34689335720`, PHP 8.1 / WordPress 6.7: `147 tests / 1426 assertions / 3
+  errors / 16 failures`. Full-dispatch PATCH без `from`/`to` останавливается
+  native `rest_missing_callback_param` 400 до handler; остальные падения
+  фиксируют replacement defaults, route-owned selectors, invalid order,
+  create materialization и pre-mutation metadata validation. Одинаковый red
+  подтверждён всеми пятью integration jobs; unit matrix и PHPCS зелёные.
+- Первый red-test commit `ea84805` содержал неверный concrete/query Meta fixture;
+  это test-only отклонение исправлено в `d526d72` до принятия baseline.
 
 ### TEST-02E. Зафиксировать поиск по `both`
 
@@ -2959,7 +2974,7 @@ Notes/Risks:
 
 ### DB-02. Защитить create/update и meta regressions
 
-Status: todo
+Status: active
 
 Priority: P0
 
@@ -3664,7 +3679,7 @@ Notes/Risks:
 
 ### REST-02. Исправить fatal error при update connection
 
-Status: waiting_dependency
+Status: active
 
 Priority: P0
 
@@ -3701,7 +3716,8 @@ AC:
 
 - Given connection с title, when PATCH меняет order без title, then response не
   содержит error и прежний title сохранён.
-- Given order 10, when PATCH устанавливает 0, then response/storage показывают 0.
+- Given order 10, when PATCH устанавливает 0, then response сообщает
+  `updated=true`, а повторное чтение из storage показывает 0.
 
 Dependencies:
 
