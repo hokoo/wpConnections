@@ -476,6 +476,19 @@ explicit SPI/API migration.
 **Consequences:** approval unblocks DB-03B-A's normalization work and provides
 required input to DB-04, REST-03 and REL-02.
 
+**Implementation clarification (2026-09-12):** validation must receive the
+exact value supplied for the selected field, not the value after assignment to
+`Query\Connection`'s typed public properties. In weak PHP typing, values such
+as `1.5`, `"1e3"` and `true` can otherwise become positive integers before
+`Relation::detachConnections()` sees them and can select real rows. The query
+therefore records selector inputs before property materialization; relation
+dispatch first chooses the historical branch and only then normalizes that
+branch's recorded values. This also permits an incompatible lower-priority
+value to remain ignored after a valid higher-priority selector, as A-R
+requires. Regression coverage must prove every domain branch rejects raw
+float, exponent/whitespace/plus strings, boolean, overflow and incompatible
+values before SQL.
+
 ### DG-DELETE-05 — REST connection-delete success representation
 
 **Problem:** the v1 connection DELETE route currently returns HTTP 200 with

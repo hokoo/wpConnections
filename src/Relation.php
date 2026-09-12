@@ -132,7 +132,7 @@ class Relation extends Abstracts\Relation
     {
         // Detach one specific connection. Lower-priority selectors are ignored.
         if ($connectionQuery->isProvided('id')) {
-            $connectionID = ConnectionIdNormalizer::one($connectionQuery->get('id'));
+            $connectionID = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('id'));
 
             try {
                 $connection = $this->getClient()->findConnection($connectionID);
@@ -149,7 +149,7 @@ class Relation extends Abstracts\Relation
 
         // Detach any connection with $connectionQuery->both as object ID.
         if ($connectionQuery->isProvided('both')) {
-            $both = ConnectionIdNormalizer::one($connectionQuery->get('both'));
+            $both = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('both'));
             return $this->getClient()->getStorage()->deleteByObjectID($both, $this->name);
         }
 
@@ -158,20 +158,20 @@ class Relation extends Abstracts\Relation
 
         // Detach directed connection(s).
         if ($fromProvided && $toProvided) {
-            $from = ConnectionIdNormalizer::one($connectionQuery->get('from'));
-            $to = ConnectionIdNormalizer::one($connectionQuery->get('to'));
+            $from = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('from'));
+            $to = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('to'));
             return $this->getClient()->getStorage()->deleteDirectedConnections($from, $to, $this->name);
         }
 
         // Detach `from` directed connections.
         if ($fromProvided) {
-            $from = ConnectionIdNormalizer::one($connectionQuery->get('from'));
+            $from = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('from'));
             return $this->getClient()->getStorage()->deleteByObjectID($from, $this->name, true);
         }
 
         // Detach `to` directed connections.
         if ($toProvided) {
-            $to = ConnectionIdNormalizer::one($connectionQuery->get('to'));
+            $to = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('to'));
             return $this->getClient()->getStorage()->deleteByObjectID($to, $this->name, false, true);
         }
 

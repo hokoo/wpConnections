@@ -134,11 +134,14 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 		$query->set( 'id', $invalid_id );
 		$query->set( 'both', $connection->from );
 
+		global $wpdb;
+		$queries_before = $wpdb->num_queries;
 		try {
 			$this->client->getRelation( RELATION_0_NAME )->detachConnections( $query );
 			self::fail( 'Expected the selected ID selector to be rejected.' );
 		} catch ( ConnectionWrongData $exception ) {
 			self::assertSame( 'Positive integer ID expected.', $exception->getMessage() );
+			self::assertSame( $queries_before, $wpdb->num_queries );
 		}
 
 		$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
@@ -148,10 +151,153 @@ class ConnectionDeleteTest extends WPConnectionsTestCase
 	public function invalid_domain_id_provider(): array
 	{
 		return [
-			'explicit zero'     => [ 0 ],
-			'negative integer'  => [ -1 ],
-			'explicit null'     => [ null ],
+			'explicit zero'       => [ 0 ],
+			'negative integer'    => [ -1 ],
+			'float'               => [ 1.5 ],
+			'exponent string'     => [ '1e3' ],
+			'boolean'             => [ true ],
+			'whitespace string'   => [ ' 1' ],
+			'plus string'         => [ '+1' ],
+			'overflow string'     => [ (string) PHP_INT_MAX . '0' ],
+			'incompatible array'  => [ [ 1 ] ],
+			'incompatible object' => [ new \stdClass() ],
+			'explicit null'       => [ null ],
 		];
+	}
+
+	/**
+	 * @dataProvider invalid_domain_branch_provider
+	 */
+	public function test_invalid_selected_domain_branch_rejects_raw_value_before_sql(
+		string $branch,
+		$invalid
+	): void {
+		$connection = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
+
+		switch ( $branch ) {
+			case 'both':
+				$query = new ConnectionQuery( $connection->from, $connection->to );
+				$query->set( 'both', $invalid );
+				break;
+			case 'pair-from':
+				$query = new ConnectionQuery( $invalid, $connection->to );
+				break;
+			case 'pair-to':
+				$query = new ConnectionQuery( $connection->from, $invalid );
+				break;
+			case 'from':
+				$query = new ConnectionQuery();
+				$query->set( 'from', $invalid );
+				break;
+			case 'to':
+				$query = new ConnectionQuery();
+				$query->set( 'to', $invalid );
+				break;
+			default:
+				self::fail( 'Unknown delete selector branch.' );
+		}
+
+		global $wpdb;
+		$queries_before = $wpdb->num_queries;
+		try {
+			$this->client->getRelation( RELATION_0_NAME )->detachConnections( $query );
+			self::fail( 'Expected the selected domain selector to be rejected.' );
+		} catch ( ConnectionWrongData $exception ) {
+			self::assertSame( 'Positive integer ID expected.', $exception->getMessage() );
+			self::assertSame( $queries_before, $wpdb->num_queries );
+		}
+
+		$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
+		self::assertSame( 1, $this->meta_row_count( $connection->id ) );
+	}
+
+	public function invalid_domain_branch_provider(): array
+	{
+		return [
+			'both exponent string'   => [ 'both', '1e3' ],
+			'both incompatible value' => [ 'both', new \stdClass() ],
+			'pair float from'         => [ 'pair-from', 1.5 ],
+			'pair boolean to'         => [ 'pair-to', true ],
+			'from whitespace string'  => [ 'from', ' 1' ],
+			'from overflow string'    => [ 'from', (string) PHP_INT_MAX . '0' ],
+			'to plus string'          => [ 'to', '+1' ],
+			'to incompatible value'   => [ 'to', [ 1 ] ],
+		];
+	}
+
+	public function test_valid_higher_priority_selector_ignores_incompatible_lower_priority_value(): void
+	{
+		$target = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
+		$preserved = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[1]
+		);
+
+		$query = new ConnectionQuery();
+		$query->set( 'id', $target->id );
+		$query->set( 'both', new \stdClass() );
+		$query->set( 'from', [ $preserved->from ] );
+
+		self::assertSame( 1, $this->client->getRelation( RELATION_0_NAME )->detachConnections( $query ) );
+		$this->assert_connection_ids( [ $preserved->id ], $this->find_connections( RELATION_0_NAME ) );
+	}
+
+	public function test_direct_invalid_id_write_is_preserved_until_selected_branch_validation(): void
+	{
+		$connection = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
+		$query       = new ConnectionQuery();
+		$query->id   = 1.5;
+		$query->both = $connection->from;
+
+		global $wpdb;
+		$queries_before = $wpdb->num_queries;
+		try {
+			$this->client->getRelation( RELATION_0_NAME )->detachConnections( $query );
+			self::fail( 'Expected the direct ID selector to be rejected.' );
+		} catch ( ConnectionWrongData $exception ) {
+			self::assertSame( 'Positive integer ID expected.', $exception->getMessage() );
+			self::assertSame( $queries_before, $wpdb->num_queries );
+		}
+
+		$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
+	}
+
+	public function test_repeated_setter_write_validates_the_latest_raw_selector_value(): void
+	{
+		$connection = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
+		$query = new ConnectionQuery();
+		$query->set( 'id', $connection->id );
+		$query->set( 'id', 1.5 );
+		$query->set( 'both', $connection->from );
+
+		global $wpdb;
+		$queries_before = $wpdb->num_queries;
+		try {
+			$this->client->getRelation( RELATION_0_NAME )->detachConnections( $query );
+			self::fail( 'Expected the latest raw ID selector value to be rejected.' );
+		} catch ( ConnectionWrongData $exception ) {
+			self::assertSame( 'Positive integer ID expected.', $exception->getMessage() );
+			self::assertSame( $queries_before, $wpdb->num_queries );
+		}
+
+		$this->assert_connection_ids( [ $connection->id ], $this->find_connections( RELATION_0_NAME ) );
 	}
 
 	public function test_invalid_selected_both_does_not_fall_through_to_valid_pair(): void

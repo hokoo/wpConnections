@@ -87,4 +87,24 @@ class ConnectionQueryPresenceTest extends TestCase
         self::assertSame(0, get_object_vars($omitted)['from']);
         self::assertSame(0, json_decode(json_encode($omitted), true)['from']);
     }
+
+    public function test_selector_values_preserve_raw_input_for_deferred_branch_validation(): void
+    {
+        $query = new Connection(1.5, '1e3');
+        $query->set('both', new \stdClass());
+        $query->id = true;
+
+        self::assertSame(1.5, $query->getProvidedValue('from'));
+        self::assertSame('1e3', $query->getProvidedValue('to'));
+        self::assertInstanceOf(\stdClass::class, $query->getProvidedValue('both'));
+        self::assertTrue($query->getProvidedValue('id'));
+    }
+
+    public function test_later_valid_direct_write_remains_the_effective_selector_value(): void
+    {
+        $query = new Connection(11, 22);
+        $query->from = 33;
+
+        self::assertSame(33, $query->getProvidedValue('from'));
+    }
 }

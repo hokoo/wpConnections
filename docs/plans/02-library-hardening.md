@@ -1440,6 +1440,10 @@ Execution model:
   валидируется. Невалидный выбранный selector не падает вниз к потенциально
   более широкому lower-priority delete; lower-priority поля игнорируются после
   выбора валидной старшей ветки.
+- До выбора ветки Query сохраняет исходные selector values отдельно от
+  materialized typed public properties. Иначе weak-type coercion превращает
+  `1.5`, `"1e3"` или `true` в положительный `int` и позволяет удалить
+  реальную строку до strict normalization.
 - Не включать transaction/fault-injection/hook-commit work DB-05/DB-03B-B,
   REST response/error mapping REST-03 или `deleted_post` recovery DB-04.
 - Не интерпретировать `Query\Connection::$meta` как connection selector.
@@ -1451,6 +1455,9 @@ Execution model:
 Exit criteria:
 
 - Все DB-03B-A DoD/AC и approved DG-DELETE-01—04 варианты доказаны tests.
+- Raw-value regressions покрывают `id`, `both`, pair, from-only и to-only,
+  no-SQL rejection и игнорирование invalid lower-priority поля после валидного
+  higher-priority selector.
 - Independent QA проверяет exact candidate после реализации и после rebase.
 - Protected checks зелёные на final head и post-merge `master`; evidence и
   известные nonblocking limitations записаны до closeout.
