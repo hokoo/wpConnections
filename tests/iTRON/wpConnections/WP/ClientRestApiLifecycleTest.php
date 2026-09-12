@@ -77,6 +77,7 @@ class RestHookRecordingRestApi extends ClientRestApi
 	public static array $instances = [];
 	public static array $init_calls = [];
 	public static array $trace = [];
+	public static array $handler_inputs = [];
 	public static int $legacy_registration_calls = 0;
 	public static bool $enforce_native_permissions = true;
 	public static $permission_interceptor = null;
@@ -95,6 +96,7 @@ class RestHookRecordingRestApi extends ClientRestApi
 		self::$instances = [];
 		self::$init_calls = [];
 		self::$trace = [];
+		self::$handler_inputs = [];
 		self::$legacy_registration_calls = 0;
 		self::$enforce_native_permissions = true;
 		self::$permission_interceptor = null;
@@ -176,6 +178,12 @@ class RestHookRecordingRestApi extends ClientRestApi
 	private function record_handler( string $handler, WP_REST_Request $request ): WP_REST_Response
 	{
 		$this->record( 'handler', $handler );
+		self::$handler_inputs[] = [
+			'handler' => $handler,
+			'method' => $request->get_method(),
+			'has_order' => $request->has_param( 'order' ),
+			'order' => $request->get_param( 'order' ),
+		];
 
 		return rest_ensure_response(
 			[
@@ -339,6 +347,53 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		foreach ( $this->request_matrix( $delegate ) as $case ) {
 			$this->assert_dispatches_to_delegate( $server, $delegate, $case );
 		}
+	}
+
+	public function test_custom_delegate_receives_method_specific_update_order_default(): void
+	{
+		$client = $this->new_client( 'custom-update-default-owner' );
+		$delegate = $this->delegate_for_client( $client );
+		$server = rest_get_server();
+		$route = $this->client_route( $delegate ) . '/relation/example-relation/17';
+
+		$this->authenticate_for_managed_routes();
+		foreach ( [ 'POST', 'PUT' ] as $method ) {
+			$response = $this->dispatch_case(
+				$server,
+				[
+					'method' => $method,
+					'route' => $route,
+					'payload' => [ 'from' => 11, 'to' => 22 ],
+				]
+			);
+
+			self::assertSame( 200, $response->get_status() );
+			$input = RestHookRecordingRestApi::$handler_inputs[
+				array_key_last( RestHookRecordingRestApi::$handler_inputs )
+			];
+			self::assertSame( 'updateConnection', $input['handler'] );
+			self::assertSame( $method, $input['method'] );
+			self::assertTrue( $input['has_order'] );
+			self::assertSame( 0, $input['order'] );
+		}
+
+		$response = $this->dispatch_case(
+			$server,
+			[
+				'method' => 'PATCH',
+				'route' => $route,
+				'payload' => [ 'title' => 'Sparse' ],
+			]
+		);
+
+		self::assertSame( 200, $response->get_status() );
+		$input = RestHookRecordingRestApi::$handler_inputs[
+			array_key_last( RestHookRecordingRestApi::$handler_inputs )
+		];
+		self::assertSame( 'updateConnection', $input['handler'] );
+		self::assertSame( 'PATCH', $input['method'] );
+		self::assertFalse( $input['has_order'] );
+		self::assertNull( $input['order'] );
 	}
 
 	public function test_duplicate_identity_fails_stably_and_internal_revoke_allows_replacement(): void
@@ -796,7 +851,7 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 			'getRelation' => [ 'relation' ],
 			'createConnection' => [ 'from', 'to', 'order', 'meta' ],
 			'getConnection' => [ 'relation', 'connectionID' ],
-			'updateConnection' => [ 'relation', 'connectionID', 'from', 'to', 'order' ],
+			'updateConnection' => [ 'relation', 'connectionID', 'from', 'to', 'title', 'order' ],
 			'deleteConnection' => [ 'relation', 'connectionID' ],
 			'updateConnectionMeta' => [ 'relation', 'connectionID', 'meta' ],
 			'deleteConnectionMeta' => [ 'relation', 'connectionID' ],

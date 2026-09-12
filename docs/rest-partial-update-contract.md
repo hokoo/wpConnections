@@ -1,8 +1,7 @@
 # Connection update contract discovery
 
-Status: partial approved decision contract; DG-UPDATE-01, DG-UPDATE-02,
-DG-UPDATE-02R and DG-UPDATE-04 approved A, while DG-UPDATE-03 and
-DG-UPDATE-05 remain pending
+Status: partial approved decision contract; DG-UPDATE-01—DG-UPDATE-04 and
+DG-UPDATE-02R approved A, while DG-UPDATE-05 remains pending
 
 Date: 2026-09-10
 
@@ -20,8 +19,9 @@ The five original material choices are recorded as `DG-UPDATE-01` through
 `DG-UPDATE-05` in the main execution plan. CORE-04 review exposed one required
 refinement, `DG-UPDATE-02R`, for same-value writes to legacy public endpoint
 properties. The repository owner approved option A for DG-UPDATE-01,
-DG-UPDATE-02, DG-UPDATE-02R and DG-UPDATE-04 on 2026-09-11; DG-UPDATE-03 and
-DG-UPDATE-05 remain decision-ready rather than approved.
+DG-UPDATE-02, DG-UPDATE-02R and DG-UPDATE-04 on 2026-09-11, and approved
+DG-UPDATE-03/A on 2026-09-12. DG-UPDATE-05 remains decision-ready rather than
+approved.
 
 ## Evidence and compatibility baseline
 
@@ -89,6 +89,26 @@ Relevant repository evidence:
 - GitHub issues [#13](https://github.com/hokoo/wpConnections/issues/13) and
   [#22](https://github.com/hokoo/wpConnections/issues/22)
 - commits `7f800b8` and `2b7bacc`
+
+Batch 11 separates two failure layers that must not be conflated. On the
+historical pre-CORE-04 direct-handler implementation (`36bf8fd^`), an update
+without `title` reaches storage and raises an uninitialized typed-property
+fatal. On current production, the same sparse PATCH sent through full WordPress
+dispatch is rejected earlier with native `rest_missing_callback_param` 400
+because the shared EDITABLE schema requires `from` and `to`. The corrected red
+candidate `d526d72` records the latter behavior across all five integration
+jobs (`147 tests / 1426 assertions / 3 errors / 16 failures`); unit and PHPCS
+jobs remain green. The earlier `ea84805` result is not accepted as behavioral
+evidence because it contained a test-only concrete/query Meta fixture error,
+fixed by `d526d72`.
+
+Production candidate `28e0193` makes that contract green without changing the
+four route patterns, twelve method/callback combinations, or v1 scalar update
+response. Protected evidence is 17/17 checks: the representative PHP 8.1 /
+WordPress 6.7 integration job reports `147 tests / 1576 assertions`; reverse
+and random two-pass isolation each report `294 / 3152`; statement coverage is
+`1243/1365 (91.06%)` and PHPCS is green. Equivalent integration jobs pass on
+PHP 8.2 through 8.5 and WordPress 6.7 through 7.1.
 
 ## Update modes that the implementation must keep distinct
 
@@ -191,7 +211,7 @@ Under approved DG-UPDATE-04/A, an empty PATCH is a valid no-op and reports
 `updated=false` after verifying the target exists. A missing positive ID is a
 domain `ConnectionNotFound`, never a successful no-op.
 
-## Proposed metadata boundary and matrix
+## Approved metadata boundary and matrix
 
 Connection metadata is deliberately excluded from the scalar REST update
 request. REST clients use the existing `/meta` subresource. In v1, a `meta`
@@ -203,8 +223,8 @@ unknown body fields can be considered for v2.
 metadata collection, including an empty collection, is the desired final
 state. It therefore differs intentionally from a sparse query update.
 
-The recommended `/meta` behavior is subject to boundary/operation
-`DG-UPDATE-03` and response `DG-UPDATE-05`:
+The `/meta` operation boundary below is approved by DG-UPDATE-03/A. Its response
+column remains subject to pending `DG-UPDATE-05`:
 
 | Method/input | Persisted metadata result | Successful/no-op REST v1 response |
 |---|---|---|

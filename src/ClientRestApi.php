@@ -91,11 +91,24 @@ class ClientRestApi
 
     public function updateConnection(WP_REST_Request $request)
     {
-        $q = $this->obtainConnectionDataFromRequest($request);
-        $q->set('id', $request->get_param('connectionID'));
+        $scalarRequest = clone $request;
+        unset($scalarRequest['meta']);
+        $q = $this->obtainConnectionDataFromRequest($scalarRequest);
+        $q->set('id', $this->getRouteSelector($request, 'connectionID'));
+
+        if (in_array($request->get_method(), [ 'POST', 'PUT' ], true)) {
+            if (! $request->has_param('title')) {
+                $q->set('title', null);
+            }
+            if (! $request->has_param('order')) {
+                $q->set('order', 0);
+            }
+        }
 
         try {
-            $result = $this->getClient()->getRelation($request->get_param('relation'))->updateConnection($q);
+            $result = $this->getClient()->getRelation(
+                $this->getRouteSelector($request, 'relation')
+            )->updateConnection($q);
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
         }
@@ -207,15 +220,33 @@ class ClientRestApi
     protected function obtainConnectionDataFromRequest(WP_REST_Request $request): Query\Connection
     {
         $queryConnection = new Query\Connection();
-        foreach ($request->get_params() as $key => $value) {
-            if (property_exists($queryConnection, $key) && ! is_null($value) && 'meta' != $key) {
-                $queryConnection->set($key, $value);
+        foreach ([ 'from', 'to', 'title', 'order' ] as $field) {
+            if ($request->has_param($field)) {
+                $queryConnection->set($field, $request->get_param($field));
             }
         }
 
-        $queryConnection->meta->fromArray((array) $request->get_param('meta'));
+        if ($request->has_param('meta')) {
+            $queryConnection->meta->fromArray((array) $request->get_param('meta'));
+        }
 
         return $queryConnection;
+    }
+
+    /**
+     * Route selectors remain authoritative over same-named body parameters.
+     * The fallback preserves direct handler-call compatibility in PHP.
+     *
+     * @return mixed
+     */
+    private function getRouteSelector(WP_REST_Request $request, string $selector)
+    {
+        $urlParameters = $request->get_url_params();
+        if (array_key_exists($selector, $urlParameters)) {
+            return $urlParameters[ $selector ];
+        }
+
+        return $request->get_param($selector);
     }
 
     protected function getRestConnectionItem(Connection $connection): CollectionItem

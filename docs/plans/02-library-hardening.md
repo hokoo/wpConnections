@@ -25,6 +25,8 @@ checks. Final head `6554089`, merge `73bc71f` и post-merge `master` также
 independent QA PASS; docs-only final head `7e1addc` прошёл independent closure
 QA и 17/17 protected checks. PR #83 влит как `33b659e`, на exact merge SHA
 post-merge `master` также прошёл 17/17 checks. Batch 10 завершён.
+DG-UPDATE-03/A утверждён владельцем 2026-09-12; Batch 11 активирован для
+связного `TEST-02D + DB-02 + REST-02` red-to-green vertical slice.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -365,7 +367,7 @@ normalized input.
 
 ### DG-UPDATE-03. Где и как обновлять connection metadata
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-12.
 
 **Проблема:** scalar connection route не объявляет `meta` и фактически его не
 сохраняет, но create route и concrete `Connection::update()` работают с
@@ -392,7 +394,9 @@ replace supplied keys и PUT replace-all, однако empty PUT сейчас м
 добавляет второй публичный путь к тем же данным и требует определить
 atomicity/precedence scalar+meta. C ломает существующий subresource.
 
-**Блокирует:** DB-02 metadata matrix, REST-05 и DB-05 update atomicity.
+**Последствия решения:** DB-02 metadata matrix разблокирована. REST-05 и DB-05
+получили утверждённую metadata boundary, но сохраняют собственные прочие
+decision/dependency gates.
 
 ### DG-UPDATE-04. Результат changed, no-op, not-found и storage failure
 
@@ -661,7 +665,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-UPDATE-01 | approved A | repository owner | 2026-09-11 | Sparse PHP/PATCH; replacement Connection/PUT/legacy POST |
 | DG-UPDATE-02 | approved A | repository owner | 2026-09-11 | Field-specific omitted/null/empty/zero semantics |
 | DG-UPDATE-02R | approved A | repository owner | 2026-09-11 | Direct zero endpoint writes are supplied-invalid; materialized reads preserved |
-| DG-UPDATE-03 | pending; recommendation A | repository owner | — | Metadata update boundary не утверждена |
+| DG-UPDATE-03 | approved A | repository owner | 2026-09-12 | Scalar REST update не меняет meta; `/meta` и aggregate PHP update сохраняют свои boundaries |
 | DG-UPDATE-04 | approved A | repository owner | 2026-09-11 | Existing changed/no-op bool; not-found/failure are distinct exceptions |
 | DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
 | DG-SPI-01 | approved A | repository owner | 2026-09-11 | Domain sends fully materialized update state to SPI |
@@ -1339,7 +1343,7 @@ Exit criteria:
 
 ### Batch 11. Connection update vertical slice
 
-Status: waiting_dependency
+Status: active
 
 Goal: одним red-to-green vertical slice закрыть update без `title`, корректную
 передачу `order=0` и согласованные create/update/meta regressions.
@@ -1351,16 +1355,18 @@ Entry criteria:
 - TEST-01, REST-01, REST-00B, CORE-02, CORE-04 и CORE-07 completed.
 - DG-UPDATE-01/A, DG-UPDATE-02/A, DG-UPDATE-04/A, DG-SPI-01/A,
   DG-SPI-02/A, DG-ENT-04/A и DG-ENT-05/A утверждены.
-- DG-UPDATE-03 остаётся pending и блокирует начало связного vertical slice.
+- DG-UPDATE-03/A утверждён владельцем 2026-09-12.
 
 Tasks:
 
-- TEST-02D — `todo`; сначала зафиксировать full-dispatch red evidence для
-  omitted `title`.
-- DB-02 — `waiting_dependency`; после DG-UPDATE-03 реализовать и проверить
-  create/update/meta contract, включая `order=0`.
-- REST-02 — `waiting_dependency`; в том же batch сделать TEST-02D зелёным после
-  DB-02 и проверить POST/PUT/PATCH preserve semantics.
+- TEST-02D — `review`; corrected full-dispatch red evidence зафиксирован на
+  candidate `d526d72`: `147 tests / 1426 assertions / 3 errors / 16 failures`
+  во всех пяти integration jobs.
+- DB-02 — `review`; create/update/meta contract зелёный на production candidate
+  `28e0193`, включая `order=0`, defaults, duplicate/falsy values, replace/clear
+  и deterministic pre-mutation validation.
+- REST-02 — `review`; method-specific POST/PUT/PATCH schema и preserve semantics
+  зелёные на production candidate `28e0193`.
 
 Execution model:
 
@@ -1369,11 +1375,18 @@ Execution model:
 - Не предрешать DG-UPDATE-05 и новый REST response format: они вне REST-02.
 - Не включать transaction implementation DB-05 или общую CRUD/error matrix
   REST-03.
+- Green evidence candidate `28e0193`: protected checks 17/17; representative
+  integration PHP 8.1 / WordPress 6.7 — `147 tests / 1576 assertions`; полный
+  reverse и random isolation passes — по `294 / 3152`; statement coverage
+  `1243/1365 (91.06%)`, release gate READY; PHPCS green. Та же integration
+  suite зелёная на PHP 8.2—8.5 / WordPress 6.7—7.1.
 
 Exit criteria:
 
-- DG-UPDATE-03 явно утверждён владельцем до production change.
-- TEST-02D наблюдался красным по ожидаемой typed-property причине и стал
+- DG-UPDATE-03/A соблюдён без добавления `meta` в scalar REST mutation input.
+- TEST-02D наблюдался красным через full dispatch: текущая route schema сначала
+  возвращает native 400 для sparse PATCH; historical direct-handler path до
+  CORE-04 отдельно подтверждает uninitialized `title` fatal. Regression стал
   зелёным вместе с DB-02/REST-02.
 - Все DoD/AC трёх задач выполнены, independent QA, protected и post-merge
   checks зелёные.
@@ -1644,7 +1657,7 @@ Notes/Risks:
 
 ### TEST-02D. Зафиксировать REST update без `title`
 
-Status: todo
+Status: review
 
 Priority: P0
 
@@ -1689,6 +1702,18 @@ Dependencies:
 Notes/Risks:
 
 - Нельзя подменять full-dispatch test прямым вызовом handler.
+- Historical pre-CORE-04 handler (`36bf8fd^`) воспроизводил
+  `Typed property ... Connection::$title must not be accessed before
+  initialization`.
+- Corrected current-production red на candidate `d526d72`, workflow
+  `34689335720`, PHP 8.1 / WordPress 6.7: `147 tests / 1426 assertions / 3
+  errors / 16 failures`. Full-dispatch PATCH без `from`/`to` останавливается
+  native `rest_missing_callback_param` 400 до handler; остальные падения
+  фиксируют replacement defaults, route-owned selectors, invalid order,
+  create materialization и pre-mutation metadata validation. Одинаковый red
+  подтверждён всеми пятью integration jobs; unit matrix и PHPCS зелёные.
+- Первый red-test commit `ea84805` содержал неверный concrete/query Meta fixture;
+  это test-only отклонение исправлено в `d526d72` до принятия baseline.
 
 ### TEST-02E. Зафиксировать поиск по `both`
 
@@ -2955,7 +2980,7 @@ Notes/Risks:
 
 ### DB-02. Защитить create/update и meta regressions
 
-Status: waiting_dependency
+Status: review
 
 Priority: P0
 
@@ -3015,6 +3040,13 @@ Notes/Risks:
 
 - Таблица объявляет `meta_value NOT NULL`, тогда как object model допускает null;
   контракт нужно зафиксировать тестом и при необходимости schema change.
+- Candidate `28e0193` валидирует только metadata, передаваемую на persistence
+  boundary: пустой key и null value отклоняются code 300 до DML; null в
+  `Query\Meta` остаётся разрешённым selector wildcard для удаления.
+- DB-normalized falsy values зафиксированы явно: integer/string zero читаются
+  как `"0"`, false/empty string — как `""`; duplicate rows сохраняются.
+- Green evidence совпадает с Batch 11 evidence выше; задача остаётся в `review`
+  до independent QA точного final candidate.
 
 ### DB-03A. Зафиксировать delete result и failure contract
 
@@ -3660,7 +3692,7 @@ Notes/Risks:
 
 ### REST-02. Исправить fatal error при update connection
 
-Status: waiting_dependency
+Status: review
 
 Priority: P0
 
@@ -3697,7 +3729,8 @@ AC:
 
 - Given connection с title, when PATCH меняет order без title, then response не
   содержит error и прежний title сохранён.
-- Given order 10, when PATCH устанавливает 0, then response/storage показывают 0.
+- Given order 10, when PATCH устанавливает 0, then response сообщает
+  `updated=true`, а повторное чтение из storage показывает 0.
 
 Dependencies:
 
@@ -3712,6 +3745,13 @@ Dependencies:
 
 Notes/Risks:
 
+- Candidate `28e0193` сохраняет четыре route patterns и 12 method/callback
+  combinations, но разделяет scalar update registration на PATCH, PUT и POST,
+  чтобы required/default semantics задавались по методу.
+- URL `relation` и `connectionID` авторитетны относительно одноимённых body
+  полей; direct PHP handler calls сохраняют fallback через `get_param()`.
+- Protected green evidence приведён в Batch 11; задача остаётся в `review` до
+  independent QA точного final candidate.
 - Нужно различать omitted, explicit null и falsy value.
 
 ### REST-03. Покрыть connection CRUD и error mapping

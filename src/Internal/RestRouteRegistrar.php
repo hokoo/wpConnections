@@ -109,33 +109,9 @@ final class RestRouteRegistrar
                         ],
                     ],
                 ],
-                [
-                    'methods'             => WP_REST_Server::EDITABLE,
-                    'callback'            => [ $boundary, 'updateConnection' ],
-                    'permission_callback' => [ $boundary, 'checkPermissions' ],
-                    'args'                => [
-                        'connectionID' => [
-                            'type'     => 'integer',
-                            'required' => true,
-                        ],
-                        'from' => [
-                            'description' => __('Post ID that is considered as FROM.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                        'to' => [
-                            'description' => __('Post ID that is considered as TO.'),
-                            'type'        => 'integer',
-                            'required'    => true,
-                        ],
-                        'order' => [
-                            'description' => __('Connection order.'),
-                            'type'        => 'integer',
-                            'required'    => false,
-                            'default'     => 0,
-                        ],
-                    ],
-                ],
+                self::connectionUpdateHandler($boundary, 'POST', true),
+                self::connectionUpdateHandler($boundary, 'PUT', true),
+                self::connectionUpdateHandler($boundary, 'PATCH', false),
                 [
                     'methods'             => WP_REST_Server::DELETABLE,
                     'callback'            => [ $boundary, 'deleteConnection' ],
@@ -231,5 +207,53 @@ final class RestRouteRegistrar
         }
 
         return $routeArguments;
+    }
+
+    private static function connectionUpdateHandler(
+        RestRouteBoundary $boundary,
+        string $method,
+        bool $requireEndpoints
+    ): array {
+        $arguments = [
+            'connectionID' => [
+                'type'     => 'integer',
+                'minimum'  => 1,
+                'required' => true,
+            ],
+            'from' => [
+                'description' => __('Post ID that is considered as FROM.'),
+                'type'        => 'integer',
+                'minimum'     => 1,
+                'required'    => $requireEndpoints,
+            ],
+            'to' => [
+                'description' => __('Post ID that is considered as TO.'),
+                'type'        => 'integer',
+                'minimum'     => 1,
+                'required'    => $requireEndpoints,
+            ],
+            'title' => [
+                'description' => __('Connection title.'),
+                'type'        => [ 'string', 'null' ],
+                'required'    => false,
+            ],
+            'order' => [
+                'description' => __('Connection order.'),
+                'type'        => 'integer',
+                'minimum'     => 0,
+                'required'    => false,
+            ],
+        ];
+
+        if ($requireEndpoints) {
+            $arguments['order']['default'] = 0;
+        }
+
+        return [
+            'methods'             => $method,
+            'callback'            => [ $boundary, 'updateConnection' ],
+            'permission_callback' => [ $boundary, 'checkPermissions' ],
+            'args'                => $arguments,
+        ];
     }
 }

@@ -4,8 +4,8 @@ namespace iTRON\wpConnections\Abstracts;
 
 abstract class Meta implements IArrayConvertable
 {
-    public string $key;
-    public $value;
+    public string $key = '';
+    public $value = null;
 
     public function __construct(string $key = '', $value = null)
     {

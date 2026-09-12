@@ -4,6 +4,7 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
+use iTRON\wpConnections\Internal\PersistableMetadataValidator;
 
 class Connection extends Abstracts\Connection
 {
@@ -41,11 +42,14 @@ class Connection extends Abstracts\Connection
 
         $relation = $this->getClient()->getRelation($persisted->relation);
         $relation->assertUpdateCandidate($this);
+        PersistableMetadataValidator::assertValid($this->meta);
 
         $this->getClient()->getStorage()->updateConnection($this);
 
         $this->getClient()->getStorage()->removeConnectionMeta($this->id, new Query\MetaCollection());
-        $this->getClient()->getStorage()->addConnectionMeta($this->id, $this->meta);
+        if (! $this->meta->isEmpty()) {
+            $this->getClient()->getStorage()->addConnectionMeta($this->id, $this->meta);
+        }
     }
 
     /**
