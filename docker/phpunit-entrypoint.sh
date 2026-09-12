@@ -2,9 +2,12 @@
 set -euo pipefail
 
 DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-3306}"
 DB_NAME="${DB_NAME:-wordpress_test}"
 DB_USER="${DB_USER:-wordpress}"
 DB_PASSWORD="${DB_PASSWORD:-wordpress}"
+DB_START_MODE="${DB_START_MODE:-embedded}"
+EXPECTED_DB_VERSION_PREFIX="${EXPECTED_DB_VERSION_PREFIX:-}"
 WP_VERSION="${WP_VERSION:-unknown}"
 WP_DEVELOP_DIR="${WP_DEVELOP_DIR:-/opt/wordpress-develop}"
 WP_TESTS_DIR="${WP_TESTS_DIR:-/opt/wordpress-develop/tests/phpunit}"
@@ -201,7 +204,29 @@ log_runtime_versions() {
   echo "Ramsey Collection runtime: ${ramsey_runtime_version}"
 }
 
-start_database() {
+log_database_runtime() {
+  local database_version=""
+
+  database_version="$(
+    MYSQL_PWD="${DB_PASSWORD}" mariadb \
+      --protocol=tcp \
+      --host="${DB_HOST}" \
+      --port="${DB_PORT}" \
+      --user="${DB_USER}" \
+      --batch \
+      --skip-column-names \
+      --execute='SELECT VERSION();'
+  )"
+
+  echo "Database runtime: ${database_version}"
+  if [ -n "${EXPECTED_DB_VERSION_PREFIX}" ] && \
+    [[ "${database_version}" != "${EXPECTED_DB_VERSION_PREFIX}"* ]]; then
+    echo "Expected database version prefix ${EXPECTED_DB_VERSION_PREFIX}, but the runtime is ${database_version}." >&2
+    return 78
+  fi
+}
+
+start_embedded_database() {
   log_section "MariaDB"
 
   mkdir -p "${MYSQL_RUN_DIR}" "${MYSQL_DATA_DIR}"
@@ -246,6 +271,48 @@ CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
 FLUSH PRIVILEGES;
 SQL
+
+  log_database_runtime
+}
+
+wait_for_external_database() {
+  log_section "External database"
+
+  local database_ready=0
+  for _ in $(seq 1 60); do
+    if MYSQL_PWD="${DB_PASSWORD}" mariadb \
+      --protocol=tcp \
+      --host="${DB_HOST}" \
+      --port="${DB_PORT}" \
+      --user="${DB_USER}" \
+      --execute='SELECT 1;' >/dev/null 2>&1; then
+      database_ready=1
+      break
+    fi
+    sleep 1
+  done
+
+  if [ "${database_ready}" -ne 1 ]; then
+    echo "Timed out waiting for external database at ${DB_HOST}:${DB_PORT}" >&2
+    return 1
+  fi
+
+  log_database_runtime
+}
+
+prepare_database() {
+  case "${DB_START_MODE}" in
+    embedded)
+      start_embedded_database
+      ;;
+    external)
+      wait_for_external_database
+      ;;
+    *)
+      echo "DB_START_MODE must be 'embedded' or 'external'; got ${DB_START_MODE}." >&2
+      return 2
+      ;;
+  esac
 }
 
 prepare_wp_tests() {
@@ -253,7 +320,7 @@ prepare_wp_tests() {
     return
   fi
 
-  start_database
+  prepare_database
 
   if [ ! -f "${CONFIG_FILE}" ]; then
     echo "wp-tests-config.php missing; recreating from sample" >&2

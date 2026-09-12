@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Universal image for running wpConnections PHPUnit suites with embedded services
+# Universal image for running wpConnections PHPUnit suites with embedded or external database services
 ARG PHP_VERSION=8.2.33
 ARG WP_VERSION=7.1.0
 FROM php:${PHP_VERSION}-cli

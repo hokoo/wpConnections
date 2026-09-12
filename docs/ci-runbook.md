@@ -123,6 +123,28 @@ docker run --rm -v "$PWD:/srv/web" \
 The container prints the requested and runtime PHP, WordPress, and Ramsey
 versions. Check those lines first when diagnosing a matrix-only failure.
 
+### Database compatibility tests
+
+The `Database Compatibility` workflow adds two blocking, orthogonal lanes. Each
+runs the complete WordPress integration suite with PHP `8.1.34`, WordPress
+`6.7.7`, and Ramsey Collection `1.3.0`:
+
+| Product | Digest-pinned image |
+| --- | --- |
+| MySQL | `mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b` |
+| MariaDB | `mariadb:10.11.16@sha256:4045aba619003d93b5dc834e89e6815ba078d2cb3ff0a26f316ab5d7eab35093` |
+
+The workflow starts the database on an isolated Docker network and invokes the
+normal test image with `DB_START_MODE=external`. The entrypoint waits for a real
+authenticated connection, prints `SELECT VERSION()`, and fails if it does not
+match `EXPECTED_DB_VERSION_PREFIX`. The default remains `embedded`, so
+`make tests.integration` keeps its single-container behavior.
+
+To reproduce a database lane locally, follow the exact container/network
+commands in [`.github/workflows/db-compatibility.yml`](../.github/workflows/db-compatibility.yml).
+Use a different explicit container/network name if one already exists, and
+remove both disposable resources after the run.
+
 ## WordPress trunk canary
 
 `WP Trunk Canary` runs each Monday at 06:17 UTC and can also be started through

@@ -130,6 +130,12 @@ the scenario remains pending for release-candidate purposes.
 | `CLIENT-ISO-01` | Read, create, update, and every delete path for one client cannot observe or mutate another client's connection or metadata rows. | CORE-06 / DB-03B-A / DB-03B-B |
 | `CLIENT-NAME-01` | Empty, colliding, and overlong normalized client names are handled by the approved rule before unsafe SQL; valid and legacy names retain their documented table identities. | CORE-05 / CORE-06 |
 
+`SCHEMA-FAIL-01` has a pending clarification in
+[DG-DB-06-FAIL](db-compatibility-contract.md#dg-db-06-fail): the no-partial-data
+requirement is implementable, but two implicitly committed `CREATE TABLE`
+statements cannot guarantee no intermediate partial schema without a potentially
+destructive compensating `DROP`.
+
 ### REST v1
 
 | ID | Minimum observable expectation | Delivery task |

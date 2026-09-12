@@ -273,6 +273,19 @@ pairwise matrix:
 | 8.4.25 | 6.7.7 | 2.1.1 |
 | 8.5.10 | 7.1.0 | 2.1.1 |
 
+Database behavior has its own blocking matrix so it is not inferred from the
+MariaDB package bundled in the PHP test image:
+
+| Database | Exact blocking image |
+| --- | --- |
+| MySQL 8.0.46 | `mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b` |
+| MariaDB 10.11.16 | `mariadb:10.11.16@sha256:4045aba619003d93b5dc834e89e6815ba078d2cb3ff0a26f316ab5d7eab35093` |
+
+Both database lanes run the full WordPress integration suite on the fixed
+PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0 floor. New wpConnections
+tables are explicitly InnoDB; an existing MyISAM or mixed-engine client schema
+must be migrated by an administrator and is never converted during a request.
+
 WordPress 6.7.7 is the pinned compatibility-floor lane, not a claim that this
 older branch is still maintained upstream. Production installations should
 follow the current WordPress security guidance. The exact stable pin is updated
