@@ -461,24 +461,54 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertTrue( $this->table_exists( $wpdb->prefix . $adopted->getStorage()->get_meta_table() ) );
 	}
 
-	public function test_partial_or_malformed_legacy_mapping_is_never_repaired_implicitly(): void
+	public function test_matching_owned_partial_mapping_is_recovered_before_first_insert(): void
 	{
 		global $wpdb;
 
-		[ $option_name, $record, $seed ] = $this->capture_empty_mapping_claim( 'partial-client' );
+		[ , , $seed ] = $this->capture_empty_mapping_claim( 'partial-client' );
 		$this->unregister_storage( $seed->getStorage() );
-		$this->create_legacy_pair( 'partial_client', true, false );
+		$installed = $this->new_default_client( 'partial-client', true );
+		RestRouteRegistry::instance()->deactivateClient( $installed );
+		$installed->disablePostDeletionCleanup();
+		$this->unregister_storage( $installed->getStorage() );
+		$wpdb->query( "DROP TABLE `{$wpdb->prefix}post_connections_meta_partial_client`" );
+
+		$recovered = $this->new_default_client( 'partial-client' );
+		$relation  = $this->register_relation( $recovered, 'partial-recovery' );
+		$page_id   = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$post_id   = self::factory()->post->create( [ 'post_type' => 'post' ] );
+		$relation->createConnection( $this->connection_query( $page_id, $post_id, 'recovered', 'partial' ) );
+
+		self::assertTrue( $this->table_exists( $wpdb->prefix . 'post_connections_partial_client' ) );
+		self::assertTrue( $this->table_exists( $wpdb->prefix . 'post_connections_meta_partial_client' ) );
+		self::assertCount( 1, $relation->findConnections() );
+		self::assertSame( 'post_connections_partial_client', $recovered->getStorage()->get_connections_table() );
+	}
+
+	public function test_unowned_partial_mapping_is_never_repaired_implicitly(): void
+	{
+		global $wpdb;
+
+		[ $option_name, $record, $seed ] = $this->capture_empty_mapping_claim( 'unowned-partial' );
+		$this->unregister_storage( $seed->getStorage() );
+		delete_option( $option_name );
+		$this->create_legacy_pair( 'unowned_partial', true, false );
 
 		$this->assert_client_registration_error(
 			'Client table ownership is ambiguous; explicit migration is required.',
 			function (): void {
-				$this->new_default_client( 'partial-client', true );
+				$this->new_default_client( 'unowned-partial', true );
 			}
 		);
-		self::assertTrue( $this->table_exists( $wpdb->prefix . 'post_connections_partial_client' ) );
-		self::assertFalse( $this->table_exists( $wpdb->prefix . 'post_connections_meta_partial_client' ) );
+		self::assertTrue( $this->table_exists( $wpdb->prefix . 'post_connections_unowned_partial' ) );
+		self::assertFalse( $this->table_exists( $wpdb->prefix . 'post_connections_meta_unowned_partial' ) );
+	}
 
-		$this->drop_legacy_pair( 'partial_client' );
+	public function test_malformed_ownership_record_is_rejected(): void
+	{
+		[ $option_name, $record, $seed ] = $this->capture_empty_mapping_claim( 'malformed-client' );
+		$this->unregister_storage( $seed->getStorage() );
+
 		update_option(
 			$option_name,
 			[ 'version' => 99, 'postfix' => $record['postfix'], 'owner' => $record['owner'] ],
@@ -487,7 +517,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		$this->assert_client_registration_error(
 			'Client table ownership is ambiguous; explicit migration is required.',
 			function (): void {
-				$this->new_default_client( 'partial-client' );
+				$this->new_default_client( 'malformed-client' );
 			}
 		);
 
@@ -500,7 +530,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			$this->assert_client_registration_error(
 				'Client table ownership is ambiguous; explicit migration is required.',
 				function (): void {
-					$this->new_default_client( 'partial-client' );
+					$this->new_default_client( 'malformed-client' );
 				}
 			);
 		}

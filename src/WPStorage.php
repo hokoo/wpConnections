@@ -16,6 +16,21 @@ class WPStorage extends Abstracts\Storage
 
     private const OWNERSHIP_OPTION_PREFIX = 'wpconnections_storage_owner_';
     private const OWNERSHIP_VERSION = 1;
+    private const REQUIRED_ENGINE = 'INNODB';
+    private const CONNECTIONS_COLUMNS = [ 'ID', 'relation', 'from', 'to', 'order', 'title' ];
+    private const META_COLUMNS = [ 'meta_id', 'connection_id', 'meta_key', 'meta_value' ];
+    private const CONNECTIONS_INDEXES = [
+        'PRIMARY'  => [ 'ID' ],
+        'from'     => [ 'from' ],
+        'to'       => [ 'to' ],
+        'order'    => [ 'order' ],
+        'relation' => [ 'relation' ],
+    ];
+    private const META_INDEXES = [
+        'PRIMARY'       => [ 'meta_id' ],
+        'connection_id' => [ 'connection_id' ],
+        'meta_key'      => [ 'meta_key' ],
+    ];
 
     private string $connections_table;
     private string $meta_table;
@@ -64,12 +79,19 @@ class WPStorage extends Abstracts\Storage
             return;
         }
 
-        $this->install();
+        try {
+            $this->install();
+            $this->assertSchemaReady();
+        } catch (ConnectionWrongData $exception) {
+            throw new ClientRegisterFail($exception->getMessage(), 4, $exception);
+        }
     }
 
-    private function install()
+    private function install(): void
     {
         $this->assertSitePrefix();
+        $this->assertPresentTablesCompatible();
+
         Database::install_table(
             $this->connections_table,
             "
@@ -84,8 +106,10 @@ class WPStorage extends Abstracts\Storage
             KEY `to` (`to`),
             KEY `order` (`order`),
             KEY `relation` (`relation`)
-            "
+            ",
+            [ 'table_options' => 'ENGINE=InnoDB' ]
         );
+        $connectionsError = $this->databaseError();
 
         Database::install_table(
             $this->meta_table,
@@ -97,8 +121,18 @@ class WPStorage extends Abstracts\Storage
             PRIMARY KEY  (`meta_id`),
             KEY `connection_id` (`connection_id`),
             KEY `meta_key` (`meta_key`)
-            "
+            ",
+            [ 'table_options' => 'ENGINE=InnoDB' ]
         );
+        $metaError = $this->databaseError();
+
+        $errors = array_filter([
+            $this->fullTableName($this->connections_table) => $connectionsError,
+            $this->fullTableName($this->meta_table) => $metaError,
+        ]);
+        if ([] !== $errors) {
+            throw $this->schemaException('installation failed', $errors);
+        }
     }
 
     /**
@@ -121,21 +155,16 @@ class WPStorage extends Abstracts\Storage
         $metaExists = $this->tableExists($this->site_prefix . $this->meta_table);
         $record = $this->readOwnershipRecord();
 
-        if ($connectionsExists !== $metaExists) {
-            throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
-        }
-
         if (null !== $record) {
             $this->assertOwnershipRecord($record);
 
             if (
-                $connectionsExists &&
-                (! $this->hasExpectedSchema(
+                ($connectionsExists && ! $this->hasExpectedSchema(
                     $this->site_prefix . $this->connections_table,
-                    [ 'ID', 'relation', 'from', 'to', 'order', 'title' ]
-                ) || ! $this->hasExpectedSchema(
+                    self::CONNECTIONS_COLUMNS
+                )) || ($metaExists && ! $this->hasExpectedSchema(
                     $this->site_prefix . $this->meta_table,
-                    [ 'meta_id', 'connection_id', 'meta_key', 'meta_value' ]
+                    self::META_COLUMNS
                 ))
             ) {
                 throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
@@ -144,7 +173,7 @@ class WPStorage extends Abstracts\Storage
             return;
         }
 
-        if ($connectionsExists) {
+        if ($connectionsExists || $metaExists) {
             throw new ClientRegisterFail('Client table ownership is ambiguous; explicit migration is required.');
         }
 
@@ -240,6 +269,155 @@ class WPStorage extends Abstracts\Storage
         $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$escapedTable}`");
 
         return $expectedColumns === $columns;
+    }
+
+    /**
+     * Ensures that both client tables are complete and transactional before
+     * the first INSERT. Missing tables get one bounded dbDelta recovery cycle;
+     * failed DML never triggers DDL.
+     *
+     * @throws ConnectionWrongData
+     */
+    private function ensureSchemaReadyForInsert(): void
+    {
+        $issues = $this->schemaIssues();
+        if ([] === $issues) {
+            return;
+        }
+
+        $this->assertPresentTablesCompatible();
+        $this->install();
+        $this->assertSchemaReady();
+    }
+
+    /**
+     * Existing tables must never be changed implicitly by the recovery path.
+     *
+     * @throws ConnectionWrongData
+     */
+    private function assertPresentTablesCompatible(): void
+    {
+        $issues = array_filter(
+            $this->schemaIssues(),
+            static function (string $issue): bool {
+                return 'missing' !== $issue;
+            }
+        );
+
+        if ([] !== $issues) {
+            throw $this->schemaException('existing table is incompatible', $issues);
+        }
+    }
+
+    /**
+     * @throws ConnectionWrongData
+     */
+    private function assertSchemaReady(): void
+    {
+        $issues = $this->schemaIssues();
+        if ([] !== $issues) {
+            throw $this->schemaException('recovery did not produce a ready schema', $issues);
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function schemaIssues(): array
+    {
+        $tables = [
+            $this->fullTableName($this->connections_table) => [
+                'columns' => self::CONNECTIONS_COLUMNS,
+                'indexes' => self::CONNECTIONS_INDEXES,
+            ],
+            $this->fullTableName($this->meta_table) => [
+                'columns' => self::META_COLUMNS,
+                'indexes' => self::META_INDEXES,
+            ],
+        ];
+        $issues = [];
+
+        foreach ($tables as $table => $expected) {
+            if (! $this->tableExists($table)) {
+                $issues[$table] = 'missing';
+                continue;
+            }
+
+            if (! $this->hasExpectedSchema($table, $expected['columns'])) {
+                $issues[$table] = 'unexpected columns';
+                continue;
+            }
+
+            if (! $this->hasRequiredIndexes($table, $expected['indexes'])) {
+                $issues[$table] = 'missing or incompatible indexes';
+                continue;
+            }
+
+            $engine = $this->tableEngine($table);
+            if (self::REQUIRED_ENGINE !== $engine) {
+                $issues[$table] = '' === $engine ? 'unknown engine' : "engine {$engine}";
+            }
+        }
+
+        return $issues;
+    }
+
+    private function hasRequiredIndexes(string $table, array $expectedIndexes): bool
+    {
+        global $wpdb;
+
+        $escapedTable = str_replace('`', '``', $table);
+        $indexes = [];
+        foreach ($wpdb->get_results("SHOW INDEX FROM `{$escapedTable}`", ARRAY_A) as $row) {
+            $indexes[$row['Key_name']][(int) $row['Seq_in_index']] = $row['Column_name'];
+        }
+
+        foreach ($indexes as &$columns) {
+            ksort($columns, SORT_NUMERIC);
+            $columns = array_values($columns);
+        }
+        unset($columns);
+
+        foreach ($expectedIndexes as $name => $columns) {
+            if (! isset($indexes[$name]) || $columns !== $indexes[$name]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function tableEngine(string $table): string
+    {
+        global $wpdb;
+
+        return strtoupper(
+            (string) $wpdb->get_var(
+                $wpdb->prepare(
+                    'SELECT ENGINE FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+                    $table
+                )
+            )
+        );
+    }
+
+    private function databaseError(): string
+    {
+        global $wpdb;
+
+        return trim((string) $wpdb->last_error);
+    }
+
+    private function schemaException(string $stage, array $issues): ConnectionWrongData
+    {
+        $details = [];
+        foreach ($issues as $table => $issue) {
+            $details[] = "{$table}: {$issue}";
+        }
+
+        return new ConnectionWrongData(
+            'Client storage schema is not ready for InnoDB DML; ' . $stage . ': [' . implode('; ', $details) . '].'
+        );
     }
 
     private function registerTable(string $table): void
@@ -593,6 +771,7 @@ class WPStorage extends Abstracts\Storage
         global $wpdb;
 
         $this->assertSitePrefix();
+        $this->ensureSchemaReadyForInsert();
         $data = [
             'from'      => $connectionQuery->get('from'),
             'to'        => $connectionQuery->get('to'),
@@ -601,27 +780,16 @@ class WPStorage extends Abstracts\Storage
             'title'     => $connectionQuery->get('title'),
         ];
 
-        $attempt = 0;
-        do {
-            // Suppress errors when table does not exist.
-            do_action('iTRON/wpConnections/storage/createConnection/attempt', $attempt);
-            $this->assertSitePrefix();
-            $suppress = $wpdb->suppress_errors();
-            $result = $wpdb->insert($this->fullTableName($this->connections_table), $data);
-            $wpdb->suppress_errors($suppress);
-            do_action('iTRON/wpConnections/storage/createConnection/attempt/result', $result, $wpdb->last_error);
-
-            if (false === $result && 0 === $attempt) {
-                // Try to create tables
-                $this->assertSitePrefix();
-                $this->install();
-            }
-
-            $attempt++;
-        } while (false === $result && 1 >= $attempt);
+        do_action('iTRON/wpConnections/storage/createConnection/attempt', 0);
+        $this->assertSitePrefix();
+        $suppress = $wpdb->suppress_errors();
+        $result = $wpdb->insert($this->fullTableName($this->connections_table), $data);
+        $wpdb->suppress_errors($suppress);
+        $insertError = $this->databaseError();
+        do_action('iTRON/wpConnections/storage/createConnection/attempt/result', $result, $insertError);
 
         if (false === $result) {
-            throw new Exceptions\ConnectionWrongData("Database refused inserting new connection with the words: [{$wpdb->last_error}]");
+            throw new Exceptions\ConnectionWrongData("Database refused inserting new connection with the words: [{$insertError}]");
         }
 
         $connection_id = $wpdb->insert_id;
