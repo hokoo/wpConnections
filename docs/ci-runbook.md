@@ -238,17 +238,22 @@ Before merge, the pull request should show all of these green:
 
 - 10 `Unit Tests / Unit Tests PHP … / Ramsey …` jobs;
 - 5 `WP Integration Tests / WP Integration PHP … / WP … / Ramsey …` jobs;
+- `Database Compatibility / MySQL 8.0.46`;
+- `Database Compatibility / MariaDB 10.11.16`;
 - `Coverage / Coverage PHP 8.1.34 / WordPress 6.7.7`;
 - `PHP Code Styles / php-cs`.
 
 Repository files cannot configure GitHub branch protection by themselves. The
-`master` branch is expected to use strict required status checks for all 17 jobs
+`master` branch is expected to use strict required status checks for all 19 jobs
 listed above, with administrator enforcement and force-push/deletion disabled.
 The merge owner must verify both the protection settings and the visible checks,
 including that none are missing, skipped, cancelled, or stale for the pull
 request head commit. `WP Trunk Canary` is not in the blocking list. When a
 pinned matrix value or job name changes, update branch protection as part of the
 same compatibility-policy change so obsolete contexts do not block future PRs.
+For Batch 13, add the two exact `Database Compatibility` contexts immediately
+before merging the workflow, re-check the draft PR head, and confirm a later
+post-merge `master` run contains all 19 successes.
 
 INFRA-05 (CI caching and runtime optimization) is intentionally deferred and
 non-blocking. Until that follow-up is implemented, successful clean builds and

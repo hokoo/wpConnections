@@ -354,7 +354,8 @@ Batch 13 implements the approved portion of this contract on branch
 - an existing compatible table is not passed back through `dbDelta()` while its
   missing peer is recovered, preventing incidental `ALTER TABLE` statements;
 - existing MyISAM, mixed-engine or structurally incompatible tables fail before
-  DML and are never converted automatically;
+  create DML and are never converted automatically; DB-05 owns equivalent
+  transaction preflight for the remaining compound mutations;
 - a matching ownership record permits a later client instance to recover one
   missing table; unowned or malformed mappings remain fail-closed;
 - [`.github/workflows/db-compatibility.yml`](../.github/workflows/db-compatibility.yml)

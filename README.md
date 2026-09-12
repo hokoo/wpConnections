@@ -129,11 +129,14 @@ context-aware subscription manager planned for that major version will own a
 different WordPress callback identity. See the
 [hook lifecycle transition contract](docs/hook-lifecycle-transition.md).
 
-Existing complete tables without a matching ownership record, partial pairs or
-malformed/conflicting records are rejected without automatic repair, rename or
-delete. Operator-facing inventory and explicit attestation remain follow-up
-work in DB-06/REL-03, so CORE-06 by itself is not release approval for an
-existing unclaimed installation. See the
+Existing complete tables without a matching ownership record, unowned partial
+pairs, and malformed or conflicting records are rejected without automatic
+repair, rename, or delete. A partial pair with the matching ownership record is
+different: the schema lifecycle may recreate only its missing table once before
+the first create DML, then proceeds only after both tables pass structural and
+InnoDB verification. Operator-facing inventory and explicit attestation remain
+follow-up work in REL-03; no unclaimed installation is adopted implicitly. See
+the
 [client naming and migration contract](docs/client-naming-contract.md).
 
 ### Automatic debug logging and storage event origins
