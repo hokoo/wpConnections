@@ -90,13 +90,26 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 			$this->rest_url( $connection_route ),
 			$list_response->get_data()[0]->get_links()['self'][0]['href']
 		);
-		$wire_list = json_decode( wp_json_encode( $list_response->get_data() ), true );
-		self::assertSame( $updated, $wire_list[0]['data'] );
-		self::assertSame(
-			$this->rest_url( $connection_route ),
-			$wire_list[0]['links']['self'][0]['href']
+		$wire_list = json_decode(
+			wp_json_encode( $this->rest_server->response_to_data( $list_response, false ) ),
+			true
 		);
-		self::assertSame( [], $wire_list[0]['links']['self'][0]['attributes'] );
+		self::assertSame(
+			[
+				[
+					'data'  => $updated,
+					'links' => [
+						'self' => [
+							[
+								'href'       => $this->rest_url( $connection_route ),
+								'attributes' => [],
+							],
+						],
+					],
+				],
+			],
+			$wire_list
+		);
 		self::assertArrayNotHasKey( '_links', $wire_list[0] );
 
 		$delete_response = $this->dispatch_rest_request( 'DELETE', $connection_route );
@@ -124,14 +137,33 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 			$this->rest_url( $this->relation_route( RELATION_0_NAME ) ),
 			$items[0]->get_links()['self'][0]['href']
 		);
-		$wire_items = json_decode( wp_json_encode( $items ), true );
-		self::assertSame( RELATION_0_NAME, $wire_items[0]['data']['name'] );
-		self::assertSame( 'both', $wire_items[0]['data']['type'] );
-		self::assertSame(
-			$this->rest_url( $this->relation_route( RELATION_0_NAME ) ),
-			$wire_items[0]['links']['self'][0]['href']
+		$wire_items = json_decode(
+			wp_json_encode( $this->rest_server->response_to_data( $response, false ) ),
+			true
 		);
-		self::assertSame( [], $wire_items[0]['links']['self'][0]['attributes'] );
+		self::assertSame(
+			[
+				'name'         => RELATION_0_NAME,
+				'from'         => 'page',
+				'to'           => 'post',
+				'type'         => 'both',
+				'cardinality'  => 'm-m',
+				'duplicatable' => false,
+				'closurable'   => false,
+			],
+			$wire_items[0]['data']
+		);
+		self::assertSame(
+			[
+				'self' => [
+					[
+						'href'       => $this->rest_url( $this->relation_route( RELATION_0_NAME ) ),
+						'attributes' => [],
+					],
+				],
+			],
+			$wire_items[0]['links']
+		);
 		self::assertArrayNotHasKey( '_links', $wire_items[0] );
 	}
 
@@ -189,11 +221,21 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 		self::assertTrue( $this->client->getRelation( RELATION_0_NAME )->hasConnectionID( $second->id ) );
 	}
 
-	public function test_maps_unknown_relation_to_numeric_domain_404(): void
+	/**
+	 * @dataProvider unknown_relation_route_provider
+	 */
+	public function test_maps_unknown_relation_to_numeric_domain_404(
+		string $method,
+		bool $connection_route,
+		array $payload
+	): void
 	{
 		$response = $this->dispatch_rest_request(
-			'GET',
-			$this->relation_route( 'unknown-relation' )
+			$method,
+			$connection_route
+				? $this->connection_route( 'unknown-relation', 999999 )
+				: $this->relation_route( 'unknown-relation' ),
+			$payload
 		);
 
 		$this->assert_domain_error(
@@ -204,14 +246,33 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 		);
 	}
 
+	public function unknown_relation_route_provider(): array
+	{
+		return [
+			'relation read'     => [ 'GET', false, [] ],
+			'relation create'   => [ 'POST', false, [ 'from' => 1, 'to' => 2 ] ],
+			'connection read'   => [ 'GET', true, [] ],
+			'connection patch'  => [ 'PATCH', true, [ 'title' => 'ignored' ] ],
+			'connection post'   => [ 'POST', true, [ 'from' => 1, 'to' => 2 ] ],
+			'connection put'    => [ 'PUT', true, [ 'from' => 1, 'to' => 2 ] ],
+			'connection delete' => [ 'DELETE', true, [] ],
+		];
+	}
+
 	/**
 	 * @dataProvider missing_connection_method_provider
 	 */
-	public function test_maps_missing_connection_to_numeric_domain_404( string $method ): void
+	public function test_maps_missing_connection_to_numeric_domain_404(
+		string $method,
+		bool $require_endpoints
+	): void
 	{
 		$response = $this->dispatch_rest_request(
 			$method,
-			$this->connection_route( RELATION_0_NAME, 999999 )
+			$this->connection_route( RELATION_0_NAME, 999999 ),
+			$require_endpoints
+				? [ 'from' => $this->page_ids[0], 'to' => $this->post_ids[0] ]
+				: []
 		);
 
 		$this->assert_domain_error( 2, 404, 'Connection not found.', $response );
@@ -220,10 +281,34 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 	public function missing_connection_method_provider(): array
 	{
 		return [
-			'get'    => [ 'GET' ],
-			'patch'  => [ 'PATCH' ],
-			'delete' => [ 'DELETE' ],
+			'get'    => [ 'GET', false ],
+			'patch'  => [ 'PATCH', false ],
+			'post'   => [ 'POST', true ],
+			'put'    => [ 'PUT', true ],
+			'delete' => [ 'DELETE', false ],
 		];
+	}
+
+	public function test_relation_mismatch_update_maps_to_400_without_mutation(): void
+	{
+		$connection = $this->create_connection( RELATION_0_NAME, $this->post_ids[0] );
+
+		$response = $this->dispatch_rest_request(
+			'PATCH',
+			$this->connection_route( RELATION_1_NAME, $connection->id ),
+			[ 'title' => 'must not persist' ]
+		);
+
+		$this->assert_domain_error(
+			310,
+			400,
+			'Connection relation identity mismatch: expected ' . RELATION_0_NAME
+				. ', got ' . RELATION_1_NAME . '.',
+			$response
+		);
+		$persisted = $this->client->getRelation( RELATION_0_NAME )->findConnections()->first();
+		self::assertSame( $connection->id, $persisted->id );
+		self::assertNull( $persisted->title );
 	}
 
 	public function test_maps_domain_validation_to_numeric_domain_400_without_mutation(): void

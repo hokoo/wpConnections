@@ -1832,7 +1832,8 @@ Goal: активировать утверждённый 2026-09-14 public bounda
 
 Tasks:
 
-- REST-03 — `todo`; все decision/dependency gates выполнены.
+- REST-03 — `in_progress`; decision activation, red matrix, production mapping
+  и canonical contract выполнены локально, verification/merge ещё впереди.
 - DB-04-D — `todo`; recovery policy утверждена, mechanism требует отдельного
   human approval.
 - DB-04-I — `waiting_dependency`; production запрещён до завершения DB-04-D и
@@ -1840,19 +1841,19 @@ Tasks:
 
 Execution slices:
 
-1. `B16/D1 — decision activation and readiness` — `in_progress` в branch
+1. `B16/D1 — decision activation and readiness` — `completed` в branch
    `batch16-rest-contract`: записать семь owner decisions, обновить registry,
    разделить DB-04-D/DB-04-I и перевести только REST-03/DB-04-D в `todo`.
-2. `B16/R1 — REST-03 red full-dispatch matrix` — `todo` в том же REST branch:
+2. `B16/R1 — REST-03 red full-dispatch matrix` — `completed` в том же REST branch:
    зафиксировать success payloads, semantic 400/404/409, exact generic 500,
    numeric-domain v1 body, persisted-state и no-success-hook assertions.
-3. `B16/R2 — REST-03 production mapping and serialization` — `todo` после R1:
+3. `B16/R2 — REST-03 production mapping and serialization` — `completed` после R1:
    минимально реализовать approved mapping для connection CRUD; native
    WordPress gateway errors остаются нетронутыми.
 4. `B16/D2 — DB-04-D repair decision packet` — `todo` в отдельной branch/PR
    после фиксации D1: только source/runtime audit, alternatives и новые human
    gates; никакой production schema/scheduler code.
-5. `B16/Q — verification and independent QA` — `waiting_dependency`: каждый
+5. `B16/Q — verification and independent QA` — `in_progress`: каждый
    delivery track проходит review отдельно; REST production PR обязан пройти
    full local/pinned lanes и protected CI, design PR — traceability/readiness
    QA. Closeout обновляет task/batch statuses только по проверенным результатам.
@@ -4555,7 +4556,7 @@ Notes/Risks:
 
 ### REST-03. Покрыть connection CRUD и error mapping
 
-Status: todo
+Status: in_progress
 
 Priority: P0
 
@@ -4617,6 +4618,10 @@ Notes/Risks:
 
 - Текущие numeric domain codes 301—304 не должны автоматически становиться HTTP
   redirect statuses.
+- Canonical success/error/path-selector contract зафиксирован в
+  [`docs/rest-connection-contract.md`](../rest-connection-contract.md). Local
+  focused full-dispatch suite зелёный; independent QA, protected merge и
+  post-merge matrix остаются обязательными до `completed`.
 
 ### REST-04. Защитить differentiated permissions
 

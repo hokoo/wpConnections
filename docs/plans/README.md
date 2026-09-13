@@ -173,6 +173,7 @@ map находятся в
   [entity validation contract](../entity-validation-contract.md),
   [database compatibility contract](../db-compatibility-contract.md),
   [REST error contract](../rest-error-contract.md),
+  [REST v1 connection contract](../rest-connection-contract.md),
   [delete result/failure contract](../delete-result-contract.md) и
   [client naming contract](../client-naming-contract.md); основной registry
   хранит canonical decision/status. REST-00A, REST-00B, SPI-01, CORE-00,
@@ -186,6 +187,10 @@ map находятся в
   `deleted_post` recovery. DB-03B-A и DB-03B-B завершены. DB-04 разделён на
   ready design DB-04-D и gated implementation DB-04-I; REST-03
   переведён в `todo` после owner approval полного REST wire packet 2026-09-14.
+- REST-03 выполняется в Batch 16: accepted error/success decisions реализованы
+  на `batch16-rest-contract`, а canonical default-v1 wire contract записан в
+  [`rest-connection-contract.md`](../rest-connection-contract.md). Task остаётся
+  `in_progress` до independent QA, protected merge и post-merge verification.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.

@@ -1,8 +1,10 @@
 # REST v1 error contract discovery
 
 Status: approved decision contract; DG-RESTERR-01—DG-RESTERR-04 approved A.
-This document records the target contract and does not by itself change
-production behavior.
+The non-meta connection-route implementation candidate is now covered by the
+canonical [`rest-connection-contract.md`](rest-connection-contract.md);
+independent QA and protected/post-merge CI remain required before REST-03 is
+complete. This discovery document retains the evidence and decision history.
 
 Source snapshot: `b36fa85c62fc5984674a1bdf04b7648ff6065d8d`. The temporary
 full-dispatch failure probe was originally recorded on `752362b`; the post-rebase
