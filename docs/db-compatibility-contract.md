@@ -570,7 +570,7 @@ PR readiness and REL-01 lifecycle documentation.
 | Consumer task | Input from DB-00 | Remains blocked by |
 | --- | --- | --- |
 | DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-DB-01—DG-DB-04, DG-SPI-03/04/06 and DG-UPDATE-03/04 |
-| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | No decision blocker; final verification and merge remain |
+| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | Completed in PR #89; DB-06R is a separate non-blocking follow-up |
 | REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | DG-DB-01, DG-DB-02, DG-DB-04 |
 | REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-DB-03, DG-SPI-04, DG-SPI-06 |
 | CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
