@@ -53,9 +53,13 @@ DG-RESTERR-01/A, DG-RESTERR-02/A, DG-RESTERR-04/A, DG-UPDATE-05/A,
 DG-SPI-05/A for v1 with C as the next-major target, DG-DELETE-05/A and
 DG-DELETE-06/A утверждены владельцем 2026-09-14. REST-03 впоследствии завершён
 PR #95: exact candidate `56d5e1c` и merge `185bf32` прошли по 19/19 checks.
-DG-DELETE-06/A утверждает recovery policy, но намеренно оставляет DB-04-D
-спроектировать durable repair record, scheduler, retry и operator contract и
-вынести их на отдельное human approval до production implementation.
+DG-DELETE-06/A утверждает recovery policy, а DB-04-D спроектировала durable
+repair record, scheduler, retry и operator contract. Decision-ready DB-04-D
+design находится в
+[`docs/deleted-post-repair-contract.md`](../deleted-post-repair-contract.md);
+DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем 2026-09-14.
+DB-04-I1 разблокируется после independent QA и merge DB-04-D; последующие
+production slices сохраняют свои записанные зависимости.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -735,7 +739,10 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | approved A-R | repository owner | 2026-09-12 | Strict selected-selector/direct-SPI ID normalization coordinated with preserved domain precedence |
 | [DG-DELETE-04-R2](../delete-result-contract.md#dg-delete-04-r2--raw-selector-safety-versus-query-introspection) | approved A | repository owner | 2026-09-13 | Keep Query selectors virtual so repeated direct writes retain raw values; presence introspection uses `isProvided()` |
 | [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | approved A | repository owner | 2026-09-14 | Preserve HTTP 200 `{"deleted":true}` for successful single-resource DELETE |
-| [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | approved A; technical refinement required | repository owner | 2026-09-14 | Synchronous atomic cleanup plus durable observable idempotent repair; DB-04-D must define mechanism before DB-04-I |
+| [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | approved A; refinements R1/R2/R3 approved A | repository owner | 2026-09-14 | Synchronous atomic cleanup plus durable observable idempotent repair; DB-04-I follows the approved DB-04-D mechanism |
+| [DG-DELETE-06R1](../deleted-post-repair-contract.md#dg-delete-06r1) | approved A | repository owner | 2026-09-14 | 2.0 manager-backed Client coordinator; exact 1.x callback identity remains unchanged |
+| [DG-DELETE-06R2](../deleted-post-repair-contract.md#dg-delete-06r2) | approved A | repository owner | 2026-09-14 | One library-owned site-local InnoDB repair ledger |
+| [DG-DELETE-06R3](../deleted-post-repair-contract.md#dg-delete-06r3) | approved A | repository owner | 2026-09-14 | WP-Cron wake-up, durable ledger truth, bounded retries and Client-scoped operator paths |
 | [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | approved A | repository owner | 2026-09-11 | Compatibility normalization plus safe canonical identity |
 | [`DG-NAME-02`](../client-naming-contract.md#dg-name-02) | approved A | repository owner | 2026-09-11 | Two-phase `ClientRegisterFail` code 4 boundary |
 | [`DG-NAME-03`](../client-naming-contract.md#dg-name-03) | approved A | repository owner | 2026-09-11 | Legacy postfix retained with atomic site-local ownership claim |
@@ -1100,7 +1107,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A on 2026-09-14 with mandatory DB-04 technical refinement | DB-03B-A/B completed; DB-04-D ready, DB-04-I waits its approved mechanism |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14 | DB-03B-A/B completed; DB-04-D is in verified closeout, then DB-04-I1 starts |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
@@ -1115,9 +1122,10 @@ Entry criteria:
   DG-NAME-06R — как staged A-to-D transition; все решения записаны в canonical
   bodies и central registry.
 - DP-4, DP-5, DP-6 и DP-9 утверждены в перечисленных вариантах. В DP-5
-  технический механизм DG-DELETE-06/A намеренно остаётся предметом нового
-  refinement gate из DB-04-D. DP-7 и DP-8 не считаются неявно утверждёнными и
-  продолжают блокировать только перечисленные downstream tasks.
+  технический механизм DG-DELETE-06/A зафиксирован утверждёнными
+  DG-DELETE-06R1/R2/R3/A; implementation ждёт только verified closeout DB-04-D
+  и записанные slice dependencies. DP-7 и DP-8 не считаются неявно
+  утверждёнными и продолжают блокировать только перечисленные downstream tasks.
 - TEST-02F red evidence остаётся вне `master` до paired green CORE-07 PR.
 
 Tasks:
@@ -1323,8 +1331,8 @@ Execution model:
 - REST-HOOK-01 теперь `completed`: REST-01 и все decision gates, включая
   refinement DG-HOOK-REST-05/A, завершены; exact implementation head `9d5b74e`
   получил independent QA PASS и 17/17 protected checks.
-  LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а
-  HOOK-03 — DB-04/DG-DELETE-06.
+  LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а HOOK-03/DB-04-I3 —
+  DB-04-I1/I2 и утверждённый DG-DELETE-06R1/A; DB-04-Q следует после I3.
 
 Exit criteria:
 
@@ -1836,10 +1844,11 @@ Tasks:
 
 - REST-03 — `completed`; exact candidate `56d5e1c` получил independent QA PASS
   и 19/19 protected checks, PR #95 влит как `185bf32`, post-merge — 19/19.
-- DB-04-D — `todo`; recovery policy утверждена, mechanism требует отдельного
-  human approval.
-- DB-04-I — `waiting_dependency`; production запрещён до завершения DB-04-D и
-  утверждения созданных refinement gates.
+- DB-04-D — `in_progress`; source/runtime audit, approved contract и
+  executable slices подготовлены в отдельной design branch, independent
+  QA/merge ещё впереди.
+- DB-04-I — `waiting_dependency`; три refinement gates утверждены, production
+  начинается с I1 только после verified closeout/merge DB-04-D.
 
 Execution slices:
 
@@ -1852,29 +1861,30 @@ Execution slices:
 3. `B16/R2 — REST-03 production mapping and serialization` — `completed` после R1:
    минимально реализовать approved mapping для connection CRUD; native
    WordPress gateway errors остаются нетронутыми.
-4. `B16/D2 — DB-04-D repair decision packet` — `todo` в отдельной branch/PR
-   после фиксации D1: только source/runtime audit, alternatives и новые human
-   gates; никакой production schema/scheduler code.
+4. `B16/D2 — DB-04-D repair decision packet` — `in_progress` в отдельной
+   branch/PR: source/runtime audit, pre-arm/crash analysis, alternatives,
+   executable slices и approved-A DG-DELETE-06R1—DG-DELETE-06R3 записаны;
+   никакого production schema/scheduler code.
 5. `B16/Q-REST — REST verification and independent QA` — `completed`: exact
    candidate `56d5e1c` получил independent QA PASS, full local/pinned evidence
    и 19/19 protected checks; merge `185bf32` получил 19/19 post-merge checks.
-6. `B16/Q-DB04 — repair-design traceability/readiness QA` —
-   `waiting_dependency`: выполняется после B16/D2 в отдельной design branch/PR.
+6. `B16/Q-DB04 — repair-design traceability/readiness QA` — `in_progress`:
+   выполняется после content commit в той же design branch/PR.
 
 Exit criteria:
 
 - REST-03 DoD/AC выполнены на exact candidate и подтверждены независимым QA и
   protected/post-merge checks.
-- DB-04-D либо публикует полный decision packet с явным human gate, либо
-  документирует проверяемый blocker; DB-04-I не начата без approval.
+- DB-04-D публикует полный owner-approved decision packet и проходит
+  независимый traceability/readiness QA; DB-04-I не начата до его merge.
 - REST и delete-repair production changes не смешаны в одном PR.
 
 Next batch:
 
 - REST-03 завершён; REST-04 и REST-05 стали ближайшими production tasks и могут
   быть разложены на отдельные вертикали permissions и meta semantics.
-- После owner approval DB-04-D gates: DB-04-I становится отдельным production
-  batch; без approval delivery останавливается именно на этом human gate.
+- После verified closeout/merge DB-04-D: DB-04-I1 становится отдельным
+  production batch по утверждённому A/A/A contract.
 
 ## E1. Test foundation и regression harness
 
@@ -3790,7 +3800,7 @@ Verification:
 
 ### DB-04-D. Спроектировать durable repair contract для `deleted_post`
 
-Status: todo
+Status: in_progress
 
 Priority: P0
 
@@ -3827,9 +3837,10 @@ DoD:
 
 - Source/runtime evidence и существующие extension constraints перечислены.
 - Repair state transitions, ownership, idempotency и crash windows разобраны.
-- Каждый материальный выбор вынесен в human decision gate; recommendation не
-  помечена как утверждённая.
-- DB-04-I имеет исполняемые DoR/DoD/AC, но остаётся заблокированной до approval.
+- Каждый материальный выбор был вынесен в human decision gate и помечен
+  утверждённым только после явного owner approval.
+- DB-04-I имеет исполняемые DoR/DoD/AC; I1 ждёт verified closeout DB-04-D, а
+  следующие slices — своих implementation dependencies.
 
 AC:
 
@@ -3848,9 +3859,17 @@ Dependencies:
 
 Notes/Risks:
 
-- Approval DG-DELETE-06/A фиксирует конечную гарантию, но не даёт полномочий
-  молча вводить обязательную внешнюю библиотеку, новую таблицу или public API.
-- Результат — design artifact и новый human gate, не production code.
+- Approval DG-DELETE-06/A фиксирует конечную гарантию, а отдельные
+  DG-DELETE-06R1/R2/R3/A явно авторизуют выбранные callback, ledger и
+  scheduler/operator boundaries.
+- Результат DB-04-D — design artifact и зафиксированные human decisions, не
+  production code.
+- Canonical decision-ready artifact:
+  [`docs/deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
+- Gates DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем
+  2026-09-14. Approved path сохраняет exact 1.x callback identity, вводит
+  coordinator только в 2.0, использует site-local InnoDB ledger и WP-Cron
+  только как wake-up.
 
 ### DB-04-I. Реализовать WordPress `deleted_post` cleanup и repair
 
@@ -3904,7 +3923,7 @@ AC:
 
 Dependencies:
 
-- DB-04-D и утверждённые ей refinement gates.
+- DB-04-D и утверждённые DG-DELETE-06R1—DG-DELETE-06R3.
 - DB-03B-A, DB-03B-B, DB-05.
 - DG-M1, DG-DELETE-04, DG-DELETE-06/A, DG-NAME-06.
 
@@ -3913,6 +3932,86 @@ Notes/Risks:
 - При shared entity между clients каждый client hook обрабатывает только свои
   tables и сохраняет construction-site context.
 - REL-03 и DOC-01 потребляют фактически реализованный recovery contract.
+- Нижеследующие slices реализуют утверждённые варианты A. Изменение решения
+  требует нового gate и обновления порядка/scope до affected implementation.
+
+#### DB-04-I1. Shared repair ledger and schema lifecycle
+
+Status: waiting_dependency
+
+Scope: site-local shared table, ownership/version preflight, deterministic
+repair identity, pre-arm/upsert, conditional lease claim, transitions и
+retention queries.
+
+DoR:
+
+- DG-DELETE-06R1 и DG-DELETE-06R2 утверждены.
+
+DoD/AC:
+
+- Ledger готов до callback activation; его failure происходит до connection
+  DML.
+- Concurrent/repeated arm создаёт один logical record.
+- Claim/lease/reclaim и schema lifecycle проходят pinned MySQL/MariaDB lanes.
+- Unresolved records не удаляются автоматическим retention.
+
+#### DB-04-I2. Retry engine, scheduler adapter and operator service
+
+Status: waiting_dependency
+
+Scope: state machine, clock/scheduler abstractions, WP-Cron wake-up, backoff,
+Client runtime registry, PHP operator service и optional WP-CLI bridge.
+
+DoR:
+
+- DG-DELETE-06R3 утверждён.
+- DB-04-I1 завершена.
+
+DoD/AC:
+
+- Scheduler failure не теряет durable record; automatic/manual runs используют
+  один cleanup path.
+- Duplicate workers не получают два live claims.
+- Missing Client и adapter mismatch выполняют zero mutation и остаются
+  observable.
+
+#### HOOK-03 / DB-04-I3. Manager-backed recovery delivery
+
+Status: waiting_dependency
+
+Scope: context-aware coordinator subscription, pre-arm/cleanup/resolve flow,
+semantic enable/disable и retained subscription handle.
+
+DoR:
+
+- DG-DELETE-06R1/A утверждён.
+- DB-04-I1 и DB-04-I2 завершены.
+- HOOK-01/HOOK-02 завершены; 2.0 boundary открыт.
+
+DoD/AC:
+
+- Inactive-site callback не входит в coordinator.
+- Persisted failure одного Client не прерывает последующие ordinary Client
+  callbacks.
+- Direct 1.x `remove_action()` break покрыт upgrade fixture.
+
+#### DB-04-Q. Real-flow, vendor and operational closure
+
+Status: waiting_dependency
+
+Scope: real `wp_delete_post()`, failure/crash/concurrency, true multisite,
+pinned vendors, operator/uninstall docs, independent QA и release evidence.
+
+DoR:
+
+- DB-04-I1—DB-04-I3 завершены.
+
+DoD/AC:
+
+- Полный DG-DELETE-06/A contract доказан end-to-end.
+- Dedicated `WP_MULTISITE=1` lane, обе pinned DB lanes и full regression matrix
+  зелёные.
+- Exact candidate, protected merge и post-merge evidence записаны.
 
 ### DB-05. Сделать составные storage operations атомарными
 
@@ -6134,8 +6233,9 @@ Out of Scope:
 DoR:
 
 - HOOK-01 и HOOK-02 completed.
-- DB-04 completed для полного cascade contract.
-- Применимые delete/failure gates утверждены.
+- DB-04-D completed и применимые delete/failure gates утверждены.
+- При DG-DELETE-06R1/A DB-04-I1/I2 completed; HOOK-03 является DB-04-I3 и
+  предшествует DB-04-Q, а не ждёт полного DB-04 completion.
 - 2.0 release branch/version boundary открыт.
 
 DoD:
@@ -6162,7 +6262,8 @@ AC:
 
 Dependencies:
 
-- HOOK-01, HOOK-02, DB-04.
+- HOOK-01, HOOK-02, DB-04-D и approved DG-DELETE-06R1.
+- При DG-DELETE-06R1/A: DB-04-I1 и DB-04-I2.
 - DG-HOOK-01.
 - DG-DELETE-06.
 

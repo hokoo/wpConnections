@@ -61,7 +61,7 @@
    PASS и 19/19 protected checks; merge `185bf32` также прошёл 19/19
    post-merge checks. Canonical v1 non-meta CRUD/error contract теперь
    исполняется полным WordPress REST dispatch contour. REST-04 и REST-05
-   разблокированы; DB-04-D остаётся отдельным design-only track Batch 16.
+   разблокированы; DB-04-D выполняется отдельным design-only track Batch 16.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -168,10 +168,10 @@ map находятся в
   DG-SPI-04R/06R/06R2 также approved A. DG-RESTERR-03/A утверждён
   2026-09-11. DG-UPDATE-05/A, DG-SPI-05/A для v1 с C как next-major target,
   DG-RESTERR-01/02/04/A и DG-DELETE-05/06/A утверждены 2026-09-14.
-  DG-DELETE-06/A дополнительно требует human-approved технического refinement
-  durable repair/scheduler contract до DB-04 implementation. Pending остаются
-  DG-API20-01—DG-API20-09 и DB-04-D technical refinement gates; они блокируют
-  только явно перечисленные downstream tasks. Полные тексты находятся в
+  DG-DELETE-06/A дополнительно потребовал human-approved технического
+  refinement durable repair/scheduler contract до DB-04 implementation.
+  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем 2026-09-14;
+  pending остаются DG-API20-01—DG-API20-09. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
   [storage SPI contract](../storage-spi-contract.md),
@@ -179,7 +179,8 @@ map находятся в
   [database compatibility contract](../db-compatibility-contract.md),
   [REST error contract](../rest-error-contract.md),
   [REST v1 connection contract](../rest-connection-contract.md),
-  [delete result/failure contract](../delete-result-contract.md) и
+  [delete result/failure contract](../delete-result-contract.md),
+  [deleted-post repair contract](../deleted-post-repair-contract.md) и
   [client naming contract](../client-naming-contract.md); основной registry
   хранит canonical decision/status. REST-00A, REST-00B, SPI-01, CORE-00,
   DB-00, DB-03A и CORE-05
@@ -196,6 +197,12 @@ map находятся в
   contract находится в
   [`rest-connection-contract.md`](../rest-connection-contract.md). REST-04 и
   REST-05 после этого перешли в `todo`.
+- DB-04-D выполняется в `batch16-delete-repair-design`: current call graph,
+  crash windows, pre-armed ledger, retry state machine, operator boundary и
+  executable slices записаны в
+  [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
+  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A; DB-04-I1 начнётся
+  после independent QA и merge design candidate.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.

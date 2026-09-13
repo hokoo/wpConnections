@@ -3,9 +3,10 @@
 Status: DG-DELETE-01—DG-DELETE-04 approved by the repository owner on
 2026-09-12; implementation refinement DG-DELETE-04-R2/A approved on
 2026-09-13; DB-03B-A merged as `2d52f087`; DB-03B-B merged by PR #93 as
-`2348d5a`; DG-DELETE-05/A and DG-DELETE-06/A are approved. DB-04 still requires
-the explicit repair-record and scheduler refinement mandated by DG-DELETE-06/A
-before production implementation.
+`2348d5a`; DG-DELETE-05/A and DG-DELETE-06/A are approved. The decision-ready
+[`deleted-post repair contract`](deleted-post-repair-contract.md) defines the
+approved callback-boundary, ledger, and retry/operator refinements for DB-04
+production implementation.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 (the merge of CORE-00 after SPI-01 into `master`, 2026-09-10).
@@ -83,8 +84,8 @@ storage implementer SPI:
   contract remain DB-02/REST-05 work.
 - Automatic `deleted_post` behavior remains DB-04 implementation scope. DB-03A
   records its current boundary and the approved failure/recovery policy in
-  `DG-DELETE-06/A`; the durable mechanism remains unresolved until DB-04-D
-  refinement gates are approved.
+  `DG-DELETE-06/A`; DB-04-D's durable mechanism refinements were approved as
+  A on 2026-09-14 and await verified design closeout before implementation.
 
 Generic adapter failures and transaction capability are governed by approved
 [`DG-SPI-03`](./storage-spi-contract.md#dg-spi-03--non-update-result-and-failure-protocol),
@@ -604,8 +605,9 @@ then document their verified success representation.
 ### DG-DELETE-06 — `deleted_post` cleanup failure and recovery
 
 **Status:** approved A by the repository owner on 2026-09-14. This approves the
-recovery policy, not an implicit scheduler or durable-record implementation;
-DB-04 must present that technical refinement for human approval first.
+recovery policy, not an implicit scheduler or durable-record implementation.
+DB-04-D subsequently presented those refinements, and DG-DELETE-06R1/R2/R3/A
+were explicitly approved on 2026-09-14.
 
 **Problem:** every initialized client registers its adapter's object-delete
 method directly on WordPress `deleted_post`. The post is already deleted before
@@ -632,10 +634,18 @@ that must be designed by DB-04/REL-03 and may execute cleanup later. B can expos
 new exceptions to post-deletion callers. C preserves weak behavior but conflicts
 with the release integrity goal.
 
-**Consequences:** DB-04-D is now ready to refine the approved policy into
-technical human gates; DB-04-I remains blocked on those approvals. REL-03 and
-DOC-01 consume DB-04-I's verified recovery/operational contract. DB-05 supplies
-only the inner connection/meta atomic primitive.
+**Consequences:** DB-04-D refined the approved policy into three technical
+human gates, all approved as A on 2026-09-14. DB-04-I1 starts only after the
+verified design closeout; later slices retain their implementation
+dependencies. REL-03 and DOC-01 consume DB-04-I's verified
+recovery/operational contract. DB-05 supplies only the inner connection/meta
+atomic primitive.
+
+DB-04-D's source/runtime audit is recorded in the
+[`deleted-post repair contract`](deleted-post-repair-contract.md). Its
+`DG-DELETE-06R1` through `DG-DELETE-06R3` were explicitly approved as A by the
+repository owner on 2026-09-14; that approval is separate from
+DG-DELETE-06/A.
 
 ## Downstream acceptance matrix
 
