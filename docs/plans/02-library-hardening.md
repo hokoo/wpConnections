@@ -1611,7 +1611,7 @@ Task:
 
 Execution slices:
 
-1. `DB-05/F1 — stable mutation failure protocol` — `in_progress`. Добавить
+1. `DB-05/F1 — stable mutation failure protocol` — `completed`. Добавить
    воспроизводящие tests для SQL `false` на create/update/add-meta/remove-meta и
    representative delete; затем нормализовать их в одну стабильную domain
    exception category, не меняя valid `false` no-op update, `0` delete/no-match
@@ -1620,7 +1620,9 @@ Execution slices:
    `waiting_dependency`. После DG-SPI-04R добавить optional capability и
    domain-owned root unit of work; schema readiness/engine preflight происходит
    до `START TRANSACTION`, rollback охватывает любой `Throwable`, incapable
-   adapters отклоняются до первого write.
+   adapters отклоняются до первого write. Root integration evidence выполняется
+   не через transactional `WP_UnitTestCase`, а через отдельный exact-cleanup
+   harness, чтобы второй `START TRANSACTION` не закоммитил test fixture.
 3. `DB-05/F3 — nested savepoint and outer-commit coordination` —
    `waiting_dependency`. После DG-SPI-04R и DG-SPI-06R реализовать явный nested
    context, collision-safe savepoints, отсутствие `COMMIT` внешней транзакции и
@@ -1656,8 +1658,28 @@ Current blockers:
 
 - DG-SPI-04R: каким additive domain API caller явно передаёт nested ownership.
 - DG-SPI-06R: как success hooks узнают о фактическом commit внешней транзакции.
-- Slice F1 не зависит от этих gates и выполняется сейчас; F2—F5 не переходят в
-  production до решений владельца.
+- Slice F1 не зависит от этих gates и завершён; F2—F5 не переходят в production
+  до решений владельца.
+
+Verification so far:
+
+- Activation commit `1a28041` зафиксировал approved DG-SPI-03/A,
+  DG-SPI-04/A, DG-DB-03/A, два новых pending refinement gate и исполняемый
+  Batch 14/15 порядок.
+- Red-first commit `609c8eb`: focused `StorageFailureTest` дал ожидаемые
+  `5 tests / 10 assertions / 5 failures` на старом production behavior.
+- F1 implementation commit `0524c3b`: focused `5 / 46`, full unit `19 / 96`,
+  full integration `242 / 2172`, PHPCS `54/54`; единственное сообщение PHPCS —
+  прежнее ruleset deprecation warning.
+- `StorageFailure` использует стабильную domain category/code `311`, безопасное
+  operation-level public message и сохраняет исходную DB-причину только в
+  exception chain. Create/update/add-meta/remove-meta и representative ID delete
+  больше не маскируют проверенные SQL failures и не испускают success hook.
+- Аудит test harness установил, что WordPress 6.7.7 уже открывает transaction
+  вокруг каждого `WP_UnitTestCase`. Это не новый product decision gate, но
+  обязательное условие F2 verification: standalone root tests требуют plain
+  PHPUnit lifecycle с точечной cleanup; существующий harness подходит для
+  declared nested evidence только после DG-SPI-04R.
 
 ## E1. Test foundation и regression harness
 
@@ -3625,6 +3647,12 @@ Notes/Risks:
 - Таблицы и engine должны реально поддерживать выбранную transaction semantics.
 - `RELEASE SAVEPOINT` не является commit внешней транзакции; поэтому nested
   success-hook timing нельзя реализовать до DG-SPI-06R.
+- `WP_UnitTestCase` сам владеет test transaction; root-scope evidence обязано
+  использовать отдельный manual-cleanup harness, иначе второй `START
+  TRANSACTION` даст ложный зелёный результат и закоммитит fixture.
+- Client-level transaction scope в рекомендуемом DG-SPI-04R/A ограничен одним
+  Client; cross-client composition отклоняется до write, пока не появится общий
+  session coordinator.
 
 ### DB-03B-B. Проверить delete failure и commit-hook conformance
 

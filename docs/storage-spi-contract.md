@@ -345,7 +345,11 @@ transaction owned outside the library.
   explicit root/nested context. Standalone compound domain mutations open their
   normal root scope; mutations invoked inside that Client unit of work enlist in
   its known scope. A caller that already owns a database transaction must enter
-  through the same unit-of-work API with explicit nested context.
+  through the same unit-of-work API with explicit nested context. The v1 scope
+  is owned by exactly one Client; attempting to enter another Client on the same
+  database session is rejected before its first write rather than starting a
+  blind second transaction. Cross-client atomic composition needs a future
+  shared coordinator.
 - B: add an optional transaction-context parameter to every compound mutation
   method on `Relation` and `Connection` and propagate it through every call.
 - C: expose context only on the optional storage capability and require
@@ -360,7 +364,8 @@ plumbing across the domain surface; C conflicts with DG-M9/A.
 **Compatibility impact:** A is additive, but consumers that start an outer
 transaction themselves must adopt the explicit nested unit-of-work entrypoint;
 otherwise the library cannot safely infer session state. Incapable adapters
-fail before mutation as already approved by DG-SPI-04/A.
+fail before mutation as already approved by DG-SPI-04/A. A transaction spanning
+multiple wpConnections Clients is not silently approximated in v1.
 
 **Blocked/refined tasks:** the transaction-orchestration portions of DB-05 and
 REL-02. Stable failure normalization can proceed independently.

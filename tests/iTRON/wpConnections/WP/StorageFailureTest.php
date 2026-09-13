@@ -124,6 +124,7 @@ class StorageFailureTest extends WPConnectionsTestCase
 		$this->assert_storage_failure( 'delete connections', $failure );
 		self::assertSame( 0, $success_calls );
 		self::assertSame( 0, $this->client->getStorage()->deleteSpecificConnections( PHP_INT_MAX ) );
+		self::assertSame( 0, $success_calls );
 	}
 
 	private function create_connection( bool $with_meta = false ): Connection
