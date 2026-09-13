@@ -121,6 +121,59 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertEquals( $this->instantAt( '+10 minutes' ), $record->getLeaseExpiresAt() );
 	}
 
+	public function test_two_database_contenders_cannot_both_acquire_one_live_lease(): void
+	{
+		$identity = $this->identity( 'ledger-client-a', 130 );
+		$storage = new DeletedPostRepairLedgerStorageA();
+		$contender = $this->secondary_database_connection();
+		$contender->query( 'SET SESSION innodb_lock_wait_timeout = 2' );
+		$contender_ran = false;
+		$contender_affected_rows = null;
+		$run_contender_before_primary = function ( string $query ) use (
+			$contender,
+			&$contender_ran,
+			&$contender_affected_rows
+		): string {
+			if (
+				! $contender_ran
+				&& 1 === preg_match(
+					'/^\s*UPDATE\s+`?' . preg_quote( $this->table, '/' ) . '`?\s+SET\b/i',
+					$query
+				)
+				&& false !== stripos( $query, 'lease_token' )
+				&& false !== stripos( $query, 'attempt_count' )
+			) {
+				$contender_ran = true;
+				self::assertTrue( $contender->query( $query ) );
+				$contender_affected_rows = $contender->affected_rows;
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $run_contender_before_primary );
+		try {
+			$primary = $this->ledger->armAndTryClaim(
+				$identity,
+				$storage,
+				$this->now,
+				$this->instantAt( '+10 minutes' )
+			);
+		} finally {
+			remove_filter( 'query', $run_contender_before_primary );
+			$contender->close();
+		}
+
+		self::assertTrue( $contender_ran, 'The independent contender never reached the claim UPDATE.' );
+		self::assertSame( 1, $contender_affected_rows );
+		self::assertSame( 'already_running', $primary->getOutcome() );
+		self::assertNull( $primary->getLease() );
+
+		$record = $this->require_record( 'ledger-client-a', $identity->getKey() );
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $record->getStatus() );
+		self::assertSame( 1, $record->getAttemptCount() );
+		self::assertSame( 0, $record->getFailureCount() );
+	}
+
 	public function test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml(): void
 	{
 		$identity = $this->identity( 'ledger-client-a', 103 );
@@ -890,6 +943,19 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		}
 
 		return null;
+	}
+
+	private function secondary_database_connection(): \mysqli
+	{
+		$host = getenv( 'DB_HOST' ) ?: '127.0.0.1';
+		$user = getenv( 'DB_USER' ) ?: 'wordpress';
+		$password = getenv( 'DB_PASSWORD' ) ?: 'wordpress';
+		$database = getenv( 'DB_NAME' ) ?: 'wordpress_test';
+		$port = (int) ( getenv( 'DB_PORT' ) ?: 3306 );
+		$connection = new \mysqli( $host, $user, $password, $database, $port );
+		$connection->set_charset( 'utf8mb4' );
+
+		return $connection;
 	}
 
 	private function is_ledger_query( string $query, string $operation ): bool
