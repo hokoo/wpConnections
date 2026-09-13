@@ -15,7 +15,9 @@ use iTRON\wpConnections\Query\Connection as ConnectionQuery;
 use iTRON\wpConnections\Query\MetaCollection as MetaQueryCollection;
 use iTRON\wpConnections\Query\Relation as RelationQuery;
 use iTRON\wpConnections\TransactionContext;
+use iTRON\wpConnections\TransactionSynchronizer;
 use iTRON\wpConnections\WPStorage;
+use LogicException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
@@ -310,6 +312,247 @@ class AtomicScopeTest extends TestCase
 		self::assertSame( 'commit transaction', $failure->getOperation() );
 	}
 
+	public function test_nested_scopes_use_unique_savepoints_without_completing_outer_transaction(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$first_id = $this->insert_connection_row( 'nested-first' );
+		$queries = [];
+		$recorder = static function ( string $query ) use ( &$queries ): string {
+			$queries[] = $query;
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+		$first_sync = new TransactionSynchronizer();
+		$second_sync = new TransactionSynchronizer();
+
+		try {
+			$first_result = $this->client->runAtomically(
+				static function (): string {
+					return 'first-result';
+				},
+				TransactionContext::nested( $first_sync )
+			);
+			$second_result = $this->client->runAtomically(
+				static function (): string {
+					return 'second-result';
+				},
+				TransactionContext::nested( $second_sync )
+			);
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		self::assertSame( 'first-result', $first_result );
+		self::assertSame( 'second-result', $second_result );
+		self::assertSame( 0, $this->query_count( $queries, '/^(?:START TRANSACTION|COMMIT)$/i' ) );
+		$savepoints = $this->savepoint_names( $queries, '/^SAVEPOINT ([a-z0-9_]+)$/i' );
+		$releases = $this->savepoint_names( $queries, '/^RELEASE SAVEPOINT ([a-z0-9_]+)$/i' );
+		self::assertCount( 2, $savepoints );
+		self::assertCount( 2, array_unique( $savepoints ) );
+		self::assertSame( $savepoints, $releases );
+
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		$first_sync->rolledBack();
+		$second_sync->rolledBack();
+		self::assertFalse( $this->connection_row_exists( $first_id ) );
+	}
+
+	public function test_nested_failure_rolls_back_to_savepoint_and_preserves_outer_transaction(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$outer_id = $this->insert_connection_row( 'outer-before-savepoint' );
+		$inner_id = 0;
+		$expected = new RuntimeException( 'nested callback failed' );
+		$timeline = [];
+		$synchronizer = new TransactionSynchronizer();
+		$queries = [];
+		$recorder = static function ( string $query ) use ( &$queries ): string {
+			$queries[] = $query;
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+
+		$caught = null;
+		try {
+			$this->client->runAtomically(
+				function () use ( &$inner_id, &$timeline, $expected ): void {
+					$inner_id = $this->insert_connection_row( 'inside-failed-savepoint' );
+					$this->client->deferSuccessNotification(
+						static function () use ( &$timeline ): void {
+							$timeline[] = 'must-not-run';
+						}
+					);
+					throw $expected;
+				},
+				TransactionContext::nested( $synchronizer )
+			);
+		} catch ( Throwable $failure ) {
+			$caught = $failure;
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		self::assertSame( $expected, $caught );
+		self::assertSame( 1, $this->query_count( $queries, '/^ROLLBACK TO SAVEPOINT /i' ) );
+		self::assertSame( 1, $this->query_count( $queries, '/^RELEASE SAVEPOINT /i' ) );
+		self::assertTrue( $this->connection_row_exists( $outer_id ) );
+		self::assertFalse( $this->connection_row_exists( $inner_id ) );
+
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		$synchronizer->rolledBack();
+		self::assertFalse( $this->connection_row_exists( $outer_id ) );
+		self::assertSame( [], $timeline );
+	}
+
+	public function test_nested_notifications_are_fifo_and_exactly_once_after_outer_commit(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$timeline = [];
+		$synchronizer = new TransactionSynchronizer();
+		$row_id = $this->client->runAtomically(
+			function () use ( &$timeline ): int {
+				$row_id = $this->insert_connection_row( 'nested-commit' );
+				$this->client->deferSuccessNotification(
+					static function () use ( &$timeline ): void {
+						$timeline[] = 'first';
+					}
+				);
+				$this->client->deferSuccessNotification(
+					static function () use ( &$timeline ): void {
+						$timeline[] = 'second';
+					}
+				);
+
+				return $row_id;
+			},
+			TransactionContext::nested( $synchronizer )
+		);
+
+		self::assertSame( [], $timeline );
+		self::assertNotFalse( $wpdb->query( 'COMMIT' ) );
+		$synchronizer->committed();
+		self::assertSame( [ 'first', 'second' ], $timeline );
+		self::assertTrue( $this->connection_row_exists( $row_id ) );
+
+		$this->expectException( LogicException::class );
+		$synchronizer->committed();
+	}
+
+	public function test_nested_notifications_are_discarded_after_outer_rollback(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$timeline = [];
+		$synchronizer = new TransactionSynchronizer();
+		$row_id = $this->client->runAtomically(
+			function () use ( &$timeline ): int {
+				$row_id = $this->insert_connection_row( 'nested-rollback' );
+				$this->client->deferSuccessNotification(
+					static function () use ( &$timeline ): void {
+						$timeline[] = 'must-not-run';
+					}
+				);
+
+				return $row_id;
+			},
+			TransactionContext::nested( $synchronizer )
+		);
+
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		$synchronizer->rolledBack();
+		self::assertSame( [], $timeline );
+		self::assertFalse( $this->connection_row_exists( $row_id ) );
+
+		$this->expectException( LogicException::class );
+		$synchronizer->rolledBack();
+	}
+
+	public function test_post_commit_notification_throwable_propagates_with_durable_state(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$expected = new RuntimeException( 'post-commit observer failed' );
+		$timeline = [];
+		$synchronizer = new TransactionSynchronizer();
+		$row_id = $this->client->runAtomically(
+			function () use ( $expected, &$timeline ): int {
+				$row_id = $this->insert_connection_row( 'nested-hook-failure' );
+				$this->client->deferSuccessNotification(
+					static function () use ( $expected ): void {
+						throw $expected;
+					}
+				);
+				$this->client->deferSuccessNotification(
+					static function () use ( &$timeline ): void {
+						$timeline[] = 'after-throw';
+					}
+				);
+
+				return $row_id;
+			},
+			TransactionContext::nested( $synchronizer )
+		);
+		self::assertNotFalse( $wpdb->query( 'COMMIT' ) );
+
+		$caught = null;
+		try {
+			$synchronizer->committed();
+		} catch ( Throwable $failure ) {
+			$caught = $failure;
+		}
+
+		self::assertSame( $expected, $caught );
+		self::assertNotInstanceOf( StorageFailure::class, $caught );
+		self::assertTrue( $this->connection_row_exists( $row_id ) );
+		self::assertSame( [], $timeline );
+
+		$this->expectException( LogicException::class );
+		$synchronizer->committed();
+	}
+
+	public function test_completed_synchronizer_is_rejected_before_savepoint_and_callback(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$synchronizer = new TransactionSynchronizer();
+		$synchronizer->rolledBack();
+		$callback_called = false;
+		$queries = [];
+		$recorder = static function ( string $query ) use ( &$queries ): string {
+			$queries[] = $query;
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+
+		$failure = null;
+		try {
+			$this->client->runAtomically(
+				static function () use ( &$callback_called ): void {
+					$callback_called = true;
+				},
+				TransactionContext::nested( $synchronizer )
+			);
+		} catch ( Throwable $exception ) {
+			$failure = $exception;
+		} finally {
+			remove_filter( 'query', $recorder );
+			$wpdb->query( 'ROLLBACK' );
+		}
+
+		self::assertInstanceOf( StorageCapabilityUnavailable::class, $failure );
+		self::assertFalse( $callback_called );
+		self::assertSame( 0, $this->query_count( $queries, '/^SAVEPOINT /i' ) );
+	}
+
 	private function register_relation(): void
 	{
 		$relation = new RelationQuery();
@@ -341,6 +584,49 @@ class AtomicScopeTest extends TestCase
 		delete_option(
 			'wpconnections_storage_owner_' . hash( 'sha256', str_replace( '-', '_', $client->getName() ) )
 		);
+	}
+
+	private function insert_connection_row( string $relation ): int
+	{
+		global $wpdb;
+
+		$table = $wpdb->prefix . $this->client->getStorage()->get_connections_table();
+		self::assertSame(
+			1,
+			$wpdb->insert(
+				$table,
+				[
+					'relation' => $relation,
+					'from'     => 1001,
+					'to'       => 1002,
+				]
+			)
+		);
+
+		return (int) $wpdb->insert_id;
+	}
+
+	private function connection_row_exists( int $connection_id ): bool
+	{
+		global $wpdb;
+
+		$table = $wpdb->prefix . $this->client->getStorage()->get_connections_table();
+
+		return (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM `{$table}` WHERE ID = %d", $connection_id )
+		) === 1;
+	}
+
+	private function savepoint_names( array $queries, string $pattern ): array
+	{
+		$names = [];
+		foreach ( $queries as $query ) {
+			if ( 1 === preg_match( $pattern, trim( $query ), $matches ) ) {
+				$names[] = $matches[1];
+			}
+		}
+
+		return $names;
 	}
 
 	private function query_count( array $queries, string $pattern ): int
