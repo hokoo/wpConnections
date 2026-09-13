@@ -422,8 +422,8 @@ Status: approved A by the repository owner on 2026-09-11.
 
 Implementation consequences: CORE-04, REST-03 production mapping and DOC-01;
 lifecycle-hook evidence must be coordinated with REL-02. REST-00A consumes the
-approved domain taxonomy while its exact HTTP mapping remains governed by the
-pending DG-RESTERR gates.
+approved domain taxonomy; the exact HTTP mapping is now governed by approved
+DG-RESTERR-01/02/04/A.
 
 Decision recorded: A, including codes 305—310, identity/from/to-before-existing-
 invariants precedence and no lifecycle hook for rejected validation.

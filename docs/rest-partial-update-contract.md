@@ -1,7 +1,7 @@
 # Connection update contract discovery
 
-Status: partial approved decision contract; DG-UPDATE-01—DG-UPDATE-04 and
-DG-UPDATE-02R approved A, while DG-UPDATE-05 remains pending
+Status: approved decision contract; DG-UPDATE-01—DG-UPDATE-05 and
+DG-UPDATE-02R approved A
 
 Date: 2026-09-10
 
@@ -20,8 +20,7 @@ The five original material choices are recorded as `DG-UPDATE-01` through
 refinement, `DG-UPDATE-02R`, for same-value writes to legacy public endpoint
 properties. The repository owner approved option A for DG-UPDATE-01,
 DG-UPDATE-02, DG-UPDATE-02R and DG-UPDATE-04 on 2026-09-11, and approved
-DG-UPDATE-03/A on 2026-09-12. DG-UPDATE-05 remains decision-ready rather than
-approved.
+DG-UPDATE-03/A on 2026-09-12 and approved DG-UPDATE-05/A on 2026-09-14.
 
 ## Evidence and compatibility baseline
 
@@ -236,7 +235,7 @@ metadata collection, including an empty collection, is the desired final
 state. It therefore differs intentionally from a sparse query update.
 
 The `/meta` operation boundary below is approved by DG-UPDATE-03/A. Its response
-column remains subject to pending `DG-UPDATE-05`:
+column is approved by `DG-UPDATE-05/A`:
 
 | Method/input | Persisted metadata result | Successful/no-op REST v1 response |
 |---|---|---|
@@ -250,7 +249,7 @@ column remains subject to pending `DG-UPDATE-05`:
 | Persisted null value | Invalid before mutation while the schema remains `NOT NULL` | Mapped 4xx error; no success wrapper |
 | Persisted `0`, `"0"`, `false`, or empty string | Valid explicit values; never treated as omission | Same exact legacy success wrapper |
 
-Under recommended `DG-UPDATE-05/A`, `<connection-object>` is the exact current
+Under approved `DG-UPDATE-05/A`, `<connection-object>` is the exact current
 v1 serialization observed through full dispatch: public scalar connection
 fields are nested below `updated`, while `meta` serializes as an object exposing
 its `collectionType` rather than as the persisted metadata array. This shape is
@@ -286,7 +285,7 @@ removing ambiguity:
 |---|---|---|---|
 | Existing target changed | `true` | returns normally | 200, `{ "updated": true }` |
 | Existing target already equals desired state | `false` | returns normally | 200, `{ "updated": false }` |
-| Target does not exist in the selected client/relation | Domain not-found exception | Domain not-found exception | Error, never `{ "updated": false }`; exact HTTP status/body remain pending `DG-RESTERR-01/02` |
+| Target does not exist in the selected client/relation | Domain not-found exception | Domain not-found exception | 404 using the approved numeric-domain v1 body from `DG-RESTERR-01/02/A`, never `{ "updated": false }` |
 | Invalid field, entity, relation, or invariant | Domain validation exception before mutation | Same | Mapped 4xx error |
 | Storage failure | Storage/domain exception; rollback | Same | Mapped 5xx error |
 

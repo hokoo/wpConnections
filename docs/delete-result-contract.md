@@ -3,7 +3,9 @@
 Status: DG-DELETE-01—DG-DELETE-04 approved by the repository owner on
 2026-09-12; implementation refinement DG-DELETE-04-R2/A approved on
 2026-09-13; DB-03B-A merged as `2d52f087`; DB-03B-B merged by PR #93 as
-`2348d5a`; DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
+`2348d5a`; DG-DELETE-05/A and DG-DELETE-06/A are approved. DB-04 still requires
+the explicit repair-record and scheduler refinement mandated by DG-DELETE-06/A
+before production implementation.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 (the merge of CORE-00 after SPI-01 into `master`, 2026-09-10).
@@ -570,6 +572,8 @@ unprovided ones.
 
 ### DG-DELETE-05 — REST connection-delete success representation
 
+**Status:** approved A by the repository owner on 2026-09-14.
+
 **Problem:** the v1 connection DELETE route currently returns HTTP 200 with
 `{"deleted":true}` for any positive count and exposes neither the connection ID
 nor bulk count. Changing to `204`, a count, or a richer result is public REST
@@ -590,11 +594,15 @@ and failure are correct. B/C can be an opt-in or next-major representation.
 `deleted`; C removes the response body and changes status. Exact error status and
 body remain REST-00A decisions, not this gate.
 
-**Consequences:** REST-03 is blocked until this gate is approved. DOC-01 is a
-nonblocking downstream refinement because it already waits for the implemented
-REST tasks and must then document their approved success representation.
+**Consequences:** REST-03 now consumes this approved representation. DOC-01 is a
+downstream refinement because it waits for the implemented REST tasks and must
+then document their verified success representation.
 
 ### DG-DELETE-06 — `deleted_post` cleanup failure and recovery
+
+**Status:** approved A by the repository owner on 2026-09-14. This approves the
+recovery policy, not an implicit scheduler or durable-record implementation;
+DB-04 must present that technical refinement for human approval first.
 
 **Problem:** every initialized client registers its adapter's object-delete
 method directly on WordPress `deleted_post`. The post is already deleted before
@@ -621,10 +629,10 @@ that must be designed by DB-04/REL-03 and may execute cleanup later. B can expos
 new exceptions to post-deletion callers. C preserves weak behavior but conflicts
 with the release integrity goal.
 
-**Consequences:** DB-04 is blocked until this gate is approved. REL-03 and
-DOC-01 are nonblocking downstream refinements that consume DB-04's verified
-recovery/operational contract. DB-05 supplies only the inner connection/meta
-atomic primitive.
+**Consequences:** DB-04-D is now ready to refine the approved policy into
+technical human gates; DB-04-I remains blocked on those approvals. REL-03 and
+DOC-01 consume DB-04-I's verified recovery/operational contract. DB-05 supplies
+only the inner connection/meta atomic primitive.
 
 ## Downstream acceptance matrix
 

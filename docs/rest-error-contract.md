@@ -1,7 +1,7 @@
 # REST v1 error contract discovery
 
-Status: decision-ready; DG-RESTERR-03/A approved, while DG-RESTERR-01,
-DG-RESTERR-02 and DG-RESTERR-04 remain pending; this document changes no
+Status: approved decision contract; DG-RESTERR-01—DG-RESTERR-04 approved A.
+This document records the target contract and does not by itself change
 production behavior.
 
 Source snapshot: `b36fa85c62fc5984674a1bdf04b7648ff6065d8d`. The temporary
@@ -72,8 +72,8 @@ machine-readable reason separate from the integer code.
 | non-library `Throwable` | varies | Runtime hook/adapter failures and native typed-property errors are not caught by current handlers. | Full dispatch can terminate without a `WP_REST_Response`. |
 
 Entity-resolution domain codes `305`—`310` are approved by `DG-ENT-03/A` in the
-merged `CORE-00` contract. Their exact HTTP mapping remains pending
-DG-RESTERR-01 and must consume that taxonomy rather than create a second one.
+merged `CORE-00` contract. Their exact HTTP mapping is governed by approved
+DG-RESTERR-01/A and must consume that taxonomy rather than create a second one.
 
 ## Observed full-dispatch matrix
 
@@ -110,10 +110,8 @@ behavior; it does not define how `DG-SPI-03` must represent adapter failures.
 
 ## Candidate response matrix
 
-This is the recommended combination of all four gates. DG-RESTERR-03/A is
-approved; DG-RESTERR-01, DG-RESTERR-02 and DG-RESTERR-04 remain pending. The
-matrix gives downstream tasks a complete test target without silently treating
-the remaining recommendations as owner decisions.
+This is the approved combination of all four gates. DG-RESTERR-01—04/A are
+approved and the matrix is the executable downstream test target.
 
 | Failure class | Recommended HTTP status | Recommended v1 body treatment |
 | --- | ---: | --- |
@@ -122,7 +120,7 @@ the remaining recommendations as owner decisions.
 | `MissingParameters` and known request/domain validation represented by generic code `300` | `400` | Preserve the numeric domain code and compatible non-sensitive message; add status/domain metadata. A code-`300` storage fault is excluded from this row. |
 | Invariant `301` closurable, `302` cardinality, or `303` duplicate | `409` | Preserve the numeric domain code and compatible message; add status/domain metadata. |
 | Empty-ID aggregate `304` reached by the current REST meta update handler through custom/malformed hydration | `400` | Preserve numeric domain code `304` and compatible message; add status/domain metadata. Default `WPStorage` successful lookup hydrates a non-empty ID, so implementation and tests must consume the adapter/domain ownership selected by `DG-SPI-02`, not invent a new route or claim this as normal default-adapter behavior. |
-| Entity validation/resolution codes `305`—`310` | Pending `DG-RESTERR-01` | Consume the approved entity domain code, then add an explicit REST mapping; do not infer status from its number. |
+| Entity validation/resolution codes `305`—`310` | `306` not-found is `404`; `305`, `307`, `308`, `309`, and `310` are classified domain validation and use `400` | Consume the approved entity domain code and map the classified reason explicitly; do not infer status from its number. `309` remains a classified resolver/domain failure rather than a storage or unknown throwable. |
 | Known storage failure | `500` | String code `wp_connections_internal_error`, message `An internal error occurred.`, and `data={"status":500}`. No SQL, table, stack, adapter message, or public correlation ID. The accepted `DG-SPI-03` signal remains attributable in server diagnostics. |
 | Any remaining unknown `Throwable` | `500` | The same exact string code, message, and `data.status` as a storage failure; retain the cause only in server diagnostics. |
 
@@ -166,7 +164,7 @@ not redefined here.
 
 ### DG-RESTERR-01. Domain failure to HTTP status taxonomy
 
-**Status:** pending; human decision required.
+**Status:** approved A by the repository owner on 2026-09-14.
 
 **Problem:** Current library errors have numeric domain codes but no response
 status, so WordPress emits HTTP 500 for not-found, validation, and invariant
@@ -188,16 +186,17 @@ mapping must honor `DG-M3` without deriving HTTP status from the number.
 domain failures. A gives clients standard status semantics while preserving the
 numeric body identifier. Under every option, `301`--`310` remain body/domain
 codes and are never redirect statuses. Entity codes are approved by
-DG-ENT-03/A; their HTTP rows remain part of this pending REST mapping decision.
+DG-ENT-03/A; A maps code `306` to not-found `404` and the other classified
+entity codes `305`, `307`—`310` to validation `400`.
 
-**Blocked tasks:** `REST-03`, the error portions of `REST-05`, `DOC-01`, and
-REST error compatibility coverage in `REL-02`.
+**Unblocked/refined tasks:** `REST-03`, the error portions of `REST-05`,
+`DOC-01`, and REST error compatibility coverage in `REL-02` consume A.
 
 <a id="dg-resterr-02"></a>
 
 ### DG-RESTERR-02. Default v1 library error body
 
-**Status:** pending; human decision required.
+**Status:** approved A by the repository owner on 2026-09-14.
 
 **Problem:** `WP_Error` currently serializes library integers directly as
 top-level `code` and emits `data=null`. WordPress-native errors use string codes
@@ -221,11 +220,11 @@ but changes `data` from null to an object so WordPress can carry the status. B
 is additive and opt-in. C is a default-v1 breaking change and cannot proceed
 without explicitly reopening approved `DG-M4`.
 
-**Blocked tasks:** `REST-03`, the library-error portions of `REST-05`, `DOC-01`,
-and REST serialization/migration coverage in `REL-02`. `REST-05` needs this gate
-for missing-connection and other domain/library failures. A classified storage
-failure uses the separate exact non-domain shape selected by `DG-RESTERR-04`, not
-the numeric-domain shape from this gate.
+**Unblocked/refined tasks:** `REST-03`, the library-error portions of `REST-05`,
+`DOC-01`, and REST serialization/migration coverage in `REL-02` consume A.
+Missing-connection and other domain/library failures use this gate; a classified
+storage failure uses the separate exact non-domain shape selected by
+`DG-RESTERR-04/A`.
 
 <a id="dg-resterr-03"></a>
 
@@ -265,7 +264,7 @@ plus their `DOC-01` schema.
 
 ### DG-RESTERR-04. Storage and unknown failure boundary
 
-**Status:** pending; human decision required.
+**Status:** approved A by the repository owner on 2026-09-14.
 
 **Problem:** Known database failures can disclose raw SQL/database messages,
 masquerade as not-found/success, or escape dispatch as a native throwable. A
@@ -299,13 +298,13 @@ has the smallest public surface and does not make storage classification part of
 the REST contract; B exposes that category; C adds a per-response identifier.
 Logging transport must never change the selected public response.
 Approved `DG-UPDATE-04/A` owns changed/no-op/not-found result semantics, while
-pending `DG-UPDATE-05` owns the metadata success body; this gate only maps a
+approved `DG-UPDATE-05/A` owns the metadata success body; this gate only maps a
 result already classified as failure.
 
-**Blocked tasks:** storage/unknown cases in `REST-03` and `REST-05`, `DOC-01`,
-and failure/hook compatibility coverage in `REL-02`. Production work also waits
-for `DG-SPI-03` and, where applicable, pending `DG-UPDATE-05`; it consumes the
-approved `DG-UPDATE-04/A` outcome taxonomy.
+**Unblocked/refined tasks:** storage/unknown cases in `REST-03` and `REST-05`,
+`DOC-01`, and failure/hook compatibility coverage in `REL-02` now consume this
+decision together with approved `DG-SPI-03`, `DG-UPDATE-04/A` and, where
+applicable, `DG-UPDATE-05/A`.
 
 ## Coordination and approval sequence
 
@@ -313,11 +312,10 @@ approved `DG-UPDATE-04/A` outcome taxonomy.
    statuses. REST-00A does not redefine them.
 2. Resolve `DG-SPI-03` before implementing storage-failure mapping. A numeric
    code-`300` catch-all is not an adequate substitute.
-3. Consume approved `DG-UPDATE-04/A` for mutation `false`/not-found outcomes,
-   and resolve `DG-UPDATE-05` before changing meta success/no-op response bodies.
-4. Consume approved `DG-RESTERR-03/A`, approve the remaining `DG-RESTERR-01`,
-   `DG-RESTERR-02` and `DG-RESTERR-04`, then make `REST-03`/`04`/`05` tests fail
-   against the chosen exact statuses and bodies before handler work.
+3. Consume approved `DG-UPDATE-04/A` for mutation `false`/not-found outcomes and
+   approved `DG-UPDATE-05/A` for meta success/no-op response bodies.
+4. Consume approved `DG-RESTERR-01—04/A`, then make `REST-03`/`04`/`05` tests
+   fail against the chosen exact statuses and bodies before handler work.
 
 No item in this sequence changes the already approved independence of domain
 code and HTTP status, atomicity requirement, or backward-compatible default v1

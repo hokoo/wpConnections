@@ -149,10 +149,11 @@ whether SQL tables exist at all. The approved DG-NAME-02/A flow is:
    adapter that deliberately reuses the concrete `WPStorage` table lifecycle is
    covered by the same concrete preflight and later REL-02 conformance.
 
-This sequencing does not change the public storage-factory filter signature,
-approve pending DG-SPI-05, or alter approved DG-SPI-07. CORE-06 places the
-second phase in private `WPStorage` helpers; no new portable Storage capability
-is introduced.
+This sequencing does not change the public storage-factory filter signature or
+alter approved DG-SPI-07. DG-SPI-05/A was subsequently approved for v1 and
+preserves that class-string signature; the dedicated factory interface remains
+the recorded next-major target. CORE-06 places the second phase in private
+`WPStorage` helpers; no new portable Storage capability is introduced.
 
 ## Database identifier budget
 
