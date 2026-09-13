@@ -171,10 +171,12 @@ the current Client's PSR logger at error level with message
 `wpConnections REST request failed.` and context key `exception`. A logger
 failure is swallowed so diagnostics can never alter the public response.
 
-The final route boundary catches `Throwable` only around the selected handler.
-It restores temporary callback attributes before mapping the failure. It does
-not normalize failures raised by WordPress route matching, argument validation,
-or permission callbacks.
+The final route boundary catches `Throwable` around both the selected permission
+callback and handler. It restores temporary callback attributes before mapping
+the failure. A thrown permission failure uses the same generic 500/logging
+contract and never invokes the handler. This does not normalize WordPress route
+matching or argument validation failures, or ordinary permission callbacks that
+return a boolean or `WP_Error`.
 
 ## WordPress-native gateway errors
 
@@ -194,13 +196,23 @@ representation rule.
 
 - Validation, invariant, not-found, storage, and unknown failures never use a
   success wrapper.
-- A rejected create or update leaves persisted state unchanged and emits no
-  success hook.
-- A failed delete leaves the connection and its metadata unchanged and emits
-  no delete-success hook.
+- A request rejected before commit leaves persisted state unchanged and emits
+  no success hook. This includes validation/invariant rejection and a storage
+  failure rolled back by the atomic boundary.
+- A pre-commit delete failure leaves the connection and its metadata unchanged
+  and emits no delete-success hook.
 - A missing update target is 404, never `{ "updated": false }`.
 - A missing delete target is 404, never `{ "deleted": true }`.
 - Storage read failure is 500, never an empty list or not-found result.
+
+There is one important commit-boundary exception. Under approved
+`DG-SPI-06R2/A`, success notifications run only after a durable commit. If a
+consumer success-hook callback then throws, REST returns the same generic 500
+because no success payload can be completed, but the mutation remains committed
+and the throwing success hook has already run. This applies to connection create
+and delete flows that emit commit-aware notifications. A consumer must not infer
+rollback from that 500 or blindly retry a non-idempotent operation; it must read
+current state using the resource identity and operation semantics.
 
 These REST assertions consume the atomicity and commit-aware hook guarantees
 owned by `DB-05`, `DG-SPI-03/A`, and `DG-SPI-06/A`; they do not redefine the

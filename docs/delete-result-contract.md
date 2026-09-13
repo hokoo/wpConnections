@@ -16,8 +16,10 @@ DB-03B-A/DB-03B-B change production code. The six `DG-DELETE-*` sections record
 the delete decision gates. DG-DELETE-01 and DG-DELETE-04 were refined after an
 owner-requested reread of `Relation::detachConnections()` and its introduction
 history: the branch order is a deterministic compatibility rule, not an
-inherently ambiguous query. Recommendations for the two remaining pending gates
-do not authorize REST, hook, or recovery changes.
+inherently ambiguous query. All six delete gates are now approved. Their
+decision text does not implicitly authorize downstream implementation:
+REST-03 consumes DG-DELETE-05/A, while DB-04-I remains gated on the technical
+repair refinements required by DG-DELETE-06/A.
 
 ## DB-03B-A/DB-03B-B implementation status
 
@@ -80,17 +82,18 @@ storage implementer SPI:
   because it shares result/failure problems, but its value semantics and route
   contract remain DB-02/REST-05 work.
 - Automatic `deleted_post` behavior remains DB-04 implementation scope. DB-03A
-  records its current boundary and exposes the unresolved failure policy in
-  `DG-DELETE-06`.
+  records its current boundary and the approved failure/recovery policy in
+  `DG-DELETE-06/A`; the durable mechanism remains unresolved until DB-04-D
+  refinement gates are approved.
 
-Generic adapter failures and transaction capability remain owned by pending
+Generic adapter failures and transaction capability are governed by approved
 [`DG-SPI-03`](./storage-spi-contract.md#dg-spi-03--non-update-result-and-failure-protocol),
 and
 [`DG-SPI-04`](./storage-spi-contract.md#dg-spi-04--transaction-capability-and-orchestration-shape).
 Commit-aware hook meaning is owned by approved
 [`DG-SPI-06/A`](./storage-spi-contract.md#dg-spi-06--mutation-hook-meaning-across-commitrollback).
-This artifact refines their delete scenarios without selecting pending SPI
-options.
+This artifact applies those approved SPI contracts to delete scenarios without
+expanding their scope.
 Approved DG-M7/A already requires an atomic connection-plus-metadata outcome or
 an explicit capability error before mutation.
 

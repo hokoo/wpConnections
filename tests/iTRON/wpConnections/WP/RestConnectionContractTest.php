@@ -712,6 +712,103 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 		$this->assert_internal_error( $response );
 	}
 
+	public function test_create_post_commit_hook_failure_keeps_durable_success(): void
+	{
+		$failure = new RuntimeException( 'private create success-hook failure' );
+		$success_calls = 0;
+		$throw_after_commit = static function () use ( &$success_calls, $failure ): void {
+			$success_calls++;
+			throw $failure;
+		};
+		$logs = [];
+		$logger = static function ( array $record, string $level ) use ( &$logs ): void {
+			if ( 'wpConnections REST request failed.' === ( $record[0] ?? null ) ) {
+				$logs[] = [ 'record' => $record, 'level' => $level ];
+			}
+		};
+		add_action( 'wpConnections/relation/created', $throw_after_commit );
+		add_action( 'logger', $logger, 10, 2 );
+
+		try {
+			$response = $this->dispatch_rest_request(
+				'POST',
+				$this->relation_route( RELATION_0_NAME ),
+				[
+					'from' => $this->page_ids[0],
+					'to'   => $this->post_ids[0],
+					'meta' => [ [ 'key' => 'commit', 'value' => 'durable' ] ],
+				]
+			);
+		} finally {
+			remove_action( 'logger', $logger, 10 );
+			remove_action( 'wpConnections/relation/created', $throw_after_commit );
+		}
+
+		$this->assert_internal_error( $response );
+		self::assertStringNotContainsString( $failure->getMessage(), wp_json_encode( $response->get_data() ) );
+		self::assertSame( 1, $success_calls );
+		self::assertCount( 1, $logs );
+		self::assertSame( 'error', $logs[0]['level'] );
+		self::assertSame( $failure, $logs[0]['record'][1]['exception'] ?? null );
+		$persisted = $this->client->getRelation( RELATION_0_NAME )->findConnections();
+		self::assertCount( 1, $persisted );
+		self::assertSame( [ 'commit' => [ 'durable' ] ], $persisted->first()->meta->toArray() );
+	}
+
+	public function test_delete_post_commit_hook_failure_keeps_durable_success_when_logger_fails(): void
+	{
+		global $wpdb;
+
+		$query = new Connection( $this->page_ids[0], $this->post_ids[0] );
+		$query->meta->fromArray( [ [ 'key' => 'delete', 'value' => 'with parent' ] ] );
+		$connection = $this->client->getRelation( RELATION_0_NAME )->createConnection( $query );
+		$failure = new RuntimeException( 'private delete success-hook failure' );
+		$success_calls = 0;
+		$throw_after_commit = static function () use ( &$success_calls, $failure ): void {
+			$success_calls++;
+			throw $failure;
+		};
+		$logs = [];
+		$throwing_logger = static function ( array $record, string $level ) use ( &$logs ): void {
+			if ( 'wpConnections REST request failed.' !== ( $record[0] ?? null ) ) {
+				return;
+			}
+
+			$logs[] = [ 'record' => $record, 'level' => $level ];
+			throw new RuntimeException( 'delete logger transport failed' );
+		};
+		add_action( 'wpConnections/storage/deletedSpecificConnections', $throw_after_commit );
+		add_action( 'logger', $throwing_logger, 10, 2 );
+
+		try {
+			$response = $this->dispatch_rest_request(
+				'DELETE',
+				$this->connection_route( RELATION_0_NAME, $connection->id )
+			);
+		} finally {
+			remove_action( 'logger', $throwing_logger, 10 );
+			remove_action( 'wpConnections/storage/deletedSpecificConnections', $throw_after_commit );
+		}
+
+		$this->assert_internal_error( $response );
+		self::assertStringNotContainsString( $failure->getMessage(), wp_json_encode( $response->get_data() ) );
+		self::assertSame( 1, $success_calls );
+		self::assertCount( 1, $logs );
+		self::assertSame( 'error', $logs[0]['level'] );
+		self::assertSame( $failure, $logs[0]['record'][1]['exception'] ?? null );
+		self::assertTrue( $this->client->getRelation( RELATION_0_NAME )->findConnections()->isEmpty() );
+		$meta_table = $wpdb->prefix . $this->client->getStorage()->get_meta_table();
+		self::assertSame(
+			0,
+			(int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM `{$meta_table}` WHERE `connection_id` = %d",
+					$connection->id
+				)
+			)
+		);
+	}
+
 	private function create_connection( string $relation_name, int $to ): \iTRON\wpConnections\Connection
 	{
 		return $this->client->getRelation( $relation_name )->createConnection(

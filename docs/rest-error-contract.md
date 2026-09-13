@@ -259,8 +259,9 @@ does not choose the required capability; that remains `REST-04`. B breaks
 existing REST clients and WordPress tooling. C is additive but expands the
 representation surface.
 
-**Blocked tasks:** gateway assertions in `REST-03`, `REST-04`, and `REST-05`,
-plus their `DOC-01` schema.
+**Consumers:** `REST-03` now implements the non-meta gateway assertions;
+`REST-04`, `REST-05`, and their downstream `DOC-01` schema consume the same
+approved native-error rule.
 
 <a id="dg-resterr-04"></a>
 

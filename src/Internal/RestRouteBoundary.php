@@ -53,12 +53,16 @@ final class RestRouteBoundary
 
         /** @var ClientRestApi $delegate */
         $delegate = $target['delegate'];
-        $permission = $this->withDelegateAttributes(
-            $request,
-            $delegate,
-            $handler,
-            static fn () => $delegate->checkPermissions($request)
-        );
+        try {
+            $permission = $this->withDelegateAttributes(
+                $request,
+                $delegate,
+                $handler,
+                static fn () => $delegate->checkPermissions($request)
+            );
+        } catch (Throwable $failure) {
+            return RestErrorResponder::fromThrowable($delegate->getClient(), $failure);
+        }
 
         $attributes = $request->get_attributes();
         $attributes[ self::REGISTRATION_TOKEN_ATTRIBUTE ] = $target['token'];
