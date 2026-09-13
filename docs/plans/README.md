@@ -43,9 +43,10 @@
    и closeout PR #90; `master` `9d2f101` и exact merge candidates прошли 19/19
    checks, включая pinned MySQL 8.0.46 и MariaDB 10.11.16. DG-SPI-03/A,
    DG-SPI-04/A и DG-DB-03/A утверждены 2026-09-13. Batch 14 активирован для
-   DB-05; failure-normalization slice завершён локально. DG-SPI-04R/A,
+   DB-05; failure-normalization и root atomic scope slices завершены локально.
+   DG-SPI-04R/A,
    DG-SPI-06R/A и DG-SPI-06R2/A утверждены владельцем 2026-09-13;
-   transaction/hook slices разблокированы.
+   nested transaction/hook slice выполняется.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

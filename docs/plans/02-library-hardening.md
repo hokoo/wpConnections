@@ -1617,7 +1617,7 @@ Execution slices:
    representative delete; затем нормализовать их в одну стабильную domain
    exception category, не меняя valid `false` no-op update, `0` delete/no-match
    или empty read semantics. Failure-path success hooks не испускаются.
-2. `DB-05/F2 — optional atomic capability and root scope` — `in_progress`.
+2. `DB-05/F2 — optional atomic capability and root scope` — `completed`.
    После DG-SPI-04R добавить optional capability и
    domain-owned root unit of work; schema readiness/engine preflight происходит
    до `START TRANSACTION`, rollback охватывает любой `Throwable`, incapable
@@ -1625,7 +1625,7 @@ Execution slices:
    не через transactional `WP_UnitTestCase`, а через отдельный exact-cleanup
    harness, чтобы второй `START TRANSACTION` не закоммитил test fixture.
 3. `DB-05/F3 — nested savepoint and outer-commit coordination` —
-   `todo`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
+   `in_progress`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
    явный nested context, collision-safe savepoints, отсутствие `COMMIT` внешней
    транзакции и утверждённую доставку отложенных success hooks.
 4. `DB-05/F4 — compound domain flows` — `waiting_dependency`. Обернуть create с
@@ -1679,6 +1679,14 @@ Verification so far:
   обязательное условие F2 verification: standalone root tests требуют plain
   PHPUnit lifecycle с точечной cleanup; существующий harness подходит для
   declared nested evidence только после DG-SPI-04R.
+- F2 implementation commit `f2c29a8`: optional `AtomicStorageInterface`,
+  явные `TransactionContext`/`TransactionSynchronizer`, Client-local root
+  orchestration и WPStorage transaction primitive. Focused standalone root
+  evidence: `7 tests / 25 assertions`; проверены preflight до `START`, ровно
+  один `COMMIT`, rollback любого callback `Throwable`, ошибки `START`/`COMMIT`,
+  pre-mutation отказ incapable adapter и запрет cross-client re-entry. PHPCS:
+  `58/58`; единственное сообщение — прежнее ruleset deprecation warning. F2
+  завершён, F3 активирован.
 
 ## E1. Test foundation и regression harness
 
