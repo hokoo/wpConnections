@@ -743,8 +743,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
      */
     public function deleteSpecificConnections($connectionIDs): int
     {
-        global $wpdb;
-
         $this->assertSitePrefix();
 
         do_action('wpConnections/storage/deleteSpecificConnections', $this->getClient(), $connectionIDs);
@@ -753,10 +751,38 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
         $connectionIDs = $this->prepareIDs($connectionIDs);
 
+        if (! $this->getClient()->hasActiveAtomicScope()) {
+            return (int) $this->getClient()->executeAtomicMutation(
+                function () use ($connectionIDs): int {
+                    return $this->deleteSpecificConnectionsPrepared($connectionIDs);
+                }
+            );
+        }
+
+        return $this->deleteSpecificConnectionsPrepared($connectionIDs);
+    }
+
+    /**
+     * @param int[] $connectionIDs
+     */
+    private function deleteSpecificConnectionsPrepared(array $connectionIDs): int
+    {
+        global $wpdb;
+
         // MySQL Query
         $db = $this->fullTableName($this->connections_table);
         $db_meta = $this->fullTableName($this->meta_table);
         $in = $this->idPlaceholders($connectionIDs);
+
+        $lockQuery = $wpdb->prepare(
+            "SELECT `ID` FROM {$db} WHERE `ID` IN ({$in}) FOR UPDATE",
+            ...$connectionIDs
+        );
+        $wpdb->get_results($lockQuery);
+        $lockError = $this->databaseError();
+        if ('' !== $lockError) {
+            throw $this->storageFailure('lock connections for delete', $lockError);
+        }
 
         $query = $wpdb->prepare(
             "DELETE FROM {$db} WHERE `ID` IN ({$in})",
@@ -782,8 +808,22 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             return 0;
         }
 
-        do_action('wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $rowsAffected);
-        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $rowsAffected);
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $connectionIDs, $rowsAffected): void {
+                do_action(
+                    'wpConnections/storage/deletedSpecificConnections',
+                    $client,
+                    $connectionIDs,
+                    $rowsAffected
+                );
+                do_action(
+                    "wpConnections/client/{$client->getName()}/storage/deletedSpecificConnections",
+                    $connectionIDs,
+                    $rowsAffected
+                );
+            }
+        );
 
         return $rowsAffected;
     }
@@ -802,8 +842,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
      */
     public function deleteByObjectID($objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false): int
     {
-        global $wpdb;
-
         if ($this->isStaleDeletedPostContext()) {
             return 0;
         }
@@ -820,6 +858,34 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         }
 
         $objectIDs = $this->prepareIDs($objectIDs);
+
+        if (! $this->getClient()->hasActiveAtomicScope()) {
+            return (int) $this->getClient()->executeAtomicMutation(
+                function () use ($objectIDs, $relation, $onlyFrom, $onlyTo): int {
+                    return $this->deleteByObjectIDPrepared(
+                        $objectIDs,
+                        $relation,
+                        $onlyFrom,
+                        $onlyTo
+                    );
+                }
+            );
+        }
+
+        return $this->deleteByObjectIDPrepared($objectIDs, $relation, $onlyFrom, $onlyTo);
+    }
+
+    /**
+     * @param int[] $objectIDs
+     */
+    private function deleteByObjectIDPrepared(
+        array $objectIDs,
+        string $relation,
+        bool $onlyFrom,
+        bool $onlyTo
+    ): int {
+        global $wpdb;
+
         $in = $this->idPlaceholders($objectIDs);
 
         $where = [];
@@ -845,10 +911,14 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
         // Get ID's
         $query_ids = $wpdb->prepare(
-            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND ({$where_str})",
+            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND ({$where_str}) FOR UPDATE",
             ...$queryArguments
         );
         $result_ids = $wpdb->get_results($query_ids);
+        $selectError = $this->databaseError();
+        if ('' !== $selectError) {
+            throw $this->storageFailure('select connections for delete', $selectError);
+        }
         $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
 
         // Nothing found.
@@ -868,12 +938,30 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             ...$ids
         );
 
-        $wpdb->query($query_meta);
-        $wpdb->query($query);
-        $rowsAffected = (int) $wpdb->rows_affected;
+        if (false === $wpdb->query($query_meta)) {
+            throw $this->storageFailure('delete connection metadata');
+        }
 
-        do_action('wpConnections/storage/deletedByObjectID', $this->getClient(), $ids);
-        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedByObjectID", $ids);
+        $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('delete connections');
+        }
+
+        $rowsAffected = (int) $rowsAffected;
+        if (0 === $rowsAffected) {
+            return 0;
+        }
+
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $ids): void {
+                do_action('wpConnections/storage/deletedByObjectID', $client, $ids);
+                do_action(
+                    "wpConnections/client/{$client->getName()}/storage/deletedByObjectID",
+                    $ids
+                );
+            }
+        );
 
         return $rowsAffected;
     }
@@ -890,8 +978,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
      */
     public function deleteDirectedConnections($from = null, $to = null, string $relation = ''): int
     {
-        global $wpdb;
-
         $this->assertSitePrefix();
 
         do_action('wpConnections/storage/deleteDirectedConnections', $this->getClient(), $from, $to, $relation);
@@ -900,6 +986,21 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
         $from = ConnectionIdNormalizer::one($from);
         $to = ConnectionIdNormalizer::one($to);
+
+        if (! $this->getClient()->hasActiveAtomicScope()) {
+            return (int) $this->getClient()->executeAtomicMutation(
+                function () use ($from, $to, $relation): int {
+                    return $this->deleteDirectedConnectionsPrepared($from, $to, $relation);
+                }
+            );
+        }
+
+        return $this->deleteDirectedConnectionsPrepared($from, $to, $relation);
+    }
+
+    private function deleteDirectedConnectionsPrepared(int $from, int $to, string $relation): int
+    {
+        global $wpdb;
 
         // MySQL Query
         $db = $this->fullTableName($this->connections_table);
@@ -911,10 +1012,14 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
         // Get ID's
         $query_ids = $wpdb->prepare(
-            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND `from` = %d AND `to` = %d",
+            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND `from` = %d AND `to` = %d FOR UPDATE",
             ...$queryArguments
         );
         $result_ids = $wpdb->get_results($query_ids);
+        $selectError = $this->databaseError();
+        if ('' !== $selectError) {
+            throw $this->storageFailure('select connections for delete', $selectError);
+        }
         $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
 
         // Nothing found.
@@ -934,13 +1039,30 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             ...$ids
         );
 
-        // @TODO Transaction
-        $wpdb->query($query_meta);
-        $wpdb->query($query);
-        $rowsAffected = (int) $wpdb->rows_affected;
+        if (false === $wpdb->query($query_meta)) {
+            throw $this->storageFailure('delete connection metadata');
+        }
 
-        do_action('wpConnections/storage/deletedDirectedConnections', $this->getClient(), $ids);
-        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedDirectedConnections", $ids);
+        $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('delete connections');
+        }
+
+        $rowsAffected = (int) $rowsAffected;
+        if (0 === $rowsAffected) {
+            return 0;
+        }
+
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $ids): void {
+                do_action('wpConnections/storage/deletedDirectedConnections', $client, $ids);
+                do_action(
+                    "wpConnections/client/{$client->getName()}/storage/deletedDirectedConnections",
+                    $ids
+                );
+            }
+        );
 
         return $rowsAffected;
     }
@@ -1053,7 +1175,21 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         global $wpdb;
 
         $this->assertSitePrefix();
-        $this->ensureSchemaReadyForInsert();
+        $metaQuery = $connectionQuery->get('meta');
+        /** @var Query\MetaCollection $metaQuery */
+        if (! $metaQuery->isEmpty() && ! $this->getClient()->hasActiveAtomicScope()) {
+            return (int) $this->getClient()->executeAtomicMutation(
+                function () use ($connectionQuery): int {
+                    return $this->createConnection($connectionQuery);
+                },
+                true
+            );
+        }
+
+        if (! $this->getClient()->hasActiveAtomicScope()) {
+            $this->ensureSchemaReadyForInsert();
+        }
+
         $data = [
             'from'      => $connectionQuery->get('from'),
             'to'        => $connectionQuery->get('to'),
@@ -1080,8 +1216,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         }
 
         // Insert meta data.
-        $metaQuery = $connectionQuery->get('meta');
-        /** @var Query\MetaCollection $metaQuery */
         if (! $metaQuery->isEmpty()) {
             $this->addConnectionMeta($connection_id, $metaQuery);
         }
@@ -1135,6 +1269,15 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             throw new Exceptions\ConnectionWrongData("Object ID is empty.");
         }
 
+        if (! $this->getClient()->hasActiveAtomicScope()) {
+            $this->getClient()->executeAtomicMutation(
+                function () use ($objectID, $metaCollection): void {
+                    $this->addConnectionMeta($objectID, $metaCollection);
+                }
+            );
+            return;
+        }
+
         do_action('wpConnections/storage/addConnectionMeta/before', $this->getClient(), $objectID, $metaCollection);
         $this->assertSitePrefix();
 
@@ -1152,7 +1295,18 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             }
         }
 
-        do_action('wpConnections/storage/addConnectionMeta/after', $this->getClient(), $objectID, $metaCollection, []);
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $objectID, $metaCollection): void {
+                do_action(
+                    'wpConnections/storage/addConnectionMeta/after',
+                    $client,
+                    $objectID,
+                    $metaCollection,
+                    []
+                );
+            }
+        );
     }
 
     /**
@@ -1205,7 +1359,19 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             throw $this->storageFailure('remove connection metadata');
         }
 
-        do_action('wpConnections/storage/removeConnectionMeta/after', $this->getClient(), $objectID, $metaQuery, $query, $rowsAffected);
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $objectID, $metaQuery, $query, $rowsAffected): void {
+                do_action(
+                    'wpConnections/storage/removeConnectionMeta/after',
+                    $client,
+                    $objectID,
+                    $metaQuery,
+                    $query,
+                    $rowsAffected
+                );
+            }
+        );
 
         return $rowsAffected;
     }

@@ -19,8 +19,6 @@ class Relation extends Abstracts\Relation
     }
 
     /**
-     * @TODO Apply transactions.
-     *
      * Creates new connect
      *
      * @param Query\Connection $connectionQuery
@@ -78,15 +76,27 @@ class Relation extends Abstracts\Relation
         $this->assertPersistableOrder($connectionQuery);
         PersistableMetadataValidator::assertValid($connectionQuery->meta);
 
-        $connectionId = $this->getClient()->getStorage()->createConnection($connectionQuery);
-        $connectionQuery->set('id', $connectionId);
+        $client = $this->getClient();
+        $create = function () use ($client, $connectionQuery): Connection {
+            $connectionId = $client->getStorage()->createConnection($connectionQuery);
+            $connectionQuery->set('id', $connectionId);
 
-        $connection = new Connection($connectionQuery);
-        $connection->setClient($this->getClient());
+            $connection = new Connection($connectionQuery);
+            $connection->setClient($client);
+            $client->deferSuccessNotification(
+                static function () use ($connection): void {
+                    do_action('wpConnections/relation/created', $connection);
+                }
+            );
 
-        do_action('wpConnections/relation/created', $connection);
+            return $connection;
+        };
 
-        return $connection;
+        if ($connectionQuery->get('meta')->isEmpty()) {
+            return $create();
+        }
+
+        return $client->executeAtomicMutation($create, true);
     }
 
     public function updateConnection(Query\Connection $connectionQuery): bool
@@ -134,23 +144,31 @@ class Relation extends Abstracts\Relation
         if ($connectionQuery->isProvided('id')) {
             $connectionID = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('id'));
 
-            try {
-                $connection = $this->getClient()->findConnection($connectionID);
-            } catch (ConnectionNotFound $exception) {
-                return 0;
-            }
+            return $this->executeAtomicDelete(
+                function () use ($connectionID): int {
+                    try {
+                        $connection = $this->getClient()->findConnection($connectionID);
+                    } catch (ConnectionNotFound $exception) {
+                        return 0;
+                    }
 
-            if ($this->name !== $connection->relation) {
-                return 0;
-            }
+                    if ($this->name !== $connection->relation) {
+                        return 0;
+                    }
 
-            return $this->getClient()->getStorage()->deleteSpecificConnections($connectionID);
+                    return $this->getClient()->getStorage()->deleteSpecificConnections($connectionID);
+                }
+            );
         }
 
         // Detach any connection with $connectionQuery->both as object ID.
         if ($connectionQuery->isProvided('both')) {
             $both = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('both'));
-            return $this->getClient()->getStorage()->deleteByObjectID($both, $this->name);
+            return $this->executeAtomicDelete(
+                function () use ($both): int {
+                    return $this->getClient()->getStorage()->deleteByObjectID($both, $this->name);
+                }
+            );
         }
 
         $fromProvided = $connectionQuery->isProvided('from');
@@ -160,22 +178,52 @@ class Relation extends Abstracts\Relation
         if ($fromProvided && $toProvided) {
             $from = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('from'));
             $to = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('to'));
-            return $this->getClient()->getStorage()->deleteDirectedConnections($from, $to, $this->name);
+            return $this->executeAtomicDelete(
+                function () use ($from, $to): int {
+                    return $this->getClient()->getStorage()->deleteDirectedConnections(
+                        $from,
+                        $to,
+                        $this->name
+                    );
+                }
+            );
         }
 
         // Detach `from` directed connections.
         if ($fromProvided) {
             $from = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('from'));
-            return $this->getClient()->getStorage()->deleteByObjectID($from, $this->name, true);
+            return $this->executeAtomicDelete(
+                function () use ($from): int {
+                    return $this->getClient()->getStorage()->deleteByObjectID(
+                        $from,
+                        $this->name,
+                        true
+                    );
+                }
+            );
         }
 
         // Detach `to` directed connections.
         if ($toProvided) {
             $to = ConnectionIdNormalizer::one($connectionQuery->getProvidedValue('to'));
-            return $this->getClient()->getStorage()->deleteByObjectID($to, $this->name, false, true);
+            return $this->executeAtomicDelete(
+                function () use ($to): int {
+                    return $this->getClient()->getStorage()->deleteByObjectID(
+                        $to,
+                        $this->name,
+                        false,
+                        true
+                    );
+                }
+            );
         }
 
         throw new ConnectionWrongData('A connection delete selector is required.');
+    }
+
+    private function executeAtomicDelete(callable $delete): int
+    {
+        return (int) $this->getClient()->executeAtomicMutation($delete);
     }
 
     /**

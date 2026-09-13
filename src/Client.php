@@ -151,9 +151,13 @@ class Client
      *
      * @return mixed Callback result.
      */
-    public function executeAtomicMutation(callable $operation)
+    public function executeAtomicMutation(callable $operation, bool $schemaRecoveryAllowed = false)
     {
-        return $this->runAtomically($operation);
+        $context = $schemaRecoveryAllowed
+            ? TransactionContext::root()
+            : TransactionContext::strictRoot();
+
+        return $this->runAtomically($operation, $context);
     }
 
     /**

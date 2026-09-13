@@ -32,6 +32,14 @@ final class TransactionContext
         return new self(self::ROOT, null, true);
     }
 
+    /**
+     * @internal Non-create mutations must not trigger lazy schema recovery.
+     */
+    public static function strictRoot(): self
+    {
+        return new self(self::ROOT, null, false);
+    }
+
     public static function nested(TransactionSynchronizer $synchronizer): self
     {
         return new self(self::NESTED, $synchronizer, false);

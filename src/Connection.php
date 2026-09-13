@@ -44,12 +44,19 @@ class Connection extends Abstracts\Connection
         $relation->assertUpdateCandidate($this);
         PersistableMetadataValidator::assertValid($this->meta);
 
-        $this->getClient()->getStorage()->updateConnection($this);
+        $this->getClient()->executeAtomicMutation(
+            function (): void {
+                $this->getClient()->getStorage()->updateConnection($this);
 
-        $this->getClient()->getStorage()->removeConnectionMeta($this->id, new Query\MetaCollection());
-        if (! $this->meta->isEmpty()) {
-            $this->getClient()->getStorage()->addConnectionMeta($this->id, $this->meta);
-        }
+                $this->getClient()->getStorage()->removeConnectionMeta(
+                    $this->id,
+                    new Query\MetaCollection()
+                );
+                if (! $this->meta->isEmpty()) {
+                    $this->getClient()->getStorage()->addConnectionMeta($this->id, $this->meta);
+                }
+            }
+        );
     }
 
     /**

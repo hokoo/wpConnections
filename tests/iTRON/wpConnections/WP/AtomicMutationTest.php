@@ -226,6 +226,10 @@ class AtomicMutationTest extends TestCase
 	public function test_deleted_post_callback_uses_atomic_delete_boundary(): void
 	{
 		$connection = $this->create_connection( 'deleted-post-failure', 'preserved' );
+		self::assertSame(
+			10,
+			has_action( 'deleted_post', [ $this->client->getStorage(), 'deleteByObjectID' ] )
+		);
 		$deleted_calls = 0;
 		$deleted = static function () use ( &$deleted_calls ): void {
 			$deleted_calls++;
@@ -236,7 +240,7 @@ class AtomicMutationTest extends TestCase
 			$failure = $this->capture_database_failure(
 				"DELETE FROM {$this->connections_table()}",
 				function (): void {
-					do_action( 'deleted_post', $this->post_ids['from'] );
+					wp_delete_post( $this->post_ids['from'], true );
 				}
 			);
 		} finally {
@@ -247,6 +251,38 @@ class AtomicMutationTest extends TestCase
 		self::assertSame( 1, $this->connection_count( $connection->id ) );
 		self::assertSame( 1, $this->meta_count( $connection->id ) );
 		self::assertSame( 0, $deleted_calls );
+	}
+
+	public function test_relation_id_delete_locks_connection_before_metadata_mutation(): void
+	{
+		$connection = $this->create_connection( 'delete-lock', 'value' );
+		$query = new ConnectionQuery();
+		$query->set( 'id', $connection->id );
+		$queries = [];
+		$recorder = static function ( string $sql ) use ( &$queries ): string {
+			$queries[] = trim( $sql );
+			return $sql;
+		};
+		add_filter( 'query', $recorder );
+
+		try {
+			self::assertSame(
+				1,
+				$this->client->getRelation( self::RELATION )->detachConnections( $query )
+			);
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		$lock_index = $this->query_index(
+			$queries,
+			'/^SELECT `ID` FROM .* WHERE `ID` IN \(.+\) FOR UPDATE$/i'
+		);
+		$meta_delete_index = $this->query_index(
+			$queries,
+			'/^DELETE FROM .* WHERE `connection_id` IN \(.+\)$/i'
+		);
+		self::assertLessThan( $meta_delete_index, $lock_index );
 	}
 
 	public function test_create_success_hooks_run_in_order_after_commit(): void
@@ -348,7 +384,9 @@ class AtomicMutationTest extends TestCase
 		global $wpdb;
 
 		$intercepted = false;
-		$query_filter = static function ( string $query ) use ( $query_fragment, &$intercepted ): string {
+		$seen_queries = [];
+		$query_filter = static function ( string $query ) use ( $query_fragment, &$intercepted, &$seen_queries ): string {
+			$seen_queries[] = $query;
 			if ( ! $intercepted && false !== strpos( $query, $query_fragment ) ) {
 				$intercepted = true;
 				return 'SELECT * FROM `wpconnections_batch14_forced_atomic_failure`';
@@ -369,7 +407,10 @@ class AtomicMutationTest extends TestCase
 			$wpdb->suppress_errors( $suppress );
 		}
 
-		self::assertTrue( $intercepted, "Expected to intercept query containing {$query_fragment}." );
+		self::assertTrue(
+			$intercepted,
+			"Expected to intercept query containing {$query_fragment}. Saw:\n" . implode( "\n", $seen_queries )
+		);
 
 		return $failure;
 	}
@@ -430,5 +471,16 @@ class AtomicMutationTest extends TestCase
 		delete_option(
 			'wpconnections_storage_owner_' . hash( 'sha256', str_replace( '-', '_', $client->getName() ) )
 		);
+	}
+
+	private function query_index( array $queries, string $pattern ): int
+	{
+		foreach ( $queries as $index => $query ) {
+			if ( 1 === preg_match( $pattern, $query ) ) {
+				return $index;
+			}
+		}
+
+		self::fail( "No query matched {$pattern}." );
 	}
 }
