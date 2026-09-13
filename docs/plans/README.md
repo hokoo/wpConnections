@@ -46,8 +46,13 @@
    DB-05; failure-normalization и root atomic scope slices завершены локально.
    DG-SPI-04R/A,
    DG-SPI-06R/A и DG-SPI-06R2/A утверждены владельцем 2026-09-13;
-   nested transaction/hook и compound domain flow slices завершены локально;
-   cross-database verification/closeout выполняется.
+   nested transaction/hook и compound domain flow slices завершены локально.
+   Три последовательных независимых transaction audits закрыли child-scope,
+   rollback-only и shared-`$wpdb` uncertainty gaps; exact local `36ee004`
+   получил `PASS_WITH_NOTES` без blocking findings. Exact-head remote/pinned DB
+   checks и merge closeout ещё не выполнены. Concurrent aggregate
+   update/delete parent-row race выделен в follow-up DB-02R, а exhaustive
+   selector-read/delete fault matrix остаётся Batch 15 / DB-03B-B.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

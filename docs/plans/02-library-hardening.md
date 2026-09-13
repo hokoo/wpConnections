@@ -41,8 +41,10 @@ MySQL 8.0.46 и MariaDB 10.11.16. DG-SPI-03/A, DG-SPI-04/A и DG-DB-03/A
 утверждены владельцем 2026-09-13. Batch 14 активирован для DB-05. При
 implementation design обнаружены два новых public-contract refinement gates:
 DG-SPI-04R для передачи caller-owned transaction context и DG-SPI-06R для
-commit-aware hooks внутри внешней транзакции; независимая failure-normalization
-часть DB-05 может выполняться до их решения.
+commit-aware hooks внутри внешней транзакции, а implementation discovery добавил
+DG-SPI-06R2 для post-commit hook `Throwable`. Все три утверждены вариантом A
+2026-09-13 и реализованы в локальном candidate; Batch 14 находится на F5
+exact-head remote/pinned-lane closeout.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1711,8 +1713,38 @@ Verification so far:
   exact option cleanup явным и durable. После исправления seed `20260913`:
   unit reverse/random по два раза `38 / 192`, integration reverse/random по два
   раза `524 / 4568`. Combined coverage: `281 / 2378`, statements `1655/1810
-  (91.44%)`; PR gate PASSED, release-candidate threshold READY. Pinned database
-  lanes, independent QA и exact-head CI ещё выполняются.
+  (91.44%)`; PR gate PASSED, release-candidate threshold READY.
+- Первый независимый F5 audit exact `c7b243b` обнаружил два blocking класса:
+  прямой compound-вызов `WPStorage` внутри активного Client scope не создавал
+  child savepoint, а ошибки cleanup transaction-control SQL проверялись не на
+  всех путях. Red-first `ae47a34` зафиксировал шесть воспроизведений
+  (`29 / 161`, шесть failures); green `4eb756b` изолировал compound entrypoints
+  child scopes и сделал `RELEASE`/compensating rollback проверяемыми
+  (`29 / 171`).
+- Повторный audit обнаружил rollback-only gap: если `ROLLBACK TO SAVEPOINT` или
+  root `ROLLBACK` сам завершался ошибкой, consumer мог поймать exception, а
+  ancestor или следующий scope продолжал работу в неопределённой session.
+  Red-first `8dc2834` дал `18 / 101`, две failures; green `55bee4f` ввёл
+  fail-closed transaction taint и ancestor rollback enforcement (`18 / 109`).
+- Третий audit показал, что adapter-local taint недостаточен: разные Clients
+  разделяют одну `$wpdb` session, и второй `START TRANSACTION` мог неявно
+  зафиксировать неопределённую работу первого. Red-first `b95a43a` дал
+  `1 / 4`, одну failure; green `36ee004` перенёс marker в session-level
+  `WeakMap`, блокирует все default-storage Clients до schema/control/DML и
+  очищает marker только после подтверждённого library-owned ancestor rollback.
+- Exact local candidate `36ee004`: `AtomicScopeTest` `19 / 118`, full unit
+  `19 / 96`, full integration `274 / 2370`, PHPCS `58/58`. Seed `20260913`:
+  unit reverse/random по два раза `38 / 192`, integration reverse/random по два
+  раза `548 / 4740`. Combined coverage: `293 / 2464`, statements `1700/1857
+  (91.55%)`; PR gate PASSED, release-candidate threshold READY.
+- Mandatory independent QA exact `36ee004`: `PASS_WITH_NOTES`, blocking
+  findings отсутствуют. Зафиксированные residuals: после неподтверждённого
+  consumer-owned/root rollback нет публичного in-request reset; capable custom
+  adapters должны координировать shared-session uncertainty в REL-02;
+  aggregate update/delete race вынесен в DB-02R; exhaustive selector-read
+  failure normalization остаётся DB-03B-B. Удалённый remote candidate
+  `c7b243b` ранее прошёл 19/19 checks, но exact-head/pinned-lane CI для текущего
+  локального `36ee004` ещё не запускался.
 
 ## E1. Test foundation и regression harness
 
@@ -3381,6 +3413,76 @@ Notes/Risks:
 - Green, independent QA и post-merge evidence совпадает с Batch 11 evidence
   выше; все DoD/AC выполнены.
 
+### DB-02R. Закрыть concurrent delete/update parent-row race
+
+Status: waiting_dependency
+
+Priority: P1
+
+Goal: aggregate `Connection::update()` сериализуется с удалением той же
+connection и ни при одном допустимом порядке не создаёт metadata без parent
+connection row.
+
+Scope:
+
+- Повторная authoritative existence/ownership проверка exact connection ID
+  внутри atomic boundary default adapter.
+- Row lock либо эквивалентная adapter guarantee до scalar update и полной
+  metadata replacement sequence.
+- Двухсессионный integration regression для обоих сериализуемых исходов:
+  update завершается до delete либо update получает утверждённый not-found;
+  orphan metadata запрещена в обоих случаях.
+- REL-02 conformance wording для capable custom adapters, разделяющее
+  обязательный invariant и конкретный SQL locking mechanism `WPStorage`.
+
+Out of Scope:
+
+- Добавление foreign key и schema migration.
+- Изменение public `Connection::update(): void` или approved
+  changed/no-op/not-found semantics DG-UPDATE-04/A.
+- Глобальная смена transaction isolation.
+- Direct consumer writes через `Client::getStorage()`, которые остаются legacy
+  unsupported mutation flow по DG-M9/A.
+
+DoR:
+
+- DB-05 завершена и reusable atomic boundary доступна.
+- REL-02 согласовал conformance fixture для capable custom adapters.
+
+DoD:
+
+- Exact parent row проверяется/блокируется в той же transaction, что scalar и
+  metadata writes.
+- Missing target не выдаётся за valid unchanged-row no-op.
+- Детерминированный concurrency test доказывает отсутствие orphan metadata на
+  MySQL и MariaDB blocking lanes.
+
+AC:
+
+- Given target удалён до получения update lock, when aggregate update
+  продолжает выполнение, then он завершается утверждённой not-found exception
+  до metadata insert.
+- Given update первым удерживает target lock, when конкурентный delete ждёт и
+  затем продолжается, then конечное состояние соответствует последовательному
+  update-then-delete и metadata удалена вместе с connection.
+- Given target существует и scalar values не изменились, when меняется только
+  metadata, then valid no-op scalar result не превращается в not-found.
+
+Dependencies:
+
+- DB-02, DB-05, REL-02.
+- DG-M7/A, DG-M9/A, DG-UPDATE-04/A, DG-SPI-03/A, DG-SPI-04/A.
+
+Notes/Risks:
+
+- Batch 14 audit обнаружил этот residual после закрытия rollback integrity. Он
+  не блокирует DB-05: тот гарантирует rollback внутренних partial failures, а
+  DB-02R отдельно гарантирует сериализацию с конкурентным владельцем parent
+  row.
+- Если реализация потребует нового публичного capability method вместо
+  conformance внутри уже approved atomic capability, до production change будет
+  открыт отдельный decision gate.
+
 ### DB-03A. Зафиксировать delete result и failure contract
 
 Status: completed
@@ -3678,14 +3780,16 @@ Dependencies:
 Notes/Risks:
 
 - Таблицы и engine должны реально поддерживать выбранную transaction semantics.
-- `RELEASE SAVEPOINT` не является commit внешней транзакции; поэтому nested
-  success-hook timing нельзя реализовать до DG-SPI-06R.
+- `RELEASE SAVEPOINT` не является commit внешней транзакции; approved
+  DG-SPI-06R/A поэтому передаёт buffered success hooks outer synchronizer и
+  публикует их только после подтверждённого commit.
 - Success hook выполняется после commit; его `Throwable` уже не может быть
-  основанием для rollback и требует решения DG-SPI-06R2.
+  основанием для rollback. Approved DG-SPI-06R2/A сохраняет исходный Throwable
+  при уже durable storage state.
 - `WP_UnitTestCase` сам владеет test transaction; root-scope evidence обязано
   использовать отдельный manual-cleanup harness, иначе второй `START
   TRANSACTION` даст ложный зелёный результат и закоммитит fixture.
-- Client-level transaction scope в рекомендуемом DG-SPI-04R/A ограничен одним
+- Client-level transaction scope в approved DG-SPI-04R/A ограничен одним
   Client; cross-client composition отклоняется до write, пока не появится общий
   session coordinator.
 
@@ -3701,6 +3805,10 @@ Goal: injected failure в любом delete variant не оставляет part
 Scope:
 
 - Fault injection для ID, directed-pair и object-side deletion.
+- Нормализация failure selector `SELECT ... FOR UPDATE`: ошибка чтения не
+  превращается в empty selection/valid `0` ни для одного selector variant.
+- Двухсессионный selector-lock regression: конкурентное изменение membership
+  не меняет уже выбранный delete set между metadata и parent-row cascade.
 - Rollback connection и metadata rows на каждом failure point.
 - Различение SPI failure, invalid input и valid no-match.
 - Attempt/success hook timing относительно atomic commit.
@@ -3721,6 +3829,8 @@ DoD:
 
 - Каждый selector variant имеет fault-injection regression на каждом
   connection/meta boundary.
+- Один детерминированный concurrency regression на обеих blocking DB lanes
+  доказывает serializable selector-to-cascade outcome без unrelated deletion.
 - Исходное состояние полностью восстановлено либо возвращён утверждённый
   attributable failure без partial success.
 - Success-named hooks испускаются только после успешного commit согласно
@@ -3734,6 +3844,10 @@ AC:
   возвращает `0`/success и не вызывает success hook.
 - Given valid selector без matches, then результат отличается от injected
   adapter failure.
+- Given delete удерживает row lock выбранной connection, when вторая database
+  session пытается изменить её endpoint membership, then изменение не может
+  вклиниться между metadata и parent deletion; итог соответствует одному из
+  последовательных порядков и unrelated rows сохранены.
 
 Dependencies:
 
@@ -3746,6 +3860,10 @@ Notes/Risks:
 
 - Выполняется отдельным PR после DB-05; так dependency graph не содержит цикла
   между определением success semantics и reusable atomic implementation.
+- Direct standalone `addConnectionMeta()` не обещает parent-row integrity для
+  legacy consumer writes через `getStorage()` по DG-M9/A. Domain aggregate
+  update race закрывает DB-02R; REL-02 обязан вынести это различие в migration
+  и custom-adapter conformance документацию.
 
 ### DB-06. Защитить schema install и recovery
 

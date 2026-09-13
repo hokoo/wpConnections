@@ -142,11 +142,22 @@ once. A nested library scope uses a collision-safe savepoint and never commits
 the outer transaction. One scope cannot span multiple wpConnections Clients;
 cross-client re-entry is rejected before the second Client writes.
 
+If `WPStorage` cannot confirm a required `ROLLBACK` or `ROLLBACK TO SAVEPOINT`,
+the shared `$wpdb` session is treated as unsafe. Every default-storage Client
+using that session then rejects a new atomic scope before schema checks or DML,
+rather than risk that a later `START TRANSACTION` implicitly commits uncertain
+work. A successful rollback by a library-owned ancestor clears this state. If
+the top-level or consumer-owned rollback itself was not confirmed, there is no
+public in-request reset: finish the request and use a fresh `$wpdb` session.
+Issuing a manual SQL rollback does not clear the library's fail-closed marker.
+
 Custom adapters keep the existing `Abstracts\Storage` surface. They must also
 implement `AtomicStorageInterface` to accept compound domain mutations;
 otherwise those mutations throw `StorageCapabilityUnavailable` before the
-first storage write. Scalar relation updates and creates without metadata do
-not require the optional capability. See the
+first storage write. Adapters that share one backend session between Clients
+must also coordinate rollback uncertainty for that shared session rather than
+tracking it per adapter instance. Scalar relation updates and creates without
+metadata do not require the optional capability. See the
 [storage SPI contract](docs/storage-spi-contract.md) for exact result, failure
 and hook semantics.
 

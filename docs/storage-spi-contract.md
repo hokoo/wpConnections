@@ -52,18 +52,30 @@ implementation boundaries:
   commits a caller-owned outer transaction.
 - Create with metadata, aggregate `Connection::update()` and every relation
   connection-plus-metadata delete are atomic. Direct default-storage compound
-  deletes, including the 1.x `deleted_post` callback, use the same boundary.
+  entrypoints open a child savepoint when a Client scope is already active, so
+  a caught child failure cannot leave partial data in the parent scope. Direct
+  default-storage deletes, including the 1.x `deleted_post` callback, use the
+  same boundary.
 - Delete selector rows are locked before cascade writes. SQL failures are
   distinct from valid no-op/no-match outcomes and retain the database cause in
   the exception chain.
 - Success notifications are FIFO and exactly once after the owning commit, or
   discarded on rollback. A post-commit hook `Throwable` propagates unchanged
   with durable state and no impossible rollback attempt.
+- If rollback or rollback-to-savepoint cannot be confirmed, `WPStorage` marks
+  the shared `$wpdb` session unsafe. Every default-storage Client on that
+  session fails closed before another schema check, transaction-control command
+  or DML. A confirmed rollback by a library-owned ancestor clears the marker;
+  after an unconfirmed top-level or consumer-owned rollback there is no public
+  in-request reset, and a fresh request/database session is required.
 
 Applications using a custom adapter may continue scalar relation updates and
 creates without metadata on the original SPI. Compound domain mutations require
 the optional capability and otherwise throw `StorageCapabilityUnavailable`
-before the first adapter mutation.
+before the first adapter mutation. A capable custom adapter that shares one
+backend transaction session between multiple Client instances must provide
+equivalent session-level nesting and rollback-uncertainty coordination; a
+per-adapter flag is insufficient.
 
 ## Boundary model
 
@@ -189,8 +201,8 @@ without DG-SPI-05 and conformance coverage in REL-02.
 
 ## Transaction capability required by DG-M7
 
-DG-M7/A and DG-M9/A are already approved and impose outcomes, regardless of the
-pending API mechanism:
+DG-M7/A and DG-M9/A impose the following outcomes through the API mechanism now
+approved by DG-SPI-04/A, DG-SPI-04R/A and DG-SPI-06R/A:
 
 - A compound domain mutation is all-or-nothing across connection and metadata
   writes.
@@ -205,9 +217,9 @@ pending API mechanism:
   must not produce a false success notification.
 - Create plus metadata, scalar update plus metadata replacement, and every
   connection-plus-metadata delete variant are compound boundaries.
-- Schema creation/recovery may cause implicit commits on some engines. DB-00
-  must determine supported engine behavior before DB-05 combines retry and data
-  transactions.
+- Schema creation/recovery may cause implicit commits on some engines. Completed
+  DB-00/DB-06 evidence therefore requires readiness and bounded recovery before
+  DB-05 begins any data transaction.
 
 The optional capability shape is approved by DG-SPI-04/A. Its additive domain
 entrypoint, caller-owned nested context and outer-commit hook coordination were
@@ -334,7 +346,8 @@ exceptions rather than `false`, `0` or an empty collection.
 exceptions and may expose defective custom adapters. B cannot satisfy DG-M7.
 C breaks implementers and consumers.
 
-**Blocked/refined tasks:** DB-03A, DB-03B-B, DB-05, REST-00A, REST-03 and REL-02.
+**Affected tasks:** DB-03A and DB-05 consume the approved failure contract;
+DB-03B-B, REST-00A, REST-03 and REL-02 own remaining conformance/mapping work.
 
 ### DG-SPI-04 — transaction capability and orchestration shape
 
@@ -362,8 +375,9 @@ adapters to receive the approved pre-mutation error for compound writes. B is a
 breaking abstract-class expansion. C duplicates domain semantics and expands
 the SPI substantially.
 
-**Blocked/refined tasks:** DB-00 must validate backend feasibility; DB-05 owns
-implementation; REL-02 owns custom-adapter conformance and compatibility.
+**Affected tasks:** completed DB-00 supplies backend feasibility, DB-05
+implements the optional capability, and REL-02 owns remaining custom-adapter
+conformance and compatibility.
 
 <a id="dg-spi-04r"></a>
 ### DG-SPI-04R — propagating caller-owned transaction context
@@ -406,8 +420,8 @@ otherwise the library cannot safely infer session state. Incapable adapters
 fail before mutation as already approved by DG-SPI-04/A. A transaction spanning
 multiple wpConnections Clients is not silently approximated in v1.
 
-**Blocked/refined tasks:** the transaction-orchestration portions of DB-05 and
-REL-02. Stable failure normalization can proceed independently.
+**Affected tasks:** DB-05 implements the approved transaction orchestration;
+REL-02 owns custom-adapter conformance and compatibility documentation.
 
 <a id="dg-spi-06r"></a>
 ### DG-SPI-06R — success hooks inside a caller-owned outer transaction
@@ -444,7 +458,8 @@ that compose mutations inside a transaction the library does not own. B reopens
 the approved hook meaning; C can break observers that rely on successful
 mutation notifications.
 
-**Blocked/refined tasks:** commit-aware hook delivery in DB-05 and REL-02.
+**Affected tasks:** commit-aware hook delivery in DB-05 and custom-adapter
+conformance in REL-02.
 
 <a id="dg-spi-06r2"></a>
 ### DG-SPI-06R2 — exception thrown by a post-commit success hook
@@ -479,8 +494,8 @@ the caller can receive a hook exception even though storage is already durable.
 B can hide failures that currently propagate. C exposes uncommitted state to a
 success observer and reopens DG-SPI-06/A.
 
-**Blocked/refined tasks:** post-commit dispatch and fault tests in DB-05 and
-REL-02.
+**Affected tasks:** DB-05 implements post-commit dispatch and fault tests;
+REL-02 owns custom-adapter conformance.
 
 ### DG-SPI-05 — factory replacement construction and failure contract
 
@@ -531,7 +546,8 @@ future richer lifecycle. It satisfies DG-M7 while minimizing hook-name churn.
 callbacks that relied on attempt-level timing may observe a difference. B
 conflicts with the no-false-success requirement. C expands the public hook API.
 
-**Blocked/refined tasks:** DB-05 and REL-02.
+**Affected tasks:** DB-05 implements commit-aware mutation hooks; REL-02 owns
+remaining custom-adapter conformance.
 
 ### DG-SPI-07 — legacy concrete storage introspection
 
