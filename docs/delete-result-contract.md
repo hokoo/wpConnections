@@ -2,8 +2,9 @@
 
 Status: DG-DELETE-01—DG-DELETE-04 approved by the repository owner on
 2026-09-12; implementation refinement DG-DELETE-04-R2/A approved on
-2026-09-13; DB-03B-A implemented and merged as `2d52f087`; DG-DELETE-05
-and DG-DELETE-06 remain decision-ready and pending.
+2026-09-13; DB-03B-A implemented and merged as `2d52f087`; DB-03B-B is
+implemented on candidate `1568007` and remains in delivery review;
+DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 (the merge of CORE-00 after SPI-01 into `master`, 2026-09-10).
@@ -17,7 +18,7 @@ history: the branch order is a deterministic compatibility rule, not an
 inherently ambiguous query. Recommendations for the two remaining pending gates
 do not authorize REST, hook, or recovery changes.
 
-## DB-03B-A implementation status
+## DB-03B-A/DB-03B-B implementation status
 
 The successful connection-delete contract was implemented by PR #87 and merged
 to `master` as `2d52f087a1417b1fbab164a9606df4fc96906ccf` on
@@ -25,8 +26,9 @@ to `master` as `2d52f087a1417b1fbab164a9606df4fc96906ccf` on
 inventory used to make the decisions; current production behavior is governed
 by the approved matrix and protected regressions.
 
-- Relation-level ID deletion verifies exact relation ownership before invoking
-  the unchanged client-wide direct SPI.
+- DB-03B-A established exact relation ownership for relation-level ID deletion.
+  Batch 15 additionally gives default `WPStorage` one atomic relation-scoped
+  membership-and-lock boundary before the client-wide cascade.
 - Explicit presence selects `id → both → from+to → from → to`; invalid selected
   values throw before SQL and never fall through.
 - Query selectors retain raw constructor, setter and repeated direct-write
@@ -35,13 +37,26 @@ by the approved matrix and protected regressions.
   identity and returns logical connection-row counts after successful cascades.
 - Successful ID, pair, from, to and both-side deletions remove all matching
   metadata; valid no-match remains `0`.
-- DB-05 now keeps relation lookup and client-wide ID deletion inside one atomic
-  boundary and locks the selected parent row before cascade writes. Exhaustive
-  selector/fault/concurrency proof remains assigned to DB-03B-B.
+- DB-05 keeps relation lookup and client-wide ID deletion inside one atomic
+  boundary. Batch 15 removes the remaining default-adapter TOCTOU window with
+  `RelationScopedDeleteStorageInterface`; custom adapters without that optional
+  capability retain a v1 compatibility fallback owned by REL-02.
 
 Exact candidate `9e88eef` received independent QA PASS, 17/17 protected
 checks, combined coverage `237 tests / 2030 assertions` and statement coverage
 `1335/1453 (91.88%)`. Exact merge `2d52f087` passed all 17 post-merge jobs.
+
+DB-03B-B candidate `1568007` adds strict selector-read failure attribution,
+actual-locked-row ID write sets, valid no-match/no-DML behavior, exhaustive
+selector/meta/connection fault injection, delete-specific commit and hook
+timing coverage, and deterministic two-session relation/endpoint race proof.
+Local verification is green: unit `19/96`, integration `337/2988`, pinned
+MariaDB 10.11.16 and MySQL 8.0.46 each `337/2988`, reverse/random isolation,
+PHPCS `59/59`, and combined coverage `356 tests / 3082 assertions` with PR
+statements `1745/1910 (91.36%)`. Independent audits returned PASS and
+PASS_WITH_NOTES without blockers; their failure-hook/custom-adapter notes are
+recorded in the contract docs. Protected and post-merge checks remain delivery
+gates.
 
 ## Ownership and boundaries
 
@@ -268,18 +283,20 @@ DG-DELETE-06; it must not describe a thrown callback error as a post rollback.
 
 ## Hook inventory and conformance refinement
 
-The following are observations, not approval of hook compatibility:
+The following table records observations from the historical source snapshot,
+not the current hardened behavior and not approval of hook compatibility:
 
 | Method | Attempt hooks | Success-named hooks | Early/no-match behavior |
 | --- | --- | --- | --- |
-| `deleteSpecificConnections` | Global hook receives client and raw IDs; client hook receives raw IDs | Global receives client, normalized IDs, final rows; client hook receives normalized IDs and rows | Invalid input: attempts fire, then exception. No match: attempts and success hooks fire with `0` |
+| `deleteSpecificConnections` | Global hook receives client and raw IDs; client hook receives raw IDs | Global receives client, normalized IDs, final rows; client hook receives normalized IDs and rows | At the source snapshot: invalid input fired attempts then exception; no match fired attempts and success hooks with `0` |
 | `deleteByObjectID` | Global receives client, raw IDs, relation, flags; client hook omits client | Both receive resolved connection IDs | Conflicting flags/no match: attempt hooks only |
 | `deleteDirectedConnections` | Global receives client, from, to, relation; client hook omits client | Both receive resolved connection IDs | Empty endpoint/no match: attempt hooks only |
 | `removeConnectionMeta` | Global `before` receives client, ID, selector and SQL | Global `after` receives client, ID, selector, SQL and `int\|false` | Failure is exposed raw to the after hook |
 
 DG-SPI-06/A preserves existing names and argument order and moves
-success-named hooks to after commit. DB-03B-B must capture the current arguments
-before refactoring; REL-02 supplies adapter-neutral hook conformance.
+success-named hooks to after commit. DB-03B-B captures those arguments in the
+test suite; current valid no-match emits attempt hooks only, performs no DML and
+emits no success-named hook. REL-02 supplies adapter-neutral hook conformance.
 DB-03A does not rename hooks, require a SQL payload from custom adapters, or
 choose attempt/commit/rollback notifications.
 

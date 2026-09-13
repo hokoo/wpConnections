@@ -2,7 +2,8 @@
 
 Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
 DG-SPI-04, DG-SPI-04R, DG-SPI-06, DG-SPI-06R, DG-SPI-06R2 and DG-SPI-07
-approved A; their DB-05 boundary is implemented on Batch 14, while DG-SPI-05
+approved A; their DB-05 boundary is implemented on Batch 14 and DB-03B-B delete
+conformance is implemented on Batch 15 candidate `1568007`, while DG-SPI-05
 remains pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
@@ -34,11 +35,11 @@ Primary sources:
 - [`compatibility-inventory.md`](compatibility-inventory.md) records public
   consumer evidence and its limitations.
 
-## Batch 14 implementation status
+## Batch 14–15 implementation status
 
 The source snapshot inventory below remains the historical problem statement.
-Current Batch 14 behavior is governed by the approved gates and these verified
-implementation boundaries:
+Current Batch 14–15 behavior is governed by the approved gates and these
+verified implementation boundaries:
 
 - `AtomicStorageInterface::runAtomically()` is an optional capability; the
   eight methods of `Abstracts\Storage` remain unchanged.
@@ -68,6 +69,24 @@ implementation boundaries:
   or DML. A confirmed rollback by a library-owned ancestor clears the marker;
   after an unconfirmed top-level or consumer-owned rollback there is no public
   in-request reset, and a fresh request/database session is required.
+- Batch 15 makes every delete selector read strict: database failure becomes an
+  attributable `StorageFailure`, while a genuine empty result remains `0` and
+  performs no metadata or parent-row DML. The query result and database error
+  are captured before test/diagnostic observers run, so an observer cannot mask
+  the original storage cause.
+- ID cascades derive their metadata and connection write set only from parent
+  rows actually returned under lock. Partial ID lists therefore affect only
+  existing locked connections, and a metadata-only orphan is not silently
+  cleaned by a no-match connection delete.
+- `RelationScopedDeleteStorageInterface` is an additive optional capability.
+  Default `WPStorage` checks exact `(ID, relation)` membership under `FOR
+  UPDATE` inside the active atomic scope before cascading. Legacy custom
+  adapters retain the compatibility fallback; REL-02 owns its conformance and
+  migration contract.
+- Two-session regressions cover both relation-scoped ID membership changes and
+  endpoint changes after an object selector lock on pinned MySQL 8.0.46 and
+  MariaDB 10.11.16. Attempt/success hooks retain their accepted names and
+  payloads, with success still deferred until the owning commit.
 
 Applications using a custom adapter may continue scalar relation updates and
 creates without metadata on the original SPI. Compound domain mutations require
@@ -76,6 +95,11 @@ before the first adapter mutation. A capable custom adapter that shares one
 backend transaction session between multiple Client instances must provide
 equivalent session-level nesting and rollback-uncertainty coordination; a
 per-adapter flag is insufficient.
+
+The default relation-scoped row lock is already held when legacy delete attempt
+hooks run. A callback that synchronously uses a second database session to
+change the same connection may wait for that lock or time out. REL-02/DOC-01
+must call this out for hook consumers together with the custom-adapter fallback.
 
 ## Boundary model
 
@@ -240,7 +264,7 @@ SPI requirements.
 | Delete by IDs | `wpConnections/storage/deleteSpecificConnections($client, $inputIDs)` and client-scoped variant; `.../deletedSpecificConnections($client, $normalizedIDs, $rows)` and client-scoped variant | Before hook precedes validation. After hook reports connection-delete rows even if meta deletion failed. |
 | Delete by object | `wpConnections/storage/deleteByObjectID($client, $objectIDs, $relation, $onlyFrom, $onlyTo)` and client-scoped variant; `.../deletedByObjectID($client, $resolvedIDs)` and variant | No after hook for invalid flags/no match; no failure distinction. |
 | Directed delete | `wpConnections/storage/deleteDirectedConnections($client, $from, $to, $relation)` and client-scoped variant; `.../deletedDirectedConnections($client, $resolvedIDs)` and variant | No after hook for invalid endpoints/no match; no failure distinction. |
-| Find | `wpConnections/storage/findConnections/dbQuery($sql, $rawRows, $client)`; `.../dbQuery/data($sql, $rawRows, $data, $serializedCollection)` | Only when SQL runs; leaks concrete query/result representation. The trailing origin Client is additive for legacy two-argument listeners and lets the singleton debug observer select the correct logger. |
+| Find | `wpConnections/storage/findConnections/dbQuery($sql, $rawRows, $client)`; `.../dbQuery/data($sql, $rawRows, $data, $serializedCollection)` | Only after a successful SQL read; a failed read throws its attributable `StorageFailure` before either observer hook, so a listener cannot mask the database cause. The hooks leak concrete query/result representation. The trailing origin Client is additive for legacy two-argument listeners and lets the singleton debug observer select the correct logger. |
 | Add meta | `wpConnections/storage/addConnectionMeta/before($client, $id, $collection)`; `.../after($client, $id, $collection, $errors)` | `after` fires before collected errors are thrown and can follow partial insertion. |
 | Remove meta | `wpConnections/storage/removeConnectionMeta/before($client, $id, $query, $sql)`; `.../after($client, $id, $query, $sql, $rowsOrFalse)` | Exposes SQL and reports raw failure value. |
 | Post cascade | WordPress `deleted_post` invokes the adapter's `deleteByObjectID` directly | Bypasses a relation domain object; client isolation comes from the selected adapter/table. |

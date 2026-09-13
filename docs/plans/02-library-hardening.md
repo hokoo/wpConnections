@@ -44,7 +44,12 @@ implementation design обнаружены два новых public-contract ref
 DG-SPI-04R для передачи caller-owned transaction context и DG-SPI-06R для
 commit-aware hooks внутри внешней транзакции, а implementation discovery добавил
 DG-SPI-06R2 для post-commit hook `Throwable`. Все три утверждены вариантом A
-2026-09-13 и реализованы. Batch 15 / DB-03B-B готов к исполнению.
+2026-09-13 и реализованы. Batch 15 / DB-03B-B находится в `review`: production
+candidate `1568007` реализует exhaustive delete fault/commit-hook conformance и
+selector locking; exact local suites, обе pinned DB lanes, isolation, coverage,
+PHPCS и два независимых аудита зелёные (`PASS` и `PASS_WITH_NOTES`; notes
+закрыты в contract docs). Protected PR checks и post-merge checks ещё не
+завершены.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1084,7 +1089,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A completed; DB-03B-B todo after DB-05; DB-04 waits DELETE-06 and implementation dependencies |
+| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A completed; DB-03B-B review on candidate `1568007`; DB-04 waits DELETE-06 and implementation dependencies |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | partial: RESTERR-03 approved A 2026-09-11; остальные pending A recommended | REST-03—REST-05 exact wire contract |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
@@ -1755,7 +1760,7 @@ Verification so far:
 
 ### Batch 15. Exhaustive delete fault and lock conformance
 
-Status: ready
+Status: review
 
 Goal: завершить DB-03B-B поверх reusable DB-05 boundary: доказать
 для каждого delete selector, что read/write failure атрибутируется,
@@ -1764,24 +1769,32 @@ partial state не остаётся, success hooks идут только пос�
 
 Task:
 
-- DB-03B-B — `todo`; его полные Scope/DoR/DoD/AC описаны в E3.
+- DB-03B-B — `review`; его полные Scope/DoR/DoD/AC описаны в E3.
 
 Execution slices:
 
-1. `DB-03B-B/F1 — exhaustive red fault matrix` — `todo`. Добавить
-   selector-read, metadata-delete и connection-delete injection для ID,
-   directed-pair, from, to и both variants; зафиксировать expected red
-   failures до production corrections.
+1. `DB-03B-B/F1 — exhaustive red fault matrix` — `completed` в `6f09fd9`.
+   Добавлена матрица selector-read, metadata-delete и connection-delete
+   injection для ID, directed-pair, from, to и both variants. Исходный red run:
+   `47 tests / 360 assertions`, ровно 14 ожидаемых failures.
 2. `DB-03B-B/F2 — delete rollback and commit hooks` —
-   `waiting_dependency` от F1. Исправить только воспроизведённые gaps,
-   сохранив valid `0`, exact affected counts и post-commit hook ordering.
+   `completed` в `308cdc2` и `9056033`. Selector reads fail closed; ID cascade
+   строит write set только из реально найденных locked rows; valid no-match не
+   выполняет DML; exact counts, rollback, commit и hook timing покрыты.
 3. `DB-03B-B/F3 — two-session selector locking` —
-   `waiting_dependency` от F2. Доказать на MySQL/MariaDB, что
-   concurrent endpoint membership change не вклинивается между
-   selector lock и cascade.
+   `completed` в `fe89e17` и `a31dd3b`. Additive optional
+   `RelationScopedDeleteStorageInterface` даёт default `WPStorage` один
+   relation-aware `FOR UPDATE` boundary; two-session regression фиксирует
+   relation/endpoint race. Custom-adapter fallback остаётся REL-02.
 4. `DB-03B-B/F4 — verification and independent QA` —
-   `waiting_dependency` от F1–F3. Прогнать focused/full/isolation/coverage,
-   PHPCS, обе pinned DB lanes и independent epic QA.
+   `review` на `1568007`. Исправления по первому QA добавили proof, что observer
+   не может замаскировать исходную DB error, PROCESSLIST handshake для
+   relation-ID race и отдельную endpoint race для from-selector. Локально
+   зелёные unit `19/96`, integration `337/2988`, MariaDB 10.11.16 и MySQL
+   8.0.46 по `337/2988`, reverse/random isolation и PHPCS `59/59`; combined
+   coverage `356 tests / 3082 assertions`, PR statements `1745/1910 (91.36%)`.
+   Независимые аудиты дали PASS и PASS_WITH_NOTES без блокеров; обе notes
+   закрыты явным failure-hook и custom-adapter migration contract. CI ожидается.
 
 Exit criteria:
 
@@ -3839,7 +3852,7 @@ Notes/Risks:
 
 ### DB-03B-B. Проверить delete failure и commit-hook conformance
 
-Status: todo
+Status: review
 
 Priority: P0
 
@@ -3904,6 +3917,17 @@ Notes/Risks:
 
 - Выполняется отдельным PR после DB-05; так dependency graph не содержит цикла
   между определением success semantics и reusable atomic implementation.
+- Candidate `1568007` выполняет production и test scope. Помимо полной fault
+  matrix, он проверяет valid no-match/no-DML, partial ID write set, commit
+  failure, произвольный `Throwable`, outer rollback и post-commit hook failure.
+  Relation-specific ID lock реализован optional capability без изменения
+  восьми методов legacy SPI; default `WPStorage` сериализует membership check и
+  cascade, а legacy custom adapters временно используют compatibility fallback.
+- Локальная проверка candidate: unit `19/96`, integration `337/2988`, обе pinned
+  DB lanes `337/2988`, reverse/random isolation, PHPCS `59/59`, coverage
+  `1745/1910 (91.36%)`; independent audits PASS и PASS_WITH_NOTES без
+  блокеров, notes отражены в contract docs. Статус остаётся `review` до 19/19
+  protected и post-merge checks.
 - Direct standalone `addConnectionMeta()` не обещает parent-row integrity для
   legacy consumer writes через `getStorage()` по DG-M9/A. Domain aggregate
   update race закрывает DB-02R; REL-02 обязан вынести это различие в migration
