@@ -132,9 +132,9 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
     private string $postfix;
     private string $site_prefix;
     private int $transactionDepth = 0;
-    private ?\Throwable $transactionTaint = null;
 
     private static int $savepointSequence = 0;
+    private static ?\WeakMap $transactionTaints = null;
 
     /**
      * @param Client $client wpConnections Client
@@ -173,11 +173,12 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         global $wpdb;
 
         $this->assertSitePrefix();
-        if (null !== $this->transactionTaint) {
+        $transactionTaint = $this->getTransactionTaint();
+        if (null !== $transactionTaint) {
             throw $this->storageFailure(
                 'transaction state is uncertain',
                 '',
-                $this->transactionTaint
+                $transactionTaint
             );
         }
 
@@ -210,14 +211,15 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             $result = $operation();
         } catch (\Throwable $exception) {
             $this->transactionDepth--;
-            $failure = $this->transactionTaint ?? $exception;
+            $failure = $this->getTransactionTaint() ?? $exception;
             $this->rollBackAtomicScope($context, $savepoint, $failure);
             throw $failure;
         }
 
         $this->transactionDepth--;
-        if (null !== $this->transactionTaint) {
-            $failure = $this->transactionTaint;
+        $transactionTaint = $this->getTransactionTaint();
+        if (null !== $transactionTaint) {
+            $failure = $transactionTaint;
             $this->rollBackAtomicScope($context, $savepoint, $failure);
             throw $failure;
         }
@@ -237,7 +239,7 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
                         '',
                         $completionFailure
                     );
-                    $this->transactionTaint = $rollbackFailure;
+                    $this->setTransactionTaint($rollbackFailure);
                     throw $rollbackFailure;
                 }
 
@@ -250,7 +252,7 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
                     '',
                     $completionFailure
                 );
-                $this->transactionTaint = $rollbackFailure;
+                $this->setTransactionTaint($rollbackFailure);
                 throw $rollbackFailure;
             }
 
@@ -278,23 +280,54 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         if ($context->isRoot()) {
             if (false === $wpdb->query('ROLLBACK')) {
                 $rollbackFailure = $this->storageFailure('rollback transaction', '', $failure);
-                $this->transactionTaint = $rollbackFailure;
+                $this->setTransactionTaint($rollbackFailure);
                 throw $rollbackFailure;
             }
 
-            $this->transactionTaint = null;
+            $this->clearTransactionTaint();
             return;
         }
 
         if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
             $rollbackFailure = $this->storageFailure('rollback savepoint', '', $failure);
-            $this->transactionTaint = $rollbackFailure;
+            $this->setTransactionTaint($rollbackFailure);
             throw $rollbackFailure;
         }
 
-        $this->transactionTaint = null;
+        $this->clearTransactionTaint();
         if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
             throw $this->storageFailure('release savepoint after rollback', '', $failure);
+        }
+    }
+
+    private function getTransactionTaint(): ?\Throwable
+    {
+        global $wpdb;
+
+        if (null === self::$transactionTaints || ! isset(self::$transactionTaints[$wpdb])) {
+            return null;
+        }
+
+        return self::$transactionTaints[$wpdb];
+    }
+
+    private function setTransactionTaint(\Throwable $failure): void
+    {
+        global $wpdb;
+
+        if (null === self::$transactionTaints) {
+            self::$transactionTaints = new \WeakMap();
+        }
+
+        self::$transactionTaints[$wpdb] = $failure;
+    }
+
+    private function clearTransactionTaint(): void
+    {
+        global $wpdb;
+
+        if (null !== self::$transactionTaints && isset(self::$transactionTaints[$wpdb])) {
+            unset(self::$transactionTaints[$wpdb]);
         }
     }
 
