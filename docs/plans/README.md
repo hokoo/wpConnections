@@ -61,7 +61,11 @@
    PASS и 19/19 protected checks; merge `185bf32` также прошёл 19/19
    post-merge checks. Canonical v1 non-meta CRUD/error contract теперь
    исполняется полным WordPress REST dispatch contour. REST-04 и REST-05
-   разблокированы; DB-04-D выполняется отдельным design-only track Batch 16.
+   разблокированы.
+10. Batch 16 / DB-04-D завершён PR #97. Exact design candidate `54db7fd`
+    получил independent QA PASS и 19/19 protected checks; merge `419e4d9`
+    также прошёл 19/19 post-merge checks. DG-DELETE-06R1/R2/R3 утверждены A;
+    DB-04-I1 готов к отдельному production Batch 17.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -190,19 +194,19 @@ map находятся в
   [delete result/failure contract](../delete-result-contract.md) отделяет
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
-  `deleted_post` recovery. DB-03B-A и DB-03B-B завершены. DB-04 разделён на
-  ready design DB-04-D и gated implementation DB-04-I. REST-03 завершён PR #95:
+  `deleted_post` recovery. DB-03B-A и DB-03B-B завершены. DB-04-D завершена,
+  DB-04-I1 готова как Batch 17, а I2/I3/Q сохраняют свои зависимости. REST-03
+  завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
   contract находится в
   [`rest-connection-contract.md`](../rest-connection-contract.md). REST-04 и
   REST-05 после этого перешли в `todo`.
-- DB-04-D выполняется в `batch16-delete-repair-design`: current call graph,
-  crash windows, pre-armed ledger, retry state machine, operator boundary и
-  executable slices записаны в
+- DB-04-D завершена PR #97: current call graph, crash windows, pre-armed
+  ledger, retry state machine, operator boundary и executable slices записаны в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
-  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A; DB-04-I1 начнётся
-  после independent QA и merge design candidate.
+  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A; DB-04-I1 находится в
+  `todo` как отдельный Batch 17.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.

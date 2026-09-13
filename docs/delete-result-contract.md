@@ -85,7 +85,7 @@ storage implementer SPI:
 - Automatic `deleted_post` behavior remains DB-04 implementation scope. DB-03A
   records its current boundary and the approved failure/recovery policy in
   `DG-DELETE-06/A`; DB-04-D's durable mechanism refinements were approved as
-  A on 2026-09-14 and await verified design closeout before implementation.
+  A on 2026-09-14, and its verified design closeout now makes DB-04-I1 ready.
 
 Generic adapter failures and transaction capability are governed by approved
 [`DG-SPI-03`](./storage-spi-contract.md#dg-spi-03--non-update-result-and-failure-protocol),
@@ -635,8 +635,8 @@ new exceptions to post-deletion callers. C preserves weak behavior but conflicts
 with the release integrity goal.
 
 **Consequences:** DB-04-D refined the approved policy into three technical
-human gates, all approved as A on 2026-09-14. DB-04-I1 starts only after the
-verified design closeout; later slices retain their implementation
+human gates, all approved as A on 2026-09-14. Its verified design closeout is
+complete, so DB-04-I1 is ready; later slices retain their implementation
 dependencies. REL-03 and DOC-01 consume DB-04-I's verified
 recovery/operational contract. DB-05 supplies only the inner connection/meta
 atomic primitive.

@@ -1,16 +1,22 @@
 # Deleted-post cleanup repair contract
 
-Status: approved design for `DB-04-D`; `DG-DELETE-06R1` through
-`DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14.
-This document contains no production repair code; the downstream slices are
-authorized only in their recorded dependency order and against this contract.
+Status: `DB-04-D` completed; `DG-DELETE-06R1` through `DG-DELETE-06R3` were
+approved as A by the repository owner on 2026-09-14. This document contains no
+production repair code; the downstream slices are authorized only in their
+recorded dependency order and against this contract.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
 Approved upstream policy:
 [`DG-DELETE-06/A`](delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery).
 
-Owner tasks: `DB-04-D`, then gated `DB-04-I1` through `DB-04-Q`.
+Delivery evidence: exact design candidate
+`54db7fdd90a581a9f4d587eb121205a6efb5f88b` received independent QA PASS with
+no blocking findings and passed 19/19 protected checks. PR #97 merged as
+`419e4d97d5958d23cc814011c77537d226782bd9`; the exact merge passed 19/19
+post-merge checks.
+
+Owner tasks: completed `DB-04-D`, then `DB-04-I1` through `DB-04-Q`.
 
 ## Purpose
 
@@ -27,8 +33,7 @@ This document converts that policy into three explicit choices:
 2. which store is authoritative for unresolved work;
 3. how work is woken, retried, observed, and manually recovered.
 
-All three choices were explicitly approved. `DB-04-I1` becomes executable only
-after the independently verified DB-04-D design candidate is merged; later
+All three choices were explicitly approved. `DB-04-I1` is executable; later
 slices retain their recorded implementation dependencies.
 
 ## Current runtime and compatibility boundary
@@ -229,9 +234,17 @@ and retention contract as a hard integrity dependency.
 
 ### Approved ledger contract
 
-The physical table is site-local. Its final identifier is owned by DB-04-I1;
-the planned logical mapping is `<site-prefix>post_connections_repair` with one
+The physical table is site-local. DB-04-I1 uses the fixed basename
+`wpconnections_repair`, producing `<site-prefix>wpconnections_repair`, with the
+site-scoped ownership option `wpconnections_repair_schema_owner`. It is one
 library schema/ownership version, not one table per Client.
+
+The initially considered basename `post_connections_repair` is prohibited: it
+is exactly the existing per-Client connections-table name for the valid Client
+name `repair`. The dedicated basename keeps the shared ledger outside both
+`post_connections_<client>` and `post_connections_meta_<client>` namespaces.
+The complete identifier still must pass the 64-character database limit before
+registration or DDL.
 
 Logical fields:
 
@@ -241,7 +254,8 @@ Logical fields:
 | `site_id` | Captured WordPress site/blog ID |
 | `site_prefix` | Captured `$wpdb->prefix` used for context verification |
 | `client_name` | Canonical Client identity |
-| `storage_class` | Diagnostic expected adapter class; never used to instantiate it |
+| `storage_class` | Bounded safe diagnostic label; never used to instantiate an adapter |
+| `storage_fingerprint` | SHA-256 of the complete runtime adapter class name for exact mismatch checks |
 | `operation` | Versioned operation, initially `delete_post_connections:v1` |
 | `post_id` | Positive deleted entity ID |
 | `status` | `armed`, `running`, `retry_wait`, `needs_attention`, or `resolved` |
@@ -260,6 +274,12 @@ string concatenation:
 SHA-256(site ID, site prefix, canonical client name,
         operation version, positive post ID)
 ```
+
+Adapter identity is deliberately not part of `repair_key`: changing or fixing
+an adapter must not create a second logical repair for the same deleted post.
+The full runtime class name is compared through `storage_fingerprint`; only a
+sanitized bounded label is available for diagnostics. This also handles
+anonymous-class names that may contain bytes unsuitable for direct persistence.
 
 The table has a unique `repair_key`, an index on
 `(status, next_attempt_at)`, and an index on `(client_name, status)`. It has no
@@ -385,9 +405,9 @@ Required sequence:
 The consumer must initialize the same canonical Client, factory filters, and
 custom adapter configuration in each request that may run repairs. The runner
 uses only Clients already registered for the current site. A missing Client
-leaves work pending; a different adapter class than the diagnostic class stored
-at arm time fails closed before mutation and moves the record to an observable
-attention state.
+leaves work pending; a runtime adapter fingerprint different from the one
+stored at arm time fails closed before mutation and moves the record to an
+observable attention state.
 
 The library does not automatically call `switch_to_blog()` to scan a network.
 WP-Cron and WP-CLI execution are site-by-site. For multisite, a system operator
@@ -448,10 +468,11 @@ starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
-Status: `waiting_dependency` on DB-04-D verified closeout.
+Status: `todo`; approved and ready for an isolated production batch.
 
-Scope: shared site table, ownership/version preflight, repository, deterministic
-arm/upsert, conditional lease claim, status transitions, and retention queries.
+Scope: shared site table `<site-prefix>wpconnections_repair`, site-scoped
+ownership/version preflight, repository, deterministic arm/upsert, conditional
+lease claim, status transitions, and retention queries.
 
 Out of scope: WordPress callback migration, scheduler activation, REST/admin UI,
 and destructive automatic uninstall.
@@ -548,7 +569,7 @@ DoD:
 
 - Same Client name and numeric post ID on two real multisite blogs.
 - Active, inactive, and restored site context.
-- Missing fresh Client and adapter-class mismatch.
+- Missing fresh Client and adapter-fingerprint mismatch.
 - Default storage; custom atomic adapter success/failure/no-match; custom
   non-atomic adapter capability failure with zero writes.
 
