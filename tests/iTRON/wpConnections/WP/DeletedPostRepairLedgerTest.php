@@ -481,6 +481,20 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertNull( $resolved_claim->getLease() );
 	}
 
+	public function test_success_without_a_recorded_failure_cannot_be_marked_resolved(): void
+	{
+		$identity = $this->identity( 'ledger-client-a', 132 );
+		$lease = $this->arm( $identity, new DeletedPostRepairLedgerStorageA(), '+5 minutes' );
+
+		self::assertFalse( $this->ledger->markResolved( $lease, $this->instantAt( '+1 minute' ) ) );
+		$record = $this->record( $identity );
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $record->getStatus() );
+		self::assertSame( 0, $record->getFailureCount() );
+		self::assertNull( $record->getResolvedAt() );
+		self::assertTrue( $this->ledger->deleteTransientSuccess( $lease ) );
+		self::assertNull( $this->record_or_null( $identity ) );
+	}
+
 	public function test_failure_and_wakeup_diagnostics_are_bounded_safe_and_do_not_change_identity(): void
 	{
 		$identity = $this->identity( 'ledger-client-a', 113 );
@@ -764,6 +778,39 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertTrue( $intercepted, 'The malformed ledger SELECT was not injected.' );
 		self::assertInstanceOf( StorageFailure::class, $failure );
 		self::assertStringContainsString( 'repair', strtolower( $failure->getOperation() ) );
+	}
+
+	/**
+	 * @dataProvider malformed_persisted_state_provider
+	 */
+	public function test_malformed_persisted_state_fails_closed( array $mutation ): void
+	{
+		global $wpdb;
+
+		$identity = $this->identity( 'ledger-client-a', 133 );
+		$this->arm( $identity, new DeletedPostRepairLedgerStorageA(), '+10 minutes' );
+		self::assertNotFalse(
+			$wpdb->update(
+				$this->table,
+				$mutation,
+				[ 'repair_key' => $identity->getKey() ]
+			)
+		);
+
+		$failure = $this->capture_failure(
+			fn() => $this->ledger->findForClient( 'ledger-client-a', $identity->getKey() )
+		);
+
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertStringContainsString( 'repair', strtolower( $failure->getOperation() ) );
+	}
+
+	public function malformed_persisted_state_provider(): array
+	{
+		return [
+			'running row without a lease token' => [ [ 'lease_token' => null ] ],
+			'partial failure diagnostic'        => [ [ 'failure_class' => StorageFailure::class ] ],
+		];
 	}
 
 	public function test_mutation_does_not_attempt_ddl_after_ledger_table_is_removed(): void

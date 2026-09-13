@@ -267,6 +267,45 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		self::assertArrayNotHasKey( 'storage_fingerprint', $this->table_columns( $this->table ) );
 	}
 
+	public function test_schema_introspection_error_is_not_treated_as_a_missing_table(): void
+	{
+		global $wpdb;
+
+		( new DeletedPostRepairLedger() )->ensureReady();
+		$failure = null;
+		$intercepted = false;
+		$break_introspection = function ( string $query ) use ( &$intercepted ): string {
+			if (
+				! $intercepted
+				&& 1 === preg_match( '/^\s*SHOW\s+COLUMNS\s+FROM\b/i', $query )
+				&& false !== strpos( $query, $this->table )
+			) {
+				$intercepted = true;
+				return 'SELECT `missing_repair_schema_probe_column` FROM `missing_repair_schema_probe_table`';
+			}
+
+			return $query;
+		};
+		$queries = $this->record_queries(
+			function () use ( &$failure, $break_introspection ): void {
+				add_filter( 'query', $break_introspection, 9 );
+				try {
+					( new DeletedPostRepairLedger() )->ensureReady();
+				} catch ( Throwable $exception ) {
+					$failure = $exception;
+				} finally {
+					remove_filter( 'query', $break_introspection, 9 );
+				}
+			}
+		);
+
+		self::assertTrue( $intercepted, 'The schema-introspection fault was not injected.' );
+		$this->assert_failure( $failure, 'schema' );
+		self::assertSame( [], $this->ddl_queries( $queries ) );
+		self::assertTrue( $this->table_exists( $this->table ) );
+		self::assertSame( $this->expected_ownership(), get_option( self::OWNERSHIP_OPTION ) );
+	}
+
 	/**
 	 * @dataProvider incompatible_index_provider
 	 */
@@ -422,6 +461,37 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		$this->assert_failure( $failure, '64' );
 		self::assertSame( [], $this->ddl_queries( $queries ) );
 		self::assertFalse( get_option( self::OWNERSHIP_OPTION, false ) );
+	}
+
+	public function test_unsafe_table_prefix_fails_before_ownership_or_ddl(): void
+	{
+		global $wpdb;
+
+		$original_prefix = $wpdb->prefix;
+		$unsafe_table = 'unsafe-prefix_' . self::TABLE_KEY;
+		$failure = null;
+		try {
+			$wpdb->prefix = 'unsafe-prefix_';
+			$ledger = new DeletedPostRepairLedger();
+			$queries = $this->record_queries(
+				static function () use ( $ledger, &$failure ): void {
+					try {
+						$ledger->ensureReady();
+					} catch ( Throwable $exception ) {
+						$failure = $exception;
+					}
+				}
+			);
+		} finally {
+			$wpdb->query( "DROP TABLE IF EXISTS `{$unsafe_table}`" );
+			delete_option( self::OWNERSHIP_OPTION );
+			unset( $wpdb->{self::TABLE_KEY} );
+			$wpdb->tables = $this->wpdb_tables_before_test;
+			$wpdb->prefix = $original_prefix;
+		}
+
+		$this->assert_failure( $failure, 'identifier' );
+		self::assertSame( [], $this->ledger_access_queries( $queries ) );
 	}
 
 	private function expected_ownership(): array
