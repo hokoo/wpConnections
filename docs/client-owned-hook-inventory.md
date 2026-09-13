@@ -269,7 +269,7 @@ release snapshot and keep the direct-`remove_action()` warning prominent.
 
 | Current responsibility | Owner task | Gate/dependencies | Compatibility boundary |
 | --- | --- | --- | --- |
-| `deleted_post` delivery | HOOK-03 | HOOK-01, DB-04, DG-DELETE-06 | 2.0 changes callback identity; semantic enable/disable remains the migration API and exposes its handle to final Client lifecycle |
+| `deleted_post` delivery | HOOK-03 / DB-04-I3 | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1/A; DB-04-Q follows | 2.0 changes callback identity; semantic enable/disable remains the migration API and exposes its handle to final Client lifecycle |
 | REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, REST-01, DG-HOOK-REST-01—DG-HOOK-REST-05, DG-RESTERR-03; REL-02 hand-off | Preserve v1 request URLs/methods and factory-selected handler delegates; define duplicate ownership, late initialization, unavailable dispatch/route-index visibility and a revocable Client mapping before final lifecycle integration |
 | Automatic debug routing | LOG-HOOK-01 | DG-HOOK-LOG-01, DG-SPI-06; REL-02 hand-off | Preserve event names, existing argument order and priority-10 logging; add a trailing origin Client to the query event and document the custom Storage obligation instead of retaining duplicate/wrong-client logging |
 | Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | Final 2.0 lifecycle surface; failed/disposed Client must be unreachable from hooks and routes |
