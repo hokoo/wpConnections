@@ -1832,8 +1832,8 @@ Goal: активировать утверждённый 2026-09-14 public bounda
 
 Tasks:
 
-- REST-03 — `in_progress`; decision activation, red matrix, production mapping
-  и canonical contract выполнены локально, verification/merge ещё впереди.
+- REST-03 — `completed`; exact candidate `56d5e1c` получил independent QA PASS
+  и 19/19 protected checks, PR #95 влит как `185bf32`, post-merge — 19/19.
 - DB-04-D — `todo`; recovery policy утверждена, mechanism требует отдельного
   human approval.
 - DB-04-I — `waiting_dependency`; production запрещён до завершения DB-04-D и
@@ -1853,10 +1853,11 @@ Execution slices:
 4. `B16/D2 — DB-04-D repair decision packet` — `todo` в отдельной branch/PR
    после фиксации D1: только source/runtime audit, alternatives и новые human
    gates; никакой production schema/scheduler code.
-5. `B16/Q — verification and independent QA` — `in_progress`: каждый
-   delivery track проходит review отдельно; REST production PR обязан пройти
-   full local/pinned lanes и protected CI, design PR — traceability/readiness
-   QA. Closeout обновляет task/batch statuses только по проверенным результатам.
+5. `B16/Q-REST — REST verification and independent QA` — `completed`: exact
+   candidate `56d5e1c` получил independent QA PASS, full local/pinned evidence
+   и 19/19 protected checks; merge `185bf32` получил 19/19 post-merge checks.
+6. `B16/Q-DB04 — repair-design traceability/readiness QA` —
+   `waiting_dependency`: выполняется после B16/D2 в отдельной design branch/PR.
 
 Exit criteria:
 
@@ -4556,7 +4557,7 @@ Notes/Risks:
 
 ### REST-03. Покрыть connection CRUD и error mapping
 
-Status: in_progress
+Status: completed
 
 Priority: P0
 
@@ -4619,13 +4620,17 @@ Notes/Risks:
 - Текущие numeric domain codes 301—304 не должны автоматически становиться HTTP
   redirect statuses.
 - Canonical success/error/path-selector contract зафиксирован в
-  [`docs/rest-connection-contract.md`](../rest-connection-contract.md). Local
-  focused full-dispatch suite зелёный; independent QA, protected merge и
-  post-merge matrix остаются обязательными до `completed`.
+  [`docs/rest-connection-contract.md`](../rest-connection-contract.md).
+- Exact candidate `56d5e1c6d3af1ba920c05f3b3c2c95106b7ea1d3` получил independent
+  QA PASS и 19/19 protected checks; PR #95 влит как
+  `185bf32a0877d274f17ff80aed27197d01fe747a`, post-merge matrix — 19/19.
+- Full local suites: unit `19 / 96`, integration `380 / 3204`; combined
+  coverage `399 / 3298`, statements `1830 / 1962 (93.27%)`; true multisite
+  `55 / 906`; PHPCS `60 / 60`.
 
 ### REST-04. Защитить differentiated permissions
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
@@ -4675,7 +4680,7 @@ Notes/Risks:
 
 ### REST-05. Покрыть REST meta semantics
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 

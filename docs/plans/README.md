@@ -57,6 +57,11 @@
    `1568007` получил independent audits; final head `e4142c2` прошёл 19/19
    protected checks, merge `2348d5a` — 19/19 post-merge checks. Concurrent
    aggregate update/delete parent-row race остаётся в follow-up DB-02R.
+9. REST-03 завершён PR #95. Exact candidate `56d5e1c` получил independent QA
+   PASS и 19/19 protected checks; merge `185bf32` также прошёл 19/19
+   post-merge checks. Canonical v1 non-meta CRUD/error contract теперь
+   исполняется полным WordPress REST dispatch contour. REST-04 и REST-05
+   разблокированы; DB-04-D остаётся отдельным design-only track Batch 16.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -80,10 +85,11 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged baseline — Batch 14 PR #91 (`5bd1ef6`): unit
-  `19 / 96`, integration `274 / 2370`, combined coverage `1700/1857 (91.55%)`;
-  exact candidate и merge прошли по 19/19 checks, включая pinned
-  MySQL 8.0.46 и MariaDB 10.11.16.
+- Текущий merged baseline — REST-03 PR #95 (`185bf32`): unit `19 / 96`,
+  integration `380 / 3204`, combined `399 / 3298`, statement coverage
+  `1830/1962 (93.27%)`; exact candidate `56d5e1c` и merge прошли по 19/19
+  checks, включая pinned MySQL 8.0.46 и MariaDB 10.11.16. True multisite
+  verification — `55 / 906`; PHPCS — `60 / 60`.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -139,10 +145,9 @@ map находятся в
   candidate head `d7ab4bd` прошёл все 17 protected jobs.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
-- Post-merge `master` после PR #90 имеет 19/19 успешных required jobs; пять
-  первоначальных
-  Composer-download HTTP 504 failures были pre-test transient и прошли selective
-  rerun.
+- Post-merge `master` после PR #95 имеет 19/19 успешных required jobs. Ранее
+  после PR #90 пять первоначальных Composer-download HTTP 504 failures были
+  pre-test transient и прошли selective rerun.
 - `master` защищён: strict required checks для всех 19 jobs, enforcement для
   администраторов, force-push и удаление ветки запрещены.
 - `TEST-01`, `TEST-02A`, `TEST-02B`, `TEST-02C`, `TEST-02E` и `TEST-02F`
@@ -165,7 +170,7 @@ map находятся в
   DG-RESTERR-01/02/04/A и DG-DELETE-05/06/A утверждены 2026-09-14.
   DG-DELETE-06/A дополнительно требует human-approved технического refinement
   durable repair/scheduler contract до DB-04 implementation. Pending остаются
-  DG-API20-01—DG-API20-09 и будущий DB-04 refinement gate; они блокируют только
+  DG-API20-01—DG-API20-09 и DB-04-D technical refinement gates; они блокируют только
   явно перечисленные downstream tasks. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
@@ -185,12 +190,12 @@ map находятся в
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
   `deleted_post` recovery. DB-03B-A и DB-03B-B завершены. DB-04 разделён на
-  ready design DB-04-D и gated implementation DB-04-I; REST-03
-  переведён в `todo` после owner approval полного REST wire packet 2026-09-14.
-- REST-03 выполняется в Batch 16: accepted error/success decisions реализованы
-  на `batch16-rest-contract`, а canonical default-v1 wire contract записан в
-  [`rest-connection-contract.md`](../rest-connection-contract.md). Task остаётся
-  `in_progress` до independent QA, protected merge и post-merge verification.
+  ready design DB-04-D и gated implementation DB-04-I. REST-03 завершён PR #95:
+  exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
+  checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
+  contract находится в
+  [`rest-connection-contract.md`](../rest-connection-contract.md). REST-04 и
+  REST-05 после этого перешли в `todo`.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.
