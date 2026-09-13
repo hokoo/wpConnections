@@ -2,8 +2,8 @@
 
 Status: approved DB-00 contract and DB-06 implementation record;
 DG-DB-01—DG-DB-04, DG-DB-06-FAIL and the cross-contract storage transaction
-refinements are approved; DB-05 is implemented locally and awaits exact-head
-remote/pinned-lane closeout.
+refinements are approved; DB-05 completed in PR #91 with exact-head and
+post-merge verification on both pinned database lanes.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`.
 
@@ -583,13 +583,13 @@ PR readiness and REL-01 lifecycle documentation.
 
 ## Downstream acceptance matrix
 
-| Consumer task | Input from DB-00 | Remains blocked by |
+| Consumer task | Input from DB-00 | Current status / downstream |
 | --- | --- | --- |
-| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | Production and local QA complete; exact-head remote/pinned-lane closeout remains |
+| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | Completed in PR #91; exhaustive delete-selector conformance continues in DB-03B-B |
 | DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | Completed in PR #89; DB-06R is a separate non-blocking follow-up |
 | REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | Approved DB gates are available; task-local dependencies remain |
 | REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | Approved transaction/hook contracts are available; task-local dependencies remain |
-| CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
+| CORE-05 naming contract | Both vendors' 64-character full table-name limit | Completed in Batch 5; operator inventory/attestation remains REL-03 work |
 
 ## Non-gate constraints and caveats
 
@@ -610,8 +610,8 @@ PR readiness and REL-01 lifecycle documentation.
   uncertainty: a raw SQL rollback cannot prove to the library that the expected
   transaction and savepoint lineage were the ones terminated.
 - The probes establish SQL capability, not complete wpConnections behavior.
-  DB-05/DB-06/REL-01 must add application-level integration coverage on every
-  approved blocking lane.
+  DB-05 and DB-06 added application-level coverage on every approved blocking
+  lane; REL-01 must consume that evidence in the final compatibility matrix.
 
 ## Verification record
 
@@ -634,6 +634,8 @@ PR readiness and REL-01 lifecycle documentation.
 - The independent QA scope note remains explicit: custom additional constraints
   are assigned to DB-06R rather than being represented as covered by DB-06.
 - DG-DB-03/A, DG-SPI-04R/A, DG-SPI-06R/A and DG-SPI-06R2/A are approved and
-  implemented in the Batch 14 candidate. Independent exact-candidate QA has no
-  blocking findings; current remote/pinned-lane verification remains before
-  DB-05 closeout.
+  implemented by Batch 14 / DB-05. Exact candidate `439d3a2` received
+  independent closure QA PASS and 19/19 protected checks. PR #91 merged as
+  `5bd1ef686e9a5fa25e3a4701b1cec12f62a1f238`; after one Docker Hub token
+  transport failure was rerun, that exact merge SHA passed all 19/19
+  post-merge checks, including MySQL 8.0.46 and MariaDB 10.11.16.

@@ -612,13 +612,14 @@ behavior.
 
 ### DB-05
 
-- Depend on accepted DG-SPI-03, DG-SPI-04 and DG-SPI-06 in addition to DB-00,
-  DB-02 and DB-03B-A.
-- Preflight transaction capability before every compound write.
-- Fault-inject after every statement, assert persisted state after rollback, and
-  assert no success hook/result escaped before commit.
-- Keep schema recovery outside a data transaction unless DB-00 proves the
-  supported backend can preserve the required boundary.
+- Completed in PR #91 against accepted DG-SPI-03, DG-SPI-04, DG-SPI-04R,
+  DG-SPI-06, DG-SPI-06R and DG-SPI-06R2 in addition to DB-00, DB-02 and
+  DB-03B-A.
+- Transaction capability is preflighted before every compound write.
+- Fault injection proves persisted state after rollback and that no success
+  hook/result escapes before the owning commit.
+- Schema recovery remains outside data transactions under the completed
+  DB-00/DB-06 backend contract.
 
 ### REL-02
 

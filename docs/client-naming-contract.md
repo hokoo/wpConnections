@@ -595,6 +595,7 @@ on 2026-09-11. CORE-06 locally enforces the runtime contract without a new publi
 pairs receive a versioned, hash-keyed, site-local non-autoloaded claim; matching
 claims can use a complete compatible pair in place; and unowned, partial,
 malformed or conflicting states fail without implicit repair, rename or delete.
-The operator-facing dry-run, explicit attestation interface and rollout remain
-owned by DB-06/REL-03. Consequently, the CORE-06 code alone is not a release
-approval for installations with pre-existing unclaimed tables.
+DB-06 subsequently completed the schema lifecycle and compatibility proof. The
+operator-facing dry-run, explicit attestation interface and rollout remain
+owned by REL-03. Consequently, CORE-06 plus DB-06 still do not by themselves
+approve a release for installations with pre-existing unclaimed tables.

@@ -42,17 +42,19 @@
 8. Batch 12 завершён PR #87 и closeout PR #88. Batch 13 завершён DB-06 PR #89
    и closeout PR #90; `master` `9d2f101` и exact merge candidates прошли 19/19
    checks, включая pinned MySQL 8.0.46 и MariaDB 10.11.16. DG-SPI-03/A,
-   DG-SPI-04/A и DG-DB-03/A утверждены 2026-09-13. Batch 14 активирован для
-   DB-05; failure-normalization и root atomic scope slices завершены локально.
+   DG-SPI-04/A и DG-DB-03/A утверждены 2026-09-13. Batch 14 завершён
+   для DB-05 после failure-normalization, root/nested atomic scopes и
+   compound domain flow slices.
    DG-SPI-04R/A,
    DG-SPI-06R/A и DG-SPI-06R2/A утверждены владельцем 2026-09-13;
    nested transaction/hook и compound domain flow slices завершены локально.
    Три последовательных независимых transaction audits закрыли child-scope,
    rollback-only и shared-`$wpdb` uncertainty gaps; exact local `36ee004`
-   получил `PASS_WITH_NOTES` без blocking findings. Exact-head remote/pinned DB
-   checks и merge closeout ещё не выполнены. Concurrent aggregate
-   update/delete parent-row race выделен в follow-up DB-02R, а exhaustive
-   selector-read/delete fault matrix остаётся Batch 15 / DB-03B-B.
+   получил `PASS_WITH_NOTES` без blocking findings. Final exact `439d3a2`
+   получил closure QA `PASS` и 19/19 checks; PR #91 влит как
+   `5bd1ef6`, его post-merge matrix также зелёна 19/19. Batch 14/DB-05
+   завершены; Batch 15 / DB-03B-B ready. Concurrent aggregate
+   update/delete parent-row race остаётся в follow-up DB-02R.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -76,7 +78,11 @@ map находятся в
 
 ## Текущий baseline
 
-- Последний merged baseline после CORE-06R PR #76 (`2371ed2`) на PHP 8.1.34 /
+- Текущий merged baseline — Batch 14 PR #91 (`5bd1ef6`): unit
+  `19 / 96`, integration `274 / 2370`, combined coverage `1700/1857 (91.55%)`;
+  exact candidate и merge прошли по 19/19 checks, включая pinned
+  MySQL 8.0.46 и MariaDB 10.11.16.
+- Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
   true multisite focused lane `13 / 144`; isolation unit `24 / 116` и
@@ -87,7 +93,7 @@ map находятся в
 - CORE-06R получил independent QA PASS; final head `93d09c6` и merge
   `2371ed2` прошли все 17 required jobs.
   Operator-facing naming inventory/attestation остаётся downstream
-  DB-06/REL-03 work.
+  REL-03 work; DB-06 schema lifecycle уже завершён PR #89.
 - HOOK-TRANS-01 добавил idempotent semantic cleanup API:
   current/fixed-floor unit `12/58`, integration `108/756`; true multisite
   `15/159`; isolation unit `24/116`, integration `216/1512`; combined coverage
@@ -150,8 +156,9 @@ map находятся в
 - DP-1—DP-3 и их review refinements утверждены владельцем 2026-09-11:
   DG-QMETA-01/A, DG-UPDATE-01/02/02R/A, DG-SPI-01/02/07/A,
   DG-ENT-01—DG-ENT-06/A, DG-NAME-01—DG-NAME-06/A и staged
-  DG-NAME-06R/A-to-D. В DP-4 утверждены DG-UPDATE-04/A и DG-SPI-06/A;
-  остальной packet остаётся pending. DG-RESTERR-03/A также утверждён
+  DG-NAME-06R/A-to-D. DP-4 полностью утверждён: DG-UPDATE-03/04/A,
+  DG-SPI-03/04/06/A, DG-DB-01—03/A и DG-DB-04/A-R; refinements
+  DG-SPI-04R/06R/06R2 также approved A. DG-RESTERR-03/A утверждён
   2026-09-11. Pending остаются DG-API20-01—DG-API20-09,
   DG-UPDATE-05, DG-SPI-05,
   DG-RESTERR-01/02/04 и DG-DELETE-05/06; они блокируют только
@@ -172,11 +179,12 @@ map находятся в
   [delete result/failure contract](../delete-result-contract.md) отделяет
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
-  `deleted_post` recovery. DB-03B-A/DB-03B-B/DB-04/REST-03 остаются waiting до
-  решений.
+  `deleted_post` recovery. DB-03B-A завершён; после DB-05 задача
+  DB-03B-B готова к исполнению. DB-04 и REST-03 остаются
+  `waiting_dependency` до своих явно перечисленных gates/dependencies.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
-  ожидает оставшиеся явно перечисленные dependencies.
+  защищён completed Batch 11 / REST-02 regression coverage.
 
 ## Контрольные точки
 

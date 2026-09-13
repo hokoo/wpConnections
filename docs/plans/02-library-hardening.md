@@ -38,13 +38,13 @@ task API-05.
 Batch 13 завершён: DB-06 влит PR #89 как `aa79a32`, closeout PR #90 как
 `9d2f101`; exact candidates и merge SHAs прошли 19/19 checks, включая pinned
 MySQL 8.0.46 и MariaDB 10.11.16. DG-SPI-03/A, DG-SPI-04/A и DG-DB-03/A
-утверждены владельцем 2026-09-13. Batch 14 активирован для DB-05. При
+утверждены владельцем 2026-09-13. Batch 14 завершён PR #91: final
+candidate `439d3a2` и merge `5bd1ef6` прошли по 19/19 checks. При
 implementation design обнаружены два новых public-contract refinement gates:
 DG-SPI-04R для передачи caller-owned transaction context и DG-SPI-06R для
 commit-aware hooks внутри внешней транзакции, а implementation discovery добавил
 DG-SPI-06R2 для post-commit hook `Throwable`. Все три утверждены вариантом A
-2026-09-13 и реализованы в локальном candidate; Batch 14 находится на F5
-exact-head remote/pinned-lane closeout.
+2026-09-13 и реализованы. Batch 15 / DB-03B-B готов к исполнению.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1083,8 +1083,8 @@ Decision packets:
 | DP-1 Query Meta | DG-QMETA-01 | approved A, 2026-09-11 | TEST-02F + CORE-07 |
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
-| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | partial: UPDATE-04 and SPI-06 approved A 2026-09-11; остальные pending A recommended | DB-02/DB-05/DB-06 и failure contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A unblocked; DB-03B-B additionally waits DP-4; DB-04 waits DELETE-06 and implementation dependencies |
+| DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
+| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A completed; DB-03B-B todo after DB-05; DB-04 waits DELETE-06 and implementation dependencies |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | partial: RESTERR-03 approved A 2026-09-11; остальные pending A recommended | REST-03—REST-05 exact wire contract |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
@@ -1591,7 +1591,7 @@ Verification:
 
 ### Batch 14. Atomic storage mutation boundary
 
-Status: in_progress
+Status: completed
 
 Goal: завершить DB-05 через tests-first vertical: дать domain layer явную
 optional atomic capability, нормализовать storage failures и доказать, что
@@ -1609,8 +1609,8 @@ Entry criteria:
 
 Task:
 
-- DB-05 — `in_progress`; один reviewable PR с отдельными проверяемыми
-  red-to-green slices и одной точкой отката.
+- DB-05 — `completed`; delivered by PR #91 through separate reviewable
+  red-to-green slices and independent correction audits.
 
 Execution slices:
 
@@ -1636,7 +1636,7 @@ Execution slices:
    `deleted_post`. Exhaustive fault matrix всех delete selectors остаётся
    DB-03B-B, но representative meta-step/connection-step rollback входит сюда.
 5. `DB-05/F5 — cross-database verification and closeout` —
-   `in_progress`. Прогнать focused/full/isolation/coverage/PHPCS, exact
+   `completed`. Прогнать focused/full/isolation/coverage/PHPCS, exact
    MySQL 8.0.46 и MariaDB 10.11.16 lanes, custom incapable adapter preflight и
    mandatory independent epic QA; записать exact candidate evidence.
 
@@ -1653,9 +1653,9 @@ Exit criteria:
 
 Next batch:
 
-- Batch 15 — DB-03B-B exhaustive delete fault/commit-hook conformance. Он уже
-  определён и начнётся после завершения reusable boundary DB-05; REST mapping и
-  `deleted_post` recovery не смешиваются с ним.
+- Batch 15 — DB-03B-B exhaustive delete fault/commit-hook conformance. DB-05
+  dependency is now satisfied and DB-03B-B moves to `todo`; REST mapping and
+  `deleted_post` recovery remain outside it.
 
 Resolved blockers:
 
@@ -1745,6 +1745,50 @@ Verification so far:
   failure normalization остаётся DB-03B-B. Удалённый remote candidate
   `c7b243b` ранее прошёл 19/19 checks, но exact-head/pinned-lane CI для текущего
   локального `36ee004` ещё не запускался.
+- Final docs candidate `439d3a2` получил independent closure QA `PASS`
+  без findings и notes, затем прошёл 19/19 exact-head checks. PR #91
+  влит merge commit `5bd1ef686e9a5fa25e3a4701b1cec12f62a1f238`.
+  Post-merge matrix завершилась 19/19; один unit job изначально не
+  дошёл до тестов из-за Docker Hub OAuth `connection reset by peer` и
+  успешно прошёл точечный rerun. Все exit criteria DB-05/Batch 14
+  выполнены.
+
+### Batch 15. Exhaustive delete fault and lock conformance
+
+Status: ready
+
+Goal: завершить DB-03B-B поверх reusable DB-05 boundary: доказать
+для каждого delete selector, что read/write failure атрибутируется,
+partial state не остаётся, success hooks идут только после commit,
+а selector-to-cascade boundary сериализуется при конкурентном изменении.
+
+Task:
+
+- DB-03B-B — `todo`; его полные Scope/DoR/DoD/AC описаны в E3.
+
+Execution slices:
+
+1. `DB-03B-B/F1 — exhaustive red fault matrix` — `todo`. Добавить
+   selector-read, metadata-delete и connection-delete injection для ID,
+   directed-pair, from, to и both variants; зафиксировать expected red
+   failures до production corrections.
+2. `DB-03B-B/F2 — delete rollback and commit hooks` —
+   `waiting_dependency` от F1. Исправить только воспроизведённые gaps,
+   сохранив valid `0`, exact affected counts и post-commit hook ordering.
+3. `DB-03B-B/F3 — two-session selector locking` —
+   `waiting_dependency` от F2. Доказать на MySQL/MariaDB, что
+   concurrent endpoint membership change не вклинивается между
+   selector lock и cascade.
+4. `DB-03B-B/F4 — verification and independent QA` —
+   `waiting_dependency` от F1–F3. Прогнать focused/full/isolation/coverage,
+   PHPCS, обе pinned DB lanes и independent epic QA.
+
+Exit criteria:
+
+- Все DoD/AC DB-03B-B выполнены на exact candidate.
+- Mandatory independent QA и 19/19 protected/post-merge checks зелёны.
+- Остаточные aggregate update и direct-storage parent-row concerns не
+  подменяются: они остаются в DB-02R/REL-02.
 
 ## E1. Test foundation и regression harness
 
@@ -3030,9 +3074,9 @@ Notes/Risks:
   the Batch 6 delivery gate.
 - Fresh mappings получают atomic non-autoloaded site-local claim. Complete
   unowned, partial, malformed или conflicting mappings не исправляются
-  автоматически. Operator-facing dry-run/attestation остаётся за DB-06/REL-03;
-  один CORE-06 vertical не является самостоятельным release approval для
-  существующих unclaimed installations.
+  автоматически. DB-06 уже завершил schema lifecycle proof;
+  operator-facing dry-run/attestation и release approval для существующих
+  unclaimed installations остаются за REL-03.
 - В 1.x bridge `current_filter() === 'deleted_post'` является единственным
   доступным признаком cascade delivery при сохранённой callback identity.
   Поэтому manual stale вызов изнутри другого `deleted_post` callback также
@@ -3711,7 +3755,7 @@ Notes/Risks:
 
 ### DB-05. Сделать составные storage operations атомарными
 
-Status: in_progress
+Status: completed
 
 Priority: P1
 
@@ -3795,7 +3839,7 @@ Notes/Risks:
 
 ### DB-03B-B. Проверить delete failure и commit-hook conformance
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
