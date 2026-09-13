@@ -46,8 +46,8 @@
    DB-05; failure-normalization и root atomic scope slices завершены локально.
    DG-SPI-04R/A,
    DG-SPI-06R/A и DG-SPI-06R2/A утверждены владельцем 2026-09-13;
-   nested transaction/hook slice завершён локально; compound domain flow slice
-   выполняется.
+   nested transaction/hook и compound domain flow slices завершены локально;
+   cross-database verification/closeout выполняется.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

@@ -1628,13 +1628,13 @@ Execution slices:
    `completed`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
    явный nested context, collision-safe savepoints, отсутствие `COMMIT` внешней
    транзакции и утверждённую доставку отложенных success hooks.
-4. `DB-05/F4 — compound domain flows` — `in_progress`. Обернуть create с
+4. `DB-05/F4 — compound domain flows` — `completed`. Обернуть create с
    meta, aggregate `Connection::update()` и relation delete в reusable domain
    boundary; default WPStorage также защищает прямой legacy compound callback
    `deleted_post`. Exhaustive fault matrix всех delete selectors остаётся
    DB-03B-B, но representative meta-step/connection-step rollback входит сюда.
 5. `DB-05/F5 — cross-database verification and closeout` —
-   `waiting_dependency`. Прогнать focused/full/isolation/coverage/PHPCS, exact
+   `in_progress`. Прогнать focused/full/isolation/coverage/PHPCS, exact
    MySQL 8.0.46 и MariaDB 10.11.16 lanes, custom incapable adapter preflight и
    mandatory independent epic QA; записать exact candidate evidence.
 
@@ -1695,6 +1695,24 @@ Verification so far:
   FIFO/exactly-once после подтверждённого commit, discard после rollback и
   неизменённый post-commit hook `Throwable` при durable state. PHPCS: `58/58`.
   F3 завершён, F4 активирован.
+- F4 red-first commit `1fa5099`: все шесть новых compound/fault scenarios были
+  красными (`6 tests / 25 assertions / 6 failures`). Green commit `30de842`
+  обернул create+meta, aggregate update и relation delete в Client-owned unit
+  of work, добавил direct WPStorage protection для legacy `deleted_post`,
+  commit-aware success notifications и row locking до delete cascade. Focused
+  F4: `7 / 41`; объединённый F2—F4: `19 / 108`; full unit: `19 / 96`; full
+  integration: `262 / 2284`; PHPCS: `58/58`. Custom incapable adapter теперь
+  сохраняет scalar update API, но ожидаемо отклоняет compound update/create до
+  mutation по DG-SPI-04/A. F4 завершён, F5 активирован.
+- F5 local verification: full unit `19 / 96`, full integration `262 / 2284`,
+  PHPCS `58/58`. Первый isolation run обнаружил, что production root scope
+  законно завершает transaction, на rollback которой раньше полагался
+  `WP_UnitTestCase`; ownership option переживал повтор. Commit `857bda5` сделал
+  exact option cleanup явным и durable. После исправления seed `20260913`:
+  unit reverse/random по два раза `38 / 192`, integration reverse/random по два
+  раза `524 / 4568`. Combined coverage: `281 / 2378`, statements `1655/1810
+  (91.44%)`; PR gate PASSED, release-candidate threshold READY. Pinned database
+  lanes, independent QA и exact-head CI ещё выполняются.
 
 ## E1. Test foundation и regression harness
 

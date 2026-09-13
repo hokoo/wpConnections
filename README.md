@@ -6,6 +6,7 @@
 <!-- TOC -->
 * [Why wpConnection?](#why-wpconnection)
 * [Quick Start](#ok-what-should-i-do-to-start-using)
+* [Atomic mutations](#atomic-compound-mutations)
 * [Deprecations](#deprecations)
 * [WIKI](https://github.com/hokoo/wpConnections/wiki)
 <!-- TOC -->
@@ -77,6 +78,77 @@ $qc->set( 'to', $post_id_to );
 
 $wpc_client->getRelation( 'post-to-page' )->createConnection( $qc );
 ```
+
+### Atomic compound mutations
+
+The default `WPStorage` adapter commits connection-plus-metadata changes as one
+unit. This applies automatically to create with metadata, aggregate
+`Connection::update()`, relation deletes, direct default-storage delete
+cascades and the legacy `deleted_post` callback. A database failure or callback
+`Throwable` rolls the whole unit back; success-named mutation hooks run only
+after commit. A hook exception still propagates synchronously, but storage is
+already durable at that point.
+
+Applications can group multiple operations for one Client in a library-owned
+root scope:
+
+```php
+$result = $wpc_client->runAtomically(
+    function () use ( $wpc_client, $first_query, $second_query ) {
+        $relation = $wpc_client->getRelation( 'post-to-page' );
+        $first = $relation->createConnection( $first_query );
+        $relation->createConnection( $second_query );
+
+        return $first;
+    }
+);
+```
+
+If the application already owns the database transaction, it must declare a
+nested scope and coordinate success notifications with the real outer outcome:
+
+```php
+use iTRON\wpConnections\TransactionContext;
+use iTRON\wpConnections\TransactionSynchronizer;
+
+global $wpdb;
+
+$synchronizer = new TransactionSynchronizer();
+$wpdb->query( 'START TRANSACTION' );
+
+try {
+    $result = $wpc_client->runAtomically(
+        $operation,
+        TransactionContext::nested( $synchronizer )
+    );
+} catch ( \Throwable $failure ) {
+    $wpdb->query( 'ROLLBACK' );
+    $synchronizer->rolledBack();
+    throw $failure;
+}
+
+if ( false === $wpdb->query( 'COMMIT' ) ) {
+    $wpdb->query( 'ROLLBACK' );
+    $synchronizer->rolledBack();
+    throw new \RuntimeException( 'Outer transaction commit failed.' );
+}
+
+// May propagate a success-hook Throwable; the transaction is already durable.
+$synchronizer->committed();
+```
+
+Create a fresh synchronizer for each outer transaction and notify it exactly
+once. A nested library scope uses a collision-safe savepoint and never commits
+the outer transaction. One scope cannot span multiple wpConnections Clients;
+cross-client re-entry is rejected before the second Client writes.
+
+Custom adapters keep the existing `Abstracts\Storage` surface. They must also
+implement `AtomicStorageInterface` to accept compound domain mutations;
+otherwise those mutations throw `StorageCapabilityUnavailable` before the
+first storage write. Scalar relation updates and creates without metadata do
+not require the optional capability. See the
+[storage SPI contract](docs/storage-spi-contract.md) for exact result, failure
+and hook semantics.
 
 ### Endpoint validation compatibility
 
@@ -163,10 +235,10 @@ legacy context. If an event omits a valid origin, consumer callbacks still run,
 but library-owned automatic logging safely skips that event. The default
 `Logger::log()` continues to emit the `logger` compatibility action.
 
-The observer remains a priority-10 callback inside each public action. This
-change does not move the mutation actions; their approved commit-aware timing
-will be implemented by DB-05 and verified by REL-02. Current mutation-event
-emission remains unchanged in this task.
+The observer remains a priority-10 callback inside each public action. Default
+storage success-named mutation actions are now queued by DB-05 until the owning
+root commit or the caller's explicit outer-commit confirmation. Attempt and
+`before` actions retain their pre-mutation meaning.
 
 ### Multisite REST lifecycle and custom delegates
 

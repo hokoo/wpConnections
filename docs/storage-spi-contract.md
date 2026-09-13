@@ -2,7 +2,8 @@
 
 Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
 DG-SPI-04, DG-SPI-04R, DG-SPI-06, DG-SPI-06R, DG-SPI-06R2 and DG-SPI-07
-approved A, while DG-SPI-05 remains pending
+approved A; their DB-05 boundary is implemented on Batch 14, while DG-SPI-05
+remains pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -12,7 +13,7 @@ This document is the canonical inventory and decision record for the storage
 extension boundary. It describes the source as it exists at the snapshot above,
 the already approved constraints from DG-M7 and DG-M9, the A decisions recorded
 for DG-SPI-01/02/06/07 on 2026-09-11, the DG-SPI-03/04 approvals on 2026-09-13,
-and the refinements still required before nested production behavior changes.
+and the refinements approved before nested production behavior changed.
 Shared result gate DG-UPDATE-04/A was separately approved on 2026-09-11.
 
 The words **current** and **observed** describe compatibility evidence, not a
@@ -32,6 +33,37 @@ Primary sources:
   callers.
 - [`compatibility-inventory.md`](compatibility-inventory.md) records public
   consumer evidence and its limitations.
+
+## Batch 14 implementation status
+
+The source snapshot inventory below remains the historical problem statement.
+Current Batch 14 behavior is governed by the approved gates and these verified
+implementation boundaries:
+
+- `AtomicStorageInterface::runAtomically()` is an optional capability; the
+  eight methods of `Abstracts\Storage` remain unchanged.
+- `Client::runAtomically()` is the additive composition API. Root context is
+  library-owned; explicit external nesting uses `TransactionContext::nested()`
+  and a fresh `TransactionSynchronizer`.
+- A scope belongs to one Client. Cross-client re-entry and an absent or already
+  completed external synchronizer fail before the callback/storage mutation.
+- `WPStorage` performs schema and InnoDB readiness checks before `START
+  TRANSACTION`, uses collision-safe savepoints for nested scopes and never
+  commits a caller-owned outer transaction.
+- Create with metadata, aggregate `Connection::update()` and every relation
+  connection-plus-metadata delete are atomic. Direct default-storage compound
+  deletes, including the 1.x `deleted_post` callback, use the same boundary.
+- Delete selector rows are locked before cascade writes. SQL failures are
+  distinct from valid no-op/no-match outcomes and retain the database cause in
+  the exception chain.
+- Success notifications are FIFO and exactly once after the owning commit, or
+  discarded on rollback. A post-commit hook `Throwable` propagates unchanged
+  with durable state and no impossible rollback attempt.
+
+Applications using a custom adapter may continue scalar relation updates and
+creates without metadata on the original SPI. Compound domain mutations require
+the optional capability and otherwise throw `StorageCapabilityUnavailable`
+before the first adapter mutation.
 
 ## Boundary model
 
@@ -178,8 +210,8 @@ pending API mechanism:
   transactions.
 
 The optional capability shape is approved by DG-SPI-04/A. Its additive domain
-entrypoint for caller-owned nested context and outer-commit hook coordination
-remain pending in DG-SPI-04R and DG-SPI-06R.
+entrypoint, caller-owned nested context and outer-commit hook coordination were
+approved by DG-SPI-04R/A and DG-SPI-06R/A and implemented by DB-05.
 
 ## Hook and side-effect inventory
 
@@ -211,7 +243,8 @@ out to unrelated Client loggers. Logging stays at priority 10 and retains the
 pre-existing logged context; the Client added to the query action is routing
 metadata only.
 
-DG-SPI-06 decides commit-aware mutation hook semantics. REL-02 still owns the
+DG-SPI-06/A defines commit-aware mutation hook semantics, implemented for the
+default adapter by DB-05. REL-02 still owns the
 complete public/internal classification and compatibility tests; SPI-01 does
 not rename or remove hooks.
 
