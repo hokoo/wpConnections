@@ -533,7 +533,54 @@ class AtomicMutationTest extends TestCase
 		);
 
 		$this->assert_storage_failure( 'find connections', $failure );
+		if ( ! $silent ) {
+			self::assertStringContainsString(
+				'wpconnections_batch15_forced_delete_failure',
+				$failure->getPrevious()->getMessage()
+			);
+		}
 		self::assertSame( $before, $this->storage_snapshot() );
+	}
+
+	public function test_failed_find_does_not_dispatch_observer_that_can_mask_cause(): void
+	{
+		$connection = $this->create_connection( 'find-observer-failure', 'preserved' );
+		$observer_calls = 0;
+		$observer_failure = new \RuntimeException( 'observer must not mask database failure' );
+		$observer = static function () use ( &$observer_calls, $observer_failure ): void {
+			global $wpdb;
+
+			$observer_calls++;
+			$wpdb->get_var( 'SELECT 1' );
+			throw $observer_failure;
+		};
+		add_action( 'wpConnections/storage/findConnections/dbQuery', $observer );
+
+		try {
+			$failure = $this->capture_query_failure(
+				static function ( string $query ): bool {
+					return 1 === preg_match(
+						'/^SELECT c\.\*, m\.\* FROM .* LEFT JOIN .* WHERE c\.ID = /i',
+						trim( $query )
+					);
+				},
+				function () use ( $connection ): void {
+					$query = new ConnectionQuery();
+					$query->set( 'id', $connection->id );
+					$this->client->getStorage()->findConnections( $query );
+				},
+				false
+			);
+		} finally {
+			remove_action( 'wpConnections/storage/findConnections/dbQuery', $observer );
+		}
+
+		$this->assert_storage_failure( 'find connections', $failure );
+		self::assertStringContainsString(
+			'wpconnections_batch15_forced_delete_failure',
+			$failure->getPrevious()->getMessage()
+		);
+		self::assertSame( 0, $observer_calls );
 	}
 
 	/**
@@ -946,20 +993,32 @@ class AtomicMutationTest extends TestCase
 			$unrelated_query
 		);
 		$secondary = $this->secondary_database_connection();
+		$observer = $this->secondary_database_connection();
 		$secondary->query( 'SET SESSION innodb_lock_wait_timeout = 5' );
+		$update_reached_lock_wait = false;
 		$membership_changed_before_cascade = null;
 		$secondary_affected_rows = null;
 		$attempt = function () use (
 			$secondary,
+			$observer,
 			$connection,
+			$other_to,
+			&$update_reached_lock_wait,
 			&$membership_changed_before_cascade,
 			&$secondary_affected_rows
 		): void {
 			$table = str_replace( '`', '``', $this->connections_table() );
 			$relation = $secondary->real_escape_string( self::RELATION . '-foreign' );
-			$sql = "UPDATE `{$table}` SET `relation` = '{$relation}' WHERE `ID` = {$connection->id}";
+			$sql = "UPDATE `{$table}` SET `relation` = '{$relation}', `to` = {$other_to} "
+				. "WHERE `ID` = {$connection->id}";
 			self::assertTrue( $secondary->query( $sql, MYSQLI_ASYNC ) );
-			$membership_changed_before_cascade = $this->wait_for_async_query( $secondary, 1.0 );
+			$update_reached_lock_wait = $this->wait_for_database_query(
+				$observer,
+				$secondary->thread_id,
+				"UPDATE `{$table}`",
+				2.0
+			);
+			$membership_changed_before_cascade = $this->wait_for_async_query( $secondary, 0.0 );
 			if ( $membership_changed_before_cascade ) {
 				self::assertTrue( $secondary->reap_async_query() );
 				$secondary_affected_rows = $secondary->affected_rows;
@@ -979,8 +1038,13 @@ class AtomicMutationTest extends TestCase
 		} finally {
 			remove_action( 'wpConnections/storage/deleteSpecificConnections', $attempt );
 			$secondary->close();
+			$observer->close();
 		}
 
+		self::assertTrue(
+			$update_reached_lock_wait,
+			'The concurrent relation and endpoint update never became visible in the database process list.'
+		);
 		self::assertFalse(
 			$membership_changed_before_cascade,
 			'A concurrent relation membership update completed between relation lookup and delete cascade.'
@@ -989,6 +1053,111 @@ class AtomicMutationTest extends TestCase
 		self::assertSame( 0, $secondary_affected_rows );
 		self::assertSame( 0, $this->connection_count( $connection->id ) );
 		self::assertSame( 0, $this->meta_count( $connection->id ) );
+		self::assertSame( 1, $this->connection_count( $unrelated->id ) );
+		self::assertSame( 1, $this->meta_count( $unrelated->id ) );
+	}
+
+	public function test_from_selector_lock_serializes_endpoint_change_before_cascade(): void
+	{
+		$target = $this->create_connection( 'from-lock-target', 'deleted' );
+		$other_from = wp_insert_post(
+			[
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'Atomic mutation unrelated source',
+			]
+		);
+		$other_to = wp_insert_post(
+			[
+				'post_type'   => 'post',
+				'post_status' => 'publish',
+				'post_title'  => 'Atomic mutation unrelated endpoint',
+			]
+		);
+		self::assertIsInt( $other_from );
+		self::assertIsInt( $other_to );
+		$this->post_ids[] = $other_from;
+		$this->post_ids[] = $other_to;
+		$unrelated_query = new ConnectionQuery( $other_from, $other_to );
+		$unrelated_query->meta->add( new QueryMeta( 'unrelated', 'preserved' ) );
+		$unrelated = $this->client->getRelation( self::RELATION )->createConnection(
+			$unrelated_query
+		);
+		$secondary = $this->secondary_database_connection();
+		$observer = $this->secondary_database_connection();
+		$secondary->query( 'SET SESSION innodb_lock_wait_timeout = 5' );
+		$update_started = false;
+		$update_reached_lock_wait = false;
+		$endpoint_changed_before_cascade = null;
+		$secondary_affected_rows = null;
+		$query_filter = function ( string $query ) use (
+			$secondary,
+			$observer,
+			$target,
+			$other_from,
+			&$update_started,
+			&$update_reached_lock_wait,
+			&$endpoint_changed_before_cascade,
+			&$secondary_affected_rows
+		): string {
+			if (
+				$update_started
+				|| 1 !== preg_match(
+					'/^DELETE FROM ' . preg_quote( $this->meta_table(), '/' ) . ' WHERE /i',
+					trim( $query )
+				)
+			) {
+				return $query;
+			}
+
+			$update_started = true;
+			$table = str_replace( '`', '``', $this->connections_table() );
+			$sql = "UPDATE `{$table}` SET `from` = {$other_from} WHERE `ID` = {$target->id}";
+			self::assertTrue( $secondary->query( $sql, MYSQLI_ASYNC ) );
+			$update_reached_lock_wait = $this->wait_for_database_query(
+				$observer,
+				$secondary->thread_id,
+				"UPDATE `{$table}`",
+				2.0
+			);
+			$endpoint_changed_before_cascade = $this->wait_for_async_query( $secondary, 0.0 );
+			if ( $endpoint_changed_before_cascade ) {
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $query_filter );
+		$query = new ConnectionQuery();
+		$query->set( 'from', $target->from );
+
+		try {
+			$deleted = $this->client->getRelation( self::RELATION )->detachConnections( $query );
+			if ( ! $endpoint_changed_before_cascade ) {
+				self::assertTrue( $this->wait_for_async_query( $secondary, 5.0 ) );
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+		} finally {
+			remove_filter( 'query', $query_filter );
+			$secondary->close();
+			$observer->close();
+		}
+
+		self::assertTrue( $update_started );
+		self::assertTrue(
+			$update_reached_lock_wait,
+			'The concurrent endpoint update never became visible in the database process list.'
+		);
+		self::assertFalse(
+			$endpoint_changed_before_cascade,
+			'A concurrent endpoint update completed between selector lock and delete cascade.'
+		);
+		self::assertSame( 1, $deleted );
+		self::assertSame( 0, $secondary_affected_rows );
+		self::assertSame( 0, $this->connection_count( $target->id ) );
+		self::assertSame( 0, $this->meta_count( $target->id ) );
 		self::assertSame( 1, $this->connection_count( $unrelated->id ) );
 		self::assertSame( 1, $this->meta_count( $unrelated->id ) );
 	}
@@ -1495,6 +1664,33 @@ class AtomicMutationTest extends TestCase
 		$microseconds = (int) ( ( $timeout - $seconds ) * 1000000 );
 
 		return 0 < \mysqli_poll( $read, $error, $reject, $seconds, $microseconds );
+	}
+
+	private function wait_for_database_query(
+		\mysqli $observer,
+		int $thread_id,
+		string $query_fragment,
+		float $timeout
+	): bool {
+		$deadline = microtime( true ) + $timeout;
+		do {
+			$result = $observer->query(
+				"SELECT `INFO` FROM information_schema.PROCESSLIST WHERE `ID` = {$thread_id}"
+			);
+			$row = $result->fetch_assoc();
+			$result->free();
+			if (
+				is_array( $row )
+				&& is_string( $row['INFO'] )
+				&& false !== strpos( $row['INFO'], $query_fragment )
+			) {
+				return true;
+			}
+
+			usleep( 10000 );
+		} while ( microtime( true ) < $deadline );
+
+		return false;
 	}
 
 	private function connection_count( int $connection_id = 0 ): int

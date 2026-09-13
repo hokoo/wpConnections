@@ -1540,15 +1540,11 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
         global $wpdb;
 
         $queryResult = $wpdb->query($query);
+        $databaseError = $this->databaseError();
         $hasRowResult = is_array($wpdb->last_result);
         $rows = $hasRowResult ? $wpdb->last_result : [];
 
-        if (null !== $afterQuery) {
-            $afterQuery($rows);
-        }
-
         if (false === $queryResult) {
-            $databaseError = $this->databaseError();
             $previous = '' === $databaseError
                 ? new \RuntimeException('Database query returned false without diagnostic context.')
                 : null;
@@ -1562,6 +1558,10 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
                 '',
                 new \RuntimeException('Database query returned an invalid row result.')
             );
+        }
+
+        if (null !== $afterQuery) {
+            $afterQuery($rows);
         }
 
         return $rows;
