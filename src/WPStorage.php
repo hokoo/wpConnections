@@ -876,19 +876,25 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             "SELECT `ID` FROM {$db} WHERE `ID` IN ({$in}) FOR UPDATE",
             ...$connectionIDs
         );
-        $wpdb->get_results($lockQuery);
-        $lockError = $this->databaseError();
-        if ('' !== $lockError) {
-            throw $this->storageFailure('lock connections for delete', $lockError);
+        $lockedConnections = $this->selectRowsOrFail(
+            $lockQuery,
+            'lock connections for delete'
+        );
+        $lockedIDs = empty($lockedConnections) ? [] : array_column($lockedConnections, 'ID');
+        if (empty($lockedIDs)) {
+            return 0;
         }
 
+        $lockedIDs = $this->prepareIDs($lockedIDs);
+        $lockedIn = $this->idPlaceholders($lockedIDs);
+
         $query = $wpdb->prepare(
-            "DELETE FROM {$db} WHERE `ID` IN ({$in})",
-            ...$connectionIDs
+            "DELETE FROM {$db} WHERE `ID` IN ({$lockedIn})",
+            ...$lockedIDs
         );
         $query_meta = $wpdb->prepare(
-            "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$in})",
-            ...$connectionIDs
+            "DELETE FROM {$db_meta} WHERE `connection_id` IN ({$lockedIn})",
+            ...$lockedIDs
         );
 
         if (false === $wpdb->query($query_meta)) {
@@ -1008,12 +1014,11 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND ({$where_str}) FOR UPDATE",
             ...$queryArguments
         );
-        $result_ids = $wpdb->get_results($query_ids);
-        $selectError = $this->databaseError();
-        if ('' !== $selectError) {
-            throw $this->storageFailure('select connections for delete', $selectError);
-        }
-        $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
+        $result_ids = $this->selectRowsOrFail(
+            $query_ids,
+            'select connections for delete'
+        );
+        $ids = empty($result_ids) ? [] : array_column($result_ids, 'ID');
 
         // Nothing found.
         if (empty($ids)) {
@@ -1105,12 +1110,11 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND `from` = %d AND `to` = %d FOR UPDATE",
             ...$queryArguments
         );
-        $result_ids = $wpdb->get_results($query_ids);
-        $selectError = $this->databaseError();
-        if ('' !== $selectError) {
-            throw $this->storageFailure('select connections for delete', $selectError);
-        }
-        $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
+        $result_ids = $this->selectRowsOrFail(
+            $query_ids,
+            'select connections for delete'
+        );
+        $ids = empty($result_ids) ? [] : array_column($result_ids, 'ID');
 
         // Nothing found.
         if (empty($ids)) {
@@ -1226,9 +1230,18 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         $db = $this->fullTableName($this->connections_table);
         $db_meta = $this->fullTableName($this->meta_table);
         $query = "SELECT c.*, m.* FROM {$db} c LEFT JOIN {$db_meta} m ON c.ID = m.connection_id WHERE {$where_str}";
-        $query_result = $wpdb->get_results($query);
-
-        do_action('wpConnections/storage/findConnections/dbQuery', $query, $query_result, $this->getClient());
+        $query_result = $this->selectRowsOrFail(
+            $query,
+            'find connections',
+            function (array $rows) use ($query): void {
+                do_action(
+                    'wpConnections/storage/findConnections/dbQuery',
+                    $query,
+                    $rows,
+                    $this->getClient()
+                );
+            }
+        );
 
         // Meta prepare
         $data = [];
@@ -1488,5 +1501,45 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         }
 
         return new StorageFailure($operation, $previous);
+    }
+
+    /**
+     * Execute a SELECT without losing wpdb::query()'s strict false result.
+     *
+     * @return object[]
+     */
+    private function selectRowsOrFail(
+        string $query,
+        string $operation,
+        ?callable $afterQuery = null
+    ): array {
+        global $wpdb;
+
+        $queryResult = $wpdb->query($query);
+        $hasRowResult = is_array($wpdb->last_result);
+        $rows = $hasRowResult ? $wpdb->last_result : [];
+
+        if (null !== $afterQuery) {
+            $afterQuery($rows);
+        }
+
+        if (false === $queryResult) {
+            $databaseError = $this->databaseError();
+            $previous = '' === $databaseError
+                ? new \RuntimeException('Database query returned false without diagnostic context.')
+                : null;
+
+            throw $this->storageFailure($operation, $databaseError, $previous);
+        }
+
+        if (! $hasRowResult) {
+            throw $this->storageFailure(
+                $operation,
+                '',
+                new \RuntimeException('Database query returned an invalid row result.')
+            );
+        }
+
+        return $rows;
     }
 }
