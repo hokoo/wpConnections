@@ -4,6 +4,7 @@ namespace iTRON\wpConnections\Internal;
 
 use Closure;
 use iTRON\wpConnections\ClientRestApi;
+use Throwable;
 use WP_Error;
 use WP_REST_Request;
 
@@ -52,12 +53,16 @@ final class RestRouteBoundary
 
         /** @var ClientRestApi $delegate */
         $delegate = $target['delegate'];
-        $permission = $this->withDelegateAttributes(
-            $request,
-            $delegate,
-            $handler,
-            static fn () => $delegate->checkPermissions($request)
-        );
+        try {
+            $permission = $this->withDelegateAttributes(
+                $request,
+                $delegate,
+                $handler,
+                static fn () => $delegate->checkPermissions($request)
+            );
+        } catch (Throwable $failure) {
+            return RestErrorResponder::fromThrowable($delegate->getClient(), $failure);
+        }
 
         $attributes = $request->get_attributes();
         $attributes[ self::REGISTRATION_TOKEN_ATTRIBUTE ] = $target['token'];
@@ -121,12 +126,16 @@ final class RestRouteBoundary
         /** @var ClientRestApi $delegate */
         $delegate = $target['delegate'];
 
-        return $this->withDelegateAttributes(
-            $request,
-            $delegate,
-            $handler,
-            static fn () => $delegate->{$handler}($request)
-        );
+        try {
+            return $this->withDelegateAttributes(
+                $request,
+                $delegate,
+                $handler,
+                static fn () => $delegate->{$handler}($request)
+            );
+        } catch (Throwable $failure) {
+            return RestErrorResponder::fromThrowable($delegate->getClient(), $failure);
+        }
     }
 
     /**

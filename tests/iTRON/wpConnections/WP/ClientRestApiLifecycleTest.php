@@ -396,6 +396,110 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		self::assertNull( $input['order'] );
 	}
 
+	/**
+	 * @dataProvider permission_throwable_provider
+	 */
+	public function test_custom_permission_throwable_uses_safe_boundary_without_handler(
+		\Throwable $failure,
+		bool $logger_fails
+	): void {
+		$client = $this->new_client( 'permission-failure-owner' );
+		$delegate = $this->delegate_for_client( $client );
+		$server = rest_get_server();
+		$case = $this->request_matrix( $delegate )[2];
+		$logs = [];
+		$logger = static function ( array $record, string $level ) use (
+			&$logs,
+			$logger_fails
+		): void {
+			if ( 'wpConnections REST request failed.' !== ( $record[0] ?? null ) ) {
+				return;
+			}
+
+			$logs[] = [ 'record' => $record, 'level' => $level ];
+			if ( $logger_fails ) {
+				throw new \RuntimeException( 'permission logger transport failed' );
+			}
+		};
+		RestHookRecordingRestApi::$permission_interceptor = static function () use ( $failure ): void {
+			throw $failure;
+		};
+		$this->authenticate_for_managed_routes();
+		add_action( 'logger', $logger, 10, 2 );
+
+		try {
+			$response = $this->dispatch_case( $server, $case );
+		} finally {
+			remove_action( 'logger', $logger, 10 );
+		}
+
+		self::assertSame( 500, $response->get_status() );
+		self::assertSame(
+			[
+				'code'    => 'wp_connections_internal_error',
+				'message' => 'An internal error occurred.',
+				'data'    => [ 'status' => 500 ],
+			],
+			$response->get_data()
+		);
+		self::assertCount( 1, $logs );
+		self::assertSame( 'error', $logs[0]['level'] );
+		self::assertSame( $failure, $logs[0]['record'][1]['exception'] ?? null );
+		self::assertSame( 'permission', RestHookRecordingRestApi::$trace[0]['stage'] ?? null );
+		self::assertCount( 1, RestHookRecordingRestApi::$trace );
+		self::assertSame( [], RestHookRecordingRestApi::$handler_inputs );
+	}
+
+	public function permission_throwable_provider(): array
+	{
+		return [
+			'exception is logged' => [ new \RuntimeException( 'private permission exception' ), false ],
+			'error survives logger failure' => [ new \Error( 'private permission error' ), true ],
+		];
+	}
+
+	public function test_custom_permission_domain_failure_uses_numeric_mapping_without_handler(): void
+	{
+		$client = $this->new_client( 'permission-domain-owner' );
+		$delegate = $this->delegate_for_client( $client );
+		$server = rest_get_server();
+		$failure = new \iTRON\wpConnections\Exceptions\ConnectionEndpointNotFound( 'from', 999 );
+		$logs = [];
+		$logger = static function ( array $record ) use ( &$logs ): void {
+			if ( 'wpConnections REST request failed.' === ( $record[0] ?? null ) ) {
+				$logs[] = $record;
+			}
+		};
+		RestHookRecordingRestApi::$permission_interceptor = static function () use ( $failure ): void {
+			throw $failure;
+		};
+		$this->authenticate_for_managed_routes();
+		add_action( 'logger', $logger );
+
+		try {
+			$response = $this->dispatch_case( $server, $this->request_matrix( $delegate )[0] );
+		} finally {
+			remove_action( 'logger', $logger );
+		}
+
+		self::assertSame( 404, $response->get_status() );
+		self::assertSame(
+			[
+				'code'    => 306,
+				'message' => 'Connection endpoint entity not found: from=999.',
+				'data'    => [
+					'status'      => 404,
+					'domain_code' => 306,
+				],
+			],
+			$response->get_data()
+		);
+		self::assertSame( [], $logs );
+		self::assertSame( 'permission', RestHookRecordingRestApi::$trace[0]['stage'] ?? null );
+		self::assertCount( 1, RestHookRecordingRestApi::$trace );
+		self::assertSame( [], RestHookRecordingRestApi::$handler_inputs );
+	}
+
 	public function test_duplicate_identity_fails_stably_and_internal_revoke_allows_replacement(): void
 	{
 		$first_client = $this->new_client( 'duplicate-route-owner' );

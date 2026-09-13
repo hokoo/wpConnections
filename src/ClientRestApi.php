@@ -5,6 +5,7 @@ namespace iTRON\wpConnections;
 use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
+use iTRON\wpConnections\Internal\RestErrorResponder;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\RestResponse\CollectionItem;
 use Ramsey\Collection\Exception\NoSuchElementException;
@@ -63,7 +64,7 @@ class ClientRestApi
     {
         try {
             $response = [];
-            foreach ($this->getClient()->getRelation($request->get_param('relation'))->findConnections()->getIterator() as $connectionItem) {
+            foreach ($this->getClient()->getRelation($this->getRouteSelector($request, 'relation'))->findConnections()->getIterator() as $connectionItem) {
                 /** @var Connection $connectionItem */
                 $response [] = $this->getRestConnectionItem($connectionItem);
             }
@@ -77,10 +78,12 @@ class ClientRestApi
     public function getConnection(WP_REST_Request $request)
     {
         $q = new Query\Connection();
-        $q->set('id', $request->get_param('connectionID'));
+        $q->set('id', $this->getRouteSelector($request, 'connectionID'));
         try {
             return $this->ensureRestResponse(
-                $this->getClient()->getRelation($request->get_param('relation'))->findConnections($q)->first()
+                $this->getClient()->getRelation(
+                    $this->getRouteSelector($request, 'relation')
+                )->findConnections($q)->first()
             );
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
@@ -191,10 +194,12 @@ class ClientRestApi
     public function deleteConnection(WP_REST_Request $request)
     {
         $q = new Query\Connection();
-        $q->set('id', $request->get_param('connectionID'));
+        $q->set('id', $this->getRouteSelector($request, 'connectionID'));
 
         try {
-            $rows = $this->getClient()->getRelation($request->get_param('relation'))->detachConnections($q);
+            $rows = $this->getClient()->getRelation(
+                $this->getRouteSelector($request, 'relation')
+            )->detachConnections($q);
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
         }
@@ -211,7 +216,11 @@ class ClientRestApi
         $q = $this->obtainConnectionDataFromRequest($request);
 
         try {
-            return $this->ensureRestResponse($this->getClient()->getRelation($request->get_param('relation'))->createConnection($q));
+            return $this->ensureRestResponse(
+                $this->getClient()->getRelation(
+                    $this->getRouteSelector($request, 'relation')
+                )->createConnection($q)
+            );
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
         }
@@ -272,7 +281,7 @@ class ClientRestApi
 
     protected function getError(\Exception $exception): WP_Error
     {
-        return new WP_Error($exception->getCode(), $exception->getMessage());
+        return RestErrorResponder::fromThrowable($this->getClient(), $exception);
     }
 
     protected function getRestBaseUrl(): string

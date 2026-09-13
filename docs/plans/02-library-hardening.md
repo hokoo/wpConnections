@@ -49,6 +49,12 @@ candidate `1568007`, final head `e4142c2` и merge `2348d5a` реализуют 
 delete fault/commit-hook conformance и selector locking. Локальные suites, обе
 pinned DB lanes, isolation, coverage, PHPCS и два независимых аудита зелёные;
 final head и post-merge `master` прошли по 19/19 checks.
+DG-RESTERR-01/A, DG-RESTERR-02/A, DG-RESTERR-04/A, DG-UPDATE-05/A,
+DG-SPI-05/A for v1 with C as the next-major target, DG-DELETE-05/A and
+DG-DELETE-06/A утверждены владельцем 2026-09-14. REST-03 разблокирован.
+DG-DELETE-06/A утверждает recovery policy, но намеренно оставляет DB-04-D
+спроектировать durable repair record, scheduler, retry и operator contract и
+вынести их на отдельное human approval до production implementation.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -457,7 +463,7 @@ signal и не считается утверждённым этим решени
 
 ### DG-UPDATE-05. Success/no-op response REST `/meta`
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-14.
 
 **Проблема:** текущий handler кладёт PHP `Connection` object под ключ
 `updated`, а direct tests сравнивают объект до wire serialization. Full-dispatch
@@ -485,7 +491,8 @@ serialization, но не ломает v1 consumers. B расширяет public 
 требует отдельного design/API task. C является breaking change и недоступен без
 reopening DG-M4.
 
-**Блокирует:** REST-05 и DOC-01.
+**Последствия решения:** REST-05 и DOC-01 сохраняют exact legacy v1 wire shape;
+каноническая representation остаётся отдельным opt-in/v2 design.
 ### DG-SPI-01. Какой update payload пересекает Storage SPI
 
 **Статус:** approved A владельцем репозитория 2026-09-11.
@@ -593,7 +600,8 @@ backend feasibility и уточняет этот gate до owner decision.
 
 ### DG-SPI-05. Factory replacement construction и failures
 
-**Статус:** pending human decision.
+**Статус:** approved A для v1, с C как целью следующей major version,
+владельцем репозитория 2026-09-14.
 
 **Проблема:** storage filter документирует только class choice, но runtime также
 предполагает class-string, concrete `Storage` subtype, constructor с одним
@@ -615,7 +623,9 @@ backend feasibility и уточняет этот gate до owner decision.
 может изменить exact error message/chaining; B/C добавляют новые public shapes,
 а замена старого hook была бы breaking.
 
-**Блокирует:** REL-02 и release compatibility documentation.
+**Последствия решения:** REL-02 и release compatibility documentation
+проверяют v1 class-string construction/failure contract и фиксируют dedicated
+factory interface как next-major migration target.
 
 ### DG-SPI-06. Значение mutation hooks при commit/rollback
 
@@ -692,13 +702,13 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-UPDATE-02R | approved A | repository owner | 2026-09-11 | Direct zero endpoint writes are supplied-invalid; materialized reads preserved |
 | DG-UPDATE-03 | approved A | repository owner | 2026-09-12 | Scalar REST update не меняет meta; `/meta` и aggregate PHP update сохраняют свои boundaries |
 | DG-UPDATE-04 | approved A | repository owner | 2026-09-11 | Existing changed/no-op bool; not-found/failure are distinct exceptions |
-| DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
+| DG-UPDATE-05 | approved A | repository owner | 2026-09-14 | Preserve exact legacy REST `/meta` success/no-op shape in default v1 |
 | DG-SPI-01 | approved A | repository owner | 2026-09-11 | Domain sends fully materialized update state to SPI |
 | DG-SPI-02 | approved A | repository owner | 2026-09-11 | Domain owns create ID/client hydration; signatures retained |
 | DG-SPI-03 | approved A | repository owner | 2026-09-13 | Stable adapter exception; `0`/empty reserved for valid no-match/no-op outcomes |
 | DG-SPI-04 | approved A | repository owner | 2026-09-13 | Optional atomic unit-of-work capability; compound domain writes preflight it |
 | [DG-SPI-04R](../storage-spi-contract.md#dg-spi-04r) | approved A | repository owner | 2026-09-13 | Additive Client-level unit of work; explicit nested context; Client-local scope |
-| DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
+| DG-SPI-05 | approved A for v1; C next-major target | repository owner | 2026-09-14 | Validate compatible class-string factory replacement and normalize bootstrap failures; dedicated factory SPI is a major-version migration |
 | DG-SPI-06 | approved A | repository owner | 2026-09-11 | Commit-aware success hooks; DB-05/REL-02 unblocked on this gate |
 | [DG-SPI-06R](../storage-spi-contract.md#dg-spi-06r) | approved A | repository owner | 2026-09-13 | Required outer synchronizer; FIFO/exactly-once hooks only after actual commit |
 | [DG-SPI-06R2](../storage-spi-contract.md#dg-spi-06r2) | approved A | repository owner | 2026-09-13 | Post-commit hook Throwable propagates with committed state; no rollback/storage wrapping |
@@ -714,17 +724,17 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | approved A | repository owner | 2026-09-13 | Explicit root/nested ownership; collision-safe savepoint; no session autodetection |
 | [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | approved A-R | repository owner | 2026-09-13 | One bounded schema recovery before DML; never failed-INSERT-then-DDL |
 | [`DG-DB-06-FAIL`](../db-compatibility-contract.md#dg-db-06-fail) | approved A | repository owner | 2026-09-13 | Preserve empty matching-owned partial schema, prohibit DML and compensating DROP, recover only the missing table once |
-| [DG-RESTERR-01](../rest-error-contract.md#dg-resterr-01) | pending; recommendation A | repository owner | — | Domain-to-HTTP taxonomy; REST-03/REST-05/DOC-01/REL-02 wait |
-| [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | pending; recommendation A | repository owner | — | Default v1 library error body; REST-03/REST-05/DOC-01/REL-02 wait |
+| [DG-RESTERR-01](../rest-error-contract.md#dg-resterr-01) | approved A | repository owner | 2026-09-14 | Semantic domain-to-HTTP taxonomy; never derive HTTP status from numeric domain code |
+| [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | approved A | repository owner | 2026-09-14 | Preserve numeric top-level v1 domain code and add `data.status`/`data.domain_code` |
 | [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | approved A | repository owner | 2026-09-11 | Preserve native WordPress gateway status/code/data shape |
-| [DG-RESTERR-04](../rest-error-contract.md#dg-resterr-04) | pending; recommendation A | repository owner | — | Safe storage/unknown boundary; REST-03/REST-05/DOC-01/REL-02 wait |
+| [DG-RESTERR-04](../rest-error-contract.md#dg-resterr-04) | approved A | repository owner | 2026-09-14 | Exact generic public 500 for storage/unknown failure; original cause remains server-side only |
 | [DG-DELETE-01](../delete-result-contract.md#dg-delete-01--relation-ownership-and-selector-composition) | approved A-R | repository owner | 2026-09-12 | Preserve `id`/`both`/pair/`from`/`to` precedence; relation-scoped domain delete and exact relation identity |
 | [DG-DELETE-02](../delete-result-contract.md#dg-delete-02--logical-affected-count-semantics) | approved A | repository owner | 2026-09-12 | Count committed connection rows, excluding metadata multiplicity |
 | [DG-DELETE-03](../delete-result-contract.md#dg-delete-03--valid-no-match-and-partial-match-semantics) | approved A | repository owner | 2026-09-12 | `0` is valid no-match; partial bulk match succeeds; invalid/failure remains attributable |
 | [DG-DELETE-04](../delete-result-contract.md#dg-delete-04--id-normalization-and-invalid-or-ambiguous-input) | approved A-R | repository owner | 2026-09-12 | Strict selected-selector/direct-SPI ID normalization coordinated with preserved domain precedence |
 | [DG-DELETE-04-R2](../delete-result-contract.md#dg-delete-04-r2--raw-selector-safety-versus-query-introspection) | approved A | repository owner | 2026-09-13 | Keep Query selectors virtual so repeated direct writes retain raw values; presence introspection uses `isProvided()` |
-| [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | pending; recommendation A | repository owner | — | REST-03 waits; DOC-01 refinement |
-| [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | pending; recommendation A | repository owner | — | DB-04 waits; REL-03/DOC-01 refinement |
+| [DG-DELETE-05](../delete-result-contract.md#dg-delete-05--rest-connection-delete-success-representation) | approved A | repository owner | 2026-09-14 | Preserve HTTP 200 `{"deleted":true}` for successful single-resource DELETE |
+| [DG-DELETE-06](../delete-result-contract.md#dg-delete-06--deleted_post-cleanup-failure-and-recovery) | approved A; technical refinement required | repository owner | 2026-09-14 | Synchronous atomic cleanup plus durable observable idempotent repair; DB-04-D must define mechanism before DB-04-I |
 | [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | approved A | repository owner | 2026-09-11 | Compatibility normalization plus safe canonical identity |
 | [`DG-NAME-02`](../client-naming-contract.md#dg-name-02) | approved A | repository owner | 2026-09-11 | Two-phase `ClientRegisterFail` code 4 boundary |
 | [`DG-NAME-03`](../client-naming-contract.md#dg-name-03) | approved A | repository owner | 2026-09-11 | Legacy postfix retained with atomic site-local ownership claim |
@@ -1088,11 +1098,11 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A and DB-03B-B completed; DB-04 waits DELETE-06 and implementation dependencies |
-| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | partial: RESTERR-03 approved A 2026-09-11; остальные pending A recommended | REST-03—REST-05 exact wire contract |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A on 2026-09-14 with mandatory DB-04 technical refinement | DB-03B-A/B completed; DB-04-D ready, DB-04-I waits its approved mechanism |
+| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 ready; REST-04/05 follow after REST-03 |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
-| DP-9 Factory compatibility | DG-SPI-05 | pending; A recommended | REL-02/release documentation |
+| DP-9 Factory compatibility | DG-SPI-05 | approved A for v1, C next-major target, 2026-09-14 | REL-02/release documentation contract fixed |
 
 Entry criteria:
 
@@ -1102,10 +1112,10 @@ Entry criteria:
   2026-09-11. В DP-3 DG-NAME-01—06 и DG-SPI-07 утверждены вариантом A, а
   DG-NAME-06R — как staged A-to-D transition; все решения записаны в canonical
   bodies и central registry.
-- В DP-4 утверждены DG-UPDATE-04/A и DG-SPI-06/A. Остаток DP-4 и DP-5—DP-9 не
-  считается неявно утверждённым и не блокирует задачи batch, если не перечислен
-  в их собственных dependencies; DG-RESTERR-03/A из DP-6 также учитывается
-  отдельно.
+- DP-4, DP-5, DP-6 и DP-9 утверждены в перечисленных вариантах. В DP-5
+  технический механизм DG-DELETE-06/A намеренно остаётся предметом нового
+  refinement gate из DB-04-D. DP-7 и DP-8 не считаются неявно утверждёнными и
+  продолжают блокировать только перечисленные downstream tasks.
 - TEST-02F red evidence остаётся вне `master` до paired green CORE-07 PR.
 
 Tasks:
@@ -1811,6 +1821,57 @@ Verification:
 - PR #93 влит merge commit
   `2348d5afec3e365720b4bb9213f16019ab102897`; exact post-merge `master`
   прошёл 19/19 checks. Все exit criteria DB-03B-B/Batch 15 выполнены.
+
+### Batch 16. Activate approved REST boundary and refine delete repair
+
+Status: in_progress
+
+Goal: активировать утверждённый 2026-09-14 public boundary без смешивания
+неутверждённых механизмов: реализовать REST-03 exact v1 CRUD/error contract и
+параллельно подготовить только decision-ready DB-04-D repair design.
+
+Tasks:
+
+- REST-03 — `in_progress`; decision activation, red matrix, production mapping
+  и canonical contract выполнены локально, verification/merge ещё впереди.
+- DB-04-D — `todo`; recovery policy утверждена, mechanism требует отдельного
+  human approval.
+- DB-04-I — `waiting_dependency`; production запрещён до завершения DB-04-D и
+  утверждения созданных refinement gates.
+
+Execution slices:
+
+1. `B16/D1 — decision activation and readiness` — `completed` в branch
+   `batch16-rest-contract`: записать семь owner decisions, обновить registry,
+   разделить DB-04-D/DB-04-I и перевести только REST-03/DB-04-D в `todo`.
+2. `B16/R1 — REST-03 red full-dispatch matrix` — `completed` в том же REST branch:
+   зафиксировать success payloads, semantic 400/404/409, exact generic 500,
+   numeric-domain v1 body, persisted-state и no-success-hook assertions.
+3. `B16/R2 — REST-03 production mapping and serialization` — `completed` после R1:
+   минимально реализовать approved mapping для connection CRUD; native
+   WordPress gateway errors остаются нетронутыми.
+4. `B16/D2 — DB-04-D repair decision packet` — `todo` в отдельной branch/PR
+   после фиксации D1: только source/runtime audit, alternatives и новые human
+   gates; никакой production schema/scheduler code.
+5. `B16/Q — verification and independent QA` — `in_progress`: каждый
+   delivery track проходит review отдельно; REST production PR обязан пройти
+   full local/pinned lanes и protected CI, design PR — traceability/readiness
+   QA. Closeout обновляет task/batch statuses только по проверенным результатам.
+
+Exit criteria:
+
+- REST-03 DoD/AC выполнены на exact candidate и подтверждены независимым QA и
+  protected/post-merge checks.
+- DB-04-D либо публикует полный decision packet с явным human gate, либо
+  документирует проверяемый blocker; DB-04-I не начата без approval.
+- REST и delete-repair production changes не смешаны в одном PR.
+
+Next batch:
+
+- После REST-03: REST-04 и REST-05 становятся ближайшими production tasks и
+  могут быть разложены на отдельные вертикали permissions и meta semantics.
+- После owner approval DB-04-D gates: DB-04-I становится отдельным production
+  batch; без approval delivery останавливается именно на этом human gate.
 
 ## E1. Test foundation и regression harness
 
@@ -3264,9 +3325,10 @@ Notes/Risks:
   REST-00B как `DG-UPDATE-04`; SPI artifact только связывает conformance с этим
   gate и не дублирует решение.
 - DG-SPI-01, DG-SPI-02 и DG-SPI-07 утверждены вариантом A владельцем
-  2026-09-11; DG-SPI-06/A утверждён отдельно, DG-SPI-03—DG-SPI-05 остаются
-  pending. Production tasks меняют
-  статус только после выполнения остальных explicit dependencies.
+  2026-09-11; DG-SPI-03/A, DG-SPI-04/A и refinements утверждены
+  2026-09-13; DG-SPI-05/A для v1 с C как next-major target утверждён
+  2026-09-14; DG-SPI-06/A утверждён отдельно. Production tasks меняют статус
+  только после выполнения остальных explicit dependencies.
 
 Verification:
 
@@ -3723,57 +3785,131 @@ Verification:
 - Focused delete `69 tests / 340 assertions`; combined coverage
   `237 / 2030`; statement coverage `91.88%`.
 
-### DB-04. Проверить WordPress `deleted_post` cascade
+### DB-04-D. Спроектировать durable repair contract для `deleted_post`
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0
 
-Goal: удаление post автоматически удаляет входящие/исходящие connections и meta
-для текущего клиента без затрагивания остальных клиентов.
+Goal: превратить утверждённую DG-DELETE-06/A recovery policy в
+decision-ready технический контракт, не выбирая неявно формат durable record,
+scheduler, retry policy или operator surface.
 
 Scope:
 
-- Реальный `wp_delete_post`/`deleted_post` flow.
-- From, to, self-connection и multi-client cases.
-- Hook registration lifecycle.
+- Проверить текущую регистрацию `deleted_post`, WordPress cron/runtime
+  facilities, multisite/site-prefix lifecycle и доступные project dependencies.
+- Определить обязательную identity/deduplication key для client/site/post/
+  operation и идемпотентную state machine repair attempt.
+- Сравнить как минимум встроенный WP-Cron, опциональную scheduler dependency и
+  явно запускаемый retry path с учётом недоступности loopback/cron.
+- Спроектировать durable persistence, retry/backoff/terminal-state,
+  observability, retention/cleanup и operator recovery contract.
+- Выпустить отдельные refinement DG с alternatives, recommendation,
+  compatibility/operational impact и явными downstream dependencies.
 
 Out of Scope:
 
-- Hooks для users/terms или других entity types.
+- Production schema, scheduler, callback или retry implementation.
+- Заявление, что удалённый WordPress post можно откатить.
+- Hooks для users/terms и repair чужих clients/sites.
 
 DoR:
 
 - DB-03B-A и DB-03B-B завершены.
 - DB-05 завершила reusable atomic mutation boundary.
-- DG-M1 определяет поддерживаемые entities.
-- DG-DELETE-04 и DG-DELETE-06 утверждены.
-- DG-NAME-06 утверждён для site-prefix lifecycle callback.
+- DG-M1, DG-DELETE-04, DG-DELETE-06/A и DG-NAME-06 утверждены.
 
 DoD:
 
-- Cascade integration tests зелёные.
-- Нет orphan meta.
+- Source/runtime evidence и существующие extension constraints перечислены.
+- Repair state transitions, ownership, idempotency и crash windows разобраны.
+- Каждый материальный выбор вынесен в human decision gate; recommendation не
+  помечена как утверждённая.
+- DB-04-I имеет исполняемые DoR/DoD/AC, но остаётся заблокированной до approval.
+
+AC:
+
+- Given synchronous cleanup failure after committed post deletion, when выбран
+  любой предложенный mechanism, then существует durable attributable record и
+  повтор не создаёт второй cleanup outcome.
+- Given cron/loopback не запускается, then design содержит явный observable и
+  operator-triggered recovery path, а не обещание eventual success без условий.
+- Given multisite switch и несколько clients, then identity и execution context
+  не позволяют одному repair удалить строки другого site/client.
+
+Dependencies:
+
+- DB-03B-A, DB-03B-B, DB-05.
+- DG-M1, DG-DELETE-04, DG-DELETE-06/A, DG-NAME-06.
+
+Notes/Risks:
+
+- Approval DG-DELETE-06/A фиксирует конечную гарантию, но не даёт полномочий
+  молча вводить обязательную внешнюю библиотеку, новую таблицу или public API.
+- Результат — design artifact и новый human gate, не production code.
+
+### DB-04-I. Реализовать WordPress `deleted_post` cleanup и repair
+
+Status: waiting_dependency
+
+Priority: P0
+
+Goal: удаление post синхронно и атомарно удаляет входящие/исходящие connections
+и meta текущего клиента; failure становится durable, observable и идемпотентно
+repairable без затрагивания остальных clients/sites.
+
+Scope:
+
+- Реальный `wp_delete_post`/`deleted_post` flow.
+- From, to, self-connection и multi-client/multisite cases.
+- Hook registration lifecycle и synchronous cleanup attempt.
+- Approved durable repair record, scheduler/retry и operator surface.
+- Failure injection для каждого state transition и crash window.
+
+Out of Scope:
+
+- Hooks для users/terms или других entity types.
+- Rollback уже committed WordPress post deletion.
+- Не утверждённые scheduler, storage или public API choices.
+
+DoR:
+
+- DB-04-D завершена.
+- Все созданные DB-04-D refinement gates утверждены владельцем.
+- DB-03B-A, DB-03B-B и DB-05 завершены.
+- DG-M1, DG-DELETE-04, DG-DELETE-06/A и DG-NAME-06 утверждены.
+
+DoD:
+
+- Cascade и repair integration tests зелёные на supported DB lanes.
+- Нет orphan meta после successful synchronous cleanup или successful retry.
+- Failure не теряется, retry идемпотентен, status наблюдаем до terminal success.
 - Hook не регистрируется многократно между tests/clients неожиданным образом.
+- Operator/migration/uninstall contract задокументирован.
 
 AC:
 
 - Given post участвует в нескольких relations, when он удалён, then все его
   connections текущего клиента и meta удалены.
-- Given другой клиент использует другой endpoint, then его данные не затронуты.
+- Given synchronous storage failure, then WordPress post не объявляется
+  rolled back, durable repair видим и approved retry завершает cleanup.
+- Given repeated retry или concurrent worker, then cleanup остаётся
+  идемпотентным и record не порождает duplicate terminal effects.
+- Given другой client/site использует тот же numeric post ID, then его данные
+  не затронуты.
 
 Dependencies:
 
-- DB-03B-A, DB-03B-B.
-- DB-05.
-- DG-M1.
-- DG-DELETE-04, DG-DELETE-06.
-- DG-NAME-06.
+- DB-04-D и утверждённые ей refinement gates.
+- DB-03B-A, DB-03B-B, DB-05.
+- DG-M1, DG-DELETE-04, DG-DELETE-06/A, DG-NAME-06.
 
 Notes/Risks:
 
-- При shared entity между клиентами каждый client hook должен обработать только
-  собственные tables.
+- При shared entity между clients каждый client hook обрабатывает только свои
+  tables и сохраняет construction-site context.
+- REL-03 и DOC-01 потребляют фактически реализованный recovery contract.
 
 ### DB-05. Сделать составные storage operations атомарными
 
@@ -4202,9 +4338,9 @@ Dependencies:
 Notes/Risks:
 
 - Canonical artifact: [REST v1 error contract discovery](../rest-error-contract.md).
-- DG-RESTERR-03/A утверждён 2026-09-11; DG-RESTERR-01/02/04 остаются pending.
-  Completion REST-00A означает готовность discovery/decision package, а не
-  неявное утверждение остальных recommendation A.
+- DG-RESTERR-03/A утверждён 2026-09-11; DG-RESTERR-01/02/04/A утверждены
+  2026-09-14. Completion REST-00A означал готовность discovery/decision package;
+  последующее owner approval теперь делает весь mapping исполняемым.
 - Future entity rows consume approved DG-ENT-03/A from the merged CORE-00 contract;
   storage mapping consumes DG-SPI-03; mutation success/no-op classification
   consumes DG-UPDATE-04 and DG-UPDATE-05. REST-00A не дублирует их ownership.
@@ -4281,8 +4417,8 @@ Notes/Risks:
   инвентаризирует
   PHP/domain/storage/REST paths, историю commits `7f800b8`/`2b7bacc`, issues
   #13/#22 и Postman drift; DG-UPDATE-01/02/02R и result gate DG-UPDATE-04
-  утверждены вариантом A, а metadata/REST-response choices DG-UPDATE-03 и
-  DG-UPDATE-05 остаются pending с downstream acceptance matrix.
+  утверждены вариантом A, DG-UPDATE-03/A утверждён 2026-09-12, а
+  DG-UPDATE-05/A — 2026-09-14; downstream acceptance matrix полностью задана.
 - Задача завершает discovery/design, но не разблокирует implementation до
   явного утверждения соответствующих gates владельцем.
 
@@ -4420,7 +4556,7 @@ Notes/Risks:
 
 ### REST-03. Покрыть connection CRUD и error mapping
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P0
 
@@ -4482,6 +4618,10 @@ Notes/Risks:
 
 - Текущие numeric domain codes 301—304 не должны автоматически становиться HTTP
   redirect statuses.
+- Canonical success/error/path-selector contract зафиксирован в
+  [`docs/rest-connection-contract.md`](../rest-connection-contract.md). Local
+  focused full-dispatch suite зелёный; independent QA, protected merge и
+  post-merge matrix остаются обязательными до `completed`.
 
 ### REST-04. Защитить differentiated permissions
 

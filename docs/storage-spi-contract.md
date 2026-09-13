@@ -1,10 +1,9 @@
 # Storage SPI and mutation boundary
 
-Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
-DG-SPI-04, DG-SPI-04R, DG-SPI-06, DG-SPI-06R, DG-SPI-06R2 and DG-SPI-07
-approved A; their DB-05 boundary is implemented on Batch 14 and DB-03B-B delete
-conformance is implemented and merged by Batch 15 PR #93 as `2348d5a`, while
-DG-SPI-05 remains pending
+Status: approved decision contract; DG-SPI-01—DG-SPI-07 and refinements are
+approved for v1 in their recorded variants. The DB-05 boundary is implemented
+in Batch 14, DB-03B-B delete conformance is merged by Batch 15 PR #93 as
+`2348d5a`, and DG-SPI-05/C is recorded as the next-major factory target.
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -528,6 +527,9 @@ REL-02 owns custom-adapter conformance.
 
 ### DG-SPI-05 — factory replacement construction and failure contract
 
+**Status:** approved A for v1, with C recorded as the next-major target, by the
+repository owner on 2026-09-14.
+
 **Problem:** the filter promises only a name, while runtime also assumes a
 class string, concrete `Storage` subtype, one-`Client` constructor and safe early
 construction. Error normalization is incomplete and can misclassify constructor
@@ -549,7 +551,8 @@ polymorphic and harder to validate without a migration boundary.
 implementers but can change exact error messages/exception chaining. B/C add
 public input shapes; replacing the existing hook outright would be breaking.
 
-**Blocked/refined tasks:** REL-02 and release compatibility documentation.
+**Unblocked/refined tasks:** REL-02 and release compatibility documentation
+consume A for v1 and record C in the next-major migration plan.
 
 ### DG-SPI-06 — mutation hook meaning across commit/rollback
 

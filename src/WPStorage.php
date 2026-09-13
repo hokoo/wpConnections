@@ -789,7 +789,9 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
         }
 
         return new ConnectionWrongData(
-            'Client storage schema is not ready for InnoDB DML; ' . $stage . ': [' . implode('; ', $details) . '].'
+            'Client storage schema is not ready for InnoDB DML; ' . $stage . ': [' . implode('; ', $details) . '].',
+            300,
+            new StorageFailure('prepare client storage schema')
         );
     }
 
