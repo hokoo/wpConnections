@@ -458,6 +458,48 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		];
 	}
 
+	public function test_custom_permission_domain_failure_uses_numeric_mapping_without_handler(): void
+	{
+		$client = $this->new_client( 'permission-domain-owner' );
+		$delegate = $this->delegate_for_client( $client );
+		$server = rest_get_server();
+		$failure = new \iTRON\wpConnections\Exceptions\ConnectionEndpointNotFound( 'from', 999 );
+		$logs = [];
+		$logger = static function ( array $record ) use ( &$logs ): void {
+			if ( 'wpConnections REST request failed.' === ( $record[0] ?? null ) ) {
+				$logs[] = $record;
+			}
+		};
+		RestHookRecordingRestApi::$permission_interceptor = static function () use ( $failure ): void {
+			throw $failure;
+		};
+		$this->authenticate_for_managed_routes();
+		add_action( 'logger', $logger );
+
+		try {
+			$response = $this->dispatch_case( $server, $this->request_matrix( $delegate )[0] );
+		} finally {
+			remove_action( 'logger', $logger );
+		}
+
+		self::assertSame( 404, $response->get_status() );
+		self::assertSame(
+			[
+				'code'    => 306,
+				'message' => 'Connection endpoint entity not found: from=999.',
+				'data'    => [
+					'status'      => 404,
+					'domain_code' => 306,
+				],
+			],
+			$response->get_data()
+		);
+		self::assertSame( [], $logs );
+		self::assertSame( 'permission', RestHookRecordingRestApi::$trace[0]['stage'] ?? null );
+		self::assertCount( 1, RestHookRecordingRestApi::$trace );
+		self::assertSame( [], RestHookRecordingRestApi::$handler_inputs );
+	}
+
 	public function test_duplicate_identity_fails_stably_and_internal_revoke_allows_replacement(): void
 	{
 		$first_client = $this->new_client( 'duplicate-route-owner' );

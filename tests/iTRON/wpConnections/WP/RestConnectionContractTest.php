@@ -755,6 +755,49 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 		self::assertSame( [ 'commit' => [ 'durable' ] ], $persisted->first()->meta->toArray() );
 	}
 
+	public function test_create_post_commit_domain_failure_keeps_numeric_mapping_and_durable_success(): void
+	{
+		$failure = new \iTRON\wpConnections\Exceptions\ConnectionWrongData(
+			'Consumer success hook reported a duplicate conflict.',
+			303
+		);
+		$success_calls = 0;
+		$throw_after_commit = static function () use ( &$success_calls, $failure ): void {
+			$success_calls++;
+			throw $failure;
+		};
+		$logs = [];
+		$logger = static function ( array $record ) use ( &$logs ): void {
+			if ( 'wpConnections REST request failed.' === ( $record[0] ?? null ) ) {
+				$logs[] = $record;
+			}
+		};
+		add_action( 'wpConnections/relation/created', $throw_after_commit );
+		add_action( 'logger', $logger );
+
+		try {
+			$response = $this->dispatch_rest_request(
+				'POST',
+				$this->relation_route( RELATION_0_NAME ),
+				[
+					'from' => $this->page_ids[0],
+					'to'   => $this->post_ids[0],
+					'meta' => [ [ 'key' => 'commit', 'value' => 'classified' ] ],
+				]
+			);
+		} finally {
+			remove_action( 'logger', $logger );
+			remove_action( 'wpConnections/relation/created', $throw_after_commit );
+		}
+
+		$this->assert_domain_error( 303, 409, $failure->getMessage(), $response );
+		self::assertSame( 1, $success_calls );
+		self::assertSame( [], $logs );
+		$persisted = $this->client->getRelation( RELATION_0_NAME )->findConnections();
+		self::assertCount( 1, $persisted );
+		self::assertSame( [ 'commit' => [ 'classified' ] ], $persisted->first()->meta->toArray() );
+	}
+
 	public function test_delete_post_commit_hook_failure_keeps_durable_success_when_logger_fails(): void
 	{
 		global $wpdb;

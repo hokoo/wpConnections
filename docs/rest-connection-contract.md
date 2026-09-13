@@ -173,10 +173,12 @@ failure is swallowed so diagnostics can never alter the public response.
 
 The final route boundary catches `Throwable` around both the selected permission
 callback and handler. It restores temporary callback attributes before mapping
-the failure. A thrown permission failure uses the same generic 500/logging
-contract and never invokes the handler. This does not normalize WordPress route
-matching or argument validation failures, or ordinary permission callbacks that
-return a boolean or `WP_Error`.
+the failure. A thrown permission failure passes through the same type-based
+mapper and never invokes the handler: a classified library domain exception
+uses its numeric 4xx contract, while a storage-causal or otherwise unknown
+throwable uses the generic 500/logging contract. This does not normalize
+WordPress route matching or argument validation failures, or ordinary permission
+callbacks that return a boolean or `WP_Error`.
 
 ## WordPress-native gateway errors
 
@@ -207,12 +209,15 @@ representation rule.
 
 There is one important commit-boundary exception. Under approved
 `DG-SPI-06R2/A`, success notifications run only after a durable commit. If a
-consumer success-hook callback then throws, REST returns the same generic 500
-because no success payload can be completed, but the mutation remains committed
-and the throwing success hook has already run. This applies to connection create
-and delete flows that emit commit-aware notifications. A consumer must not infer
-rollback from that 500 or blindly retry a non-idempotent operation; it must read
-current state using the resource identity and operation semantics.
+consumer success-hook callback then throws, no success payload can be completed,
+but the mutation remains committed and the throwing success hook has already
+run. The throwable uses the same type-based mapper: a classified library domain
+failure keeps its numeric 4xx response, while a storage-causal or otherwise
+unknown failure uses the generic 500 and server log. This applies to connection
+create and delete flows that emit commit-aware notifications. A consumer must
+not infer rollback from either error response or blindly retry a non-idempotent
+operation; it must read current state using the resource identity and operation
+semantics.
 
 These REST assertions consume the atomicity and commit-aware hook guarantees
 owned by `DB-05`, `DG-SPI-03/A`, and `DG-SPI-06/A`; they do not redefine the
