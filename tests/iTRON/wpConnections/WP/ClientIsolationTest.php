@@ -114,6 +114,9 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		foreach ( array_diff( $current_options, $this->original_option_names ) as $option_name ) {
 			delete_option( $option_name );
 		}
+		// Atomic production calls can complete the WP_UnitTestCase transaction.
+		// Persist this exact cleanup before the parent issues its defensive rollback.
+		$wpdb->query( 'COMMIT' );
 
 		foreach ( array_diff( $wpdb->tables, $this->original_tables ) as $table_key ) {
 			unset( $wpdb->{$table_key} );
