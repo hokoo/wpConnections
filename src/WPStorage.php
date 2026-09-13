@@ -4,6 +4,7 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Helpers\Database;
 use iTRON\wpConnections\Internal\ConnectionIdNormalizer;
 
@@ -691,9 +692,20 @@ class WPStorage extends Abstracts\Storage
             ...$connectionIDs
         );
 
-        $wpdb->query($query_meta);
-        $wpdb->query($query);
-        $rowsAffected = (int) $wpdb->rows_affected;
+        if (false === $wpdb->query($query_meta)) {
+            throw $this->storageFailure('delete connection metadata');
+        }
+
+        $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('delete connections');
+        }
+
+        $rowsAffected = (int) $rowsAffected;
+
+        if (0 === $rowsAffected) {
+            return 0;
+        }
 
         do_action('wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $rowsAffected);
         do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $rowsAffected);
@@ -984,10 +996,13 @@ class WPStorage extends Abstracts\Storage
         do_action('iTRON/wpConnections/storage/createConnection/attempt/result', $result, $insertError);
 
         if (false === $result) {
-            throw new Exceptions\ConnectionWrongData("Database refused inserting new connection with the words: [{$insertError}]");
+            throw $this->storageFailure('create connection', $insertError);
         }
 
         $connection_id = $wpdb->insert_id;
+        if (0 >= $connection_id) {
+            throw $this->storageFailure('create connection');
+        }
 
         // Insert meta data.
         $metaQuery = $connectionQuery->get('meta');
@@ -1014,7 +1029,12 @@ class WPStorage extends Abstracts\Storage
             'title'     => $connection->title,
         ];
 
-        return $wpdb->update($this->fullTableName($this->connections_table), $update, $where);
+        $result = $wpdb->update($this->fullTableName($this->connections_table), $update, $where);
+        if (false === $result) {
+            throw $this->storageFailure('update connection');
+        }
+
+        return 0 !== $result;
     }
 
     /**
@@ -1043,7 +1063,6 @@ class WPStorage extends Abstracts\Storage
         do_action('wpConnections/storage/addConnectionMeta/before', $this->getClient(), $objectID, $metaCollection);
         $this->assertSitePrefix();
 
-        $errors = [];
         foreach ($metaCollection->getIterator() as $meta) {
             /** @var Query\Meta $meta */
             $data = [
@@ -1054,16 +1073,11 @@ class WPStorage extends Abstracts\Storage
 
             $result = $wpdb->insert($this->fullTableName($this->meta_table), $data);
             if (false === $result) {
-                $errors [] = $wpdb->last_error;
+                throw $this->storageFailure('add connection metadata');
             }
         }
 
-        do_action('wpConnections/storage/addConnectionMeta/after', $this->getClient(), $objectID, $metaCollection, $errors);
-
-        if ($errors) {
-            $errors = implode('; ', $errors);
-            throw new Exceptions\ConnectionWrongData("Database refused inserting new connection meta data with the words: [{$errors}]");
-        }
+        do_action('wpConnections/storage/addConnectionMeta/after', $this->getClient(), $objectID, $metaCollection, []);
     }
 
     /**
@@ -1112,9 +1126,23 @@ class WPStorage extends Abstracts\Storage
         $this->assertSitePrefix();
 
         $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('remove connection metadata');
+        }
 
         do_action('wpConnections/storage/removeConnectionMeta/after', $this->getClient(), $objectID, $metaQuery, $query, $rowsAffected);
 
         return $rowsAffected;
+    }
+
+    private function storageFailure(string $operation, string $databaseError = ''): StorageFailure
+    {
+        if ('' === $databaseError) {
+            $databaseError = $this->databaseError();
+        }
+
+        $previous = '' === $databaseError ? null : new \RuntimeException($databaseError);
+
+        return new StorageFailure($operation, $previous);
     }
 }

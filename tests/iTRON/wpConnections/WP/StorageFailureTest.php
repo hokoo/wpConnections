@@ -24,7 +24,7 @@ class StorageFailureTest extends WPConnectionsTestCase
 			}
 		);
 
-		self::assertSame( StorageFailure::class, $failure ? get_class( $failure ) : null );
+		$this->assert_storage_failure( 'create connection', $failure );
 	}
 
 	public function test_update_database_failure_differs_from_valid_noop(): void
@@ -41,7 +41,7 @@ class StorageFailureTest extends WPConnectionsTestCase
 			}
 		);
 
-		self::assertSame( StorageFailure::class, $failure ? get_class( $failure ) : null );
+		$this->assert_storage_failure( 'update connection', $failure );
 
 		$noop = new ConnectionQuery();
 		$noop->set( 'id', $connection->id );
@@ -70,7 +70,7 @@ class StorageFailureTest extends WPConnectionsTestCase
 			remove_action( 'wpConnections/storage/addConnectionMeta/after', $after );
 		}
 
-		self::assertSame( StorageFailure::class, $failure ? get_class( $failure ) : null );
+		$this->assert_storage_failure( 'add connection metadata', $failure );
 		self::assertSame( 0, $after_calls );
 	}
 
@@ -97,7 +97,7 @@ class StorageFailureTest extends WPConnectionsTestCase
 			remove_action( 'wpConnections/storage/removeConnectionMeta/after', $after );
 		}
 
-		self::assertSame( StorageFailure::class, $failure ? get_class( $failure ) : null );
+		$this->assert_storage_failure( 'remove connection metadata', $failure );
 		self::assertSame( 0, $after_calls );
 	}
 
@@ -121,7 +121,7 @@ class StorageFailureTest extends WPConnectionsTestCase
 			remove_action( 'wpConnections/storage/deletedSpecificConnections', $success );
 		}
 
-		self::assertSame( StorageFailure::class, $failure ? get_class( $failure ) : null );
+		$this->assert_storage_failure( 'delete connections', $failure );
 		self::assertSame( 0, $success_calls );
 		self::assertSame( 0, $this->client->getStorage()->deleteSpecificConnections( PHP_INT_MAX ) );
 	}
@@ -165,6 +165,23 @@ class StorageFailureTest extends WPConnectionsTestCase
 		self::assertTrue( $intercepted, "Expected to intercept query containing {$query_fragment}." );
 
 		return $failure;
+	}
+
+	private function assert_storage_failure( string $operation, ?Throwable $failure ): void
+	{
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame( StorageFailure::CODE, $failure->getCode() );
+		self::assertSame( $operation, $failure->getOperation() );
+		self::assertSame( "Storage operation failed: {$operation}.", $failure->getMessage() );
+		self::assertInstanceOf( \RuntimeException::class, $failure->getPrevious() );
+		self::assertStringContainsString(
+			'wpconnections_batch14_forced_database_failure',
+			$failure->getPrevious()->getMessage()
+		);
+		self::assertStringNotContainsString(
+			'wpconnections_batch14_forced_database_failure',
+			$failure->getMessage()
+		);
 	}
 
 	private function connections_table(): string
