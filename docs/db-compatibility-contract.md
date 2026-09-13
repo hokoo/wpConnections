@@ -570,7 +570,7 @@ PR readiness and REL-01 lifecycle documentation.
 | Consumer task | Input from DB-00 | Remains blocked by |
 | --- | --- | --- |
 | DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-DB-01—DG-DB-04, DG-SPI-03/04/06 and DG-UPDATE-03/04 |
-| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | No decision blocker; final verification and merge remain |
+| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | Completed in PR #89; DB-06R is a separate non-blocking follow-up |
 | REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | DG-DB-01, DG-DB-02, DG-DB-04 |
 | REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-DB-03, DG-SPI-04, DG-SPI-06 |
 | CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
@@ -602,9 +602,14 @@ PR readiness and REL-01 lifecycle documentation.
   1193 for that variable, confirming vendor-specific detection cannot be the
   shared contract.
 - DG-DB-01/A, DG-DB-02/A, the refined DG-DB-04/A-R and DG-DB-06-FAIL/A were
-  approved on
-  2026-09-13. Batch 13 implements and locally verifies their unblocked DB-06
-  portion on both pinned database images. DG-DB-03 remains pending for DB-05.
-- Independent QA for commit `3418c17` passed the required-descriptor remediation
-  with a non-blocking scope note: custom additional constraints remain assigned
-  to DB-06R rather than being silently represented as covered by DB-06.
+  approved on 2026-09-13.
+- Batch 13 / DB-06 completed in PR
+  [#89](https://github.com/hokoo/wpConnections/pull/89): exact candidate
+  `85829ef`, merge `aa79a32b8393e28d35e3fa824a92d841ed657e32`.
+- Independent epic QA passed without mandatory or new residual findings.
+  Exact-head and post-merge GitHub checks passed 19/19, including the full suite
+  on both digest-pinned database images; `master` now requires all 19 contexts
+  with strict synchronization.
+- The independent QA scope note remains explicit: custom additional constraints
+  are assigned to DB-06R rather than being represented as covered by DB-06.
+  DG-DB-03 remains pending for DB-05.
