@@ -132,6 +132,7 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
     private string $postfix;
     private string $site_prefix;
     private int $transactionDepth = 0;
+    private ?\Throwable $transactionTaint = null;
 
     private static int $savepointSequence = 0;
 
@@ -172,6 +173,14 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         global $wpdb;
 
         $this->assertSitePrefix();
+        if (null !== $this->transactionTaint) {
+            throw $this->storageFailure(
+                'transaction state is uncertain',
+                '',
+                $this->transactionTaint
+            );
+        }
+
         if ($context->isRoot() && 0 < $this->transactionDepth) {
             throw new Exceptions\StorageCapabilityUnavailable(
                 'A root transaction cannot start inside an active library scope.'
@@ -201,26 +210,18 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             $result = $operation();
         } catch (\Throwable $exception) {
             $this->transactionDepth--;
-            if ($context->isRoot()) {
-                if (false === $wpdb->query('ROLLBACK')) {
-                    throw $this->storageFailure('rollback transaction', '', $exception);
-                }
-
-                throw $exception;
-            }
-
-            if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
-                throw $this->storageFailure('rollback savepoint', '', $exception);
-            }
-
-            if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
-                throw $this->storageFailure('release savepoint after rollback', '', $exception);
-            }
-
-            throw $exception;
+            $failure = $this->transactionTaint ?? $exception;
+            $this->rollBackAtomicScope($context, $savepoint, $failure);
+            throw $failure;
         }
 
         $this->transactionDepth--;
+        if (null !== $this->transactionTaint) {
+            $failure = $this->transactionTaint;
+            $this->rollBackAtomicScope($context, $savepoint, $failure);
+            throw $failure;
+        }
+
         $completion = $context->isRoot() ? 'COMMIT' : "RELEASE SAVEPOINT {$savepoint}";
         if (false === $wpdb->query($completion)) {
             $error = $this->databaseError();
@@ -231,22 +232,26 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
             if ($context->isRoot()) {
                 if (false === $wpdb->query('ROLLBACK')) {
-                    throw $this->storageFailure(
+                    $rollbackFailure = $this->storageFailure(
                         'rollback transaction after commit failure',
                         '',
                         $completionFailure
                     );
+                    $this->transactionTaint = $rollbackFailure;
+                    throw $rollbackFailure;
                 }
 
                 throw $completionFailure;
             }
 
             if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
-                throw $this->storageFailure(
+                $rollbackFailure = $this->storageFailure(
                     'rollback savepoint after release failure',
                     '',
                     $completionFailure
                 );
+                $this->transactionTaint = $rollbackFailure;
+                throw $rollbackFailure;
             }
 
             if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
@@ -261,6 +266,36 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         }
 
         return $result;
+    }
+
+    private function rollBackAtomicScope(
+        TransactionContext $context,
+        string $savepoint,
+        \Throwable $failure
+    ): void {
+        global $wpdb;
+
+        if ($context->isRoot()) {
+            if (false === $wpdb->query('ROLLBACK')) {
+                $rollbackFailure = $this->storageFailure('rollback transaction', '', $failure);
+                $this->transactionTaint = $rollbackFailure;
+                throw $rollbackFailure;
+            }
+
+            $this->transactionTaint = null;
+            return;
+        }
+
+        if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
+            $rollbackFailure = $this->storageFailure('rollback savepoint', '', $failure);
+            $this->transactionTaint = $rollbackFailure;
+            throw $rollbackFailure;
+        }
+
+        $this->transactionTaint = null;
+        if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
+            throw $this->storageFailure('release savepoint after rollback', '', $failure);
+        }
     }
 
     private function nextSavepoint(): string
