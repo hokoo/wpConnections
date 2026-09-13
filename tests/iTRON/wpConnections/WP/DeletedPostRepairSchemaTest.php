@@ -23,6 +23,7 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		global $wpdb;
 		$this->wpdb_tables_before_test = $wpdb->tables;
 		$this->table                   = $wpdb->prefix . self::TABLE_KEY;
+		add_filter( 'query', [ $this, 'preserve_real_repair_ledger_table' ], 11 );
 		$this->reset_ledger_artifacts();
 	}
 
@@ -31,6 +32,7 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		try {
 			$this->reset_ledger_artifacts();
 		} finally {
+			remove_filter( 'query', [ $this, 'preserve_real_repair_ledger_table' ], 11 );
 			parent::tear_down();
 		}
 	}
@@ -568,10 +570,27 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 	{
 		global $wpdb;
 
-		$wpdb->query( "DROP TABLE IF EXISTS `{$this->table}`" );
 		delete_option( self::OWNERSHIP_OPTION );
+		wp_cache_delete( self::OWNERSHIP_OPTION, 'options' );
+		$wpdb->query( "DROP TABLE IF EXISTS `{$this->table}`" );
 		unset( $wpdb->{self::TABLE_KEY} );
 		$wpdb->tables = $this->wpdb_tables_before_test;
+	}
+
+	public function preserve_real_repair_ledger_table( string $query ): string
+	{
+		$table = preg_quote( $this->table, '/' );
+		$query = (string) preg_replace(
+			'/^CREATE\s+TEMPORARY\s+TABLE\s+`' . $table . '`/i',
+			'CREATE TABLE `' . $this->table . '`',
+			$query
+		);
+
+		return (string) preg_replace(
+			'/^DROP\s+TEMPORARY\s+TABLE(\s+IF\s+EXISTS)?\s+`' . $table . '`/i',
+			'DROP TABLE$1 `' . $this->table . '`',
+			$query
+		);
 	}
 
 	private function table_exists( string $table ): bool
