@@ -268,6 +268,52 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 	}
 
 	/**
+	 * @dataProvider incompatible_index_provider
+	 */
+	public function test_incompatible_indexes_fail_closed_without_implicit_repair( string $mutation ): void
+	{
+		global $wpdb;
+
+		( new DeletedPostRepairLedger() )->ensureReady();
+		if ( 'missing' === $mutation ) {
+			self::assertNotFalse( $wpdb->query( "ALTER TABLE `{$this->table}` DROP INDEX `status_due`" ) );
+		} else {
+			self::assertNotFalse(
+				$wpdb->query(
+					"ALTER TABLE `{$this->table}` ADD KEY `unexpected_repair_index` (`post_id`)"
+				)
+			);
+		}
+
+		$failure = null;
+		$queries = $this->record_queries(
+			static function () use ( &$failure ): void {
+				try {
+					( new DeletedPostRepairLedger() )->ensureReady();
+				} catch ( Throwable $exception ) {
+					$failure = $exception;
+				}
+			}
+		);
+
+		$this->assert_failure( $failure, 'schema' );
+		self::assertSame( [], $this->ddl_queries( $queries ) );
+		if ( 'missing' === $mutation ) {
+			self::assertArrayNotHasKey( 'status_due', $this->table_indexes( $this->table ) );
+		} else {
+			self::assertArrayHasKey( 'unexpected_repair_index', $this->table_indexes( $this->table ) );
+		}
+	}
+
+	public function incompatible_index_provider(): array
+	{
+		return [
+			'missing required index' => [ 'missing' ],
+			'extra index'            => [ 'extra' ],
+		];
+	}
+
+	/**
 	 * @dataProvider stale_context_provider
 	 */
 	public function test_captured_site_context_fails_closed_before_ledger_access( string $changed_context ): void
@@ -300,6 +346,44 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		}
 
 		$this->assert_failure( $failure, 'context' );
+		self::assertSame( [], $this->ledger_access_queries( $queries ) );
+		self::assertFalse( $this->table_exists( $this->table ) );
+		self::assertFalse( get_option( self::OWNERSHIP_OPTION, false ) );
+	}
+
+	public function test_replaced_global_wpdb_fails_before_ledger_or_ownership_access(): void
+	{
+		global $wpdb;
+
+		$original_wpdb   = $wpdb;
+		$replacement     = clone $wpdb;
+		$ledger          = new DeletedPostRepairLedger();
+		$failure         = null;
+		$queries         = [];
+		$ownership_reads = 0;
+		$record_ownership_read = static function ( $value ) use ( &$ownership_reads ) {
+			$ownership_reads++;
+			return $value;
+		};
+		add_filter( 'pre_option_' . self::OWNERSHIP_OPTION, $record_ownership_read );
+		try {
+			$wpdb    = $replacement;
+			$queries = $this->record_queries(
+				static function () use ( $ledger, &$failure ): void {
+					try {
+						$ledger->ensureReady();
+					} catch ( Throwable $exception ) {
+						$failure = $exception;
+					}
+				}
+			);
+		} finally {
+			$wpdb = $original_wpdb;
+			remove_filter( 'pre_option_' . self::OWNERSHIP_OPTION, $record_ownership_read );
+		}
+
+		$this->assert_failure( $failure, 'context' );
+		self::assertSame( 0, $ownership_reads );
 		self::assertSame( [], $this->ledger_access_queries( $queries ) );
 		self::assertFalse( $this->table_exists( $this->table ) );
 		self::assertFalse( get_option( self::OWNERSHIP_OPTION, false ) );

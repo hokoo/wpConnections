@@ -123,6 +123,18 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 
 	public function test_two_database_contenders_cannot_both_acquire_one_live_lease(): void
 	{
+		global $wpdb;
+
+		// WP_UnitTestCase normally rewrites test DDL to a connection-local
+		// temporary table and disables autocommit. This test deliberately needs
+		// one real, short-lived table that both database sessions can observe.
+		$this->drop_ledger_artifacts();
+		remove_filter( 'query', [ $this, '_create_temporary_tables' ] );
+		remove_filter( 'query', [ $this, '_drop_temporary_tables' ] );
+		self::assertNotFalse( $wpdb->query( 'SET autocommit = 1' ) );
+		$this->ledger = new DeletedPostRepairLedger();
+		$this->ledger->ensureReady();
+
 		$identity = $this->identity( 'ledger-client-a', 130 );
 		$storage = new DeletedPostRepairLedgerStorageA();
 		$contender = $this->secondary_database_connection();
@@ -144,7 +156,7 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 				&& false !== stripos( $query, 'attempt_count' )
 			) {
 				$contender_ran = true;
-				self::assertTrue( $contender->query( $query ) );
+				self::assertTrue( $contender->query( $query ), $contender->error );
 				$contender_affected_rows = $contender->affected_rows;
 			}
 
@@ -172,6 +184,45 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertSame( DeletedPostRepairStatus::RUNNING, $record->getStatus() );
 		self::assertSame( 1, $record->getAttemptCount() );
 		self::assertSame( 0, $record->getFailureCount() );
+	}
+
+	public function test_arm_and_failure_transition_do_not_manage_a_database_transaction(): void
+	{
+		$identity = $this->identity( 'ledger-client-a', 131 );
+		$storage = new DeletedPostRepairLedgerStorageA();
+		$queries = [];
+		$recorder = static function ( string $query ) use ( &$queries ): string {
+			$queries[] = $query;
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+		try {
+			$claim = $this->ledger->armAndTryClaim(
+				$identity,
+				$storage,
+				$this->now,
+				$this->instantAt( '+10 minutes' )
+			);
+			$lease = $this->assert_acquired( $claim, $identity->getKey() );
+			$transitioned = $this->ledger->markRetryWait(
+				$lease,
+				$this->diagnostic( 'storage', 'representative failure' ),
+				$this->instantAt( '+15 minutes' ),
+				$this->instantAt( '+1 minute' )
+			);
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		self::assertTrue( $transitioned );
+		self::assertSame( [], $this->transaction_control_queries( $queries ) );
+		$record = $this->record( $identity );
+		self::assertSame( DeletedPostRepairStatus::RETRY_WAIT, $record->getStatus() );
+		self::assertSame( 1, $record->getAttemptCount() );
+		self::assertSame( 1, $record->getFailureCount() );
+		self::assertEquals( $this->instantAt( '+15 minutes' ), $record->getNextAttemptAt() );
+		self::assertNull( $record->getLeaseToken() );
+		self::assertNull( $record->getLeaseExpiresAt() );
 	}
 
 	public function test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml(): void
@@ -999,6 +1050,25 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 				function ( string $query ): bool {
 					return false !== strpos( $query, $this->table ) &&
 						1 === preg_match( '/^\s*(CREATE|ALTER|DROP|RENAME|TRUNCATE)\b/i', $query );
+				}
+			)
+		);
+	}
+
+	/**
+	 * @param string[] $queries
+	 * @return string[]
+	 */
+	private function transaction_control_queries( array $queries ): array
+	{
+		return array_values(
+			array_filter(
+				$queries,
+				static function ( string $query ): bool {
+					return 1 === preg_match(
+						'/^\s*(?:START\s+TRANSACTION|COMMIT|ROLLBACK|SAVEPOINT|RELEASE\s+SAVEPOINT)\b/i',
+						$query
+					);
 				}
 			)
 		);
