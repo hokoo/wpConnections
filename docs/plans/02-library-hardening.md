@@ -1782,7 +1782,7 @@ Execution slices:
    строит write set только из реально найденных locked rows; valid no-match не
    выполняет DML; exact counts, rollback, commit и hook timing покрыты.
 3. `DB-03B-B/F3 — two-session selector locking` —
-   `completed` в `fe89e17` и `a31dd3b`. Additive optional
+   `completed` в `fe89e17`, `a31dd3b` и `1568007`. Additive optional
    `RelationScopedDeleteStorageInterface` даёт default `WPStorage` один
    relation-aware `FOR UPDATE` boundary; two-session regression фиксирует
    relation/endpoint race. Custom-adapter fallback остаётся REL-02.
