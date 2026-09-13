@@ -1049,7 +1049,10 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 				$queries,
 				function ( string $query ): bool {
 					return false !== strpos( $query, $this->table ) &&
-						1 === preg_match( '/^\s*(CREATE|ALTER|DROP|RENAME|TRUNCATE)\b/i', $query );
+						1 === preg_match(
+							'/^\s*(?:CREATE(?:\s+TEMPORARY)?|ALTER|DROP(?:\s+TEMPORARY)?|RENAME|TRUNCATE)\s+TABLE\b/i',
+							$query
+						);
 				}
 			)
 		);

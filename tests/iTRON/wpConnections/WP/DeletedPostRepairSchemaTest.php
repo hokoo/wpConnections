@@ -630,7 +630,10 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 			array_filter(
 				$queries,
 				static function ( string $query ): bool {
-					return 1 === preg_match( '/^\s*(?:CREATE|ALTER|DROP|RENAME|TRUNCATE)\s+TABLE\b/i', $query );
+					return 1 === preg_match(
+						'/^\s*(?:CREATE(?:\s+TEMPORARY)?|ALTER|DROP(?:\s+TEMPORARY)?|RENAME|TRUNCATE)\s+TABLE\b/i',
+						$query
+					);
 				}
 			)
 		);
@@ -642,7 +645,10 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 			array_filter(
 				$queries,
 				static function ( string $query ): bool {
-					return 1 === preg_match( '/^\s*(?:ALTER|DROP|RENAME|TRUNCATE)\s+TABLE\b/i', $query );
+					return 1 === preg_match(
+						'/^\s*(?:ALTER|DROP(?:\s+TEMPORARY)?|RENAME|TRUNCATE)\s+TABLE\b/i',
+						$query
+					);
 				}
 			)
 		);
@@ -655,7 +661,7 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 				$queries,
 				static function ( string $query ) use ( $table ): bool {
 					return 1 === preg_match(
-						'/^\s*CREATE\s+TABLE\s+`?' . preg_quote( $table, '/' ) . '`?\b/i',
+						'/^\s*CREATE(?:\s+TEMPORARY)?\s+TABLE\s+`?' . preg_quote( $table, '/' ) . '`?\b/i',
 						$query
 					);
 				}
