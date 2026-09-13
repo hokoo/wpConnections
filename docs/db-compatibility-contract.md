@@ -602,9 +602,14 @@ PR readiness and REL-01 lifecycle documentation.
   1193 for that variable, confirming vendor-specific detection cannot be the
   shared contract.
 - DG-DB-01/A, DG-DB-02/A, the refined DG-DB-04/A-R and DG-DB-06-FAIL/A were
-  approved on
-  2026-09-13. Batch 13 implements and locally verifies their unblocked DB-06
-  portion on both pinned database images. DG-DB-03 remains pending for DB-05.
-- Independent QA for commit `3418c17` passed the required-descriptor remediation
-  with a non-blocking scope note: custom additional constraints remain assigned
-  to DB-06R rather than being silently represented as covered by DB-06.
+  approved on 2026-09-13.
+- Batch 13 / DB-06 completed in PR
+  [#89](https://github.com/hokoo/wpConnections/pull/89): exact candidate
+  `85829ef`, merge `aa79a32b8393e28d35e3fa824a92d841ed657e32`.
+- Independent epic QA passed without mandatory or new residual findings.
+  Exact-head and post-merge GitHub checks passed 19/19, including the full suite
+  on both digest-pinned database images; `master` now requires all 19 contexts
+  with strict synchronization.
+- The independent QA scope note remains explicit: custom additional constraints
+  are assigned to DB-06R rather than being represented as covered by DB-06.
+  DG-DB-03 remains pending for DB-05.

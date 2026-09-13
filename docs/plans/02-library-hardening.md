@@ -1500,7 +1500,7 @@ Verification:
 
 ### Batch 13. InnoDB schema lifecycle and bounded recovery
 
-Status: in_progress; implementation candidate complete, final verification
+Status: completed
 
 Goal: завершить DB-06 отдельным red-to-green vertical slice: доказать clean и
 idempotent install, восстановление одной или обеих отсутствующих client tables
@@ -1518,9 +1518,12 @@ Entry criteria:
 
 Tasks:
 
-- DB-06 — `in_progress`; tests-first schema install/recovery vertical.
-- DB-06R — `needs_design`; post-Batch-13 policy for additional custom database
-  constraints discovered by independent QA.
+- DB-06 — `completed`; tests-first schema install/recovery vertical.
+
+Tracked follow-up outside Batch 13:
+
+- DB-06R — `needs_design`; policy for additional custom database constraints
+  discovered by independent QA.
 
 Execution model:
 
@@ -1553,6 +1556,24 @@ Exit criteria:
   isolation, обе blocking DB lanes и independent QA.
 - Protected checks зелёные на final head и post-merge `master`; evidence и
   оставшиеся migration limitations записаны до closeout.
+
+Verification:
+
+- PR [#89](https://github.com/hokoo/wpConnections/pull/89), exact candidate
+  `85829ef`, merge commit `aa79a32b8393e28d35e3fa824a92d841ed657e32`.
+- Focused schema lifecycle: `17 tests / 182 assertions`; full unit:
+  `19 / 96`; full WordPress integration: `237 / 2124`.
+- Isolation seed `20260913`: unit reverse/random по два раза `38 / 192`,
+  integration reverse/random по два раза `474 / 4252`.
+- Combined coverage: `256 tests / 2220 assertions`; statements `1455/1592
+  (91.39%)`; PR gate PASSED, release-candidate threshold READY.
+- Exact-head GitHub PR checks и post-merge checks на `aa79a32` прошли `19/19`,
+  включая digest-pinned MySQL 8.0.46 и MariaDB 10.11.16 full integration.
+- Independent epic QA на `85829ef`: PASS без обязательных или новых residual
+  findings. QA scope note по сторонним UNIQUE/FK/CHECK/triggers сохранён как
+  отдельная `needs_design` задача DB-06R и не входит в гарантии Batch 13.
+- Branch protection `master` остаётся strict и теперь требует все 19 checks,
+  включая обе database compatibility lanes.
 
 ## E1. Test foundation и regression harness
 
@@ -3562,7 +3583,7 @@ Notes/Risks:
 
 ### DB-06. Защитить schema install и recovery
 
-Status: in_progress; final verification
+Status: completed
 
 Priority: P0
 
@@ -3642,6 +3663,16 @@ Notes/Risks:
   indexes, foreign keys, CHECK constraints и triggers не входит в Batch 13 и
   выделена в DB-06R; до её решения контракт не обещает pre-DML detection любой
   возможной сторонней модификации schema.
+
+Verification:
+
+- Реализовано и проверено в PR #89; exact candidate `85829ef`, merge
+  `aa79a32b8393e28d35e3fa824a92d841ed657e32`.
+- `SCHEMA-INSTALL-01`, `SCHEMA-RECOVER-01` и утверждённый
+  `SCHEMA-FAIL-01` покрыты `SchemaLifecycleTest` и проходят на обеих blocking
+  database lanes.
+- Independent QA и по 19/19 exact-head/post-merge GitHub checks завершены без
+  обязательных findings.
 
 ### DB-06R. Определить политику дополнительных database constraints
 
