@@ -170,8 +170,8 @@ map находятся в
   DG-RESTERR-01/02/04/A и DG-DELETE-05/06/A утверждены 2026-09-14.
   DG-DELETE-06/A дополнительно требует human-approved технического refinement
   durable repair/scheduler contract до DB-04 implementation. Pending остаются
-  DG-API20-01—DG-API20-09 и DB-04-D technical refinement gates; они блокируют только
-  явно перечисленные downstream tasks. Полные тексты находятся в
+  DG-API20-01—DG-API20-09 и DB-04-D technical refinement gates; они блокируют
+  только явно перечисленные downstream tasks. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
   [storage SPI contract](../storage-spi-contract.md),

@@ -51,7 +51,8 @@ pinned DB lanes, isolation, coverage, PHPCS и два независимых а�
 final head и post-merge `master` прошли по 19/19 checks.
 DG-RESTERR-01/A, DG-RESTERR-02/A, DG-RESTERR-04/A, DG-UPDATE-05/A,
 DG-SPI-05/A for v1 with C as the next-major target, DG-DELETE-05/A and
-DG-DELETE-06/A утверждены владельцем 2026-09-14. REST-03 разблокирован.
+DG-DELETE-06/A утверждены владельцем 2026-09-14. REST-03 впоследствии завершён
+PR #95: exact candidate `56d5e1c` и merge `185bf32` прошли по 19/19 checks.
 DG-DELETE-06/A утверждает recovery policy, но намеренно оставляет DB-04-D
 спроектировать durable repair record, scheduler, retry и operator contract и
 вынести их на отдельное human approval до production implementation.
@@ -1046,7 +1047,8 @@ Exit criteria:
 - REST-00A содержит полную current-state/full-dispatch mapping matrix для
   validation, conflict/invariant, not-found, permission, storage и unknown
   failures; numeric 301—304 не становятся HTTP redirects. Точные status/body
-  choices остаются pending; REST-03 остаётся `waiting_dependency`.
+  choices на момент Batch 5 оставались pending, а REST-03 —
+  `waiting_dependency`; последующее approval и completion отражены в Batch 16.
 - DB-03A различает single/multiple ID, directed pair, object-side, no-match,
   invalid/empty/conflicting flags, duplicate rows, logical affected count,
   partial SQL failure и hook timing. DB-03B-A и DB-03B-B остаются
@@ -1099,7 +1101,7 @@ Decision packets:
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
 | DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A on 2026-09-14 with mandatory DB-04 technical refinement | DB-03B-A/B completed; DB-04-D ready, DB-04-I waits its approved mechanism |
-| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 ready; REST-04/05 follow after REST-03 |
+| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
 | DP-9 Factory compatibility | DG-SPI-05 | approved A for v1, C next-major target, 2026-09-14 | REL-02/release documentation contract fixed |
@@ -1869,8 +1871,8 @@ Exit criteria:
 
 Next batch:
 
-- После REST-03: REST-04 и REST-05 становятся ближайшими production tasks и
-  могут быть разложены на отдельные вертикали permissions и meta semantics.
+- REST-03 завершён; REST-04 и REST-05 стали ближайшими production tasks и могут
+  быть разложены на отдельные вертикали permissions и meta semantics.
 - После owner approval DB-04-D gates: DB-04-I становится отдельным production
   batch; без approval delivery останавливается именно на этом human gate.
 
