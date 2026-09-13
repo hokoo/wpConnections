@@ -691,11 +691,11 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-SPI-02 | approved A | repository owner | 2026-09-11 | Domain owns create ID/client hydration; signatures retained |
 | DG-SPI-03 | approved A | repository owner | 2026-09-13 | Stable adapter exception; `0`/empty reserved for valid no-match/no-op outcomes |
 | DG-SPI-04 | approved A | repository owner | 2026-09-13 | Optional atomic unit-of-work capability; compound domain writes preflight it |
-| [DG-SPI-04R](../storage-spi-contract.md#dg-spi-04r) | pending; recommendation A | repository owner | — | Domain path for explicit caller-owned nested context; DB-05 transaction orchestration waits |
+| [DG-SPI-04R](../storage-spi-contract.md#dg-spi-04r) | approved A | repository owner | 2026-09-13 | Additive Client-level unit of work; explicit nested context; Client-local scope |
 | DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
 | DG-SPI-06 | approved A | repository owner | 2026-09-11 | Commit-aware success hooks; DB-05/REL-02 unblocked on this gate |
-| [DG-SPI-06R](../storage-spi-contract.md#dg-spi-06r) | pending; recommendation A | repository owner | — | Outer-commit synchronization for nested success hooks; DB-05 hook delivery waits |
-| [DG-SPI-06R2](../storage-spi-contract.md#dg-spi-06r2) | pending; recommendation A | repository owner | — | Post-commit hook Throwable propagation; DB-05 hook dispatch waits |
+| [DG-SPI-06R](../storage-spi-contract.md#dg-spi-06r) | approved A | repository owner | 2026-09-13 | Required outer synchronizer; FIFO/exactly-once hooks only after actual commit |
+| [DG-SPI-06R2](../storage-spi-contract.md#dg-spi-06r2) | approved A | repository owner | 2026-09-13 | Post-commit hook Throwable propagates with committed state; no rollback/storage wrapping |
 | DG-SPI-07 | approved A | repository owner | 2026-09-11 | Legacy concrete table introspection retained in v1 |
 | [`DG-ENT-01`](../entity-validation-contract.md#dg-ent-01) | approved A | repository owner | 2026-09-11 | Any extant exact-type `WP_Post` is a valid endpoint |
 | [`DG-ENT-02`](../entity-validation-contract.md#dg-ent-02) | approved A | repository owner | 2026-09-11 | Typed client-scoped non-post resolver registry |
@@ -1617,15 +1617,15 @@ Execution slices:
    representative delete; затем нормализовать их в одну стабильную domain
    exception category, не меняя valid `false` no-op update, `0` delete/no-match
    или empty read semantics. Failure-path success hooks не испускаются.
-2. `DB-05/F2 — optional atomic capability and root scope` —
-   `waiting_dependency`. После DG-SPI-04R добавить optional capability и
+2. `DB-05/F2 — optional atomic capability and root scope` — `in_progress`.
+   После DG-SPI-04R добавить optional capability и
    domain-owned root unit of work; schema readiness/engine preflight происходит
    до `START TRANSACTION`, rollback охватывает любой `Throwable`, incapable
    adapters отклоняются до первого write. Root integration evidence выполняется
    не через transactional `WP_UnitTestCase`, а через отдельный exact-cleanup
    harness, чтобы второй `START TRANSACTION` не закоммитил test fixture.
 3. `DB-05/F3 — nested savepoint and outer-commit coordination` —
-   `waiting_dependency`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
+   `todo`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
    явный nested context, collision-safe savepoints, отсутствие `COMMIT` внешней
    транзакции и утверждённую доставку отложенных success hooks.
 4. `DB-05/F4 — compound domain flows` — `waiting_dependency`. Обернуть create с
@@ -1655,14 +1655,10 @@ Next batch:
   определён и начнётся после завершения reusable boundary DB-05; REST mapping и
   `deleted_post` recovery не смешиваются с ним.
 
-Current blockers:
+Resolved blockers:
 
-- DG-SPI-04R: каким additive domain API caller явно передаёт nested ownership.
-- DG-SPI-06R: как success hooks узнают о фактическом commit внешней транзакции.
-- DG-SPI-06R2: что видит caller, если post-commit success hook бросает
-  `Throwable`, когда rollback уже невозможен.
-- Slice F1 не зависит от этих gates и завершён; F2—F5 не переходят в production
-  до решений владельца.
+- DG-SPI-04R/A, DG-SPI-06R/A и DG-SPI-06R2/A утверждены владельцем
+  2026-09-13. F2 разблокирован; F3 следует сразу после root primitive.
 
 Verification so far:
 

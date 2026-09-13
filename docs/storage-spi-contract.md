@@ -1,8 +1,8 @@
 # Storage SPI and mutation boundary
 
 Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
-DG-SPI-04, DG-SPI-06 and DG-SPI-07 approved A; DG-SPI-04R, DG-SPI-06R and
-DG-SPI-06R2 require owner decisions, while DG-SPI-05 remains pending
+DG-SPI-04, DG-SPI-04R, DG-SPI-06, DG-SPI-06R, DG-SPI-06R2 and DG-SPI-07
+approved A, while DG-SPI-05 remains pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -361,6 +361,12 @@ existing mutation signatures source-compatible and does not promote legacy
 direct storage writes into the supported consumer API. B spreads transaction
 plumbing across the domain surface; C conflicts with DG-M9/A.
 
+**Decision:** approved A by the repository owner on 2026-09-13. DB-05 adds one
+Client-level atomic unit-of-work boundary with explicit root/nested context;
+existing mutation signatures remain unchanged. A v1 scope is Client-local,
+does not infer vendor session state and rejects cross-client re-entry before the
+second Client writes.
+
 **Compatibility impact:** A is additive, but consumers that start an outer
 transaction themselves must adopt the explicit nested unit-of-work entrypoint;
 otherwise the library cannot safely infer session state. Incapable adapters
@@ -394,6 +400,12 @@ DG-SPI-06/A's promise that success hooks are observable only after commit.
 approved committed-success meaning without falsely claiming an outer commit or
 silently losing notifications.
 
+**Decision:** approved A by the repository owner on 2026-09-13. An externally
+owned nested scope requires an outer-transaction synchronizer. Success
+notifications remain buffered after savepoint release, are dispatched FIFO and
+exactly once only after the owner confirms commit, and are discarded on
+rollback. Missing synchronization fails before mutation.
+
 **Compatibility impact:** A adds a coordination obligation only for consumers
 that compose mutations inside a transaction the library does not own. B reopens
 the approved hook meaning; C can break observers that rely on successful
@@ -423,6 +435,11 @@ but moving the hook after commit changes the state observed when they escape.
 visibility and does not claim an impossible rollback. B silently changes how
 consumer bugs reach callers; C contradicts the already approved committed-
 success meaning.
+
+**Decision:** approved A by the repository owner on 2026-09-13. A post-commit
+hook `Throwable` propagates unchanged with storage already committed; it is not
+reported as `StorageFailure` and cannot trigger rollback. Native synchronous
+WordPress dispatch behavior is retained for callbacks that follow the throw.
 
 **Compatibility impact:** A makes the committed-state consequence explicit:
 the caller can receive a hook exception even though storage is already durable.

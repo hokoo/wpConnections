@@ -483,8 +483,8 @@ leaking vendor probes into the domain API.
 savepoints and never commit the caller's outer transaction. Runtime
 vendor/session autodetection is not part of the contract. The additive domain
 path that carries this declaration, outer-commit hook synchronization and
-post-commit hook failure behavior remain the pending refinements DG-SPI-04R,
-DG-SPI-06R and DG-SPI-06R2.
+post-commit hook failure behavior is approved by DG-SPI-04R/A, DG-SPI-06R/A
+and DG-SPI-06R2/A.
 
 **Compatibility impact:** custom adapters need to declare/implement the chosen
 capability before atomic compound mutations. C is simpler but breaks consumers
@@ -579,10 +579,10 @@ PR readiness and REL-01 lifecycle documentation.
 
 | Consumer task | Input from DB-00 | Remains blocked by |
 | --- | --- | --- |
-| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-SPI-04R, DG-SPI-06R and DG-SPI-06R2; failure normalization is unblocked |
+| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | Decision gates resolved; implementation in progress |
 | DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | Completed in PR #89; DB-06R is a separate non-blocking follow-up |
 | REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | Approved DB gates are available; task-local dependencies remain |
-| REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-SPI-04R, DG-SPI-06R and DG-SPI-06R2 |
+| REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | Approved transaction/hook contracts are available; task-local dependencies remain |
 | CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
 
 ## Non-gate constraints and caveats
