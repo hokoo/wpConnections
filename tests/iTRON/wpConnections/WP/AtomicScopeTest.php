@@ -534,6 +534,123 @@ class AtomicScopeTest extends TestCase
 		$synchronizer->rolledBack();
 	}
 
+	public function test_swallowed_child_rollback_failure_forces_parent_rollback(): void
+	{
+		global $wpdb;
+
+		$inner_failure = null;
+		$row_id = 0;
+		$queries = [];
+		$rollback_failed = false;
+		$filter = static function ( string $query ) use ( &$queries, &$rollback_failed ): string {
+			$normalized = trim( $query );
+			$queries[] = $normalized;
+			if ( ! $rollback_failed && preg_match( '/^ROLLBACK TO SAVEPOINT /i', $normalized ) ) {
+				$rollback_failed = true;
+				return 'SELECT * FROM `wpconnections_batch14_failed_child_rollback`';
+			}
+
+			return $query;
+		};
+
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $filter );
+		$outer_failure = null;
+		try {
+			$this->client->runAtomically(
+				function () use ( &$row_id, &$inner_failure ): void {
+					try {
+						$this->client->runAtomically(
+							function () use ( &$row_id ): void {
+								$row_id = $this->insert_connection_row( 'unconfirmed-child-rollback' );
+								throw new RuntimeException( 'force child rollback' );
+							}
+						);
+					} catch ( Throwable $failure ) {
+						$inner_failure = $failure;
+					}
+				}
+			);
+		} catch ( Throwable $failure ) {
+			$outer_failure = $failure;
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		self::assertTrue( $rollback_failed );
+		self::assertInstanceOf( StorageFailure::class, $inner_failure );
+		self::assertSame( 'rollback savepoint', $inner_failure->getOperation() );
+		self::assertSame( $inner_failure, $outer_failure );
+		self::assertSame( 0, $this->query_count( $queries, '/^COMMIT$/i' ) );
+		self::assertSame( 1, $this->query_count( $queries, '/^ROLLBACK$/i' ) );
+		self::assertFalse( $this->connection_row_exists( $row_id ) );
+	}
+
+	public function test_failed_root_rollback_blocks_a_later_scope_before_start(): void
+	{
+		global $wpdb;
+
+		$row_id = 0;
+		$rollback_failed = false;
+		$rollback_filter = static function ( string $query ) use ( &$rollback_failed ): string {
+			if ( ! $rollback_failed && preg_match( '/^ROLLBACK$/i', trim( $query ) ) ) {
+				$rollback_failed = true;
+				return 'SELECT * FROM `wpconnections_batch14_failed_root_rollback`';
+			}
+
+			return $query;
+		};
+
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $rollback_filter );
+		$first_failure = null;
+		try {
+			$this->client->runAtomically(
+				function () use ( &$row_id ): void {
+					$row_id = $this->insert_connection_row( 'unconfirmed-root-rollback' );
+					throw new RuntimeException( 'force root rollback' );
+				}
+			);
+		} catch ( Throwable $failure ) {
+			$first_failure = $failure;
+		} finally {
+			remove_filter( 'query', $rollback_filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		$next_callback_called = false;
+		$next_queries = [];
+		$recorder = static function ( string $query ) use ( &$next_queries ): string {
+			$next_queries[] = trim( $query );
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+		$next_failure = null;
+		try {
+			$this->client->runAtomically(
+				static function () use ( &$next_callback_called ): void {
+					$next_callback_called = true;
+				}
+			);
+		} catch ( Throwable $failure ) {
+			$next_failure = $failure;
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		self::assertTrue( $rollback_failed );
+		self::assertInstanceOf( StorageFailure::class, $first_failure );
+		self::assertSame( 'rollback transaction', $first_failure->getOperation() );
+		self::assertInstanceOf( StorageFailure::class, $next_failure );
+		self::assertSame( 'transaction state is uncertain', $next_failure->getOperation() );
+		self::assertFalse( $next_callback_called );
+		self::assertSame( 0, $this->query_count( $next_queries, '/^START TRANSACTION$/i' ) );
+
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		self::assertFalse( $this->connection_row_exists( $row_id ) );
+	}
+
 	public function test_nested_notifications_are_fifo_and_exactly_once_after_outer_commit(): void
 	{
 		global $wpdb;
