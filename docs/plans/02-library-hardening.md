@@ -1625,10 +1625,10 @@ Execution slices:
    не через transactional `WP_UnitTestCase`, а через отдельный exact-cleanup
    harness, чтобы второй `START TRANSACTION` не закоммитил test fixture.
 3. `DB-05/F3 — nested savepoint and outer-commit coordination` —
-   `in_progress`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
+   `completed`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
    явный nested context, collision-safe savepoints, отсутствие `COMMIT` внешней
    транзакции и утверждённую доставку отложенных success hooks.
-4. `DB-05/F4 — compound domain flows` — `waiting_dependency`. Обернуть create с
+4. `DB-05/F4 — compound domain flows` — `in_progress`. Обернуть create с
    meta, aggregate `Connection::update()` и relation delete в reusable domain
    boundary; default WPStorage также защищает прямой legacy compound callback
    `deleted_post`. Exhaustive fault matrix всех delete selectors остаётся
@@ -1687,6 +1687,14 @@ Verification so far:
   pre-mutation отказ incapable adapter и запрет cross-client re-entry. PHPCS:
   `58/58`; единственное сообщение — прежнее ruleset deprecation warning. F2
   завершён, F3 активирован.
+- F3 red-first commit `ae18c16`: `13 tests / 69 assertions / 1 failure`
+  обнаружили, что завершённый outer synchronizer допускал callback и savepoint.
+  Green commit `d2725f4` добавил pre-mutation pending-state validation; focused
+  evidence стало `13 / 71`. Те же тесты доказывают collision-safe savepoints,
+  отсутствие library `COMMIT`, rollback-to-savepoint с сохранением outer work,
+  FIFO/exactly-once после подтверждённого commit, discard после rollback и
+  неизменённый post-commit hook `Throwable` при durable state. PHPCS: `58/58`.
+  F3 завершён, F4 активирован.
 
 ## E1. Test foundation и regression harness
 
