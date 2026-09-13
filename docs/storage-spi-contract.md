@@ -3,8 +3,8 @@
 Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
 DG-SPI-04, DG-SPI-04R, DG-SPI-06, DG-SPI-06R, DG-SPI-06R2 and DG-SPI-07
 approved A; their DB-05 boundary is implemented on Batch 14 and DB-03B-B delete
-conformance is implemented on Batch 15 candidate `1568007`, while DG-SPI-05
-remains pending
+conformance is implemented and merged by Batch 15 PR #93 as `2348d5a`, while
+DG-SPI-05 remains pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -100,6 +100,10 @@ The default relation-scoped row lock is already held when legacy delete attempt
 hooks run. A callback that synchronously uses a second database session to
 change the same connection may wait for that lock or time out. REL-02/DOC-01
 must call this out for hook consumers together with the custom-adapter fallback.
+
+Batch 15 final head `e4142c2` received independent closure QA PASS and 19/19
+protected checks. PR #93 merged as `2348d5a`; the exact post-merge `master`
+also passed 19/19 checks.
 
 ## Boundary model
 
@@ -371,7 +375,8 @@ exceptions and may expose defective custom adapters. B cannot satisfy DG-M7.
 C breaks implementers and consumers.
 
 **Affected tasks:** DB-03A and DB-05 consume the approved failure contract;
-DB-03B-B, REST-00A, REST-03 and REL-02 own remaining conformance/mapping work.
+DB-03B-B completed storage delete conformance, while REST-00A, REST-03 and
+REL-02 own the remaining mapping/custom-adapter work.
 
 ### DG-SPI-04 — transaction capability and orchestration shape
 

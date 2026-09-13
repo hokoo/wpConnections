@@ -2,9 +2,8 @@
 
 Status: DG-DELETE-01—DG-DELETE-04 approved by the repository owner on
 2026-09-12; implementation refinement DG-DELETE-04-R2/A approved on
-2026-09-13; DB-03B-A implemented and merged as `2d52f087`; DB-03B-B is
-implemented on candidate `1568007` and remains in delivery review;
-DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
+2026-09-13; DB-03B-A merged as `2d52f087`; DB-03B-B merged by PR #93 as
+`2348d5a`; DG-DELETE-05 and DG-DELETE-06 remain decision-ready and pending.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`
 (the merge of CORE-00 after SPI-01 into `master`, 2026-09-10).
@@ -55,8 +54,8 @@ MariaDB 10.11.16 and MySQL 8.0.46 each `337/2988`, reverse/random isolation,
 PHPCS `59/59`, and combined coverage `356 tests / 3082 assertions` with PR
 statements `1745/1910 (91.36%)`. Independent audits returned PASS and
 PASS_WITH_NOTES without blockers; their failure-hook/custom-adapter notes are
-recorded in the contract docs. Protected and post-merge checks remain delivery
-gates.
+recorded in the contract docs. Final head `e4142c2` and merge `2348d5a` each
+passed 19/19 protected/post-merge checks; DB-03B-B is completed.
 
 ## Ownership and boundaries
 
@@ -273,8 +272,8 @@ DG-M7/A already fixes these requirements; they are not a new DB-03A decision:
 The transaction API and backend feasibility were approved by DG-SPI-04/A and
 DB-00; DB-05 implements the reusable transaction boundary and fault-injection
 infrastructure. DB-03B-A added selector/count/SQL-safety regressions after the
-`DG-DELETE-*` decisions; DB-03B-B now owns exhaustive delete failure and hook
-conformance against the implemented boundary.
+`DG-DELETE-*` decisions; completed DB-03B-B provides exhaustive delete failure
+and hook conformance against the implemented boundary.
 
 WordPress `deleted_post` is an external boundary: it fires after WordPress has
 deleted the post. Even an atomic connection/meta cleanup cannot restore that

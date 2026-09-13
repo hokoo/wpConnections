@@ -44,12 +44,11 @@ implementation design обнаружены два новых public-contract ref
 DG-SPI-04R для передачи caller-owned transaction context и DG-SPI-06R для
 commit-aware hooks внутри внешней транзакции, а implementation discovery добавил
 DG-SPI-06R2 для post-commit hook `Throwable`. Все три утверждены вариантом A
-2026-09-13 и реализованы. Batch 15 / DB-03B-B находится в `review`: production
-candidate `1568007` реализует exhaustive delete fault/commit-hook conformance и
-selector locking; exact local suites, обе pinned DB lanes, isolation, coverage,
-PHPCS и два независимых аудита зелёные (`PASS` и `PASS_WITH_NOTES`; notes
-закрыты в contract docs). Protected PR checks и post-merge checks ещё не
-завершены.
+2026-09-13 и реализованы. Batch 15 / DB-03B-B завершён PR #93: implementation
+candidate `1568007`, final head `e4142c2` и merge `2348d5a` реализуют exhaustive
+delete fault/commit-hook conformance и selector locking. Локальные suites, обе
+pinned DB lanes, isolation, coverage, PHPCS и два независимых аудита зелёные;
+final head и post-merge `master` прошли по 19/19 checks.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1089,7 +1088,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A completed; DB-03B-B review on candidate `1568007`; DB-04 waits DELETE-06 and implementation dependencies |
+| DP-5 Delete | DG-DELETE-01—04/06 | partial: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R approved 2026-09-12; DELETE-06 pending A recommended | DB-03B-A and DB-03B-B completed; DB-04 waits DELETE-06 and implementation dependencies |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | partial: RESTERR-03 approved A 2026-09-11; остальные pending A recommended | REST-03—REST-05 exact wire contract |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
@@ -1760,7 +1759,7 @@ Verification so far:
 
 ### Batch 15. Exhaustive delete fault and lock conformance
 
-Status: review
+Status: completed
 
 Goal: завершить DB-03B-B поверх reusable DB-05 boundary: доказать
 для каждого delete selector, что read/write failure атрибутируется,
@@ -1769,7 +1768,7 @@ partial state не остаётся, success hooks идут только пос�
 
 Task:
 
-- DB-03B-B — `review`; его полные Scope/DoR/DoD/AC описаны в E3.
+- DB-03B-B — `completed`; его полные Scope/DoR/DoD/AC описаны в E3.
 
 Execution slices:
 
@@ -1787,14 +1786,16 @@ Execution slices:
    relation-aware `FOR UPDATE` boundary; two-session regression фиксирует
    relation/endpoint race. Custom-adapter fallback остаётся REL-02.
 4. `DB-03B-B/F4 — verification and independent QA` —
-   `review` на `1568007`. Исправления по первому QA добавили proof, что observer
-   не может замаскировать исходную DB error, PROCESSLIST handshake для
-   relation-ID race и отдельную endpoint race для from-selector. Локально
+   `completed` на implementation candidate `1568007`. Исправления по первому QA
+   добавили proof, что observer не может замаскировать исходную DB error,
+   PROCESSLIST handshake для relation-ID race и отдельную endpoint race для
+   from-selector. Локально
    зелёные unit `19/96`, integration `337/2988`, MariaDB 10.11.16 и MySQL
    8.0.46 по `337/2988`, reverse/random isolation и PHPCS `59/59`; combined
    coverage `356 tests / 3082 assertions`, PR statements `1745/1910 (91.36%)`.
    Независимые аудиты дали PASS и PASS_WITH_NOTES без блокеров; обе notes
-   закрыты явным failure-hook и custom-adapter migration contract. CI ожидается.
+   закрыты явным failure-hook и custom-adapter migration contract. Final head
+   `e4142c2` PR #93 и merge `2348d5a` прошли по 19/19 checks.
 
 Exit criteria:
 
@@ -1802,6 +1803,14 @@ Exit criteria:
 - Mandatory independent QA и 19/19 protected/post-merge checks зелёны.
 - Остаточные aggregate update и direct-storage parent-row concerns не
   подменяются: они остаются в DB-02R/REL-02.
+
+Verification:
+
+- Final exact head `e4142c2e51c2b02e201fa272d849f9eed6b5dd56` получил
+  independent closure QA PASS без findings и 19/19 protected checks.
+- PR #93 влит merge commit
+  `2348d5afec3e365720b4bb9213f16019ab102897`; exact post-merge `master`
+  прошёл 19/19 checks. Все exit criteria DB-03B-B/Batch 15 выполнены.
 
 ## E1. Test foundation и regression harness
 
@@ -3852,7 +3861,7 @@ Notes/Risks:
 
 ### DB-03B-B. Проверить delete failure и commit-hook conformance
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -3926,8 +3935,8 @@ Notes/Risks:
 - Локальная проверка candidate: unit `19/96`, integration `337/2988`, обе pinned
   DB lanes `337/2988`, reverse/random isolation, PHPCS `59/59`, coverage
   `1745/1910 (91.36%)`; independent audits PASS и PASS_WITH_NOTES без
-  блокеров, notes отражены в contract docs. Статус остаётся `review` до 19/19
-  protected и post-merge checks.
+  блокеров, notes отражены в contract docs. Final head `e4142c2` PR #93 и merge
+  `2348d5a` прошли по 19/19 protected/post-merge checks; task completed.
 - Direct standalone `addConnectionMeta()` не обещает parent-row integrity для
   legacy consumer writes через `getStorage()` по DG-M9/A. Domain aggregate
   update race закрывает DB-02R; REL-02 обязан вынести это различие в migration
