@@ -54,9 +54,9 @@
    получил closure QA `PASS` и 19/19 checks; PR #91 влит как
    `5bd1ef6`, его post-merge matrix также зелёна 19/19. Batch 14/DB-05
    завершены. Batch 15 / DB-03B-B завершён PR #93: implementation candidate
-   `1568007`, final head `e4142c2` и merge `2348d5a` получили independent QA и
-   прошли по 19/19 protected/post-merge checks. Concurrent aggregate
-   update/delete parent-row race остаётся в follow-up DB-02R.
+   `1568007` получил independent audits; final head `e4142c2` прошёл 19/19
+   protected checks, merge `2348d5a` — 19/19 post-merge checks. Concurrent
+   aggregate update/delete parent-row race остаётся в follow-up DB-02R.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
