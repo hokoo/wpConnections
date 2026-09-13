@@ -695,7 +695,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | approved A | repository owner | 2026-09-13 | New tables InnoDB; legacy engine conversion is explicit admin work |
 | [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | pending; recommendation A | repository owner | — | DB-05/REL-02 nested transaction conformance waits |
 | [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | approved A-R | repository owner | 2026-09-13 | One bounded schema recovery before DML; never failed-INSERT-then-DDL |
-| [`DG-DB-06-FAIL`](../db-compatibility-contract.md#dg-db-06-fail) | pending; recommendation A | repository owner | — | Exact partial-schema failure invariant; DB-06/Batch 13 closeout waits |
+| [`DG-DB-06-FAIL`](../db-compatibility-contract.md#dg-db-06-fail) | approved A | repository owner | 2026-09-13 | Preserve empty matching-owned partial schema, prohibit DML and compensating DROP, recover only the missing table once |
 | [DG-RESTERR-01](../rest-error-contract.md#dg-resterr-01) | pending; recommendation A | repository owner | — | Domain-to-HTTP taxonomy; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | pending; recommendation A | repository owner | — | Default v1 library error body; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | approved A | repository owner | 2026-09-11 | Preserve native WordPress gateway status/code/data shape |
@@ -1500,7 +1500,7 @@ Verification:
 
 ### Batch 13. InnoDB schema lifecycle and bounded recovery
 
-Status: in_progress; implementation candidate complete, pending DG-DB-06-FAIL
+Status: in_progress; implementation candidate complete, final verification
 
 Goal: завершить DB-06 отдельным red-to-green vertical slice: доказать clean и
 idempotent install, восстановление одной или обеих отсутствующих client tables
@@ -1513,7 +1513,8 @@ Entry criteria:
   implementation и merge SHAs прошли 17/17 protected checks.
 - INFRA-03, DB-00 и CORE-06 completed; DG-M6 и требуемые DG-NAME decisions
   утверждены.
-- DG-DB-01/A, DG-DB-02/A и DG-DB-04/A-R утверждены владельцем 2026-09-13.
+- DG-DB-01/A, DG-DB-02/A, DG-DB-04/A-R и DG-DB-06-FAIL/A утверждены
+  владельцем 2026-09-13.
 
 Tasks:
 
@@ -1534,8 +1535,10 @@ Execution model:
   ошибкой. Explicit administrator audit/migration остаётся отдельным путём.
 - Blocking evidence получить на точных MySQL 8.0.46 и MariaDB 10.11.16 без
   перемножения всей PHP/WordPress/Ramsey matrix.
-- Зафиксировать DG-DB-06-FAIL: две DDL операции не атомарны; до решения не
-  утверждать compensating DROP или финальную трактовку SCHEMA-FAIL-01.
+- Реализовать утверждённый DG-DB-06-FAIL/A: при падении второй DDL сохранить
+  первую пустую owned table и ownership record, не выполнять DML или
+  compensating DROP, а следующим client lifecycle восстановить только missing
+  table один раз.
 - Не включать DB-05 transactions/savepoints, DB-03B-B fault injection и hook
   commit timing, новые columns/tenancy, REST, `deleted_post` или API-05.
 
@@ -3559,7 +3562,7 @@ Notes/Risks:
 
 ### DB-06. Защитить schema install и recovery
 
-Status: in_progress; pending DG-DB-06-FAIL
+Status: in_progress; final verification
 
 Priority: P0
 
@@ -3590,7 +3593,7 @@ DoR:
 - DG-M6 решён.
 - DB-00 определил поддерживаемую DB matrix.
 - Владелец утвердил DB matrix и migration/error policy, предложенные DB-00.
-- DG-DB-01, DG-DB-02 и DG-DB-04 утверждены.
+- DG-DB-01, DG-DB-02, DG-DB-04 и DG-DB-06-FAIL утверждены.
 - CORE-06 реализовал и проверил table naming rules.
 - DG-NAME-01, DG-NAME-03, DG-NAME-04, DG-NAME-05 и DG-NAME-06 утверждены
   владельцем. DG-NAME-02 реализован в CORE-06 и является refinement для
@@ -3619,15 +3622,15 @@ AC:
 - Given pair использует MyISAM или mixed engines, when начинается create, then
   caller получает pre-DML failure и библиотека не выполняет INSERT/ALTER.
 - Given первая из двух таблиц создана, а вторая DDL завершается ошибкой, then
-  итоговая partial-schema семантика соответствует утверждённому
-  DG-DB-06-FAIL и никакого DML не происходит.
+  первая остаётся пустой и matching-owned, compensating DROP и DML не
+  выполняются, а следующий client lifecycle восстанавливает только missing
+  table до первого INSERT.
 
 Dependencies:
 
 - INFRA-03.
 - DG-M6.
 - DG-DB-01, DG-DB-02, DG-DB-04.
-- DG-DB-06-FAIL для final failure semantics и closeout.
 - DG-NAME-01, DG-NAME-03, DG-NAME-04, DG-NAME-05, DG-NAME-06.
 - DB-00.
 - CORE-06.

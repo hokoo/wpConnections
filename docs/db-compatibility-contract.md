@@ -550,21 +550,27 @@ that a failed lifecycle attempt cannot create partial application data, and
 avoids destructive rollback theatre for non-transactional DDL. The remaining
 partial schema is attributable, ownership-checked and recoverable.
 
+**Decision:** approved A by the repository owner on 2026-09-13. A failed second
+DDL may leave the first empty table and the matching ownership record, but no
+connection or connection-meta DML. The next initialization or first write may
+run one bounded recovery for only the missing table; automatic compensating
+`DROP` is forbidden.
+
 **Compatibility impact:** A may leave one empty owned table plus its ownership
 record after a database or privilege failure, but performs no automatic
 deletion and recovers it on the next valid attempt. B adds a
 data-loss/concurrency risk to an otherwise non-destructive path. C breaks the
 approved lazy clean-install behavior.
 
-**Blocks:** final SCHEMA-FAIL-01 wording and test, DB-06 completion, Batch 13 PR
-readiness and REL-01 lifecycle documentation.
+**Unblocks:** final SCHEMA-FAIL-01 wording and test, DB-06 completion, Batch 13
+PR readiness and REL-01 lifecycle documentation.
 
 ## Downstream acceptance matrix
 
 | Consumer task | Input from DB-00 | Remains blocked by |
 | --- | --- | --- |
 | DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-DB-01—DG-DB-04, DG-SPI-03/04/06 and DG-UPDATE-03/04 |
-| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | DG-DB-01, DG-DB-02, DG-DB-04, DG-DB-06-FAIL and CORE-05 naming gates |
+| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | No decision blocker; final verification and merge remain |
 | REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | DG-DB-01, DG-DB-02, DG-DB-04 |
 | REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-DB-03, DG-SPI-04, DG-SPI-06 |
 | CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
@@ -595,10 +601,10 @@ readiness and REL-01 lifecycle documentation.
 - The tested MariaDB exposes `@@in_transaction`; MySQL 8.0.46 returned error
   1193 for that variable, confirming vendor-specific detection cannot be the
   shared contract.
-- DG-DB-01/A, DG-DB-02/A and the refined DG-DB-04/A-R were approved on
+- DG-DB-01/A, DG-DB-02/A, the refined DG-DB-04/A-R and DG-DB-06-FAIL/A were
+  approved on
   2026-09-13. Batch 13 implements and locally verifies their unblocked DB-06
-  portion on both pinned database images. DG-DB-06-FAIL remains pending for the
-  exact partial-schema failure contract; DG-DB-03 remains pending for DB-05.
+  portion on both pinned database images. DG-DB-03 remains pending for DB-05.
 - Independent QA for commit `3418c17` passed the required-descriptor remediation
   with a non-blocking scope note: custom additional constraints remain assigned
   to DB-06R rather than being silently represented as covered by DB-06.

@@ -215,6 +215,82 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 		}
 	}
 
+	public function test_second_table_ddl_failure_preserves_owned_empty_partial_schema_and_next_client_recovers_it(): void
+	{
+		global $wpdb;
+
+		$tables = $this->storage_tables();
+		foreach ( $tables as $table ) {
+			$wpdb->query( "DROP TABLE `{$table}`" );
+		}
+
+		$failed_queries = [];
+		$block_meta_create = function ( string $query ) use ( &$failed_queries, $tables ): string {
+			$failed_queries[] = $query;
+			if ( $this->is_create_table_query( $query, $tables['meta'] ) ) {
+				return 'SELECT 1 /* SchemaLifecycleTest blocked second CREATE TABLE */';
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $block_meta_create );
+
+		$failure = null;
+		try {
+			$this->create_storage_connection( 'partial-schema-failure' );
+		} catch ( Throwable $exception ) {
+			$failure = $exception;
+		} finally {
+			remove_filter( 'query', $block_meta_create );
+		}
+
+		self::assertInstanceOf( ConnectionWrongData::class, $failure );
+		self::assertStringContainsString( 'schema', strtolower( $failure->getMessage() ) );
+		self::assertStringContainsString( $tables['meta'], $failure->getMessage() );
+		self::assertStringContainsString( 'missing', strtolower( $failure->getMessage() ) );
+		self::assertCount( 1, $this->table_create_indexes( $failed_queries, $tables['connections'] ) );
+		self::assertCount( 1, $this->table_create_indexes( $failed_queries, $tables['meta'] ) );
+		self::assertTrue( $this->table_exists( $tables['connections'] ) );
+		self::assertFalse( $this->table_exists( $tables['meta'] ) );
+		self::assertSame( 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$tables['connections']}`" ) );
+		self::assertSame( [], $this->table_dml_queries( $failed_queries, $tables ) );
+		self::assertSame( [], $this->table_alter_queries( $failed_queries, $tables ) );
+		self::assertSame( [], $this->table_drop_queries( $failed_queries, $tables ) );
+
+		$ownership = get_option( $this->ownership_option_name(), null );
+		self::assertIsArray( $ownership );
+		self::assertSame( 1, $ownership['version'] ?? null );
+		self::assertSame( str_replace( '-', '_', $this->client->getName() ), $ownership['postfix'] ?? null );
+		self::assertSame( $this->client->getName(), $ownership['owner'] ?? null );
+
+		$old_client = $this->client;
+		RestRouteRegistry::instance()->deactivateClient( $old_client );
+		$old_client->disablePostDeletionCleanup();
+
+		$recovery_queries = [];
+		$record_recovery = static function ( string $query ) use ( &$recovery_queries ): string {
+			$recovery_queries[] = $query;
+			return $query;
+		};
+		add_filter( 'query', $record_recovery );
+		try {
+			$this->client = new Client( CLIENT_NAME );
+			$created_id = $this->create_storage_connection( 'after-partial-schema-recovery' );
+		} finally {
+			remove_filter( 'query', $record_recovery );
+		}
+
+		self::assertCount( 0, $this->table_create_indexes( $recovery_queries, $tables['connections'] ) );
+		$meta_create_indexes = $this->table_create_indexes( $recovery_queries, $tables['meta'] );
+		self::assertCount( 1, $meta_create_indexes );
+		$first_insert = $this->first_table_insert_index( $recovery_queries, $tables['connections'] );
+		self::assertIsInt( $first_insert, 'The recovered operation did not reach its connection INSERT.' );
+		self::assertLessThan( $first_insert, $meta_create_indexes[0] );
+		$this->assert_storage_schema();
+		self::assertSame( 1, $this->connection_row_count( $created_id ) );
+		self::assertSame( 1, $this->meta_row_count( $created_id ) );
+	}
+
 	/**
 	 * @dataProvider incompatible_engine_provider
 	 */
@@ -434,6 +510,13 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 		return is_array( $columns ) && [] !== $columns;
 	}
 
+	private function ownership_option_name(): string
+	{
+		$postfix = str_replace( '-', '_', $this->client->getName() );
+
+		return 'wpconnections_storage_owner_' . hash( 'sha256', $postfix );
+	}
+
 	private function table_engine( string $table ): string
 	{
 		global $wpdb;
@@ -599,6 +682,23 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 				$queries,
 				static function ( string $query ) use ( $tables ): bool {
 					if ( 1 !== preg_match( '/^\s*ALTER\s+TABLE\b/i', $query ) ) {
+						return false;
+					}
+
+					return false !== strpos( $query, $tables['connections'] ) ||
+						false !== strpos( $query, $tables['meta'] );
+				}
+			)
+		);
+	}
+
+	private function table_drop_queries( array $queries, array $tables ): array
+	{
+		return array_values(
+			array_filter(
+				$queries,
+				static function ( string $query ) use ( $tables ): bool {
+					if ( 1 !== preg_match( '/^\s*DROP\s+TABLE\b/i', $query ) ) {
 						return false;
 					}
 

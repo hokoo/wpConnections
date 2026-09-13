@@ -126,15 +126,15 @@ the scenario remains pending for release-candidate purposes.
 | `STORE-TX-CAP-01` | Unsupported transactional storage is detected before a compound mutation and returns the approved explicit error rather than silently using best effort. | SPI-01 / DB-00 / DB-05 |
 | `SCHEMA-INSTALL-01` | Clean and repeated installation creates or preserves both client tables and required indexes without losing data. | DB-06 |
 | `SCHEMA-RECOVER-01` | Removing either or both client tables is recovered by the bounded retry path, after which the requested operation succeeds. | DB-06 |
-| `SCHEMA-FAIL-01` | An unrecoverable schema error returns the original informative failure without an infinite retry or partial schema/data state. | DB-06 |
+| `SCHEMA-FAIL-01` | An unrecoverable schema error returns an informative failure without an infinite retry or application DML. If the first of two implicitly committed DDL statements succeeded, the empty matching-owned table and ownership record remain; the next lifecycle attempt recovers only the missing table once. | DB-06 |
 | `CLIENT-ISO-01` | Read, create, update, and every delete path for one client cannot observe or mutate another client's connection or metadata rows. | CORE-06 / DB-03B-A / DB-03B-B |
 | `CLIENT-NAME-01` | Empty, colliding, and overlong normalized client names are handled by the approved rule before unsafe SQL; valid and legacy names retain their documented table identities. | CORE-05 / CORE-06 |
 
-`SCHEMA-FAIL-01` has a pending clarification in
-[DG-DB-06-FAIL](db-compatibility-contract.md#dg-db-06-fail): the no-partial-data
-requirement is implementable, but two implicitly committed `CREATE TABLE`
-statements cannot guarantee no intermediate partial schema without a potentially
-destructive compensating `DROP`.
+Under approved
+[DG-DB-06-FAIL/A](db-compatibility-contract.md#dg-db-06-fail), “no partial data”
+means no connection or connection-meta rows. A failed second `CREATE TABLE` may
+leave the first empty matching-owned table and the intentional ownership option;
+the library never performs a destructive compensating `DROP`.
 
 ### REST v1
 
