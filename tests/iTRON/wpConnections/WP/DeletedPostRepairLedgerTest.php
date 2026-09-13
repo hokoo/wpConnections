@@ -13,6 +13,7 @@ use iTRON\wpConnections\Internal\DeletedPostRepairLease;
 use iTRON\wpConnections\Internal\DeletedPostRepairLedger;
 use iTRON\wpConnections\Internal\DeletedPostRepairRecord;
 use iTRON\wpConnections\Internal\DeletedPostRepairStatus;
+use InvalidArgumentException;
 use Throwable;
 
 class DeletedPostRepairLedgerStorageA
@@ -223,6 +224,46 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertEquals( $this->instantAt( '+15 minutes' ), $record->getNextAttemptAt() );
 		self::assertNull( $record->getLeaseToken() );
 		self::assertNull( $record->getLeaseExpiresAt() );
+	}
+
+	public function test_lease_window_must_remain_positive_at_database_second_precision(): void
+	{
+		$now = DateTimeImmutable::createFromFormat(
+			'!Y-m-d H:i:s.u',
+			'2026-09-14 00:00:00.100000',
+			new DateTimeZone( 'UTC' )
+		);
+		$lease_until = DateTimeImmutable::createFromFormat(
+			'!Y-m-d H:i:s.u',
+			'2026-09-14 00:00:00.900000',
+			new DateTimeZone( 'UTC' )
+		);
+		self::assertInstanceOf( DateTimeImmutable::class, $now );
+		self::assertInstanceOf( DateTimeImmutable::class, $lease_until );
+
+		$queries = [];
+		$recorder = function ( string $query ) use ( &$queries ): string {
+			if ( false !== strpos( $query, $this->table ) ) {
+				$queries[] = $query;
+			}
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+		try {
+			$failure = $this->capture_failure(
+				fn() => $this->ledger->armAndTryClaim(
+					$this->identity( 'ledger-client-a', 134 ),
+					new DeletedPostRepairLedgerStorageA(),
+					$now,
+					$lease_until
+				)
+			);
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		self::assertInstanceOf( InvalidArgumentException::class, $failure );
+		self::assertSame( [], $this->ledger_mutation_queries( $queries ) );
 	}
 
 	public function test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml(): void
