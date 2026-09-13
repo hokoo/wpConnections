@@ -1,7 +1,9 @@
 # Storage SPI and mutation boundary
 
-Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-06
-and DG-SPI-07 approved A, while DG-SPI-03 through DG-SPI-05 remain pending
+Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
+DG-SPI-04, DG-SPI-04R, DG-SPI-06, DG-SPI-06R, DG-SPI-06R2 and DG-SPI-07
+approved A; their DB-05 boundary is implemented on Batch 14, while DG-SPI-05
+remains pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -10,10 +12,9 @@ Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 This document is the canonical inventory and decision record for the storage
 extension boundary. It describes the source as it exists at the snapshot above,
 the already approved constraints from DG-M7 and DG-M9, the A decisions recorded
-for DG-SPI-01/02/06/07 on 2026-09-11, and the decisions still required before
-other production signatures or behavior change. Shared result gate
-DG-UPDATE-04/A was separately approved on 2026-09-11; neither it nor
-DG-SPI-06/A approves the still-pending adapter-failure signal in DG-SPI-03.
+for DG-SPI-01/02/06/07 on 2026-09-11, the DG-SPI-03/04 approvals on 2026-09-13,
+and the refinements approved before nested production behavior changed.
+Shared result gate DG-UPDATE-04/A was separately approved on 2026-09-11.
 
 The words **current** and **observed** describe compatibility evidence, not a
 promise that defective behavior should be retained. A **recommended** option is
@@ -32,6 +33,49 @@ Primary sources:
   callers.
 - [`compatibility-inventory.md`](compatibility-inventory.md) records public
   consumer evidence and its limitations.
+
+## Batch 14 implementation status
+
+The source snapshot inventory below remains the historical problem statement.
+Current Batch 14 behavior is governed by the approved gates and these verified
+implementation boundaries:
+
+- `AtomicStorageInterface::runAtomically()` is an optional capability; the
+  eight methods of `Abstracts\Storage` remain unchanged.
+- `Client::runAtomically()` is the additive composition API. Root context is
+  library-owned; explicit external nesting uses `TransactionContext::nested()`
+  and a fresh `TransactionSynchronizer`.
+- A scope belongs to one Client. Cross-client re-entry and an absent or already
+  completed external synchronizer fail before the callback/storage mutation.
+- `WPStorage` performs schema and InnoDB readiness checks before `START
+  TRANSACTION`, uses collision-safe savepoints for nested scopes and never
+  commits a caller-owned outer transaction.
+- Create with metadata, aggregate `Connection::update()` and every relation
+  connection-plus-metadata delete are atomic. Direct default-storage compound
+  entrypoints open a child savepoint when a Client scope is already active, so
+  a caught child failure cannot leave partial data in the parent scope. Direct
+  default-storage deletes, including the 1.x `deleted_post` callback, use the
+  same boundary.
+- Delete selector rows are locked before cascade writes. SQL failures are
+  distinct from valid no-op/no-match outcomes and retain the database cause in
+  the exception chain.
+- Success notifications are FIFO and exactly once after the owning commit, or
+  discarded on rollback. A post-commit hook `Throwable` propagates unchanged
+  with durable state and no impossible rollback attempt.
+- If rollback or rollback-to-savepoint cannot be confirmed, `WPStorage` marks
+  the shared `$wpdb` session unsafe. Every default-storage Client on that
+  session fails closed before another schema check, transaction-control command
+  or DML. A confirmed rollback by a library-owned ancestor clears the marker;
+  after an unconfirmed top-level or consumer-owned rollback there is no public
+  in-request reset, and a fresh request/database session is required.
+
+Applications using a custom adapter may continue scalar relation updates and
+creates without metadata on the original SPI. Compound domain mutations require
+the optional capability and otherwise throw `StorageCapabilityUnavailable`
+before the first adapter mutation. A capable custom adapter that shares one
+backend transaction session between multiple Client instances must provide
+equivalent session-level nesting and rollback-uncertainty coordination; a
+per-adapter flag is insufficient.
 
 ## Boundary model
 
@@ -157,8 +201,8 @@ without DG-SPI-05 and conformance coverage in REL-02.
 
 ## Transaction capability required by DG-M7
 
-DG-M7/A and DG-M9/A are already approved and impose outcomes, regardless of the
-pending API mechanism:
+DG-M7/A and DG-M9/A impose the following outcomes through the API mechanism now
+approved by DG-SPI-04/A, DG-SPI-04R/A and DG-SPI-06R/A:
 
 - A compound domain mutation is all-or-nothing across connection and metadata
   writes.
@@ -173,12 +217,13 @@ pending API mechanism:
   must not produce a false success notification.
 - Create plus metadata, scalar update plus metadata replacement, and every
   connection-plus-metadata delete variant are compound boundaries.
-- Schema creation/recovery may cause implicit commits on some engines. DB-00
-  must determine supported engine behavior before DB-05 combines retry and data
-  transactions.
+- Schema creation/recovery may cause implicit commits on some engines. Completed
+  DB-00/DB-06 evidence therefore requires readiness and bounded recovery before
+  DB-05 begins any data transaction.
 
-The public capability shape and the owner of begin/commit/rollback are still
-pending in DG-SPI-04.
+The optional capability shape is approved by DG-SPI-04/A. Its additive domain
+entrypoint, caller-owned nested context and outer-commit hook coordination were
+approved by DG-SPI-04R/A and DG-SPI-06R/A and implemented by DB-05.
 
 ## Hook and side-effect inventory
 
@@ -210,7 +255,8 @@ out to unrelated Client loggers. Logging stays at priority 10 and retains the
 pre-existing logged context; the Client added to the query action is routing
 metadata only.
 
-DG-SPI-06 decides commit-aware mutation hook semantics. REL-02 still owns the
+DG-SPI-06/A defines commit-aware mutation hook semantics, implemented for the
+default adapter by DB-05. REL-02 still owns the
 complete public/internal classification and compatibility tests; SPI-01 does
 not rename or remove hooks.
 
@@ -291,11 +337,17 @@ collection.
 distinguishable and testable. Exact delete no-op/not-found meanings remain with
 DB-03A; update results remain solely with shared DG-UPDATE-04.
 
+**Decision:** approved A by the repository owner on 2026-09-13. Existing v1
+method signatures remain. Valid no-match/no-op outcomes retain their owning
+domain semantics, while adapter failures become attributable stable domain
+exceptions rather than `false`, `0` or an empty collection.
+
 **Compatibility impact:** A converts previously silent/raw failures to
 exceptions and may expose defective custom adapters. B cannot satisfy DG-M7.
 C breaks implementers and consumers.
 
-**Blocked/refined tasks:** DB-03A, DB-03B-B, DB-05, REST-00A, REST-03 and REL-02.
+**Affected tasks:** DB-03A and DB-05 consume the approved failure contract;
+DB-03B-B, REST-00A, REST-03 and REL-02 own remaining conformance/mapping work.
 
 ### DG-SPI-04 — transaction capability and orchestration shape
 
@@ -313,13 +365,137 @@ abstract SPI exposes neither capability discovery nor transaction scope.
 to implement new abstract methods merely to fail preflight, keeps transaction
 mechanics adapter-owned, and keeps domain orchestration/invariants under DG-M9.
 
+**Decision:** approved A by the repository owner on 2026-09-13. DB-05 may add
+an optional atomic unit-of-work capability without expanding
+`Abstracts\Storage`; supported compound domain mutations detect that capability
+before their first write and fail explicitly when it is absent.
+
 **Compatibility impact:** A adds a public optional SPI and causes non-capable
 adapters to receive the approved pre-mutation error for compound writes. B is a
 breaking abstract-class expansion. C duplicates domain semantics and expands
 the SPI substantially.
 
-**Blocked/refined tasks:** DB-00 must validate backend feasibility; DB-05 owns
-implementation; REL-02 owns custom-adapter conformance and compatibility.
+**Affected tasks:** completed DB-00 supplies backend feasibility, DB-05
+implements the optional capability, and REL-02 owns remaining custom-adapter
+conformance and compatibility.
+
+<a id="dg-spi-04r"></a>
+### DG-SPI-04R — propagating caller-owned transaction context
+
+**Problem:** DG-DB-03/A requires a caller to declare root versus nested
+ownership, but none of the current domain mutation methods accepts transaction
+context. A storage-only mode cannot tell the domain layer whether it must open a
+root scope, enlist in a library-owned scope or create a savepoint inside a
+transaction owned outside the library.
+
+- A: add one additive Client-level atomic unit-of-work entrypoint carrying an
+  explicit root/nested context. Standalone compound domain mutations open their
+  normal root scope; mutations invoked inside that Client unit of work enlist in
+  its known scope. A caller that already owns a database transaction must enter
+  through the same unit-of-work API with explicit nested context. The v1 scope
+  is owned by exactly one Client; attempting to enter another Client on the same
+  database session is rejected before its first write rather than starting a
+  blind second transaction. Cross-client atomic composition needs a future
+  shared coordinator.
+- B: add an optional transaction-context parameter to every compound mutation
+  method on `Relation` and `Connection` and propagate it through every call.
+- C: expose context only on the optional storage capability and require
+  consumers to compose supported domain mutations through
+  `Client::getStorage()`.
+
+**Recommendation:** A. It keeps one explicit composition boundary, leaves
+existing mutation signatures source-compatible and does not promote legacy
+direct storage writes into the supported consumer API. B spreads transaction
+plumbing across the domain surface; C conflicts with DG-M9/A.
+
+**Decision:** approved A by the repository owner on 2026-09-13. DB-05 adds one
+Client-level atomic unit-of-work boundary with explicit root/nested context;
+existing mutation signatures remain unchanged. A v1 scope is Client-local,
+does not infer vendor session state and rejects cross-client re-entry before the
+second Client writes.
+
+**Compatibility impact:** A is additive, but consumers that start an outer
+transaction themselves must adopt the explicit nested unit-of-work entrypoint;
+otherwise the library cannot safely infer session state. Incapable adapters
+fail before mutation as already approved by DG-SPI-04/A. A transaction spanning
+multiple wpConnections Clients is not silently approximated in v1.
+
+**Affected tasks:** DB-05 implements the approved transaction orchestration;
+REL-02 owns custom-adapter conformance and compatibility documentation.
+
+<a id="dg-spi-06r"></a>
+### DG-SPI-06R — success hooks inside a caller-owned outer transaction
+
+**Problem:** `RELEASE SAVEPOINT` does not commit the caller's outer transaction.
+If the library emits a success-named hook immediately after releasing its
+savepoint, the caller can still roll the outer transaction back, contradicting
+DG-SPI-06/A's promise that success hooks are observable only after commit.
+
+- A: require an externally owned nested context to provide transaction
+  synchronization capable of accepting after-commit notifications. Buffer
+  success hooks at the library scope and dispatch them only when the outer owner
+  confirms commit; discard them on rollback. Library-owned nested scopes buffer
+  into their known root scope. Missing synchronization is an explicit
+  pre-mutation capability error.
+- B: treat successful savepoint release as success of the library scope and
+  emit hooks immediately, explicitly weakening `after`/`deleted` from
+  committed-success to savepoint-success for externally owned nesting.
+- C: never emit success-named hooks for externally owned nested scopes, even
+  when the outer transaction later commits.
+
+**Recommendation:** A. It is the only option that preserves the already
+approved committed-success meaning without falsely claiming an outer commit or
+silently losing notifications.
+
+**Decision:** approved A by the repository owner on 2026-09-13. An externally
+owned nested scope requires an outer-transaction synchronizer. Success
+notifications remain buffered after savepoint release, are dispatched FIFO and
+exactly once only after the owner confirms commit, and are discarded on
+rollback. Missing synchronization fails before mutation.
+
+**Compatibility impact:** A adds a coordination obligation only for consumers
+that compose mutations inside a transaction the library does not own. B reopens
+the approved hook meaning; C can break observers that rely on successful
+mutation notifications.
+
+**Affected tasks:** commit-aware hook delivery in DB-05 and custom-adapter
+conformance in REL-02.
+
+<a id="dg-spi-06r2"></a>
+### DG-SPI-06R2 — exception thrown by a post-commit success hook
+
+**Problem:** under DG-SPI-06/A a success-named hook runs only after the database
+commit. If a consumer callback then throws, rollback is no longer possible. The
+current synchronous WordPress action mechanism lets callback exceptions escape,
+but moving the hook after commit changes the state observed when they escape.
+
+- A: preserve synchronous v1 exception propagation. A post-commit hook
+  `Throwable` escapes unchanged and the operation is explicitly documented as
+  already committed; it is not wrapped as a storage failure and no rollback is
+  attempted. Remaining queued success hooks after the throwing callback follow
+  native WordPress dispatch behavior.
+- B: catch and log post-commit hook failures, continue dispatch where possible
+  and return the successful mutation result to the caller.
+- C: run success hooks before commit so a callback failure can roll back the
+  mutation.
+
+**Recommendation:** A for v1. It preserves native synchronous hook failure
+visibility and does not claim an impossible rollback. B silently changes how
+consumer bugs reach callers; C contradicts the already approved committed-
+success meaning.
+
+**Decision:** approved A by the repository owner on 2026-09-13. A post-commit
+hook `Throwable` propagates unchanged with storage already committed; it is not
+reported as `StorageFailure` and cannot trigger rollback. Native synchronous
+WordPress dispatch behavior is retained for callbacks that follow the throw.
+
+**Compatibility impact:** A makes the committed-state consequence explicit:
+the caller can receive a hook exception even though storage is already durable.
+B can hide failures that currently propagate. C exposes uncommitted state to a
+success observer and reopens DG-SPI-06/A.
+
+**Affected tasks:** DB-05 implements post-commit dispatch and fault tests;
+REL-02 owns custom-adapter conformance.
 
 ### DG-SPI-05 — factory replacement construction and failure contract
 
@@ -370,7 +546,8 @@ future richer lifecycle. It satisfies DG-M7 while minimizing hook-name churn.
 callbacks that relied on attempt-level timing may observe a difference. B
 conflicts with the no-false-success requirement. C expands the public hook API.
 
-**Blocked/refined tasks:** DB-05 and REL-02.
+**Affected tasks:** DB-05 implements commit-aware mutation hooks; REL-02 owns
+remaining custom-adapter conformance.
 
 ### DG-SPI-07 — legacy concrete storage introspection
 

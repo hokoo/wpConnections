@@ -35,9 +35,9 @@ by the approved matrix and protected regressions.
   identity and returns logical connection-row counts after successful cascades.
 - Successful ID, pair, from, to and both-side deletions remove all matching
   metadata; valid no-match remains `0`.
-- The relation lookup followed by client-wide ID deletion remains an explicitly
-  documented TOCTOU limitation until DB-05/DB-03B-B add the approved atomic
-  boundary.
+- DB-05 now keeps relation lookup and client-wide ID deletion inside one atomic
+  boundary and locks the selected parent row before cascade writes. Exhaustive
+  selector/fault/concurrency proof remains assigned to DB-03B-B.
 
 Exact candidate `9e88eef` received independent QA PASS, 17/17 protected
 checks, combined coverage `237 tests / 2030 assertions` and statement coverage
@@ -233,7 +233,7 @@ specific decisions and dependencies are complete.
 | Valid selector, no rows | `0`, never an adapter failure | No writes; no committed-success hook | DG-DELETE-03 plus DG-SPI-03/06 |
 | Empty or invalid selected selector; mixed-invalid direct-SPI ID list | Stable attributable domain error before SQL | No storage mutation or committed-success hook | DG-DELETE-01/04 plus DG-SPI-03/06 |
 | Any selector read/write failure | Stable adapter/domain failure, never `0` or partial success | Original state restored; failure context retained outside default REST body | DG-SPI-03/04/06; DB-03B-B/DB-05/REST-00A |
-| Connection plus any number of metadata rows | One logical connection contributes `1` | All-or-nothing rollback at every fault point | Approved DG-M7; pending DG-SPI-04; DB-03B-B/DB-05 |
+| Connection plus any number of metadata rows | One logical connection contributes `1` | All-or-nothing rollback at every fault point | Approved DG-M7 and DG-SPI-04/A; DB-03B-B/DB-05 |
 | REST existing connection delete | Preserve default v1 HTTP 200 `{deleted:true}` | Full dispatch plus persisted-state assertion | DG-DELETE-05; REST-03 |
 | WordPress post cascade failure | Post deletion is not claimed rolled back; cleanup failure is observable and repairable | Real hook flow plus injected adapter failure | DG-DELETE-06; DB-04/REL-03 |
 
@@ -255,11 +255,11 @@ DG-M7/A already fixes these requirements; they are not a new DB-03A decision:
 5. Result and committed-success hooks cannot escape before commit. Exact legacy
    hook timing/name compatibility follows approved DG-SPI-06/A.
 
-The transaction API and backend feasibility are still pending DG-SPI-04 and
-DB-00. DB-03B-A adds selector/count/SQL-safety regressions after the
-`DG-DELETE-*` decisions; DB-05 owns the reusable transaction implementation and
-fault-injection infrastructure; DB-03B-B then proves delete failure and hook
-conformance against that boundary.
+The transaction API and backend feasibility were approved by DG-SPI-04/A and
+DB-00; DB-05 implements the reusable transaction boundary and fault-injection
+infrastructure. DB-03B-A added selector/count/SQL-safety regressions after the
+`DG-DELETE-*` decisions; DB-03B-B now owns exhaustive delete failure and hook
+conformance against the implemented boundary.
 
 WordPress `deleted_post` is an external boundary: it fires after WordPress has
 deleted the post. Even an atomic connection/meta cleanup cannot restore that

@@ -845,7 +845,7 @@ class EntityValidationTest extends WPConnectionsTestCase
 		self::assertCount( 0, EntityValidationRecordingStorage::$added_meta );
 	}
 
-	public function test_recording_adapter_preserves_changed_and_no_op_update_signatures(): void
+	public function test_recording_adapter_preserves_scalar_results_and_rejects_aggregate_update(): void
 	{
 		$client   = $this->recording_client( 'entity-update-results' );
 		$relation = $this->register_relation_on( $client, 'entity-update-results', 'page', 'post' );
@@ -869,11 +869,16 @@ class EntityValidationTest extends WPConnectionsTestCase
 
 		$stored->setClient( $client );
 		$stored->meta->add( new Meta( 'marker', 'preserved' ) );
-		self::assertNull( $stored->update() );
+		try {
+			$stored->update();
+			self::fail( 'A compound update must require the optional atomic capability.' );
+		} catch ( \iTRON\wpConnections\Exceptions\StorageCapabilityUnavailable $failure ) {
+			self::assertSame( 312, $failure->getCode() );
+		}
 
-		self::assertCount( 3, EntityValidationRecordingStorage::$updated );
-		self::assertCount( 1, EntityValidationRecordingStorage::$removed_meta );
-		self::assertCount( 1, EntityValidationRecordingStorage::$added_meta );
+		self::assertCount( 2, EntityValidationRecordingStorage::$updated );
+		self::assertCount( 0, EntityValidationRecordingStorage::$removed_meta );
+		self::assertCount( 0, EntityValidationRecordingStorage::$added_meta );
 	}
 
 	public function test_connection_update_rejects_invalid_full_state_without_mutating_storage(): void

@@ -4,10 +4,11 @@ namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Helpers\Database;
 use iTRON\wpConnections\Internal\ConnectionIdNormalizer;
 
-class WPStorage extends Abstracts\Storage
+class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 {
     use ClientInterface;
 
@@ -130,6 +131,10 @@ class WPStorage extends Abstracts\Storage
     private string $meta_table;
     private string $postfix;
     private string $site_prefix;
+    private int $transactionDepth = 0;
+
+    private static int $savepointSequence = 0;
+    private static ?\WeakMap $transactionTaints = null;
 
     /**
      * @param Client $client wpConnections Client
@@ -158,6 +163,179 @@ class WPStorage extends Abstracts\Storage
     {
         $this->assertSitePrefix();
         return $this->meta_table;
+    }
+
+    /**
+     * @return mixed Callback result.
+     */
+    public function runAtomically(callable $operation, TransactionContext $context)
+    {
+        global $wpdb;
+
+        $this->assertSitePrefix();
+        $transactionTaint = $this->getTransactionTaint();
+        if (null !== $transactionTaint) {
+            throw $this->storageFailure(
+                'transaction state is uncertain',
+                '',
+                $transactionTaint
+            );
+        }
+
+        if ($context->isRoot() && 0 < $this->transactionDepth) {
+            throw new Exceptions\StorageCapabilityUnavailable(
+                'A root transaction cannot start inside an active library scope.'
+            );
+        }
+
+        if ($context->isSchemaRecoveryAllowed()) {
+            $this->ensureSchemaReadyForInsert();
+        } else {
+            $this->assertSchemaReady();
+        }
+
+        $savepoint = '';
+        if ($context->isRoot()) {
+            if (false === $wpdb->query('START TRANSACTION')) {
+                throw $this->storageFailure('start transaction');
+            }
+        } else {
+            $savepoint = $this->nextSavepoint();
+            if (false === $wpdb->query("SAVEPOINT {$savepoint}")) {
+                throw $this->storageFailure('create savepoint');
+            }
+        }
+
+        $this->transactionDepth++;
+        try {
+            $result = $operation();
+        } catch (\Throwable $exception) {
+            $this->transactionDepth--;
+            $failure = $this->getTransactionTaint() ?? $exception;
+            $this->rollBackAtomicScope($context, $savepoint, $failure);
+            throw $failure;
+        }
+
+        $this->transactionDepth--;
+        $transactionTaint = $this->getTransactionTaint();
+        if (null !== $transactionTaint) {
+            $failure = $transactionTaint;
+            $this->rollBackAtomicScope($context, $savepoint, $failure);
+            throw $failure;
+        }
+
+        $completion = $context->isRoot() ? 'COMMIT' : "RELEASE SAVEPOINT {$savepoint}";
+        if (false === $wpdb->query($completion)) {
+            $error = $this->databaseError();
+            $completionFailure = $this->storageFailure(
+                $context->isRoot() ? 'commit transaction' : 'release savepoint',
+                $error
+            );
+
+            if ($context->isRoot()) {
+                if (false === $wpdb->query('ROLLBACK')) {
+                    $rollbackFailure = $this->storageFailure(
+                        'rollback transaction after commit failure',
+                        '',
+                        $completionFailure
+                    );
+                    $this->setTransactionTaint($rollbackFailure);
+                    throw $rollbackFailure;
+                }
+
+                throw $completionFailure;
+            }
+
+            if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
+                $rollbackFailure = $this->storageFailure(
+                    'rollback savepoint after release failure',
+                    '',
+                    $completionFailure
+                );
+                $this->setTransactionTaint($rollbackFailure);
+                throw $rollbackFailure;
+            }
+
+            if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
+                throw $this->storageFailure(
+                    'release savepoint after rollback',
+                    '',
+                    $completionFailure
+                );
+            }
+
+            throw $completionFailure;
+        }
+
+        return $result;
+    }
+
+    private function rollBackAtomicScope(
+        TransactionContext $context,
+        string $savepoint,
+        \Throwable $failure
+    ): void {
+        global $wpdb;
+
+        if ($context->isRoot()) {
+            if (false === $wpdb->query('ROLLBACK')) {
+                $rollbackFailure = $this->storageFailure('rollback transaction', '', $failure);
+                $this->setTransactionTaint($rollbackFailure);
+                throw $rollbackFailure;
+            }
+
+            $this->clearTransactionTaint();
+            return;
+        }
+
+        if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
+            $rollbackFailure = $this->storageFailure('rollback savepoint', '', $failure);
+            $this->setTransactionTaint($rollbackFailure);
+            throw $rollbackFailure;
+        }
+
+        $this->clearTransactionTaint();
+        if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
+            throw $this->storageFailure('release savepoint after rollback', '', $failure);
+        }
+    }
+
+    private function getTransactionTaint(): ?\Throwable
+    {
+        global $wpdb;
+
+        if (null === self::$transactionTaints || ! isset(self::$transactionTaints[$wpdb])) {
+            return null;
+        }
+
+        return self::$transactionTaints[$wpdb];
+    }
+
+    private function setTransactionTaint(\Throwable $failure): void
+    {
+        global $wpdb;
+
+        if (null === self::$transactionTaints) {
+            self::$transactionTaints = new \WeakMap();
+        }
+
+        self::$transactionTaints[$wpdb] = $failure;
+    }
+
+    private function clearTransactionTaint(): void
+    {
+        global $wpdb;
+
+        if (null !== self::$transactionTaints && isset(self::$transactionTaints[$wpdb])) {
+            unset(self::$transactionTaints[$wpdb]);
+        }
+    }
+
+    private function nextSavepoint(): string
+    {
+        self::$savepointSequence++;
+
+        return sprintf('wpconn_%x_%x', spl_object_id($this), self::$savepointSequence);
     }
 
     private function init()
@@ -667,8 +845,6 @@ class WPStorage extends Abstracts\Storage
      */
     public function deleteSpecificConnections($connectionIDs): int
     {
-        global $wpdb;
-
         $this->assertSitePrefix();
 
         do_action('wpConnections/storage/deleteSpecificConnections', $this->getClient(), $connectionIDs);
@@ -677,10 +853,34 @@ class WPStorage extends Abstracts\Storage
 
         $connectionIDs = $this->prepareIDs($connectionIDs);
 
+        return (int) $this->getClient()->executeAtomicMutation(
+            function () use ($connectionIDs): int {
+                return $this->deleteSpecificConnectionsPrepared($connectionIDs);
+            }
+        );
+    }
+
+    /**
+     * @param int[] $connectionIDs
+     */
+    private function deleteSpecificConnectionsPrepared(array $connectionIDs): int
+    {
+        global $wpdb;
+
         // MySQL Query
         $db = $this->fullTableName($this->connections_table);
         $db_meta = $this->fullTableName($this->meta_table);
         $in = $this->idPlaceholders($connectionIDs);
+
+        $lockQuery = $wpdb->prepare(
+            "SELECT `ID` FROM {$db} WHERE `ID` IN ({$in}) FOR UPDATE",
+            ...$connectionIDs
+        );
+        $wpdb->get_results($lockQuery);
+        $lockError = $this->databaseError();
+        if ('' !== $lockError) {
+            throw $this->storageFailure('lock connections for delete', $lockError);
+        }
 
         $query = $wpdb->prepare(
             "DELETE FROM {$db} WHERE `ID` IN ({$in})",
@@ -691,12 +891,37 @@ class WPStorage extends Abstracts\Storage
             ...$connectionIDs
         );
 
-        $wpdb->query($query_meta);
-        $wpdb->query($query);
-        $rowsAffected = (int) $wpdb->rows_affected;
+        if (false === $wpdb->query($query_meta)) {
+            throw $this->storageFailure('delete connection metadata');
+        }
 
-        do_action('wpConnections/storage/deletedSpecificConnections', $this->getClient(), $connectionIDs, $rowsAffected);
-        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedSpecificConnections", $connectionIDs, $rowsAffected);
+        $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('delete connections');
+        }
+
+        $rowsAffected = (int) $rowsAffected;
+
+        if (0 === $rowsAffected) {
+            return 0;
+        }
+
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $connectionIDs, $rowsAffected): void {
+                do_action(
+                    'wpConnections/storage/deletedSpecificConnections',
+                    $client,
+                    $connectionIDs,
+                    $rowsAffected
+                );
+                do_action(
+                    "wpConnections/client/{$client->getName()}/storage/deletedSpecificConnections",
+                    $connectionIDs,
+                    $rowsAffected
+                );
+            }
+        );
 
         return $rowsAffected;
     }
@@ -715,8 +940,6 @@ class WPStorage extends Abstracts\Storage
      */
     public function deleteByObjectID($objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false): int
     {
-        global $wpdb;
-
         if ($this->isStaleDeletedPostContext()) {
             return 0;
         }
@@ -733,6 +956,30 @@ class WPStorage extends Abstracts\Storage
         }
 
         $objectIDs = $this->prepareIDs($objectIDs);
+
+        return (int) $this->getClient()->executeAtomicMutation(
+            function () use ($objectIDs, $relation, $onlyFrom, $onlyTo): int {
+                return $this->deleteByObjectIDPrepared(
+                    $objectIDs,
+                    $relation,
+                    $onlyFrom,
+                    $onlyTo
+                );
+            }
+        );
+    }
+
+    /**
+     * @param int[] $objectIDs
+     */
+    private function deleteByObjectIDPrepared(
+        array $objectIDs,
+        string $relation,
+        bool $onlyFrom,
+        bool $onlyTo
+    ): int {
+        global $wpdb;
+
         $in = $this->idPlaceholders($objectIDs);
 
         $where = [];
@@ -758,10 +1005,14 @@ class WPStorage extends Abstracts\Storage
 
         // Get ID's
         $query_ids = $wpdb->prepare(
-            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND ({$where_str})",
+            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND ({$where_str}) FOR UPDATE",
             ...$queryArguments
         );
         $result_ids = $wpdb->get_results($query_ids);
+        $selectError = $this->databaseError();
+        if ('' !== $selectError) {
+            throw $this->storageFailure('select connections for delete', $selectError);
+        }
         $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
 
         // Nothing found.
@@ -781,12 +1032,30 @@ class WPStorage extends Abstracts\Storage
             ...$ids
         );
 
-        $wpdb->query($query_meta);
-        $wpdb->query($query);
-        $rowsAffected = (int) $wpdb->rows_affected;
+        if (false === $wpdb->query($query_meta)) {
+            throw $this->storageFailure('delete connection metadata');
+        }
 
-        do_action('wpConnections/storage/deletedByObjectID', $this->getClient(), $ids);
-        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedByObjectID", $ids);
+        $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('delete connections');
+        }
+
+        $rowsAffected = (int) $rowsAffected;
+        if (0 === $rowsAffected) {
+            return 0;
+        }
+
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $ids): void {
+                do_action('wpConnections/storage/deletedByObjectID', $client, $ids);
+                do_action(
+                    "wpConnections/client/{$client->getName()}/storage/deletedByObjectID",
+                    $ids
+                );
+            }
+        );
 
         return $rowsAffected;
     }
@@ -803,8 +1072,6 @@ class WPStorage extends Abstracts\Storage
      */
     public function deleteDirectedConnections($from = null, $to = null, string $relation = ''): int
     {
-        global $wpdb;
-
         $this->assertSitePrefix();
 
         do_action('wpConnections/storage/deleteDirectedConnections', $this->getClient(), $from, $to, $relation);
@@ -813,6 +1080,17 @@ class WPStorage extends Abstracts\Storage
 
         $from = ConnectionIdNormalizer::one($from);
         $to = ConnectionIdNormalizer::one($to);
+
+        return (int) $this->getClient()->executeAtomicMutation(
+            function () use ($from, $to, $relation): int {
+                return $this->deleteDirectedConnectionsPrepared($from, $to, $relation);
+            }
+        );
+    }
+
+    private function deleteDirectedConnectionsPrepared(int $from, int $to, string $relation): int
+    {
+        global $wpdb;
 
         // MySQL Query
         $db = $this->fullTableName($this->connections_table);
@@ -824,10 +1102,14 @@ class WPStorage extends Abstracts\Storage
 
         // Get ID's
         $query_ids = $wpdb->prepare(
-            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND `from` = %d AND `to` = %d",
+            "SELECT `ID` FROM {$db} WHERE {$relationQuery} AND `from` = %d AND `to` = %d FOR UPDATE",
             ...$queryArguments
         );
         $result_ids = $wpdb->get_results($query_ids);
+        $selectError = $this->databaseError();
+        if ('' !== $selectError) {
+            throw $this->storageFailure('select connections for delete', $selectError);
+        }
         $ids = ( is_array($result_ids) && ! empty($result_ids) ) ? array_column($result_ids, 'ID') : [];
 
         // Nothing found.
@@ -847,13 +1129,30 @@ class WPStorage extends Abstracts\Storage
             ...$ids
         );
 
-        // @TODO Transaction
-        $wpdb->query($query_meta);
-        $wpdb->query($query);
-        $rowsAffected = (int) $wpdb->rows_affected;
+        if (false === $wpdb->query($query_meta)) {
+            throw $this->storageFailure('delete connection metadata');
+        }
 
-        do_action('wpConnections/storage/deletedDirectedConnections', $this->getClient(), $ids);
-        do_action("wpConnections/client/{$this->getClient()->getName()}/storage/deletedDirectedConnections", $ids);
+        $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('delete connections');
+        }
+
+        $rowsAffected = (int) $rowsAffected;
+        if (0 === $rowsAffected) {
+            return 0;
+        }
+
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $ids): void {
+                do_action('wpConnections/storage/deletedDirectedConnections', $client, $ids);
+                do_action(
+                    "wpConnections/client/{$client->getName()}/storage/deletedDirectedConnections",
+                    $ids
+                );
+            }
+        );
 
         return $rowsAffected;
     }
@@ -963,10 +1262,32 @@ class WPStorage extends Abstracts\Storage
      */
     public function createConnection(Query\Connection $connectionQuery): int
     {
+        $this->assertSitePrefix();
+        $metaQuery = $connectionQuery->get('meta');
+        /** @var Query\MetaCollection $metaQuery */
+        if (! $metaQuery->isEmpty()) {
+            return (int) $this->getClient()->executeAtomicMutation(
+                function () use ($connectionQuery): int {
+                    return $this->createConnectionPrepared($connectionQuery);
+                },
+                true
+            );
+        }
+
+        if (! $this->getClient()->hasActiveAtomicScope()) {
+            $this->ensureSchemaReadyForInsert();
+        }
+
+        return $this->createConnectionPrepared($connectionQuery);
+    }
+
+    private function createConnectionPrepared(Query\Connection $connectionQuery): int
+    {
         global $wpdb;
 
-        $this->assertSitePrefix();
-        $this->ensureSchemaReadyForInsert();
+        $metaQuery = $connectionQuery->get('meta');
+        /** @var Query\MetaCollection $metaQuery */
+
         $data = [
             'from'      => $connectionQuery->get('from'),
             'to'        => $connectionQuery->get('to'),
@@ -984,16 +1305,17 @@ class WPStorage extends Abstracts\Storage
         do_action('iTRON/wpConnections/storage/createConnection/attempt/result', $result, $insertError);
 
         if (false === $result) {
-            throw new Exceptions\ConnectionWrongData("Database refused inserting new connection with the words: [{$insertError}]");
+            throw $this->storageFailure('create connection', $insertError);
         }
 
         $connection_id = $wpdb->insert_id;
+        if (0 >= $connection_id) {
+            throw $this->storageFailure('create connection');
+        }
 
         // Insert meta data.
-        $metaQuery = $connectionQuery->get('meta');
-        /** @var Query\MetaCollection $metaQuery */
         if (! $metaQuery->isEmpty()) {
-            $this->addConnectionMeta($connection_id, $metaQuery);
+            $this->addConnectionMetaPrepared($connection_id, $metaQuery);
         }
 
         return $connection_id;
@@ -1014,7 +1336,12 @@ class WPStorage extends Abstracts\Storage
             'title'     => $connection->title,
         ];
 
-        return $wpdb->update($this->fullTableName($this->connections_table), $update, $where);
+        $result = $wpdb->update($this->fullTableName($this->connections_table), $update, $where);
+        if (false === $result) {
+            throw $this->storageFailure('update connection');
+        }
+
+        return 0 !== $result;
     }
 
     /**
@@ -1028,8 +1355,6 @@ class WPStorage extends Abstracts\Storage
      */
     public function addConnectionMeta(int $objectID, MetaCollection $metaCollection): void
     {
-        global $wpdb;
-
         $this->assertSitePrefix();
 
         if ($metaCollection->isEmpty()) {
@@ -1040,10 +1365,20 @@ class WPStorage extends Abstracts\Storage
             throw new Exceptions\ConnectionWrongData("Object ID is empty.");
         }
 
+        $this->getClient()->executeAtomicMutation(
+            function () use ($objectID, $metaCollection): void {
+                $this->addConnectionMetaPrepared($objectID, $metaCollection);
+            }
+        );
+    }
+
+    private function addConnectionMetaPrepared(int $objectID, MetaCollection $metaCollection): void
+    {
+        global $wpdb;
+
         do_action('wpConnections/storage/addConnectionMeta/before', $this->getClient(), $objectID, $metaCollection);
         $this->assertSitePrefix();
 
-        $errors = [];
         foreach ($metaCollection->getIterator() as $meta) {
             /** @var Query\Meta $meta */
             $data = [
@@ -1054,16 +1389,22 @@ class WPStorage extends Abstracts\Storage
 
             $result = $wpdb->insert($this->fullTableName($this->meta_table), $data);
             if (false === $result) {
-                $errors [] = $wpdb->last_error;
+                throw $this->storageFailure('add connection metadata');
             }
         }
 
-        do_action('wpConnections/storage/addConnectionMeta/after', $this->getClient(), $objectID, $metaCollection, $errors);
-
-        if ($errors) {
-            $errors = implode('; ', $errors);
-            throw new Exceptions\ConnectionWrongData("Database refused inserting new connection meta data with the words: [{$errors}]");
-        }
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $objectID, $metaCollection): void {
+                do_action(
+                    'wpConnections/storage/addConnectionMeta/after',
+                    $client,
+                    $objectID,
+                    $metaCollection,
+                    []
+                );
+            }
+        );
     }
 
     /**
@@ -1112,9 +1453,40 @@ class WPStorage extends Abstracts\Storage
         $this->assertSitePrefix();
 
         $rowsAffected = $wpdb->query($query);
+        if (false === $rowsAffected) {
+            throw $this->storageFailure('remove connection metadata');
+        }
 
-        do_action('wpConnections/storage/removeConnectionMeta/after', $this->getClient(), $objectID, $metaQuery, $query, $rowsAffected);
+        $client = $this->getClient();
+        $client->deferSuccessNotification(
+            static function () use ($client, $objectID, $metaQuery, $query, $rowsAffected): void {
+                do_action(
+                    'wpConnections/storage/removeConnectionMeta/after',
+                    $client,
+                    $objectID,
+                    $metaQuery,
+                    $query,
+                    $rowsAffected
+                );
+            }
+        );
 
         return $rowsAffected;
+    }
+
+    private function storageFailure(
+        string $operation,
+        string $databaseError = '',
+        \Throwable $previous = null
+    ): StorageFailure {
+        if ('' === $databaseError) {
+            $databaseError = $this->databaseError();
+        }
+
+        if ('' !== $databaseError) {
+            $previous = new \RuntimeException($databaseError, 0, $previous);
+        }
+
+        return new StorageFailure($operation, $previous);
     }
 }
