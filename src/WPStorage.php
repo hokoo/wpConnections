@@ -201,15 +201,20 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             $result = $operation();
         } catch (\Throwable $exception) {
             $this->transactionDepth--;
-            $rollback = $context->isRoot()
-                ? 'ROLLBACK'
-                : "ROLLBACK TO SAVEPOINT {$savepoint}";
-            if (false === $wpdb->query($rollback)) {
-                throw $this->storageFailure('rollback transaction', '', $exception);
+            if ($context->isRoot()) {
+                if (false === $wpdb->query('ROLLBACK')) {
+                    throw $this->storageFailure('rollback transaction', '', $exception);
+                }
+
+                throw $exception;
             }
 
-            if ($context->isNested()) {
-                $wpdb->query("RELEASE SAVEPOINT {$savepoint}");
+            if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
+                throw $this->storageFailure('rollback savepoint', '', $exception);
+            }
+
+            if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
+                throw $this->storageFailure('release savepoint after rollback', '', $exception);
             }
 
             throw $exception;
@@ -219,11 +224,40 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         $completion = $context->isRoot() ? 'COMMIT' : "RELEASE SAVEPOINT {$savepoint}";
         if (false === $wpdb->query($completion)) {
             $error = $this->databaseError();
-            $wpdb->query($context->isRoot() ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT {$savepoint}");
-            throw $this->storageFailure(
+            $completionFailure = $this->storageFailure(
                 $context->isRoot() ? 'commit transaction' : 'release savepoint',
                 $error
             );
+
+            if ($context->isRoot()) {
+                if (false === $wpdb->query('ROLLBACK')) {
+                    throw $this->storageFailure(
+                        'rollback transaction after commit failure',
+                        '',
+                        $completionFailure
+                    );
+                }
+
+                throw $completionFailure;
+            }
+
+            if (false === $wpdb->query("ROLLBACK TO SAVEPOINT {$savepoint}")) {
+                throw $this->storageFailure(
+                    'rollback savepoint after release failure',
+                    '',
+                    $completionFailure
+                );
+            }
+
+            if (false === $wpdb->query("RELEASE SAVEPOINT {$savepoint}")) {
+                throw $this->storageFailure(
+                    'release savepoint after rollback',
+                    '',
+                    $completionFailure
+                );
+            }
+
+            throw $completionFailure;
         }
 
         return $result;
@@ -751,15 +785,11 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
         $connectionIDs = $this->prepareIDs($connectionIDs);
 
-        if (! $this->getClient()->hasActiveAtomicScope()) {
-            return (int) $this->getClient()->executeAtomicMutation(
-                function () use ($connectionIDs): int {
-                    return $this->deleteSpecificConnectionsPrepared($connectionIDs);
-                }
-            );
-        }
-
-        return $this->deleteSpecificConnectionsPrepared($connectionIDs);
+        return (int) $this->getClient()->executeAtomicMutation(
+            function () use ($connectionIDs): int {
+                return $this->deleteSpecificConnectionsPrepared($connectionIDs);
+            }
+        );
     }
 
     /**
@@ -859,20 +889,16 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
         $objectIDs = $this->prepareIDs($objectIDs);
 
-        if (! $this->getClient()->hasActiveAtomicScope()) {
-            return (int) $this->getClient()->executeAtomicMutation(
-                function () use ($objectIDs, $relation, $onlyFrom, $onlyTo): int {
-                    return $this->deleteByObjectIDPrepared(
-                        $objectIDs,
-                        $relation,
-                        $onlyFrom,
-                        $onlyTo
-                    );
-                }
-            );
-        }
-
-        return $this->deleteByObjectIDPrepared($objectIDs, $relation, $onlyFrom, $onlyTo);
+        return (int) $this->getClient()->executeAtomicMutation(
+            function () use ($objectIDs, $relation, $onlyFrom, $onlyTo): int {
+                return $this->deleteByObjectIDPrepared(
+                    $objectIDs,
+                    $relation,
+                    $onlyFrom,
+                    $onlyTo
+                );
+            }
+        );
     }
 
     /**
@@ -987,15 +1013,11 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         $from = ConnectionIdNormalizer::one($from);
         $to = ConnectionIdNormalizer::one($to);
 
-        if (! $this->getClient()->hasActiveAtomicScope()) {
-            return (int) $this->getClient()->executeAtomicMutation(
-                function () use ($from, $to, $relation): int {
-                    return $this->deleteDirectedConnectionsPrepared($from, $to, $relation);
-                }
-            );
-        }
-
-        return $this->deleteDirectedConnectionsPrepared($from, $to, $relation);
+        return (int) $this->getClient()->executeAtomicMutation(
+            function () use ($from, $to, $relation): int {
+                return $this->deleteDirectedConnectionsPrepared($from, $to, $relation);
+            }
+        );
     }
 
     private function deleteDirectedConnectionsPrepared(int $from, int $to, string $relation): int
@@ -1172,15 +1194,13 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
      */
     public function createConnection(Query\Connection $connectionQuery): int
     {
-        global $wpdb;
-
         $this->assertSitePrefix();
         $metaQuery = $connectionQuery->get('meta');
         /** @var Query\MetaCollection $metaQuery */
-        if (! $metaQuery->isEmpty() && ! $this->getClient()->hasActiveAtomicScope()) {
+        if (! $metaQuery->isEmpty()) {
             return (int) $this->getClient()->executeAtomicMutation(
                 function () use ($connectionQuery): int {
-                    return $this->createConnection($connectionQuery);
+                    return $this->createConnectionPrepared($connectionQuery);
                 },
                 true
             );
@@ -1189,6 +1209,16 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
         if (! $this->getClient()->hasActiveAtomicScope()) {
             $this->ensureSchemaReadyForInsert();
         }
+
+        return $this->createConnectionPrepared($connectionQuery);
+    }
+
+    private function createConnectionPrepared(Query\Connection $connectionQuery): int
+    {
+        global $wpdb;
+
+        $metaQuery = $connectionQuery->get('meta');
+        /** @var Query\MetaCollection $metaQuery */
 
         $data = [
             'from'      => $connectionQuery->get('from'),
@@ -1217,7 +1247,7 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 
         // Insert meta data.
         if (! $metaQuery->isEmpty()) {
-            $this->addConnectionMeta($connection_id, $metaQuery);
+            $this->addConnectionMetaPrepared($connection_id, $metaQuery);
         }
 
         return $connection_id;
@@ -1257,8 +1287,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
      */
     public function addConnectionMeta(int $objectID, MetaCollection $metaCollection): void
     {
-        global $wpdb;
-
         $this->assertSitePrefix();
 
         if ($metaCollection->isEmpty()) {
@@ -1269,14 +1297,16 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             throw new Exceptions\ConnectionWrongData("Object ID is empty.");
         }
 
-        if (! $this->getClient()->hasActiveAtomicScope()) {
-            $this->getClient()->executeAtomicMutation(
-                function () use ($objectID, $metaCollection): void {
-                    $this->addConnectionMeta($objectID, $metaCollection);
-                }
-            );
-            return;
-        }
+        $this->getClient()->executeAtomicMutation(
+            function () use ($objectID, $metaCollection): void {
+                $this->addConnectionMetaPrepared($objectID, $metaCollection);
+            }
+        );
+    }
+
+    private function addConnectionMetaPrepared(int $objectID, MetaCollection $metaCollection): void
+    {
+        global $wpdb;
 
         do_action('wpConnections/storage/addConnectionMeta/before', $this->getClient(), $objectID, $metaCollection);
         $this->assertSitePrefix();
