@@ -3,8 +3,9 @@
 Status: approved decision contract; DG-RESTERR-01—DG-RESTERR-04 approved A.
 The non-meta connection-route implementation candidate is now covered by the
 canonical [`rest-connection-contract.md`](rest-connection-contract.md);
-independent QA and protected/post-merge CI remain required before REST-03 is
-complete. This discovery document retains the evidence and decision history.
+REST-03 completed through PR #95 after independent QA PASS, 19/19 protected
+checks and 19/19 post-merge checks. This discovery document retains the evidence
+and decision history.
 
 Source snapshot: `b36fa85c62fc5984674a1bdf04b7648ff6065d8d`. The temporary
 full-dispatch failure probe was originally recorded on `752362b`; the post-rebase

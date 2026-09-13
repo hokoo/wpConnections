@@ -1,7 +1,10 @@
 # REST v1 connection contract
 
-Status: implementation candidate for `REST-03`; local focused verification is
-green, independent QA and protected/post-merge CI are still required.
+Status: completed for `REST-03`. Exact implementation candidate
+`56d5e1c6d3af1ba920c05f3b3c2c95106b7ea1d3` received independent QA PASS and
+19/19 protected checks; PR #95 was merged as
+`185bf32a0877d274f17ff80aed27197d01fe747a`, whose post-merge matrix also passed
+19/19 checks.
 
 Approved decisions: `DG-M3/A`, `DG-M4/A`, `DG-RESTERR-01/A` through
 `DG-RESTERR-04/A`, `DG-UPDATE-01/A` through `DG-UPDATE-05/A`,
@@ -235,3 +238,16 @@ and success-hook suppression.
 changing the connection-route shapes above. `REL-02` owns cross-version,
 custom-adapter, and compatibility conformance; `DOC-01` must publish this
 contract in consumer-facing API documentation and OpenAPI.
+
+## Completion evidence
+
+- Focused REST/lifecycle verification: `84 tests / 1069 assertions`.
+- Full local suites: unit `19 / 96`, integration `380 / 3204`.
+- Combined coverage: `399 / 3298`; statements `1830 / 1962 (93.27%)`.
+- Seeded reverse/random isolation (`20260910`): unit `38 / 192`, integration
+  `760 / 6408`.
+- True multisite through the repository-supported `WP_MULTISITE=1` path:
+  `55 / 906`.
+- PHPCS: `60 / 60`; only the known configuration deprecation warning remains.
+- Exact candidate and exact merge both passed the complete 19-job matrix,
+  including pinned MySQL 8.0.46 and MariaDB 10.11.16 lanes.
