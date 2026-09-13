@@ -93,10 +93,19 @@ class Client
             $context = TransactionContext::libraryNested();
         }
 
-        if ($context->isNested() && ! $hasParent && null === $context->getSynchronizer()) {
-            throw new StorageCapabilityUnavailable(
-                'An externally owned nested transaction requires a synchronizer.'
-            );
+        if ($context->isNested() && ! $hasParent) {
+            $synchronizer = $context->getSynchronizer();
+            if (null === $synchronizer) {
+                throw new StorageCapabilityUnavailable(
+                    'An externally owned nested transaction requires a synchronizer.'
+                );
+            }
+
+            if (! $synchronizer->isPending()) {
+                throw new StorageCapabilityUnavailable(
+                    'An externally owned nested transaction requires a pending synchronizer.'
+                );
+            }
         }
 
         if (! $hasParent) {

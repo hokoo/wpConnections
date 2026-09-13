@@ -42,6 +42,14 @@ final class TransactionSynchronizer
         $this->notifications = [];
     }
 
+    /**
+     * @internal Client uses this for pre-mutation capability validation.
+     */
+    public function isPending(): bool
+    {
+        return self::PENDING === $this->state;
+    }
+
     private function assertPending(): void
     {
         if (self::PENDING !== $this->state) {
