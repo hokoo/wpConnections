@@ -1,8 +1,8 @@
 # Storage SPI and mutation boundary
 
 Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
-DG-SPI-04, DG-SPI-06 and DG-SPI-07 approved A; DG-SPI-04R and DG-SPI-06R
-require owner decisions, while DG-SPI-05 remains pending
+DG-SPI-04, DG-SPI-06 and DG-SPI-07 approved A; DG-SPI-04R, DG-SPI-06R and
+DG-SPI-06R2 require owner decisions, while DG-SPI-05 remains pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -400,6 +400,37 @@ the approved hook meaning; C can break observers that rely on successful
 mutation notifications.
 
 **Blocked/refined tasks:** commit-aware hook delivery in DB-05 and REL-02.
+
+<a id="dg-spi-06r2"></a>
+### DG-SPI-06R2 — exception thrown by a post-commit success hook
+
+**Problem:** under DG-SPI-06/A a success-named hook runs only after the database
+commit. If a consumer callback then throws, rollback is no longer possible. The
+current synchronous WordPress action mechanism lets callback exceptions escape,
+but moving the hook after commit changes the state observed when they escape.
+
+- A: preserve synchronous v1 exception propagation. A post-commit hook
+  `Throwable` escapes unchanged and the operation is explicitly documented as
+  already committed; it is not wrapped as a storage failure and no rollback is
+  attempted. Remaining queued success hooks after the throwing callback follow
+  native WordPress dispatch behavior.
+- B: catch and log post-commit hook failures, continue dispatch where possible
+  and return the successful mutation result to the caller.
+- C: run success hooks before commit so a callback failure can roll back the
+  mutation.
+
+**Recommendation:** A for v1. It preserves native synchronous hook failure
+visibility and does not claim an impossible rollback. B silently changes how
+consumer bugs reach callers; C contradicts the already approved committed-
+success meaning.
+
+**Compatibility impact:** A makes the committed-state consequence explicit:
+the caller can receive a hook exception even though storage is already durable.
+B can hide failures that currently propagate. C exposes uncommitted state to a
+success observer and reopens DG-SPI-06/A.
+
+**Blocked/refined tasks:** post-commit dispatch and fault tests in DB-05 and
+REL-02.
 
 ### DG-SPI-05 — factory replacement construction and failure contract
 

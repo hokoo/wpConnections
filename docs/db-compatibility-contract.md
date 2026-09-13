@@ -482,8 +482,9 @@ leaking vendor probes into the domain API.
 `START TRANSACTION`; explicitly declared nested scopes use collision-safe
 savepoints and never commit the caller's outer transaction. Runtime
 vendor/session autodetection is not part of the contract. The additive domain
-path that carries this declaration and outer-commit hook synchronization remain
-the pending refinements DG-SPI-04R and DG-SPI-06R.
+path that carries this declaration, outer-commit hook synchronization and
+post-commit hook failure behavior remain the pending refinements DG-SPI-04R,
+DG-SPI-06R and DG-SPI-06R2.
 
 **Compatibility impact:** custom adapters need to declare/implement the chosen
 capability before atomic compound mutations. C is simpler but breaks consumers
@@ -578,10 +579,10 @@ PR readiness and REL-01 lifecycle documentation.
 
 | Consumer task | Input from DB-00 | Remains blocked by |
 | --- | --- | --- |
-| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-SPI-04R and DG-SPI-06R; failure normalization is unblocked |
+| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-SPI-04R, DG-SPI-06R and DG-SPI-06R2; failure normalization is unblocked |
 | DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | Completed in PR #89; DB-06R is a separate non-blocking follow-up |
 | REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | Approved DB gates are available; task-local dependencies remain |
-| REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-SPI-04R and DG-SPI-06R |
+| REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-SPI-04R, DG-SPI-06R and DG-SPI-06R2 |
 | CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
 
 ## Non-gate constraints and caveats

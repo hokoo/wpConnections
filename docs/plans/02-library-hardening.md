@@ -695,6 +695,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
 | DG-SPI-06 | approved A | repository owner | 2026-09-11 | Commit-aware success hooks; DB-05/REL-02 unblocked on this gate |
 | [DG-SPI-06R](../storage-spi-contract.md#dg-spi-06r) | pending; recommendation A | repository owner | — | Outer-commit synchronization for nested success hooks; DB-05 hook delivery waits |
+| [DG-SPI-06R2](../storage-spi-contract.md#dg-spi-06r2) | pending; recommendation A | repository owner | — | Post-commit hook Throwable propagation; DB-05 hook dispatch waits |
 | DG-SPI-07 | approved A | repository owner | 2026-09-11 | Legacy concrete table introspection retained in v1 |
 | [`DG-ENT-01`](../entity-validation-contract.md#dg-ent-01) | approved A | repository owner | 2026-09-11 | Any extant exact-type `WP_Post` is a valid endpoint |
 | [`DG-ENT-02`](../entity-validation-contract.md#dg-ent-02) | approved A | repository owner | 2026-09-11 | Typed client-scoped non-post resolver registry |
@@ -1624,9 +1625,9 @@ Execution slices:
    не через transactional `WP_UnitTestCase`, а через отдельный exact-cleanup
    harness, чтобы второй `START TRANSACTION` не закоммитил test fixture.
 3. `DB-05/F3 — nested savepoint and outer-commit coordination` —
-   `waiting_dependency`. После DG-SPI-04R и DG-SPI-06R реализовать явный nested
-   context, collision-safe savepoints, отсутствие `COMMIT` внешней транзакции и
-   утверждённую доставку отложенных success hooks.
+   `waiting_dependency`. После DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 реализовать
+   явный nested context, collision-safe savepoints, отсутствие `COMMIT` внешней
+   транзакции и утверждённую доставку отложенных success hooks.
 4. `DB-05/F4 — compound domain flows` — `waiting_dependency`. Обернуть create с
    meta, aggregate `Connection::update()` и relation delete в reusable domain
    boundary; default WPStorage также защищает прямой legacy compound callback
@@ -1658,6 +1659,8 @@ Current blockers:
 
 - DG-SPI-04R: каким additive domain API caller явно передаёт nested ownership.
 - DG-SPI-06R: как success hooks узнают о фактическом commit внешней транзакции.
+- DG-SPI-06R2: что видит caller, если post-commit success hook бросает
+  `Throwable`, когда rollback уже невозможен.
 - Slice F1 не зависит от этих gates и завершён; F2—F5 не переходят в production
   до решений владельца.
 
@@ -3609,8 +3612,8 @@ DoR:
 - DG-DB-01, DG-DB-02, DG-DB-03 и DG-DB-04 решены.
 - SPI-01 и DB-00 завершены, owner утвердил возникающие DB/migration gates.
 - DB-02 и DB-03B-A задают корректные success semantics.
-- DG-SPI-04R и DG-SPI-06R решены до transaction/hook production slices; stable
-  failure normalization может начаться независимо.
+- DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2 решены до transaction/hook production
+  slices; stable failure normalization может начаться независимо.
 
 DoD:
 
@@ -3638,7 +3641,7 @@ Dependencies:
 - DG-UPDATE-03, DG-UPDATE-04.
 - DG-SPI-02, DG-SPI-03, DG-SPI-04, DG-SPI-06.
 - DG-DB-01, DG-DB-02, DG-DB-03, DG-DB-04.
-- DG-SPI-04R, DG-SPI-06R для transaction/hook slices.
+- DG-SPI-04R, DG-SPI-06R, DG-SPI-06R2 для transaction/hook slices.
 - SPI-01, DB-00.
 - DB-02, DB-03B-A.
 
@@ -3647,6 +3650,8 @@ Notes/Risks:
 - Таблицы и engine должны реально поддерживать выбранную transaction semantics.
 - `RELEASE SAVEPOINT` не является commit внешней транзакции; поэтому nested
   success-hook timing нельзя реализовать до DG-SPI-06R.
+- Success hook выполняется после commit; его `Throwable` уже не может быть
+  основанием для rollback и требует решения DG-SPI-06R2.
 - `WP_UnitTestCase` сам владеет test transaction; root-scope evidence обязано
   использовать отдельный manual-cleanup harness, иначе второй `START
   TRANSACTION` даст ложный зелёный результат и закоммитит fixture.

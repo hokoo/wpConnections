@@ -44,7 +44,7 @@
    checks, включая pinned MySQL 8.0.46 и MariaDB 10.11.16. DG-SPI-03/A,
    DG-SPI-04/A и DG-DB-03/A утверждены 2026-09-13. Batch 14 активирован для
    DB-05; failure-normalization slice завершён локально, а transaction/hook
-   slices ожидают новые refinements DG-SPI-04R и DG-SPI-06R.
+   slices ожидают новые refinements DG-SPI-04R, DG-SPI-06R и DG-SPI-06R2.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -145,7 +145,7 @@ map находятся в
   DG-NAME-06R/A-to-D. В DP-4 утверждены DG-UPDATE-04/A и DG-SPI-06/A;
   остальной packet остаётся pending. DG-RESTERR-03/A также утверждён
   2026-09-11. Pending остаются DG-API20-01—DG-API20-09,
-  DG-UPDATE-05, DG-SPI-04R, DG-SPI-05, DG-SPI-06R,
+  DG-UPDATE-05, DG-SPI-04R, DG-SPI-05, DG-SPI-06R, DG-SPI-06R2,
   DG-RESTERR-01/02/04 и DG-DELETE-05/06; они блокируют только
   явно перечисленные downstream tasks. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
