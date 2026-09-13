@@ -312,6 +312,42 @@ class AtomicScopeTest extends TestCase
 		self::assertSame( 'commit transaction', $failure->getOperation() );
 	}
 
+	public function test_failed_rollback_after_commit_failure_is_not_silently_ignored(): void
+	{
+		$failed = [];
+		$filter = static function ( string $query ) use ( &$failed ): string {
+			$normalized = trim( $query );
+			if ( preg_match( '/^(?:COMMIT|ROLLBACK)$/i', $normalized ) ) {
+				$failed[] = $normalized;
+				return 'SELECT * FROM `wpconnections_batch14_failed_commit_recovery`';
+			}
+
+			return $query;
+		};
+
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $filter );
+		$failure = null;
+		try {
+			$this->client->runAtomically( '__return_true' );
+		} catch ( Throwable $exception ) {
+			$failure = $exception;
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		self::assertSame( [ 'COMMIT', 'ROLLBACK' ], $failed );
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame( 'rollback transaction after commit failure', $failure->getOperation() );
+		self::assertInstanceOf( StorageFailure::class, $failure->getPrevious()->getPrevious() );
+		self::assertSame(
+			'commit transaction',
+			$failure->getPrevious()->getPrevious()->getOperation()
+		);
+	}
+
 	public function test_nested_scopes_use_unique_savepoints_without_completing_outer_transaction(): void
 	{
 		global $wpdb;
@@ -406,6 +442,96 @@ class AtomicScopeTest extends TestCase
 		$synchronizer->rolledBack();
 		self::assertFalse( $this->connection_row_exists( $outer_id ) );
 		self::assertSame( [], $timeline );
+	}
+
+	public function test_nested_failure_reports_failed_savepoint_cleanup(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$synchronizer = new TransactionSynchronizer();
+		$expected = new RuntimeException( 'nested callback requiring cleanup' );
+		$release_failed = false;
+		$filter = static function ( string $query ) use ( &$release_failed ): string {
+			if ( ! $release_failed && preg_match( '/^RELEASE SAVEPOINT /i', trim( $query ) ) ) {
+				$release_failed = true;
+				return 'SELECT * FROM `wpconnections_batch14_failed_savepoint_cleanup`';
+			}
+
+			return $query;
+		};
+
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $filter );
+		$failure = null;
+		try {
+			$this->client->runAtomically(
+				static function () use ( $expected ): void {
+					throw $expected;
+				},
+				TransactionContext::nested( $synchronizer )
+			);
+		} catch ( Throwable $exception ) {
+			$failure = $exception;
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		self::assertTrue( $release_failed );
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame( 'release savepoint after rollback', $failure->getOperation() );
+		self::assertSame( $expected, $failure->getPrevious()->getPrevious() );
+
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		$synchronizer->rolledBack();
+	}
+
+	public function test_failed_rollback_after_release_failure_is_not_silently_ignored(): void
+	{
+		global $wpdb;
+
+		self::assertNotFalse( $wpdb->query( 'START TRANSACTION' ) );
+		$synchronizer = new TransactionSynchronizer();
+		$failed = [];
+		$filter = static function ( string $query ) use ( &$failed ): string {
+			$normalized = trim( $query );
+			if ( preg_match( '/^(?:RELEASE SAVEPOINT|ROLLBACK TO SAVEPOINT) /i', $normalized ) ) {
+				$failed[] = $normalized;
+				return 'SELECT * FROM `wpconnections_batch14_failed_release_recovery`';
+			}
+
+			return $query;
+		};
+
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $filter );
+		$failure = null;
+		try {
+			$this->client->runAtomically(
+				'__return_true',
+				TransactionContext::nested( $synchronizer )
+			);
+		} catch ( Throwable $exception ) {
+			$failure = $exception;
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		self::assertCount( 2, $failed );
+		self::assertStringStartsWith( 'RELEASE SAVEPOINT ', $failed[0] );
+		self::assertStringStartsWith( 'ROLLBACK TO SAVEPOINT ', $failed[1] );
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame( 'rollback savepoint after release failure', $failure->getOperation() );
+		self::assertInstanceOf( StorageFailure::class, $failure->getPrevious()->getPrevious() );
+		self::assertSame(
+			'release savepoint',
+			$failure->getPrevious()->getPrevious()->getOperation()
+		);
+
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		$synchronizer->rolledBack();
 	}
 
 	public function test_nested_notifications_are_fifo_and_exactly_once_after_outer_commit(): void

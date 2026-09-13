@@ -165,6 +165,24 @@ class AtomicMutationTest extends TestCase
 		self::assertSame( 0, $meta_after_calls );
 	}
 
+	public function test_create_second_meta_failure_rolls_back_connection_and_first_meta(): void
+	{
+		$query = $this->connection_query_with_meta( 'first-create-meta', 'first-value' );
+		$query->meta->add( new QueryMeta( 'second-create-meta', 'second-value' ) );
+
+		$failure = $this->capture_database_failure(
+			"INSERT INTO `{$this->meta_table()}`",
+			function () use ( $query ): void {
+				$this->client->getRelation( self::RELATION )->createConnection( $query );
+			},
+			2
+		);
+
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame( 0, $this->connection_count() );
+		self::assertSame( 0, $this->meta_count() );
+	}
+
 	public function test_aggregate_update_meta_failure_restores_scalar_and_metadata_state(): void
 	{
 		$connection = $this->create_connection( 'original', 'preserved' );
@@ -193,6 +211,142 @@ class AtomicMutationTest extends TestCase
 		self::assertSame( 'Atomic original', $persisted->title );
 		self::assertSame( [ 'original' => [ 'preserved' ] ], $persisted->meta->toArray() );
 		self::assertSame( 0, $remove_after_calls );
+	}
+
+	public function test_aggregate_update_second_replacement_failure_restores_original_state(): void
+	{
+		$connection = $this->create_connection( 'original-second-fault', 'preserved' );
+		$connection->title = 'changed before second replacement failure';
+		$connection->meta = new MetaCollection();
+		$connection->meta->add( new Meta( 'replacement-first', 'rolled-back' ) );
+		$connection->meta->add( new Meta( 'replacement-second', 'rejected' ) );
+
+		$failure = $this->capture_database_failure(
+			"INSERT INTO `{$this->meta_table()}`",
+			static function () use ( $connection ): void {
+				$connection->update();
+			},
+			2
+		);
+
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		$persisted = $this->find_connection( $connection->id );
+		self::assertSame( 'Atomic original', $persisted->title );
+		self::assertSame(
+			[ 'original-second-fault' => [ 'preserved' ] ],
+			$persisted->meta->toArray()
+		);
+	}
+
+	public function test_standalone_multi_meta_second_failure_rolls_back_first_insert(): void
+	{
+		$connection = $this->create_connection( 'existing-meta', 'preserved' );
+		$meta = new MetaCollection();
+		$meta->add( new Meta( 'standalone-first', 'rolled-back' ) );
+		$meta->add( new Meta( 'standalone-second', 'rejected' ) );
+
+		$failure = $this->capture_database_failure(
+			"INSERT INTO `{$this->meta_table()}`",
+			function () use ( $connection, $meta ): void {
+				$this->client->getStorage()->addConnectionMeta( $connection->id, $meta );
+			},
+			2
+		);
+
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame( 1, $this->meta_count( $connection->id ) );
+		self::assertSame(
+			[ 'existing-meta' => [ 'preserved' ] ],
+			$this->find_connection( $connection->id )->meta->toArray()
+		);
+	}
+
+	public function test_caught_direct_delete_failure_rolls_back_its_child_scope(): void
+	{
+		$connection = $this->create_connection( 'caught-delete', 'preserved' );
+		$inner_failure = null;
+
+		$outer_failure = $this->capture_database_failure(
+			"DELETE FROM {$this->connections_table()}",
+			function () use ( $connection, &$inner_failure ): void {
+				$this->client->runAtomically(
+					function () use ( $connection, &$inner_failure ): void {
+						try {
+							$this->client->getStorage()->deleteSpecificConnections( $connection->id );
+						} catch ( Throwable $failure ) {
+							$inner_failure = $failure;
+						}
+					}
+				);
+			}
+		);
+
+		self::assertNull( $outer_failure );
+		self::assertInstanceOf( StorageFailure::class, $inner_failure );
+		self::assertSame( 1, $this->connection_count( $connection->id ) );
+		self::assertSame( 1, $this->meta_count( $connection->id ) );
+	}
+
+	public function test_caught_direct_multi_meta_failure_rolls_back_its_child_scope(): void
+	{
+		$connection = $this->create_connection( 'caught-meta-existing', 'preserved' );
+		$meta = new MetaCollection();
+		$meta->add( new Meta( 'caught-meta-first', 'rolled-back' ) );
+		$meta->add( new Meta( 'caught-meta-second', 'rejected' ) );
+		$inner_failure = null;
+
+		$outer_failure = $this->capture_database_failure(
+			"INSERT INTO `{$this->meta_table()}`",
+			function () use ( $connection, $meta, &$inner_failure ): void {
+				$this->client->runAtomically(
+					function () use ( $connection, $meta, &$inner_failure ): void {
+						try {
+							$this->client->getStorage()->addConnectionMeta( $connection->id, $meta );
+						} catch ( Throwable $failure ) {
+							$inner_failure = $failure;
+						}
+					}
+				);
+			},
+			2
+		);
+
+		self::assertNull( $outer_failure );
+		self::assertInstanceOf( StorageFailure::class, $inner_failure );
+		self::assertSame( 1, $this->meta_count( $connection->id ) );
+		self::assertSame(
+			[ 'caught-meta-existing' => [ 'preserved' ] ],
+			$this->find_connection( $connection->id )->meta->toArray()
+		);
+	}
+
+	public function test_caught_direct_create_meta_failure_rolls_back_its_child_scope(): void
+	{
+		$query = $this->connection_query_with_meta( 'caught-create-first', 'rolled-back' );
+		$query->meta->add( new QueryMeta( 'caught-create-second', 'rejected' ) );
+		$query->set( 'relation', self::RELATION );
+		$inner_failure = null;
+
+		$outer_failure = $this->capture_database_failure(
+			"INSERT INTO `{$this->meta_table()}`",
+			function () use ( $query, &$inner_failure ): void {
+				$this->client->runAtomically(
+					function () use ( $query, &$inner_failure ): void {
+						try {
+							$this->client->getStorage()->createConnection( $query );
+						} catch ( Throwable $failure ) {
+							$inner_failure = $failure;
+						}
+					}
+				);
+			},
+			2
+		);
+
+		self::assertNull( $outer_failure );
+		self::assertInstanceOf( StorageFailure::class, $inner_failure );
+		self::assertSame( 0, $this->connection_count() );
+		self::assertSame( 0, $this->meta_count() );
 	}
 
 	public function test_relation_delete_connection_failure_restores_metadata_and_suppresses_success_hook(): void
@@ -379,15 +533,30 @@ class AtomicMutationTest extends TestCase
 		return $this->client->getRelation( self::RELATION )->findConnections( $query )->first();
 	}
 
-	private function capture_database_failure( string $query_fragment, callable $operation ): ?Throwable
+	private function capture_database_failure(
+		string $query_fragment,
+		callable $operation,
+		int $matching_occurrence = 1
+	): ?Throwable
 	{
 		global $wpdb;
 
 		$intercepted = false;
+		$matches = 0;
 		$seen_queries = [];
-		$query_filter = static function ( string $query ) use ( $query_fragment, &$intercepted, &$seen_queries ): string {
+		$query_filter = static function ( string $query ) use (
+			$query_fragment,
+			$matching_occurrence,
+			&$matches,
+			&$intercepted,
+			&$seen_queries
+		): string {
 			$seen_queries[] = $query;
-			if ( ! $intercepted && false !== strpos( $query, $query_fragment ) ) {
+			if ( false !== strpos( $query, $query_fragment ) ) {
+				$matches++;
+			}
+
+			if ( ! $intercepted && $matching_occurrence === $matches ) {
 				$intercepted = true;
 				return 'SELECT * FROM `wpconnections_batch14_forced_atomic_failure`';
 			}
