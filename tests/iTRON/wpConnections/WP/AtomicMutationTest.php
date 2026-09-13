@@ -898,6 +898,71 @@ class AtomicMutationTest extends TestCase
 		self::assertSame( 0, $this->meta_count( $connection->id ) );
 	}
 
+	public function test_relation_id_delete_serializes_membership_change_before_cascade(): void
+	{
+		$connection = $this->create_connection( 'delete-lock-target', 'deleted' );
+		$other_to = wp_insert_post(
+			[
+				'post_type'   => 'post',
+				'post_status' => 'publish',
+				'post_title'  => 'Atomic mutation unrelated target',
+			]
+		);
+		self::assertIsInt( $other_to );
+		$this->post_ids[] = $other_to;
+		$unrelated_query = new ConnectionQuery( $this->post_ids['from'], $other_to );
+		$unrelated_query->meta->add( new QueryMeta( 'unrelated', 'preserved' ) );
+		$unrelated = $this->client->getRelation( self::RELATION )->createConnection(
+			$unrelated_query
+		);
+		$secondary = $this->secondary_database_connection();
+		$secondary->query( 'SET SESSION innodb_lock_wait_timeout = 5' );
+		$membership_changed_before_cascade = null;
+		$secondary_affected_rows = null;
+		$attempt = function () use (
+			$secondary,
+			$connection,
+			&$membership_changed_before_cascade,
+			&$secondary_affected_rows
+		): void {
+			$table = str_replace( '`', '``', $this->connections_table() );
+			$relation = $secondary->real_escape_string( self::RELATION . '-foreign' );
+			$sql = "UPDATE `{$table}` SET `relation` = '{$relation}' WHERE `ID` = {$connection->id}";
+			self::assertTrue( $secondary->query( $sql, MYSQLI_ASYNC ) );
+			$membership_changed_before_cascade = $this->wait_for_async_query( $secondary, 1.0 );
+			if ( $membership_changed_before_cascade ) {
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+		};
+		add_action( 'wpConnections/storage/deleteSpecificConnections', $attempt );
+		$query = new ConnectionQuery();
+		$query->set( 'id', $connection->id );
+
+		try {
+			$deleted = $this->client->getRelation( self::RELATION )->detachConnections( $query );
+			if ( ! $membership_changed_before_cascade ) {
+				self::assertTrue( $this->wait_for_async_query( $secondary, 5.0 ) );
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+		} finally {
+			remove_action( 'wpConnections/storage/deleteSpecificConnections', $attempt );
+			$secondary->close();
+		}
+
+		self::assertFalse(
+			$membership_changed_before_cascade,
+			'A concurrent relation membership update completed between relation lookup and delete cascade.'
+		);
+		self::assertSame( 1, $deleted );
+		self::assertSame( 0, $secondary_affected_rows );
+		self::assertSame( 0, $this->connection_count( $connection->id ) );
+		self::assertSame( 0, $this->meta_count( $connection->id ) );
+		self::assertSame( 1, $this->connection_count( $unrelated->id ) );
+		self::assertSame( 1, $this->meta_count( $unrelated->id ) );
+	}
+
 	public function test_create_success_hooks_run_in_order_after_commit(): void
 	{
 		$timeline = [];
@@ -1376,6 +1441,30 @@ class AtomicMutationTest extends TestCase
 				[ '%d', '%s', '%s' ]
 			)
 		);
+	}
+
+	private function secondary_database_connection(): \mysqli
+	{
+		$host = getenv( 'DB_HOST' ) ?: '127.0.0.1';
+		$user = getenv( 'DB_USER' ) ?: 'wordpress';
+		$password = getenv( 'DB_PASSWORD' ) ?: 'wordpress';
+		$database = getenv( 'DB_NAME' ) ?: 'wordpress_test';
+		$port = (int) ( getenv( 'DB_PORT' ) ?: 3306 );
+		$connection = new \mysqli( $host, $user, $password, $database, $port );
+		$connection->set_charset( 'utf8mb4' );
+
+		return $connection;
+	}
+
+	private function wait_for_async_query( \mysqli $connection, float $timeout ): bool
+	{
+		$read = [ $connection ];
+		$error = [ $connection ];
+		$reject = [ $connection ];
+		$seconds = (int) $timeout;
+		$microseconds = (int) ( ( $timeout - $seconds ) * 1000000 );
+
+		return 0 < \mysqli_poll( $read, $error, $reject, $seconds, $microseconds );
 	}
 
 	private function connection_count( int $connection_id = 0 ): int
