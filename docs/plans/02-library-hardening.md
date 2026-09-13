@@ -691,10 +691,11 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-ENT-04`](../entity-validation-contract.md#dg-ent-04) | approved A | repository owner | 2026-09-11 | Full effective state validated; repair/bypass API deferred |
 | [`DG-ENT-05`](../entity-validation-contract.md#dg-ent-05) | approved A | repository owner | 2026-09-11 | Persisted owning relation is immutable |
 | [`DG-ENT-06`](../entity-validation-contract.md#dg-ent-06) | approved A | repository owner | 2026-09-11 | Mutable creating-hook identity/endpoints are conditionally revalidated |
-| [`DG-DB-01`](../db-compatibility-contract.md#dg-db-01) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 wait for DB matrix |
-| [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | pending; recommendation A | repository owner | — | InnoDB preflight/migration for DB-05/DB-06/REL-01 |
+| [`DG-DB-01`](../db-compatibility-contract.md#dg-db-01) | approved A | repository owner | 2026-09-13 | Pinned blocking MySQL 8.0.46 and MariaDB 10.11.16 lanes |
+| [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | approved A | repository owner | 2026-09-13 | New tables InnoDB; legacy engine conversion is explicit admin work |
 | [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | pending; recommendation A | repository owner | — | DB-05/REL-02 nested transaction conformance waits |
-| [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | pending; recommendation A | repository owner | — | DB-05/DB-06/REL-01 schema lifecycle waits |
+| [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | approved A-R | repository owner | 2026-09-13 | One bounded schema recovery before DML; never failed-INSERT-then-DDL |
+| [`DG-DB-06-FAIL`](../db-compatibility-contract.md#dg-db-06-fail) | approved A | repository owner | 2026-09-13 | Preserve empty matching-owned partial schema, prohibit DML and compensating DROP, recover only the missing table once |
 | [DG-RESTERR-01](../rest-error-contract.md#dg-resterr-01) | pending; recommendation A | repository owner | — | Domain-to-HTTP taxonomy; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-RESTERR-02](../rest-error-contract.md#dg-resterr-02) | pending; recommendation A | repository owner | — | Default v1 library error body; REST-03/REST-05/DOC-01/REL-02 wait |
 | [DG-RESTERR-03](../rest-error-contract.md#dg-resterr-03) | approved A | repository owner | 2026-09-11 | Preserve native WordPress gateway status/code/data shape |
@@ -1496,6 +1497,62 @@ Verification:
 - Единственное nonblocking замечание — существующий PHPCS ruleset deprecation.
   TOCTOU read-before-delete остаётся явно назначен DB-05/DB-03B-B; это не
   заявленная concurrency guarantee Batch 12.
+
+### Batch 13. InnoDB schema lifecycle and bounded recovery
+
+Status: in_progress; implementation candidate complete, final verification
+
+Goal: завершить DB-06 отдельным red-to-green vertical slice: доказать clean и
+idempotent install, восстановление одной или обеих отсутствующих client tables
+до DML, явный InnoDB contract и одинаковое поведение на двух утверждённых DB
+products.
+
+Entry criteria:
+
+- Batch 12 влит PR #87 как `2d52f08`, closeout PR #88 как `b0d37eb`; exact
+  implementation и merge SHAs прошли 17/17 protected checks.
+- INFRA-03, DB-00 и CORE-06 completed; DG-M6 и требуемые DG-NAME decisions
+  утверждены.
+- DG-DB-01/A, DG-DB-02/A, DG-DB-04/A-R и DG-DB-06-FAIL/A утверждены
+  владельцем 2026-09-13.
+
+Tasks:
+
+- DB-06 — `in_progress`; tests-first schema install/recovery vertical.
+- DB-06R — `needs_design`; post-Batch-13 policy for additional custom database
+  constraints discovered by independent QA.
+
+Execution model:
+
+- Сначала зафиксировать red regressions для issue #45, clean/repeated install,
+  recovery каждой из двух таблиц и обеих таблиц, failure attribution и InnoDB
+  engine; затем менять production.
+- Перед первым create DML проверить существование и engine обеих таблиц. При
+  отсутствии одной или обеих выполнить не более одного install/recovery вне
+  data transaction, повторно проверить schema и только затем выполнять INSERT.
+- Новые таблицы создавать явно с `ENGINE=InnoDB`; существующий MyISAM или
+  mixed-engine pair не менять автоматически и отклонять до DML с информативной
+  ошибкой. Explicit administrator audit/migration остаётся отдельным путём.
+- Blocking evidence получить на точных MySQL 8.0.46 и MariaDB 10.11.16 без
+  перемножения всей PHP/WordPress/Ramsey matrix.
+- Реализовать утверждённый DG-DB-06-FAIL/A: при падении второй DDL сохранить
+  первую пустую owned table и ownership record, не выполнять DML или
+  compensating DROP, а следующим client lifecycle восстановить только missing
+  table один раз.
+- Не включать DB-05 transactions/savepoints, DB-03B-B fault injection и hook
+  commit timing, новые columns/tenancy, REST, `deleted_post` или API-05.
+
+Exit criteria:
+
+- Все DB-06 DoD/AC и SCHEMA-INSTALL-01, SCHEMA-RECOVER-01, SCHEMA-FAIL-01
+  доказаны tests; red evidence сохранён до production fix.
+- Ни один путь не выполняет failed INSERT → DDL → retry; recovery ограничен
+  одним pre-DML install attempt и повторной проверкой required schema
+  descriptors/engine.
+- Exact candidate проходит full unit/integration/PHPCS, reverse/random
+  isolation, обе blocking DB lanes и independent QA.
+- Protected checks зелёные на final head и post-merge `master`; evidence и
+  оставшиеся migration limitations записаны до closeout.
 
 ## E1. Test foundation и regression harness
 
@@ -3505,7 +3562,7 @@ Notes/Risks:
 
 ### DB-06. Защитить schema install и recovery
 
-Status: waiting_dependency
+Status: in_progress; final verification
 
 Priority: P0
 
@@ -3517,13 +3574,18 @@ Scope:
 - Точный regression для issue #45/dbDelta formatting.
 - Clean create обеих tables и индексов.
 - Idempotent install/upgrade.
-- Удаление одной/обеих tables после client init и retry create path.
+- Удаление одной/обеих tables после client init и bounded pre-DML recovery.
+- Явный `ENGINE=InnoDB`, preflight required schema descriptors/engine до первого
+  INSERT.
+- Blocking conformance на точных MySQL 8.0.46 и MariaDB 10.11.16.
 - Table naming assertions из DG-M6.
 
 Out of Scope:
 
 - Shared-table migration.
 - Новые production columns без отдельного design.
+- Автоматический `ALTER` существующих MyISAM/mixed-engine tables.
+- Transaction/savepoint implementation DB-05 и fault injection DB-03B-B.
 
 DoR:
 
@@ -3531,7 +3593,7 @@ DoR:
 - DG-M6 решён.
 - DB-00 определил поддерживаемую DB matrix.
 - Владелец утвердил DB matrix и migration/error policy, предложенные DB-00.
-- DG-DB-01, DG-DB-02 и DG-DB-04 утверждены.
+- DG-DB-01, DG-DB-02, DG-DB-04 и DG-DB-06-FAIL утверждены.
 - CORE-06 реализовал и проверил table naming rules.
 - DG-NAME-01, DG-NAME-03, DG-NAME-04, DG-NAME-05 и DG-NAME-06 утверждены
   владельцем. DG-NAME-02 реализован в CORE-06 и является refinement для
@@ -3540,17 +3602,29 @@ DoR:
 DoD:
 
 - Issue #45 защищён regression test.
-- Schema проверяется структурно, а не только косвенным create/read.
-- Retry выполняется ограниченное число раз и сообщает исходную DB error при
-  неуспехе.
+- Owned columns и required named indexes проверяются по полным значимым
+  descriptors, а не только косвенным create/read.
+- Recovery выполняется не более одного раза до DML и сообщает информативную
+  schema/engine error при неуспехе.
+- Новые tables являются InnoDB на обеих blocking DB lanes; legacy engine не
+  конвертируется неявно.
 
 AC:
 
 - Given отсутствуют обе client tables, when создаётся connection, then tables
   создаются и запись сохраняется.
+- Given отсутствует только connections или только meta table, when создаётся
+  connection, then missing table восстанавливается до INSERT, существующие
+  данные второй table сохраняются и запись сохраняется.
 - Given install вызывается повторно, then данные и schema не повреждаются.
 - Given schema нельзя создать, then caller получает информативный exception и
   бесконечного retry нет.
+- Given pair использует MyISAM или mixed engines, when начинается create, then
+  caller получает pre-DML failure и библиотека не выполняет INSERT/ALTER.
+- Given первая из двух таблиц создана, а вторая DDL завершается ошибкой, then
+  первая остаётся пустой и matching-owned, compensating DROP и DML не
+  выполняются, а следующий client lifecycle восстанавливает только missing
+  table до первого INSERT.
 
 Dependencies:
 
@@ -3564,6 +3638,72 @@ Dependencies:
 Notes/Risks:
 
 - MariaDB-only test недостаточен, если production contract включает MySQL.
+- Дополнительные non-unique indexes допустимы. Политика для custom unique
+  indexes, foreign keys, CHECK constraints и triggers не входит в Batch 13 и
+  выделена в DB-06R; до её решения контракт не обещает pre-DML detection любой
+  возможной сторонней модификации schema.
+
+### DB-06R. Определить политику дополнительных database constraints
+
+Status: needs_design
+
+Priority: P1
+
+Goal: определить, какие сторонние ограничения на принадлежащих библиотеке
+таблицах совместимы с storage contract, и обеспечить предсказуемую pre-DML
+диагностику для несовместимых вариантов.
+
+Scope:
+
+- Инвентаризация дополнительных unique indexes, foreign keys, CHECK constraints
+  и triggers на MySQL/MariaDB.
+- Compatibility policy: разрешённые, предупреждаемые и запрещённые конструкции.
+- Preflight и regression tests для утверждённых запрещённых конструкций.
+- Migration/operator guidance для уже существующих custom constraints.
+
+Out of Scope:
+
+- Запрет дополнительных non-unique indexes без evidence их вреда.
+- Автоматический DROP/ALTER сторонних constraints.
+- Связанное с DB-05 transaction/savepoint orchestration.
+
+DoR:
+
+- DB-06 завершён и его required-descriptor contract стабилен.
+- Собран inventory реальных или воспроизводимых custom-constraint сценариев.
+- Владелец утвердил compatibility и migration policy.
+
+DoD:
+
+- Контракт явно классифицирует каждый включённый вид constraint.
+- Несовместимые варианты обнаруживаются до library DML на обеих blocking DB
+  lanes либо документированно остаются runtime database errors.
+- Существующие установки получают неразрушающий migration/runbook path.
+- Automated tests и release notes соответствуют утверждённой политике.
+
+AC:
+
+- Given таблица имеет дополнительный constraint из запрещённого класса, when
+  начинается compound mutation, then library возвращает стабильную pre-DML
+  ошибку без автоматического ALTER/DROP.
+- Given таблица имеет разрешённый дополнительный non-unique index, when
+  выполняется mutation, then preflight не отвергает совместимую schema.
+- Given обнаружена legacy customization, then operator может определить точный
+  объект и выполнить документированный manual migration.
+
+Dependencies:
+
+- DB-06.
+- DB-05 для общей границы preflight compound mutations.
+- REL-03 для operator migration/runbook surface.
+- Новое owner decision по compatibility/migration policy.
+
+Notes/Risks:
+
+- Слишком строгая проверка может сломать installations с полезными custom
+  indexes; слишком мягкая оставляет поздние или неожиданные DML failures.
+- `SHOW CREATE TABLE`, information schema и trigger inventory различаются между
+  MySQL/MariaDB и temporary/permanent tables; design должен оставаться portable.
 
 ## E4. REST v1 contract, errors и permissions
 

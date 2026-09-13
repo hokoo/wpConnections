@@ -1,0 +1,99 @@
+name: Database Compatibility
+
+on:
+  push:
+    branches: [ "master", "main", "dev" ]
+  pull_request:
+    types: [synchronize, opened, reopened]
+
+permissions: {}
+
+env:
+  PHP_VERSION: "8.1.34"
+  WP_VERSION: "6.7.7"
+  RAMSEY_VERSION: "1.3.0"
+  DB_NAME: wordpress_test
+  DB_USER: wordpress
+  DB_PASSWORD: wordpress
+
+jobs:
+  database-compatibility:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: MySQL 8.0.46
+            family: mysql
+            image: mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+            expected-version: 8.0.46
+          - name: MariaDB 10.11.16
+            family: mariadb
+            image: mariadb:10.11.16@sha256:4045aba619003d93b5dc834e89e6815ba078d2cb3ff0a26f316ab5d7eab35093
+            expected-version: 10.11.16-MariaDB
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Build fixed-floor PHP image
+        run: |
+          docker build \
+            --build-arg PHP_VERSION='${{ env.PHP_VERSION }}' \
+            --build-arg WP_VERSION='${{ env.WP_VERSION }}' \
+            -t wpconnections-ci:database-compatibility \
+            -f Dockerfile.phpunit .
+
+      - name: Create isolated Docker network
+        run: docker network create wpconnections-db-compatibility
+
+      - name: Start ${{ matrix.name }}
+        run: |
+          if [ '${{ matrix.family }}' = 'mysql' ]; then
+            docker run --rm -d \
+              --name wpconnections-database \
+              --network wpconnections-db-compatibility \
+              -e MYSQL_ROOT_PASSWORD=root \
+              -e MYSQL_DATABASE='${{ env.DB_NAME }}' \
+              -e MYSQL_USER='${{ env.DB_USER }}' \
+              -e MYSQL_PASSWORD='${{ env.DB_PASSWORD }}' \
+              '${{ matrix.image }}'
+          else
+            docker run --rm -d \
+              --name wpconnections-database \
+              --network wpconnections-db-compatibility \
+              -e MARIADB_ROOT_PASSWORD=root \
+              -e MARIADB_DATABASE='${{ env.DB_NAME }}' \
+              -e MARIADB_USER='${{ env.DB_USER }}' \
+              -e MARIADB_PASSWORD='${{ env.DB_PASSWORD }}' \
+              '${{ matrix.image }}'
+          fi
+
+      - name: Run the full WordPress integration suite
+        run: |
+          docker run --rm \
+            --network wpconnections-db-compatibility \
+            -v "$PWD:/srv/web" \
+            -e DB_START_MODE=external \
+            -e DB_HOST=wpconnections-database \
+            -e DB_NAME='${{ env.DB_NAME }}' \
+            -e DB_USER='${{ env.DB_USER }}' \
+            -e DB_PASSWORD='${{ env.DB_PASSWORD }}' \
+            -e EXPECTED_DB_VERSION_PREFIX='${{ matrix.expected-version }}' \
+            -e RAMSEY_VERSION='${{ env.RAMSEY_VERSION }}' \
+            wpconnections-ci:database-compatibility \
+            test:integration
+
+      - name: Show database logs after failure
+        if: failure()
+        run: docker logs wpconnections-database
+
+      - name: Remove database container
+        if: always()
+        run: docker rm -f wpconnections-database >/dev/null 2>&1 || true
+
+      - name: Remove isolated Docker network
+        if: always()
+        run: docker network rm wpconnections-db-compatibility >/dev/null 2>&1 || true

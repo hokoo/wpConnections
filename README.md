@@ -129,11 +129,14 @@ context-aware subscription manager planned for that major version will own a
 different WordPress callback identity. See the
 [hook lifecycle transition contract](docs/hook-lifecycle-transition.md).
 
-Existing complete tables without a matching ownership record, partial pairs or
-malformed/conflicting records are rejected without automatic repair, rename or
-delete. Operator-facing inventory and explicit attestation remain follow-up
-work in DB-06/REL-03, so CORE-06 by itself is not release approval for an
-existing unclaimed installation. See the
+Existing complete tables without a matching ownership record, unowned partial
+pairs, and malformed or conflicting records are rejected without automatic
+repair, rename, or delete. A partial pair with the matching ownership record is
+different: the schema lifecycle may recreate only its missing table once before
+the first create DML, then proceeds only after both tables pass structural and
+InnoDB verification. Operator-facing inventory and explicit attestation remain
+follow-up work in REL-03; no unclaimed installation is adopted implicitly. See
+the
 [client naming and migration contract](docs/client-naming-contract.md).
 
 ### Automatic debug logging and storage event origins
@@ -272,6 +275,19 @@ pairwise matrix:
 | 8.3.33 | 7.1.0 | 2.1.1 |
 | 8.4.25 | 6.7.7 | 2.1.1 |
 | 8.5.10 | 7.1.0 | 2.1.1 |
+
+Database behavior has its own blocking matrix so it is not inferred from the
+MariaDB package bundled in the PHP test image:
+
+| Database | Exact blocking image |
+| --- | --- |
+| MySQL 8.0.46 | `mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b` |
+| MariaDB 10.11.16 | `mariadb:10.11.16@sha256:4045aba619003d93b5dc834e89e6815ba078d2cb3ff0a26f316ab5d7eab35093` |
+
+Both database lanes run the full WordPress integration suite on the fixed
+PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0 floor. New wpConnections
+tables are explicitly InnoDB; an existing MyISAM or mixed-engine client schema
+must be migrated by an administrator and is never converted during a request.
 
 WordPress 6.7.7 is the pinned compatibility-floor lane, not a claim that this
 older branch is still maintained upstream. Production installations should

@@ -123,6 +123,28 @@ docker run --rm -v "$PWD:/srv/web" \
 The container prints the requested and runtime PHP, WordPress, and Ramsey
 versions. Check those lines first when diagnosing a matrix-only failure.
 
+### Database compatibility tests
+
+The `Database Compatibility` workflow adds two blocking, orthogonal lanes. Each
+runs the complete WordPress integration suite with PHP `8.1.34`, WordPress
+`6.7.7`, and Ramsey Collection `1.3.0`:
+
+| Product | Digest-pinned image |
+| --- | --- |
+| MySQL | `mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b` |
+| MariaDB | `mariadb:10.11.16@sha256:4045aba619003d93b5dc834e89e6815ba078d2cb3ff0a26f316ab5d7eab35093` |
+
+The workflow starts the database on an isolated Docker network and invokes the
+normal test image with `DB_START_MODE=external`. The entrypoint waits for a real
+authenticated connection, prints `SELECT VERSION()`, and fails if it does not
+match `EXPECTED_DB_VERSION_PREFIX`. The default remains `embedded`, so
+`make tests.integration` keeps its single-container behavior.
+
+To reproduce a database lane locally, follow the exact container/network
+commands in [`.github/workflows/db-compatibility.yml`](../.github/workflows/db-compatibility.yml).
+Use a different explicit container/network name if one already exists, and
+remove both disposable resources after the run.
+
 ## WordPress trunk canary
 
 `WP Trunk Canary` runs each Monday at 06:17 UTC and can also be started through
@@ -216,17 +238,22 @@ Before merge, the pull request should show all of these green:
 
 - 10 `Unit Tests / Unit Tests PHP … / Ramsey …` jobs;
 - 5 `WP Integration Tests / WP Integration PHP … / WP … / Ramsey …` jobs;
+- `Database Compatibility / MySQL 8.0.46`;
+- `Database Compatibility / MariaDB 10.11.16`;
 - `Coverage / Coverage PHP 8.1.34 / WordPress 6.7.7`;
 - `PHP Code Styles / php-cs`.
 
 Repository files cannot configure GitHub branch protection by themselves. The
-`master` branch is expected to use strict required status checks for all 17 jobs
+`master` branch is expected to use strict required status checks for all 19 jobs
 listed above, with administrator enforcement and force-push/deletion disabled.
 The merge owner must verify both the protection settings and the visible checks,
 including that none are missing, skipped, cancelled, or stale for the pull
 request head commit. `WP Trunk Canary` is not in the blocking list. When a
 pinned matrix value or job name changes, update branch protection as part of the
 same compatibility-policy change so obsolete contexts do not block future PRs.
+For Batch 13, add the two exact `Database Compatibility` contexts immediately
+before merging the workflow, re-check the draft PR head, and confirm a later
+post-merge `master` run contains all 19 successes.
 
 INFRA-05 (CI caching and runtime optimization) is intentionally deferred and
 non-blocking. Until that follow-up is implemented, successful clean builds and

@@ -1,7 +1,7 @@
 # Database compatibility and transaction feasibility
 
-Status: decision-ready design artifact for `DB-00`; recommendations in pending
-gates are not approved behavior.
+Status: approved DB-00 contract and DB-06 implementation record; recommendations
+in pending gates are not approved behavior.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`.
 
@@ -18,7 +18,7 @@ DG-DB-01 through DG-DB-04. The decision registry and approval status remain in
 Observed behavior is evidence, not a compatibility promise. A recommended
 option remains pending until the registry is updated by the owner.
 
-## Current repository state
+## Baseline repository state at the DB-00 snapshot
 
 | Surface | Observed state | Consequence |
 | --- | --- | --- |
@@ -342,6 +342,43 @@ reviewed dependency maintenance. Floating `mysql:8`, distro-selected MariaDB and
 one pinned database for broad compatibility; DB-specific lanes need not multiply
 every PHP, WordPress and Ramsey combination.
 
+## DB-06 implementation candidate
+
+Batch 13 implements the approved portion of this contract on branch
+`batch13-schema-lifecycle`:
+
+- new client tables include an explicit `ENGINE=InnoDB` clause;
+- the create path inspects both tables before its first INSERT, runs one bounded
+  recovery cycle only for missing tables, verifies column order, type, length,
+  unsigned/null/default/extra attributes, index uniqueness, type, usability,
+  column order and full-versus-prefix coverage, plus the engine, and never uses
+  a failed INSERT as the trigger for DDL;
+- an existing compatible table is not passed back through `dbDelta()` while its
+  missing peer is recovered, preventing incidental `ALTER TABLE` statements;
+- existing MyISAM, mixed-engine or tables with incompatible required schema
+  descriptors fail before create DML and are never converted automatically;
+  DB-05 owns equivalent transaction preflight for the remaining compound
+  mutations;
+- a matching ownership record permits a later client instance to recover one
+  missing table; unowned or malformed mappings remain fail-closed;
+- [`.github/workflows/db-compatibility.yml`](../.github/workflows/db-compatibility.yml)
+  runs the full integration suite against the two digest-pinned blocking DB
+  images with fixed PHP 8.1.34, WordPress 6.7.7 and Ramsey Collection 1.3.0.
+
+The matrix exposed a real vendor difference in the WordPress test framework:
+its per-test query filter creates temporary plugin tables. MariaDB exposes those
+through `information_schema.tables`, while MySQL 8.0 does not. Runtime schema
+inspection therefore uses `SHOW COLUMNS` and `SHOW CREATE TABLE`, which work for
+both temporary test tables and permanent production tables.
+
+The Batch 13 verifier is exact for owned columns and required named indexes,
+while allowing additional non-unique indexes. It does not yet classify custom
+unique indexes, foreign keys, check constraints or triggers added under other
+names. Those can change later DML semantics, so DB-06R owns their inventory,
+compatibility policy and migration contract; until then, this document does not
+claim that every possible third-party schema customization is rejected before
+DML.
+
 ## Existing-table audit and migration
 
 Before DB-05 is enabled for a client, inspect both physical tables in
@@ -359,7 +396,7 @@ space or privilege reasons. It must be an explicit administrator operation with
 backup/rollback guidance. A normal mutation must never silently run `ALTER TABLE
 ... ENGINE=InnoDB`.
 
-## Pending decision gates
+## Decision gates
 
 <a id="dg-db-01"></a>
 ### DG-DB-01 — supported and blocking database matrix
@@ -378,6 +415,11 @@ families are release-blocking.
 **Recommendation:** A. It covers both ecosystems already named by WordPress,
 keeps the blocking cost bounded, and does not turn an untested future major into
 an automatic compatibility promise.
+
+**Decision:** approved A by the repository owner on 2026-09-13. The initial
+blocking pins are MySQL 8.0.46 and MariaDB 10.11.16, matching the DB-00 probes;
+changing either pin is dependency maintenance and requires the same blocking
+suite to pass before merge.
 
 **Compatibility impact:** A can expose MySQL-specific defects currently hidden
 by MariaDB-only CI but does not change runtime behavior. B contradicts the
@@ -401,6 +443,12 @@ tables can be MyISAM. Probes show that rollback then leaves writes committed.
 
 **Recommendation:** A. It is the only option compatible with DG-M7 without
 silently running locking DDL during a request.
+
+**Decision:** approved A by the repository owner on 2026-09-13. New tables are
+created as InnoDB. Existing missing, mixed-engine or non-transactional table
+pairs are reported before DML; normal requests never perform an implicit
+`ALTER TABLE ... ENGINE=InnoDB`. The actual legacy conversion remains a
+separate explicit administrator migration.
 
 **Compatibility impact:** legacy MyISAM installations must migrate before using
 the hardened mutation path. Existing reads and explicit cleanup can remain
@@ -445,27 +493,84 @@ later rollback misleading.
 - A: require schema readiness before the transaction. A mutation encountering
   missing/incompatible schema returns a stable pre-mutation error; installation
   and migration run through an explicit lifecycle outside DML transactions.
+- A-R: retain the useful v1 lazy first-write recovery as a bounded pre-DML
+  lifecycle: inspect both tables before the first insert; if either or both are
+  missing, perform at most one install/recovery outside any data transaction;
+  verify both tables and their engines again; only then start DML. Installation
+  failure or an incompatible/non-transactional engine fails before DML. Never
+  auto-convert an existing table's engine.
 - B: preserve install-and-retry inside the transaction and accept DDL's implicit
   commit behavior.
 - C: run schema recovery on a second connection while retaining the data
   transaction on the first.
 
-**Recommendation:** A. It separates an administrative schema lifecycle from
-request-time data atomicity and is deterministic on both supported products.
+**Recommendation:** A-R. It preserves the established first-write convenience
+without allowing failed DML to trigger DDL, and keeps schema recovery outside
+the atomic data boundary on both supported products.
 
-**Compatibility impact:** sites relying on lazy first-write table creation need
-an activation/upgrade step or a backward-compatible preflight before DML. B
-cannot meet DG-M7. C adds races, metadata locks and multi-connection complexity
-without making DDL rollback-safe.
+**Decision:** approved A-R by the repository owner on 2026-09-13. DB-06 owns
+the bounded pre-DML recovery and structural verification. Later DB-05 may begin
+a data transaction only after this readiness step succeeds.
+
+**Compatibility impact:** sites relying on lazy first-write table creation keep
+that behavior, but a failed insert is no longer used as the schema-discovery
+mechanism. Existing incompatible/MyISAM schemas require the explicit
+administrator path. B cannot meet DG-M7. C adds races, metadata locks and
+multi-connection complexity without making DDL rollback-safe.
 
 **Blocks:** DB-05, DB-06 and the create retry/migration portion of REL-01.
+
+<a id="dg-db-06-fail"></a>
+### DG-DB-06-FAIL — partial schema after a multi-table DDL failure
+
+**Problem:** SCHEMA-FAIL-01 currently requires an unrecoverable install error to
+leave no partial schema or data state. The library owns two physical tables, but
+MySQL and MariaDB implicitly commit each `CREATE TABLE`; the pair cannot be
+created atomically. If the connections table is created and creation of the
+meta table then fails, rollback cannot remove the first DDL effect. No DML has
+occurred, but a recoverable one-table schema remains.
+
+- A: refine the invariant to **no partial data and no DML before complete schema
+  readiness**. Preserve a matching-owned partial schema, report the exact failed
+  table, retain the ownership option required to distinguish safe recovery from
+  unowned legacy tables, never run compensating `DROP`, and let the next
+  initialization or first write retry only the missing table once. “No partial
+  data” here means no connection or connection-meta rows; the ownership record
+  is intentional control-plane state.
+- B: attempt compensating cleanup by dropping a table created earlier in the
+  same recovery cycle if its peer fails. This needs cross-request locking and
+  race-safe ownership proof; otherwise another request may already be using or
+  writing the table when it is dropped.
+- C: disallow lazy recovery when both tables are missing and require a separate
+  administrator lifecycle command. That revisits approved DG-DB-04/A-R and
+  still cannot make the administrator's two DDL statements atomic.
+
+**Recommendation:** A. It preserves bounded first-write recovery, guarantees
+that a failed lifecycle attempt cannot create partial application data, and
+avoids destructive rollback theatre for non-transactional DDL. The remaining
+partial schema is attributable, ownership-checked and recoverable.
+
+**Decision:** approved A by the repository owner on 2026-09-13. A failed second
+DDL may leave the first empty table and the matching ownership record, but no
+connection or connection-meta DML. The next initialization or first write may
+run one bounded recovery for only the missing table; automatic compensating
+`DROP` is forbidden.
+
+**Compatibility impact:** A may leave one empty owned table plus its ownership
+record after a database or privilege failure, but performs no automatic
+deletion and recovers it on the next valid attempt. B adds a
+data-loss/concurrency risk to an otherwise non-destructive path. C breaks the
+approved lazy clean-install behavior.
+
+**Unblocks:** final SCHEMA-FAIL-01 wording and test, DB-06 completion, Batch 13
+PR readiness and REL-01 lifecycle documentation.
 
 ## Downstream acceptance matrix
 
 | Consumer task | Input from DB-00 | Remains blocked by |
 | --- | --- | --- |
 | DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-DB-01—DG-DB-04, DG-SPI-03/04/06 and DG-UPDATE-03/04 |
-| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | DG-DB-01, DG-DB-02, DG-DB-04 and CORE-05 naming gates |
+| DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | No decision blocker; final verification and merge remain |
 | REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | DG-DB-01, DG-DB-02, DG-DB-04 |
 | REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-DB-03, DG-SPI-04, DG-SPI-06 |
 | CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
@@ -496,5 +601,10 @@ without making DDL rollback-safe.
 - The tested MariaDB exposes `@@in_transaction`; MySQL 8.0.46 returned error
   1193 for that variable, confirming vendor-specific detection cannot be the
   shared contract.
-- No production source, schema, workflow or supported-version policy is changed
-  by DB-00. All four material choices remain pending in the main registry.
+- DG-DB-01/A, DG-DB-02/A, the refined DG-DB-04/A-R and DG-DB-06-FAIL/A were
+  approved on
+  2026-09-13. Batch 13 implements and locally verifies their unblocked DB-06
+  portion on both pinned database images. DG-DB-03 remains pending for DB-05.
+- Independent QA for commit `3418c17` passed the required-descriptor remediation
+  with a non-blocking scope note: custom additional constraints remain assigned
+  to DB-06R rather than being silently represented as covered by DB-06.
