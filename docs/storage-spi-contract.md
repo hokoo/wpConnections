@@ -1,7 +1,8 @@
 # Storage SPI and mutation boundary
 
-Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-06
-and DG-SPI-07 approved A, while DG-SPI-03 through DG-SPI-05 remain pending
+Status: partial approved decision contract; DG-SPI-01, DG-SPI-02, DG-SPI-03,
+DG-SPI-04, DG-SPI-06 and DG-SPI-07 approved A; DG-SPI-04R and DG-SPI-06R
+require owner decisions, while DG-SPI-05 remains pending
 
 Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 
@@ -10,10 +11,9 @@ Source snapshot: `3f8bc3918fb0eea7888b071a5d7402335b8335ff`.
 This document is the canonical inventory and decision record for the storage
 extension boundary. It describes the source as it exists at the snapshot above,
 the already approved constraints from DG-M7 and DG-M9, the A decisions recorded
-for DG-SPI-01/02/06/07 on 2026-09-11, and the decisions still required before
-other production signatures or behavior change. Shared result gate
-DG-UPDATE-04/A was separately approved on 2026-09-11; neither it nor
-DG-SPI-06/A approves the still-pending adapter-failure signal in DG-SPI-03.
+for DG-SPI-01/02/06/07 on 2026-09-11, the DG-SPI-03/04 approvals on 2026-09-13,
+and the refinements still required before nested production behavior changes.
+Shared result gate DG-UPDATE-04/A was separately approved on 2026-09-11.
 
 The words **current** and **observed** describe compatibility evidence, not a
 promise that defective behavior should be retained. A **recommended** option is
@@ -177,8 +177,9 @@ pending API mechanism:
   must determine supported engine behavior before DB-05 combines retry and data
   transactions.
 
-The public capability shape and the owner of begin/commit/rollback are still
-pending in DG-SPI-04.
+The optional capability shape is approved by DG-SPI-04/A. Its additive domain
+entrypoint for caller-owned nested context and outer-commit hook coordination
+remain pending in DG-SPI-04R and DG-SPI-06R.
 
 ## Hook and side-effect inventory
 
@@ -291,6 +292,11 @@ collection.
 distinguishable and testable. Exact delete no-op/not-found meanings remain with
 DB-03A; update results remain solely with shared DG-UPDATE-04.
 
+**Decision:** approved A by the repository owner on 2026-09-13. Existing v1
+method signatures remain. Valid no-match/no-op outcomes retain their owning
+domain semantics, while adapter failures become attributable stable domain
+exceptions rather than `false`, `0` or an empty collection.
+
 **Compatibility impact:** A converts previously silent/raw failures to
 exceptions and may expose defective custom adapters. B cannot satisfy DG-M7.
 C breaks implementers and consumers.
@@ -313,6 +319,11 @@ abstract SPI exposes neither capability discovery nor transaction scope.
 to implement new abstract methods merely to fail preflight, keeps transaction
 mechanics adapter-owned, and keeps domain orchestration/invariants under DG-M9.
 
+**Decision:** approved A by the repository owner on 2026-09-13. DB-05 may add
+an optional atomic unit-of-work capability without expanding
+`Abstracts\Storage`; supported compound domain mutations detect that capability
+before their first write and fail explicitly when it is absent.
+
 **Compatibility impact:** A adds a public optional SPI and causes non-capable
 adapters to receive the approved pre-mutation error for compound writes. B is a
 breaking abstract-class expansion. C duplicates domain semantics and expands
@@ -320,6 +331,70 @@ the SPI substantially.
 
 **Blocked/refined tasks:** DB-00 must validate backend feasibility; DB-05 owns
 implementation; REL-02 owns custom-adapter conformance and compatibility.
+
+<a id="dg-spi-04r"></a>
+### DG-SPI-04R — propagating caller-owned transaction context
+
+**Problem:** DG-DB-03/A requires a caller to declare root versus nested
+ownership, but none of the current domain mutation methods accepts transaction
+context. A storage-only mode cannot tell the domain layer whether it must open a
+root scope, enlist in a library-owned scope or create a savepoint inside a
+transaction owned outside the library.
+
+- A: add one additive Client-level atomic unit-of-work entrypoint carrying an
+  explicit root/nested context. Standalone compound domain mutations open their
+  normal root scope; mutations invoked inside that Client unit of work enlist in
+  its known scope. A caller that already owns a database transaction must enter
+  through the same unit-of-work API with explicit nested context.
+- B: add an optional transaction-context parameter to every compound mutation
+  method on `Relation` and `Connection` and propagate it through every call.
+- C: expose context only on the optional storage capability and require
+  consumers to compose supported domain mutations through
+  `Client::getStorage()`.
+
+**Recommendation:** A. It keeps one explicit composition boundary, leaves
+existing mutation signatures source-compatible and does not promote legacy
+direct storage writes into the supported consumer API. B spreads transaction
+plumbing across the domain surface; C conflicts with DG-M9/A.
+
+**Compatibility impact:** A is additive, but consumers that start an outer
+transaction themselves must adopt the explicit nested unit-of-work entrypoint;
+otherwise the library cannot safely infer session state. Incapable adapters
+fail before mutation as already approved by DG-SPI-04/A.
+
+**Blocked/refined tasks:** the transaction-orchestration portions of DB-05 and
+REL-02. Stable failure normalization can proceed independently.
+
+<a id="dg-spi-06r"></a>
+### DG-SPI-06R — success hooks inside a caller-owned outer transaction
+
+**Problem:** `RELEASE SAVEPOINT` does not commit the caller's outer transaction.
+If the library emits a success-named hook immediately after releasing its
+savepoint, the caller can still roll the outer transaction back, contradicting
+DG-SPI-06/A's promise that success hooks are observable only after commit.
+
+- A: require an externally owned nested context to provide transaction
+  synchronization capable of accepting after-commit notifications. Buffer
+  success hooks at the library scope and dispatch them only when the outer owner
+  confirms commit; discard them on rollback. Library-owned nested scopes buffer
+  into their known root scope. Missing synchronization is an explicit
+  pre-mutation capability error.
+- B: treat successful savepoint release as success of the library scope and
+  emit hooks immediately, explicitly weakening `after`/`deleted` from
+  committed-success to savepoint-success for externally owned nesting.
+- C: never emit success-named hooks for externally owned nested scopes, even
+  when the outer transaction later commits.
+
+**Recommendation:** A. It is the only option that preserves the already
+approved committed-success meaning without falsely claiming an outer commit or
+silently losing notifications.
+
+**Compatibility impact:** A adds a coordination obligation only for consumers
+that compose mutations inside a transaction the library does not own. B reopens
+the approved hook meaning; C can break observers that rely on successful
+mutation notifications.
+
+**Blocked/refined tasks:** commit-aware hook delivery in DB-05 and REL-02.
 
 ### DG-SPI-05 — factory replacement construction and failure contract
 

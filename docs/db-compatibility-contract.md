@@ -1,7 +1,8 @@
 # Database compatibility and transaction feasibility
 
-Status: approved DB-00 contract and DB-06 implementation record; recommendations
-in pending gates are not approved behavior.
+Status: approved DB-00 contract and DB-06 implementation record;
+DG-DB-01—DG-DB-04 and DG-DB-06-FAIL are approved, while cross-contract
+transaction refinements remain pending in the storage SPI contract.
 
 Source snapshot: `0db202e7d4a794fd21d82d5305f51f40cb583b92`.
 
@@ -304,7 +305,8 @@ guessing it with vendor-specific SQL.
 
 ## Feasible transaction boundary
 
-Subject to the pending gates, DB-05 can satisfy DG-M7 with this sequence:
+Subject to the pending DG-SPI-04R/DG-SPI-06R refinements, DB-05 can satisfy
+DG-M7 with this sequence:
 
 1. Before any DML, validate that both client tables exist, both use InnoDB, and
    the selected adapter advertises the approved transaction capability.
@@ -476,6 +478,13 @@ runtime discovery is unavailable through one common variable.
 portable and testable; capability detection remains adapter-specific without
 leaking vendor probes into the domain API.
 
+**Decision:** approved A by the repository owner on 2026-09-13. Root scopes use
+`START TRANSACTION`; explicitly declared nested scopes use collision-safe
+savepoints and never commit the caller's outer transaction. Runtime
+vendor/session autodetection is not part of the contract. The additive domain
+path that carries this declaration and outer-commit hook synchronization remain
+the pending refinements DG-SPI-04R and DG-SPI-06R.
+
 **Compatibility impact:** custom adapters need to declare/implement the chosen
 capability before atomic compound mutations. C is simpler but breaks consumers
 that legitimately compose library operations inside a larger transaction. B can
@@ -569,10 +578,10 @@ PR readiness and REL-01 lifecycle documentation.
 
 | Consumer task | Input from DB-00 | Remains blocked by |
 | --- | --- | --- |
-| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-DB-01—DG-DB-04, DG-SPI-03/04/06 and DG-UPDATE-03/04 |
+| DB-05 atomic compound operations | Engine preflight, schema-before-DML ordering, root/savepoint feasibility and two-product floor | DG-SPI-04R and DG-SPI-06R; failure normalization is unblocked |
 | DB-06 schema lifecycle | Pinned DB lanes, explicit InnoDB creation/audit, no lazy DDL inside data transaction | Completed in PR #89; DB-06R is a separate non-blocking follow-up |
-| REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | DG-DB-01, DG-DB-02, DG-DB-04 |
-| REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-DB-03, DG-SPI-04, DG-SPI-06 |
+| REL-01 install/upgrade recovery | Existing-table engine audit, explicit administrative migration and failure evidence | Approved DB gates are available; task-local dependencies remain |
+| REL-02 custom storage conformance | Root/nested capability cases and unsupported-before-mutation behavior | DG-SPI-04R and DG-SPI-06R |
 | CORE-05 naming contract | Both vendors' 64-character full table-name limit | CORE-05-owned naming/migration gates; no DB gate approval implied |
 
 ## Non-gate constraints and caveats
@@ -585,9 +594,9 @@ PR readiness and REL-01 lifecycle documentation.
   guaranteed by this library.
 - WordPress core and other plugins share `$wpdb`. The library must restore no
   session setting it did not own and must not commit/roll back caller work.
-- Savepoint release proves only the nested scope succeeded. Commit-aware public
-  hooks still require DG-SPI-06 because the outer transaction may later roll
-  back.
+- Savepoint release proves only the nested scope succeeded. Approved
+  DG-SPI-06/A requires committed-success hooks, while pending DG-SPI-06R decides
+  how an external transaction owner reports its later commit.
 - The probes establish SQL capability, not complete wpConnections behavior.
   DB-05/DB-06/REL-01 must add application-level integration coverage on every
   approved blocking lane.
@@ -612,4 +621,5 @@ PR readiness and REL-01 lifecycle documentation.
   with strict synchronization.
 - The independent QA scope note remains explicit: custom additional constraints
   are assigned to DB-06R rather than being represented as covered by DB-06.
-  DG-DB-03 remains pending for DB-05.
+- DG-DB-03/A is approved; DB-05 nesting still waits only for the additive domain
+  context and hook-synchronization refinements DG-SPI-04R/DG-SPI-06R.

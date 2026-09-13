@@ -35,6 +35,15 @@ PR #87 влит как `2d52f087`, exact candidate и merge прошли по 17
 Connection selection по stored metadata вынесен в отдельный deferred design
 task API-05.
 
+Batch 13 завершён: DB-06 влит PR #89 как `aa79a32`, closeout PR #90 как
+`9d2f101`; exact candidates и merge SHAs прошли 19/19 checks, включая pinned
+MySQL 8.0.46 и MariaDB 10.11.16. DG-SPI-03/A, DG-SPI-04/A и DG-DB-03/A
+утверждены владельцем 2026-09-13. Batch 14 активирован для DB-05. При
+implementation design обнаружены два новых public-contract refinement gates:
+DG-SPI-04R для передачи caller-owned transaction context и DG-SPI-06R для
+commit-aware hooks внутри внешней транзакции; независимая failure-normalization
+часть DB-05 может выполняться до их решения.
+
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
 выполнены.
@@ -526,7 +535,7 @@ DB-02, DB-05 и REL-02 используют тот же contract после ос
 
 ### DG-SPI-03. Non-update results и adapter failure contract
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-13.
 
 **Проблема:** SPI смешивает ID, counts, collection, void и untyped meta-delete
 result; `WPStorage` чередует exceptions, `false`, `0`, empty collection и silent
@@ -553,7 +562,7 @@ DG-UPDATE-04 из REST-00B.
 
 ### DG-SPI-04. Форма transaction capability и orchestration
 
-**Статус:** pending human decision.
+**Статус:** approved A владельцем репозитория 2026-09-13.
 
 **Проблема:** approved DG-M7 требует capability preflight и atomic compound
 operations, но Storage SPI не имеет capability discovery или transaction scope.
@@ -680,10 +689,12 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-UPDATE-05 | pending; recommendation A | repository owner | — | REST meta success/no-op response не утверждён |
 | DG-SPI-01 | approved A | repository owner | 2026-09-11 | Domain sends fully materialized update state to SPI |
 | DG-SPI-02 | approved A | repository owner | 2026-09-11 | Domain owns create ID/client hydration; signatures retained |
-| DG-SPI-03 | pending; recommendation A | repository owner | — | DB-03A/REST-00A coordinate; DB-03B-B/REST/atomic production waits |
-| DG-SPI-04 | pending; recommendation A | repository owner | — | DB-00 refines feasibility; DB-05/REL-02 wait |
+| DG-SPI-03 | approved A | repository owner | 2026-09-13 | Stable adapter exception; `0`/empty reserved for valid no-match/no-op outcomes |
+| DG-SPI-04 | approved A | repository owner | 2026-09-13 | Optional atomic unit-of-work capability; compound domain writes preflight it |
+| [DG-SPI-04R](../storage-spi-contract.md#dg-spi-04r) | pending; recommendation A | repository owner | — | Domain path for explicit caller-owned nested context; DB-05 transaction orchestration waits |
 | DG-SPI-05 | pending; recommendation A | repository owner | — | v1 class-string factory contract; REL-02/release docs wait |
 | DG-SPI-06 | approved A | repository owner | 2026-09-11 | Commit-aware success hooks; DB-05/REL-02 unblocked on this gate |
+| [DG-SPI-06R](../storage-spi-contract.md#dg-spi-06r) | pending; recommendation A | repository owner | — | Outer-commit synchronization for nested success hooks; DB-05 hook delivery waits |
 | DG-SPI-07 | approved A | repository owner | 2026-09-11 | Legacy concrete table introspection retained in v1 |
 | [`DG-ENT-01`](../entity-validation-contract.md#dg-ent-01) | approved A | repository owner | 2026-09-11 | Any extant exact-type `WP_Post` is a valid endpoint |
 | [`DG-ENT-02`](../entity-validation-contract.md#dg-ent-02) | approved A | repository owner | 2026-09-11 | Typed client-scoped non-post resolver registry |
@@ -693,7 +704,7 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [`DG-ENT-06`](../entity-validation-contract.md#dg-ent-06) | approved A | repository owner | 2026-09-11 | Mutable creating-hook identity/endpoints are conditionally revalidated |
 | [`DG-DB-01`](../db-compatibility-contract.md#dg-db-01) | approved A | repository owner | 2026-09-13 | Pinned blocking MySQL 8.0.46 and MariaDB 10.11.16 lanes |
 | [`DG-DB-02`](../db-compatibility-contract.md#dg-db-02) | approved A | repository owner | 2026-09-13 | New tables InnoDB; legacy engine conversion is explicit admin work |
-| [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | pending; recommendation A | repository owner | — | DB-05/REL-02 nested transaction conformance waits |
+| [`DG-DB-03`](../db-compatibility-contract.md#dg-db-03) | approved A | repository owner | 2026-09-13 | Explicit root/nested ownership; collision-safe savepoint; no session autodetection |
 | [`DG-DB-04`](../db-compatibility-contract.md#dg-db-04) | approved A-R | repository owner | 2026-09-13 | One bounded schema recovery before DML; never failed-INSERT-then-DDL |
 | [`DG-DB-06-FAIL`](../db-compatibility-contract.md#dg-db-06-fail) | approved A | repository owner | 2026-09-13 | Preserve empty matching-owned partial schema, prohibit DML and compensating DROP, recover only the missing table once |
 | [DG-RESTERR-01](../rest-error-contract.md#dg-resterr-01) | pending; recommendation A | repository owner | — | Domain-to-HTTP taxonomy; REST-03/REST-05/DOC-01/REL-02 wait |
@@ -1574,6 +1585,79 @@ Verification:
   отдельная `needs_design` задача DB-06R и не входит в гарантии Batch 13.
 - Branch protection `master` остаётся strict и теперь требует все 19 checks,
   включая обе database compatibility lanes.
+
+### Batch 14. Atomic storage mutation boundary
+
+Status: in_progress
+
+Goal: завершить DB-05 через tests-first vertical: дать domain layer явную
+optional atomic capability, нормализовать storage failures и доказать, что
+connection/meta mutations либо фиксируются целиком, либо полностью
+откатываются без ложных success hooks.
+
+Entry criteria:
+
+- Batch 13 и closeout влиты как `aa79a32` и `9d2f101`; exact merge SHAs прошли
+  19/19 protected checks.
+- DG-M7/A, DG-M9/A, DG-UPDATE-03/A, DG-UPDATE-04/A, DG-SPI-02/A,
+  DG-SPI-03/A, DG-SPI-04/A, DG-SPI-06/A, DG-DB-01/A, DG-DB-02/A,
+  DG-DB-03/A и DG-DB-04/A-R утверждены.
+- SPI-01, DB-00, DB-02, DB-03B-A и DB-06 завершены.
+
+Task:
+
+- DB-05 — `in_progress`; один reviewable PR с отдельными проверяемыми
+  red-to-green slices и одной точкой отката.
+
+Execution slices:
+
+1. `DB-05/F1 — stable mutation failure protocol` — `in_progress`. Добавить
+   воспроизводящие tests для SQL `false` на create/update/add-meta/remove-meta и
+   representative delete; затем нормализовать их в одну стабильную domain
+   exception category, не меняя valid `false` no-op update, `0` delete/no-match
+   или empty read semantics. Failure-path success hooks не испускаются.
+2. `DB-05/F2 — optional atomic capability and root scope` —
+   `waiting_dependency`. После DG-SPI-04R добавить optional capability и
+   domain-owned root unit of work; schema readiness/engine preflight происходит
+   до `START TRANSACTION`, rollback охватывает любой `Throwable`, incapable
+   adapters отклоняются до первого write.
+3. `DB-05/F3 — nested savepoint and outer-commit coordination` —
+   `waiting_dependency`. После DG-SPI-04R и DG-SPI-06R реализовать явный nested
+   context, collision-safe savepoints, отсутствие `COMMIT` внешней транзакции и
+   утверждённую доставку отложенных success hooks.
+4. `DB-05/F4 — compound domain flows` — `waiting_dependency`. Обернуть create с
+   meta, aggregate `Connection::update()` и relation delete в reusable domain
+   boundary; default WPStorage также защищает прямой legacy compound callback
+   `deleted_post`. Exhaustive fault matrix всех delete selectors остаётся
+   DB-03B-B, но representative meta-step/connection-step rollback входит сюда.
+5. `DB-05/F5 — cross-database verification and closeout` —
+   `waiting_dependency`. Прогнать focused/full/isolation/coverage/PHPCS, exact
+   MySQL 8.0.46 и MariaDB 10.11.16 lanes, custom incapable adapter preflight и
+   mandatory independent epic QA; записать exact candidate evidence.
+
+Exit criteria:
+
+- Все DB-05 DoD/AC выполнены на обоих поддерживаемых DB products; schema DDL не
+  происходит внутри data transaction.
+- Root failure полностью откатывает connection и meta; declared nested failure
+  откатывается до library savepoint и не завершает outer transaction.
+- Stable failure отличается от valid no-op/no-match, сохраняет исходную причину
+  для диагностики и не публикует success hook.
+- Exact candidate проходит mandatory independent QA, все 19 protected checks и
+  post-merge checks; только после этого DB-05 и Batch 14 становятся completed.
+
+Next batch:
+
+- Batch 15 — DB-03B-B exhaustive delete fault/commit-hook conformance. Он уже
+  определён и начнётся после завершения reusable boundary DB-05; REST mapping и
+  `deleted_post` recovery не смешиваются с ним.
+
+Current blockers:
+
+- DG-SPI-04R: каким additive domain API caller явно передаёт nested ownership.
+- DG-SPI-06R: как success hooks узнают о фактическом commit внешней транзакции.
+- Slice F1 не зависит от этих gates и выполняется сейчас; F2—F5 не переходят в
+  production до решений владельца.
 
 ## E1. Test foundation и regression harness
 
@@ -3470,7 +3554,7 @@ Notes/Risks:
 
 ### DB-05. Сделать составные storage operations атомарными
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P1
 
@@ -3479,12 +3563,20 @@ Goal: failure между connection и meta statements не оставляет p
 Scope:
 
 - Реализовать DG-M7 для create/update/delete flows.
+- Добавить optional atomic capability без расширения `Abstracts\Storage`.
+- Нормализовать SQL/storage failures в стабильную domain exception, сохранив
+  valid no-op/no-match результаты.
+- Поддержать root scope и явно объявленный nested savepoint без commit внешней
+  транзакции.
 - Fault-injection tests между SQL steps.
-- Rollback/error behavior и logging hooks.
+- Rollback/error behavior и commit-aware success hooks.
 
 Out of Scope:
 
 - Миграция tenancy model.
+- Exhaustive повторение всех delete selectors/failure points — DB-03B-B.
+- Recovery уже завершённого WordPress post deletion — DB-04.
+- REST serialization storage failures — REST-03/DG-RESTERR-04.
 
 DoR:
 
@@ -3495,12 +3587,15 @@ DoR:
 - DG-DB-01, DG-DB-02, DG-DB-03 и DG-DB-04 решены.
 - SPI-01 и DB-00 завершены, owner утвердил возникающие DB/migration gates.
 - DB-02 и DB-03B-A задают корректные success semantics.
+- DG-SPI-04R и DG-SPI-06R решены до transaction/hook production slices; stable
+  failure normalization может начаться независимо.
 
 DoD:
 
 - Fault injection показывает полный rollback или утверждённый fallback.
 - Caller получает стабильный exception, а hooks не сообщают ложный success.
 - Transaction boundaries документированы.
+- Root/nested ownership и incapable-adapter preflight покрыты conformance tests.
 
 AC:
 
@@ -3508,6 +3603,11 @@ AC:
   требуемой meta.
 - Given connection delete failure after meta step, then система не оставляет
   рассинхронизированное состояние.
+- Given consumer already owns a transaction, when он явно открывает nested
+  library scope, then библиотека использует collision-safe savepoint, не
+  завершает outer transaction и применяет утверждённую commit-hook policy.
+- Given adapter не реализует optional capability, when compound domain mutation
+  запрошена, then caller получает стабильную ошибку до первого storage write.
 
 Dependencies:
 
@@ -3516,12 +3616,15 @@ Dependencies:
 - DG-UPDATE-03, DG-UPDATE-04.
 - DG-SPI-02, DG-SPI-03, DG-SPI-04, DG-SPI-06.
 - DG-DB-01, DG-DB-02, DG-DB-03, DG-DB-04.
+- DG-SPI-04R, DG-SPI-06R для transaction/hook slices.
 - SPI-01, DB-00.
 - DB-02, DB-03B-A.
 
 Notes/Risks:
 
 - Таблицы и engine должны реально поддерживать выбранную transaction semantics.
+- `RELEASE SAVEPOINT` не является commit внешней транзакции; поэтому nested
+  success-hook timing нельзя реализовать до DG-SPI-06R.
 
 ### DB-03B-B. Проверить delete failure и commit-hook conformance
 

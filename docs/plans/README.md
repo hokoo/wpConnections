@@ -39,6 +39,12 @@
    (`TEST-02D + DB-02 + REST-02`) завершён PR #85: exact head `6e2ffc4`
    получил independent QA PASS_WITH_NOTES и 17/17 protected checks, merge
    `3d954ec` также прошёл 17/17 post-merge checks.
+8. Batch 12 завершён PR #87 и closeout PR #88. Batch 13 завершён DB-06 PR #89
+   и closeout PR #90; `master` `9d2f101` и exact merge candidates прошли 19/19
+   checks, включая pinned MySQL 8.0.46 и MariaDB 10.11.16. DG-SPI-03/A,
+   DG-SPI-04/A и DG-DB-03/A утверждены 2026-09-13. Batch 14 активирован для
+   DB-05; failure-normalization slice выполняется, а transaction/hook slices
+   ожидают новые refinements DG-SPI-04R и DG-SPI-06R.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -117,10 +123,11 @@ map находятся в
   candidate head `d7ab4bd` прошёл все 17 protected jobs.
 - Глобальный RC threshold 70% достигнут, но release candidate остаётся
   неготовым до прохождения всех 39 critical scenarios.
-- Post-merge `master` имеет 17/17 успешных required jobs; пять первоначальных
+- Post-merge `master` после PR #90 имеет 19/19 успешных required jobs; пять
+  первоначальных
   Composer-download HTTP 504 failures были pre-test transient и прошли selective
   rerun.
-- `master` защищён: strict required checks для всех 17 jobs, enforcement для
+- `master` защищён: strict required checks для всех 19 jobs, enforcement для
   администраторов, force-push и удаление ветки запрещены.
 - `TEST-01`, `TEST-02A`, `TEST-02B`, `TEST-02C`, `TEST-02E` и `TEST-02F`
   завершены. `TEST-02F` и `CORE-07` завершены одним paired vertical по
@@ -138,9 +145,8 @@ map находятся в
   DG-NAME-06R/A-to-D. В DP-4 утверждены DG-UPDATE-04/A и DG-SPI-06/A;
   остальной packet остаётся pending. DG-RESTERR-03/A также утверждён
   2026-09-11. Pending остаются DG-API20-01—DG-API20-09,
-  DG-UPDATE-03/05, DG-SPI-03—DG-SPI-05,
-  DG-DB-01—DG-DB-04,
-  DG-RESTERR-01/02/04 и DG-DELETE-01—DG-DELETE-06; они блокируют только
+  DG-UPDATE-05, DG-SPI-04R, DG-SPI-05, DG-SPI-06R,
+  DG-RESTERR-01/02/04 и DG-DELETE-05/06; они блокируют только
   явно перечисленные downstream tasks. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
