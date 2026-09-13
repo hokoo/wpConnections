@@ -9,6 +9,7 @@ use iTRON\wpConnections\Exceptions\ConnectionEndpointResolverFail;
 use iTRON\wpConnections\Exceptions\ConnectionEndpointTypeMismatch;
 use iTRON\wpConnections\Exceptions\ConnectionEndpointTypeUnsupported;
 use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
+use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Query\Connection;
 use iTRON\wpConnections\RestResponse\CollectionItem;
 use RuntimeException;
@@ -146,11 +147,12 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 		);
 		self::assertSame( $first->id, $single_response->get_data()['id'] ?? null );
 
-		$list_response = $this->dispatch_rest_request(
+		$list_request = new \WP_REST_Request(
 			'GET',
-			$this->relation_route( RELATION_0_NAME ),
-			[ 'relation' => RELATION_1_NAME ]
+			$this->relation_route( RELATION_0_NAME )
 		);
+		$list_request->set_query_params( [ 'relation' => RELATION_1_NAME ] );
+		$list_response = $this->rest_server->dispatch( $list_request );
 		self::assertCount( 2, $list_response->get_data() );
 		foreach ( $list_response->get_data() as $item ) {
 			self::assertSame( RELATION_0_NAME, $item->get_data()['relation'] ?? null );
@@ -236,6 +238,27 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 		);
 
 		$this->assert_domain_error( 4, 400, 'Missing required fields: from ', $response );
+		self::assertTrue( $this->client->getRelation( RELATION_0_NAME )->findConnections()->isEmpty() );
+	}
+
+	public function test_maps_known_code_300_validation_to_domain_400(): void
+	{
+		$response = $this->dispatch_rest_request(
+			'POST',
+			$this->relation_route( RELATION_0_NAME ),
+			[
+				'from'  => $this->page_ids[0],
+				'to'    => $this->post_ids[0],
+				'order' => -1,
+			]
+		);
+
+		$this->assert_domain_error(
+			300,
+			400,
+			'Connection order must be a non-negative integer.',
+			$response
+		);
 		self::assertTrue( $this->client->getRelation( RELATION_0_NAME )->findConnections()->isEmpty() );
 	}
 
@@ -382,11 +405,157 @@ class RestConnectionContractTest extends WPConnectionsTestCase
 			wp_json_encode( $response->get_data() )
 		);
 		self::assertSame( 0, $created_calls );
-		self::assertCount( 1, $logs );
-		self::assertSame( 'error', $logs[0]['level'] );
-		self::assertSame( 'wpConnections REST request failed.', $logs[0]['record'][0] );
-		self::assertInstanceOf( Throwable::class, $logs[0]['record'][1]['exception'] ?? null );
+		$error_logs = array_values(
+			array_filter(
+				$logs,
+				static function ( array $log ): bool {
+					return 'wpConnections REST request failed.' === ( $log['record'][0] ?? null );
+				}
+			)
+		);
+		self::assertCount( 1, $error_logs );
+		self::assertSame( 'error', $error_logs[0]['level'] );
+		self::assertInstanceOf(
+			Throwable::class,
+			$error_logs[0]['record'][1]['exception'] ?? null
+		);
 		self::assertTrue( $this->client->getRelation( RELATION_0_NAME )->findConnections()->isEmpty() );
+	}
+
+	/**
+	 * @dataProvider connection_storage_failure_provider
+	 */
+	public function test_maps_connection_route_storage_failure_without_mutation(
+		string $operation
+	): void {
+		global $wpdb;
+
+		$connection = $this->create_connection( RELATION_0_NAME, $this->post_ids[0] );
+		$table = $wpdb->prefix . $this->client->getStorage()->get_connections_table();
+		$connection_route = $this->connection_route( RELATION_0_NAME, $connection->id );
+
+		switch ( $operation ) {
+			case 'relation read':
+				$query_fragment = "SELECT c.*, m.* FROM {$table}";
+				$request = function () {
+					return $this->dispatch_rest_request(
+						'GET',
+						$this->relation_route( RELATION_0_NAME )
+					);
+				};
+				break;
+			case 'single read':
+				$query_fragment = "SELECT c.*, m.* FROM {$table}";
+				$request = function () use ( $connection_route ) {
+					return $this->dispatch_rest_request( 'GET', $connection_route );
+				};
+				break;
+			case 'update':
+				$query_fragment = "UPDATE `{$table}` SET";
+				$request = function () use ( $connection_route ) {
+					return $this->dispatch_rest_request(
+						'PATCH',
+						$connection_route,
+						[ 'title' => 'must roll back' ]
+					);
+				};
+				break;
+			case 'delete':
+				$query_fragment = "DELETE FROM {$table} WHERE";
+				$request = function () use ( $connection_route ) {
+					return $this->dispatch_rest_request( 'DELETE', $connection_route );
+				};
+				break;
+			default:
+				self::fail( "Unknown storage failure operation: {$operation}" );
+		}
+
+		$intercepted = false;
+		$query_filter = static function ( string $query ) use ( $query_fragment, &$intercepted ): string {
+			if ( ! $intercepted && false !== strpos( $query, $query_fragment ) ) {
+				$intercepted = true;
+				return 'SELECT * FROM `wpconnections_batch16_secret_route_failure`';
+			}
+
+			return $query;
+		};
+		$delete_success_calls = 0;
+		$delete_success = static function () use ( &$delete_success_calls ): void {
+			$delete_success_calls++;
+		};
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $query_filter );
+		add_action( 'wpConnections/storage/deletedSpecificConnections', $delete_success );
+
+		try {
+			$response = $request();
+		} finally {
+			remove_action( 'wpConnections/storage/deletedSpecificConnections', $delete_success );
+			remove_filter( 'query', $query_filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		self::assertTrue( $intercepted, "Expected {$operation} database interception." );
+		$this->assert_internal_error( $response );
+		self::assertStringNotContainsString(
+			'wpconnections_batch16_secret_route_failure',
+			wp_json_encode( $response->get_data() )
+		);
+		self::assertSame( 0, $delete_success_calls );
+		$persisted = $this->client->getRelation( RELATION_0_NAME )->findConnections();
+		self::assertCount( 1, $persisted );
+		self::assertNull( $persisted->first()->title );
+	}
+
+	public function connection_storage_failure_provider(): array
+	{
+		return [
+			'relation read' => [ 'relation read' ],
+			'single read'   => [ 'single read' ],
+			'update'        => [ 'update' ],
+			'delete'        => [ 'delete' ],
+		];
+	}
+
+	public function test_schema_code_300_cause_is_internal_and_not_public_validation(): void
+	{
+		global $wpdb;
+
+		$table = $wpdb->prefix . $this->client->getStorage()->get_connections_table();
+		self::assertNotFalse( $wpdb->query( "ALTER TABLE `{$table}` ENGINE=MyISAM" ) );
+		$error_logs = [];
+		$logger = static function ( array $record, string $level ) use ( &$error_logs ): void {
+			if ( 'wpConnections REST request failed.' === ( $record[0] ?? null ) ) {
+				$error_logs[] = [ 'record' => $record, 'level' => $level ];
+			}
+		};
+		add_action( 'logger', $logger, 10, 2 );
+
+		try {
+			$response = $this->dispatch_rest_request(
+				'POST',
+				$this->relation_route( RELATION_0_NAME ),
+				[
+					'from' => $this->page_ids[0],
+					'to'   => $this->post_ids[0],
+				]
+			);
+		} finally {
+			remove_action( 'logger', $logger, 10 );
+		}
+
+		$this->assert_internal_error( $response );
+		self::assertStringNotContainsString( $table, wp_json_encode( $response->get_data() ) );
+		self::assertCount( 1, $error_logs );
+		self::assertSame( 'error', $error_logs[0]['level'] );
+		$failure = $error_logs[0]['record'][1]['exception'] ?? null;
+		self::assertInstanceOf( \iTRON\wpConnections\Exceptions\ConnectionWrongData::class, $failure );
+		self::assertSame( 300, $failure->getCode() );
+		self::assertInstanceOf( StorageFailure::class, $failure->getPrevious() );
+		self::assertSame(
+			0,
+			(int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}`" )
+		);
 	}
 
 	/**
