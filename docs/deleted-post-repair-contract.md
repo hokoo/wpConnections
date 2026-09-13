@@ -468,7 +468,7 @@ starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
-Status: `todo`; approved and ready for an isolated production batch.
+Status: `in_progress` in `batch17-deleted-post-repair-ledger`.
 
 Scope: shared site table `<site-prefix>wpconnections_repair`, site-scoped
 ownership/version preflight, repository, deterministic arm/upsert, conditional
