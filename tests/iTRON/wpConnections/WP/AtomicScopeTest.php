@@ -97,6 +97,7 @@ class AtomicScopeTest extends TestCase
 
 		try {
 			$wpdb->query( 'ROLLBACK' );
+			$this->reset_shared_transaction_taint();
 			foreach ( array_reverse( $this->clients ) as $client ) {
 				$this->cleanup_client( $client );
 			}
@@ -651,6 +652,69 @@ class AtomicScopeTest extends TestCase
 		self::assertFalse( $this->connection_row_exists( $row_id ) );
 	}
 
+	public function test_failed_root_rollback_blocks_every_client_on_the_shared_session(): void
+	{
+		global $wpdb;
+
+		$second = new Client( 'atomic-shared-' . substr( hash( 'sha256', $this->getName() ), 0, 12 ) );
+		$this->clients[] = $second;
+		$row_id = 0;
+		$rollback_failed = false;
+		$rollback_filter = static function ( string $query ) use ( &$rollback_failed ): string {
+			if ( ! $rollback_failed && preg_match( '/^ROLLBACK$/i', trim( $query ) ) ) {
+				$rollback_failed = true;
+				return 'SELECT * FROM `wpconnections_batch14_failed_shared_rollback`';
+			}
+
+			return $query;
+		};
+
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $rollback_filter );
+		try {
+			$this->client->runAtomically(
+				function () use ( &$row_id ): void {
+					$row_id = $this->insert_connection_row( 'unconfirmed-shared-rollback' );
+					throw new RuntimeException( 'force shared rollback failure' );
+				}
+			);
+		} catch ( Throwable $failure ) {
+			self::assertInstanceOf( StorageFailure::class, $failure );
+		} finally {
+			remove_filter( 'query', $rollback_filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		$second_callback_called = false;
+		$second_queries = [];
+		$recorder = static function ( string $query ) use ( &$second_queries ): string {
+			$second_queries[] = trim( $query );
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+		$second_failure = null;
+		try {
+			$second->runAtomically(
+				static function () use ( &$second_callback_called ): void {
+					$second_callback_called = true;
+				}
+			);
+		} catch ( Throwable $failure ) {
+			$second_failure = $failure;
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		self::assertTrue( $rollback_failed );
+		self::assertInstanceOf( StorageFailure::class, $second_failure );
+		self::assertSame( 'transaction state is uncertain', $second_failure->getOperation() );
+		self::assertFalse( $second_callback_called );
+		self::assertSame( 0, $this->query_count( $second_queries, '/^START TRANSACTION$/i' ) );
+
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		self::assertFalse( $this->connection_row_exists( $row_id ) );
+	}
+
 	public function test_nested_notifications_are_fifo_and_exactly_once_after_outer_commit(): void
 	{
 		global $wpdb;
@@ -827,6 +891,17 @@ class AtomicScopeTest extends TestCase
 		delete_option(
 			'wpconnections_storage_owner_' . hash( 'sha256', str_replace( '-', '_', $client->getName() ) )
 		);
+	}
+
+	private function reset_shared_transaction_taint(): void
+	{
+		if ( ! property_exists( WPStorage::class, 'transactionTaints' ) ) {
+			return;
+		}
+
+		$property = new \ReflectionProperty( WPStorage::class, 'transactionTaints' );
+		$property->setAccessible( true );
+		$property->setValue( null, null );
 	}
 
 	private function insert_connection_row( string $relation ): int
