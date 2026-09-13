@@ -53,8 +53,10 @@
    получил `PASS_WITH_NOTES` без blocking findings. Final exact `439d3a2`
    получил closure QA `PASS` и 19/19 checks; PR #91 влит как
    `5bd1ef6`, его post-merge matrix также зелёна 19/19. Batch 14/DB-05
-   завершены; Batch 15 / DB-03B-B ready. Concurrent aggregate
-   update/delete parent-row race остаётся в follow-up DB-02R.
+   завершены. Batch 15 / DB-03B-B находится в `review` на candidate
+   `1568007`: implementation/local verification и independent QA зелёные;
+   protected и post-merge checks ожидаются. Concurrent aggregate update/delete
+   parent-row race остаётся в follow-up DB-02R.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -179,8 +181,9 @@ map находятся в
   [delete result/failure contract](../delete-result-contract.md) отделяет
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
-  `deleted_post` recovery. DB-03B-A завершён; после DB-05 задача
-  DB-03B-B готова к исполнению. DB-04 и REST-03 остаются
+  `deleted_post` recovery. DB-03B-A завершён; DB-03B-B находится в `review` на
+  candidate `1568007` после завершения implementation и local QA. DB-04 и
+  REST-03 остаются
   `waiting_dependency` до своих явно перечисленных gates/dependencies.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
