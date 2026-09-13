@@ -8,7 +8,7 @@ use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Helpers\Database;
 use iTRON\wpConnections\Internal\ConnectionIdNormalizer;
 
-class WPStorage extends Abstracts\Storage
+class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
 {
     use ClientInterface;
 
@@ -131,6 +131,9 @@ class WPStorage extends Abstracts\Storage
     private string $meta_table;
     private string $postfix;
     private string $site_prefix;
+    private int $transactionDepth = 0;
+
+    private static int $savepointSequence = 0;
 
     /**
      * @param Client $client wpConnections Client
@@ -159,6 +162,78 @@ class WPStorage extends Abstracts\Storage
     {
         $this->assertSitePrefix();
         return $this->meta_table;
+    }
+
+    /**
+     * @return mixed Callback result.
+     */
+    public function runAtomically(callable $operation, TransactionContext $context)
+    {
+        global $wpdb;
+
+        $this->assertSitePrefix();
+        if ($context->isRoot() && 0 < $this->transactionDepth) {
+            throw new Exceptions\StorageCapabilityUnavailable(
+                'A root transaction cannot start inside an active library scope.'
+            );
+        }
+
+        if ($context->isSchemaRecoveryAllowed()) {
+            $this->ensureSchemaReadyForInsert();
+        } else {
+            $this->assertSchemaReady();
+        }
+
+        $savepoint = '';
+        if ($context->isRoot()) {
+            if (false === $wpdb->query('START TRANSACTION')) {
+                throw $this->storageFailure('start transaction');
+            }
+        } else {
+            $savepoint = $this->nextSavepoint();
+            if (false === $wpdb->query("SAVEPOINT {$savepoint}")) {
+                throw $this->storageFailure('create savepoint');
+            }
+        }
+
+        $this->transactionDepth++;
+        try {
+            $result = $operation();
+        } catch (\Throwable $exception) {
+            $this->transactionDepth--;
+            $rollback = $context->isRoot()
+                ? 'ROLLBACK'
+                : "ROLLBACK TO SAVEPOINT {$savepoint}";
+            if (false === $wpdb->query($rollback)) {
+                throw $this->storageFailure('rollback transaction', '', $exception);
+            }
+
+            if ($context->isNested()) {
+                $wpdb->query("RELEASE SAVEPOINT {$savepoint}");
+            }
+
+            throw $exception;
+        }
+
+        $this->transactionDepth--;
+        $completion = $context->isRoot() ? 'COMMIT' : "RELEASE SAVEPOINT {$savepoint}";
+        if (false === $wpdb->query($completion)) {
+            $error = $this->databaseError();
+            $wpdb->query($context->isRoot() ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT {$savepoint}");
+            throw $this->storageFailure(
+                $context->isRoot() ? 'commit transaction' : 'release savepoint',
+                $error
+            );
+        }
+
+        return $result;
+    }
+
+    private function nextSavepoint(): string
+    {
+        self::$savepointSequence++;
+
+        return sprintf('wpconn_%x_%x', spl_object_id($this), self::$savepointSequence);
     }
 
     private function init()
@@ -1135,13 +1210,18 @@ class WPStorage extends Abstracts\Storage
         return $rowsAffected;
     }
 
-    private function storageFailure(string $operation, string $databaseError = ''): StorageFailure
-    {
+    private function storageFailure(
+        string $operation,
+        string $databaseError = '',
+        \Throwable $previous = null
+    ): StorageFailure {
         if ('' === $databaseError) {
             $databaseError = $this->databaseError();
         }
 
-        $previous = '' === $databaseError ? null : new \RuntimeException($databaseError);
+        if ('' !== $databaseError) {
+            $previous = new \RuntimeException($databaseError, 0, $previous);
+        }
 
         return new StorageFailure($operation, $previous);
     }

@@ -7,6 +7,7 @@ use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\RelationNotFound;
 use iTRON\wpConnections\Exceptions\RelationWrongData;
 use iTRON\wpConnections\Exceptions\MissingParameters;
+use iTRON\wpConnections\Exceptions\StorageCapabilityUnavailable;
 use iTRON\wpConnections\Internal\RestRouteRegistration;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
 use Psr\Log\LoggerInterface;
@@ -25,6 +26,9 @@ class Client
     private LoggerInterface $logger;
     private ConnectionEntityValidator $entityValidator;
     private RestRouteRegistration $restRegistration;
+    private array $atomicScopes = [];
+
+    private static ?self $atomicOwner = null;
 
     /**
      * WP user capability id that is required for performing actions with client.
@@ -62,6 +66,107 @@ class Client
     public function getStorage(): Abstracts\Storage
     {
         return $this->storage;
+    }
+
+    /**
+     * Runs one Client-owned unit of work in an explicit root or nested scope.
+     *
+     * @return mixed Callback result.
+     * @throws StorageCapabilityUnavailable
+     */
+    public function runAtomically(callable $operation, TransactionContext $context = null)
+    {
+        $context = $context ?? TransactionContext::root();
+
+        if (! $this->storage instanceof AtomicStorageInterface) {
+            throw new StorageCapabilityUnavailable();
+        }
+
+        if (null !== self::$atomicOwner && self::$atomicOwner !== $this) {
+            throw new StorageCapabilityUnavailable(
+                'An atomic scope cannot span multiple wpConnections clients.'
+            );
+        }
+
+        $hasParent = [] !== $this->atomicScopes;
+        if ($hasParent) {
+            $context = TransactionContext::libraryNested();
+        }
+
+        if ($context->isNested() && ! $hasParent && null === $context->getSynchronizer()) {
+            throw new StorageCapabilityUnavailable(
+                'An externally owned nested transaction requires a synchronizer.'
+            );
+        }
+
+        if (! $hasParent) {
+            self::$atomicOwner = $this;
+        }
+
+        $this->atomicScopes[] = [];
+        $scopeClosed = false;
+        try {
+            $result = $this->storage->runAtomically($operation, $context);
+            $notifications = array_pop($this->atomicScopes);
+            $scopeClosed = true;
+
+            if ([] !== $this->atomicScopes) {
+                $parent = array_key_last($this->atomicScopes);
+                array_push($this->atomicScopes[$parent], ...$notifications);
+            } elseif ($context->isNested()) {
+                $synchronizer = $context->getSynchronizer();
+                foreach ($notifications as $notification) {
+                    $synchronizer->defer($notification);
+                }
+            } else {
+                foreach ($notifications as $notification) {
+                    $notification();
+                }
+            }
+
+            return $result;
+        } catch (Throwable $exception) {
+            if (! $scopeClosed) {
+                array_pop($this->atomicScopes);
+            }
+            throw $exception;
+        } finally {
+            if ([] === $this->atomicScopes && self::$atomicOwner === $this) {
+                self::$atomicOwner = null;
+            }
+        }
+    }
+
+    /**
+     * @internal Domain and default-storage compound mutation entrypoint.
+     *
+     * @return mixed Callback result.
+     */
+    public function executeAtomicMutation(callable $operation)
+    {
+        return $this->runAtomically($operation);
+    }
+
+    /**
+     * @internal Queues a success notification until the owning commit.
+     */
+    public function deferSuccessNotification(callable $notification): void
+    {
+        if ([] === $this->atomicScopes) {
+            $notification();
+            return;
+        }
+
+        $scope = array_key_last($this->atomicScopes);
+        $this->atomicScopes[$scope][] = $notification;
+    }
+
+    /**
+     * @internal Concrete storage uses this to avoid opening a duplicate scope.
+     */
+    public function hasActiveAtomicScope(): bool
+    {
+        return [] !== $this->atomicScopes;
     }
 
     /**
