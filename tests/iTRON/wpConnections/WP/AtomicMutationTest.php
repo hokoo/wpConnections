@@ -509,7 +509,7 @@ class AtomicMutationTest extends TestCase
 	/**
 	 * @dataProvider relation_id_lookup_fault_provider
 	 */
-	public function test_relation_id_lookup_failure_is_not_reported_as_no_match( bool $silent ): void
+	public function test_find_connections_failure_is_not_reported_as_no_match( bool $silent ): void
 	{
 		$connection = $this->create_connection(
 			$silent ? 'delete-id-lookup-silent' : 'delete-id-lookup-database',
@@ -525,12 +525,42 @@ class AtomicMutationTest extends TestCase
 				);
 			},
 			function () use ( $connection ): void {
-				$this->invoke_delete( 'relation', 'id', $connection );
+				$query = new ConnectionQuery();
+				$query->set( 'id', $connection->id );
+				$this->client->getStorage()->findConnections( $query );
 			},
 			$silent
 		);
 
 		$this->assert_storage_failure( 'find connections', $failure );
+		self::assertSame( $before, $this->storage_snapshot() );
+	}
+
+	/**
+	 * @dataProvider relation_id_lookup_fault_provider
+	 */
+	public function test_relation_id_scoped_lock_failure_is_not_reported_as_no_match( bool $silent ): void
+	{
+		$connection = $this->create_connection(
+			$silent ? 'delete-id-lock-silent' : 'delete-id-lock-database',
+			'preserved'
+		);
+		$before = $this->storage_snapshot();
+
+		$failure = $this->capture_query_failure(
+			static function ( string $query ): bool {
+				return 1 === preg_match(
+					'/^SELECT `ID` FROM .* WHERE `ID` = .* AND `relation` = .* FOR UPDATE$/i',
+					trim( $query )
+				);
+			},
+			function () use ( $connection ): void {
+				$this->invoke_delete( 'relation', 'id', $connection );
+			},
+			$silent
+		);
+
+		$this->assert_storage_failure( 'lock relation connection for delete', $failure );
 		self::assertSame( $before, $this->storage_snapshot() );
 	}
 

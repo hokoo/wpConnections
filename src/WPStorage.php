@@ -8,7 +8,7 @@ use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Helpers\Database;
 use iTRON\wpConnections\Internal\ConnectionIdNormalizer;
 
-class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
+class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, RelationScopedDeleteStorageInterface
 {
     use ClientInterface;
 
@@ -857,6 +857,30 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface
             function () use ($connectionIDs): int {
                 return $this->deleteSpecificConnectionsPrepared($connectionIDs);
             }
+        );
+    }
+
+    public function lockConnectionForDelete(int $connectionID, string $relation): bool
+    {
+        global $wpdb;
+
+        $this->assertSitePrefix();
+        if (! $this->getClient()->hasActiveAtomicScope()) {
+            throw new Exceptions\StorageCapabilityUnavailable(
+                'A relation-scoped delete lock requires an active atomic scope.'
+            );
+        }
+
+        $db = $this->fullTableName($this->connections_table);
+        $query = $wpdb->prepare(
+            "SELECT `ID` FROM {$db} WHERE `ID` = %d AND `relation` = %s FOR UPDATE",
+            $connectionID,
+            $relation
+        );
+
+        return [] !== $this->selectRowsOrFail(
+            $query,
+            'lock relation connection for delete'
         );
     }
 
