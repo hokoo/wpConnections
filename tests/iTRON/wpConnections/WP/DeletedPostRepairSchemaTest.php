@@ -277,7 +277,8 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		$break_introspection = function ( string $query ) use ( &$intercepted ): string {
 			if (
 				! $intercepted
-				&& 1 === preg_match( '/^\s*SHOW\s+COLUMNS\s+FROM\b/i', $query )
+				&& 1 === preg_match( '/^\s*SELECT\b/i', $query )
+				&& false !== stripos( $query, 'information_schema' )
 				&& false !== strpos( $query, $this->table )
 			) {
 				$intercepted = true;

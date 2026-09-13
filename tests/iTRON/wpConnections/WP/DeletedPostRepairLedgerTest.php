@@ -522,6 +522,27 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertNull( $resolved_claim->getLease() );
 	}
 
+	public function test_resolved_outcome_takes_precedence_over_runtime_adapter_mismatch(): void
+	{
+		$identity = $this->identity( 'ledger-client-a', 136 );
+		$this->create_resolved(
+			$identity,
+			new DeletedPostRepairLedgerStorageA(),
+			$this->instantAt( '-1 hour' )
+		);
+
+		$result = $this->ledger->tryClaimManually(
+			$identity->getKey(),
+			new DeletedPostRepairLedgerStorageB(),
+			$this->now,
+			$this->instantAt( '+10 minutes' )
+		);
+
+		self::assertSame( 'resolved', $result->getOutcome() );
+		self::assertNull( $result->getLease() );
+		self::assertSame( DeletedPostRepairStatus::RESOLVED, $this->record( $identity )->getStatus() );
+	}
+
 	public function test_success_without_a_recorded_failure_cannot_be_marked_resolved(): void
 	{
 		$identity = $this->identity( 'ledger-client-a', 132 );
@@ -619,6 +640,36 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertNull( $this->record_or_null( $old_b ) );
 		self::assertNotNull( $this->record_or_null( $new ) );
 		self::assertNotNull( $this->record_or_null( $unresolved ) );
+	}
+
+	public function test_purge_does_not_delete_a_malformed_resolved_row_without_failure_history(): void
+	{
+		global $wpdb;
+
+		$identity = $this->identity( 'ledger-client-a', 137 );
+		$this->create_resolved(
+			$identity,
+			new DeletedPostRepairLedgerStorageA(),
+			$this->instantAt( '-40 days' )
+		);
+		self::assertNotFalse(
+			$wpdb->update(
+				$this->table,
+				[ 'failure_count' => 0 ],
+				[ 'repair_key' => $identity->getKey() ]
+			)
+		);
+
+		self::assertSame( 0, $this->ledger->purgeResolvedBefore( $this->instantAt( '-30 days' ), 10 ) );
+		self::assertSame(
+			'1',
+			$wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM `{$this->table}` WHERE `repair_key` = %s",
+					$identity->getKey()
+				)
+			)
+		);
 	}
 
 	public function test_listing_and_lookup_are_client_scoped_status_filtered_and_keyset_paginated(): void
@@ -848,9 +899,44 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 
 	public function malformed_persisted_state_provider(): array
 	{
+		$diagnostic = [
+			'failure_count'    => 1,
+			'failure_category' => 'storage',
+			'failure_class'    => StorageFailure::class,
+			'failure_code'     => '311',
+			'failure_summary'  => '[diagnostic details redacted]',
+			'first_failure_at' => '2026-09-14 00:00:00',
+			'last_failure_at'  => '2026-09-14 00:00:00',
+		];
+
 		return [
 			'running row without a lease token' => [ [ 'lease_token' => null ] ],
 			'partial failure diagnostic'        => [ [ 'failure_class' => StorageFailure::class ] ],
+			'expired lease before last update'  => [ [ 'lease_expires_at' => '2026-09-13 23:59:59' ] ],
+			'retry before its recorded failure' => [
+				[
+					...$diagnostic,
+					'status'            => DeletedPostRepairStatus::RETRY_WAIT,
+					'next_attempt_at'   => '2026-09-13 23:59:59',
+					'lease_token'       => null,
+					'lease_expires_at'  => null,
+				]
+			],
+			'failure before record creation'    => [
+				[
+					...$diagnostic,
+					'first_failure_at' => '2026-09-13 23:59:59',
+				]
+			],
+			'resolution after last update'      => [
+				[
+					...$diagnostic,
+					'status'           => DeletedPostRepairStatus::RESOLVED,
+					'lease_token'      => null,
+					'lease_expires_at' => null,
+					'resolved_at'      => '2026-09-14 00:00:01',
+				]
+			],
 		];
 	}
 
