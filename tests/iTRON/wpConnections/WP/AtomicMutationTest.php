@@ -439,6 +439,729 @@ class AtomicMutationTest extends TestCase
 		self::assertLessThan( $meta_delete_index, $lock_index );
 	}
 
+	/**
+	 * @dataProvider delete_fault_provider
+	 */
+	public function test_delete_fault_is_attributable_and_rolls_back_every_selector(
+		string $entrypoint,
+		string $selector,
+		string $stage
+	): void {
+		$connection = $this->create_connection(
+			"delete-{$entrypoint}-{$selector}-{$stage}",
+			'preserved'
+		);
+		$before = $this->storage_snapshot();
+		$global_success_calls = 0;
+		$client_success_calls = 0;
+		$success_hook = $this->delete_success_hook( $selector );
+		$client_success_hook = sprintf(
+			'wpConnections/client/%s/storage/%s',
+			$this->client->getName(),
+			$success_hook
+		);
+		$global_success = static function () use ( &$global_success_calls ): void {
+			$global_success_calls++;
+		};
+		$client_success = static function () use ( &$client_success_calls ): void {
+			$client_success_calls++;
+		};
+		add_action( "wpConnections/storage/{$success_hook}", $global_success );
+		add_action( $client_success_hook, $client_success );
+
+		try {
+			$failure = $this->capture_query_failure(
+				$this->delete_fault_matcher( $selector, $stage ),
+				function () use ( $entrypoint, $selector, $connection ): void {
+					$this->invoke_delete( $entrypoint, $selector, $connection );
+				},
+				'selector' === $stage
+			);
+		} finally {
+			remove_action( "wpConnections/storage/{$success_hook}", $global_success );
+			remove_action( $client_success_hook, $client_success );
+		}
+
+		$this->assert_storage_failure( $this->delete_failure_operation( $selector, $stage ), $failure );
+		self::assertSame( $before, $this->storage_snapshot() );
+		self::assertSame( 0, $global_success_calls );
+		self::assertSame( 0, $client_success_calls );
+	}
+
+	public function delete_fault_provider(): array
+	{
+		$cases = [];
+		foreach ( [ 'direct', 'relation' ] as $entrypoint ) {
+			foreach ( [ 'id', 'pair', 'both', 'from', 'to' ] as $selector ) {
+				foreach ( [ 'selector', 'meta', 'connection' ] as $stage ) {
+					$cases[ "{$entrypoint}-{$selector}-{$stage}" ] = [
+						$entrypoint,
+						$selector,
+						$stage,
+					];
+				}
+			}
+		}
+
+		return $cases;
+	}
+
+	/**
+	 * @dataProvider relation_id_lookup_fault_provider
+	 */
+	public function test_find_connections_failure_is_not_reported_as_no_match( bool $silent ): void
+	{
+		$connection = $this->create_connection(
+			$silent ? 'delete-id-lookup-silent' : 'delete-id-lookup-database',
+			'preserved'
+		);
+		$before = $this->storage_snapshot();
+
+		$failure = $this->capture_query_failure(
+			static function ( string $query ): bool {
+				return 1 === preg_match(
+					'/^SELECT c\.\*, m\.\* FROM .* LEFT JOIN .* WHERE c\.ID = /i',
+					trim( $query )
+				);
+			},
+			function () use ( $connection ): void {
+				$query = new ConnectionQuery();
+				$query->set( 'id', $connection->id );
+				$this->client->getStorage()->findConnections( $query );
+			},
+			$silent
+		);
+
+		$this->assert_storage_failure( 'find connections', $failure );
+		if ( ! $silent ) {
+			self::assertStringContainsString(
+				'wpconnections_batch15_forced_delete_failure',
+				$failure->getPrevious()->getMessage()
+			);
+		}
+		self::assertSame( $before, $this->storage_snapshot() );
+	}
+
+	public function test_failed_find_does_not_dispatch_observer_that_can_mask_cause(): void
+	{
+		$connection = $this->create_connection( 'find-observer-failure', 'preserved' );
+		$observer_calls = 0;
+		$observer_failure = new \RuntimeException( 'observer must not mask database failure' );
+		$observer = static function () use ( &$observer_calls, $observer_failure ): void {
+			global $wpdb;
+
+			$observer_calls++;
+			$wpdb->get_var( 'SELECT 1' );
+			throw $observer_failure;
+		};
+		add_action( 'wpConnections/storage/findConnections/dbQuery', $observer );
+
+		try {
+			$failure = $this->capture_query_failure(
+				static function ( string $query ): bool {
+					return 1 === preg_match(
+						'/^SELECT c\.\*, m\.\* FROM .* LEFT JOIN .* WHERE c\.ID = /i',
+						trim( $query )
+					);
+				},
+				function () use ( $connection ): void {
+					$query = new ConnectionQuery();
+					$query->set( 'id', $connection->id );
+					$this->client->getStorage()->findConnections( $query );
+				},
+				false
+			);
+		} finally {
+			remove_action( 'wpConnections/storage/findConnections/dbQuery', $observer );
+		}
+
+		$this->assert_storage_failure( 'find connections', $failure );
+		self::assertStringContainsString(
+			'wpconnections_batch15_forced_delete_failure',
+			$failure->getPrevious()->getMessage()
+		);
+		self::assertSame( 0, $observer_calls );
+	}
+
+	/**
+	 * @dataProvider relation_id_lookup_fault_provider
+	 */
+	public function test_relation_id_scoped_lock_failure_is_not_reported_as_no_match( bool $silent ): void
+	{
+		$connection = $this->create_connection(
+			$silent ? 'delete-id-lock-silent' : 'delete-id-lock-database',
+			'preserved'
+		);
+		$before = $this->storage_snapshot();
+
+		$failure = $this->capture_query_failure(
+			static function ( string $query ): bool {
+				return 1 === preg_match(
+					'/^SELECT `ID` FROM .* WHERE `ID` = .* AND `relation` = .* FOR UPDATE$/i',
+					trim( $query )
+				);
+			},
+			function () use ( $connection ): void {
+				$this->invoke_delete( 'relation', 'id', $connection );
+			},
+			$silent
+		);
+
+		$this->assert_storage_failure( 'lock relation connection for delete', $failure );
+		self::assertSame( $before, $this->storage_snapshot() );
+	}
+
+	public function relation_id_lookup_fault_provider(): array
+	{
+		return [
+			'database-error' => [ false ],
+			'silent-false'   => [ true ],
+		];
+	}
+
+	public function test_direct_id_no_match_does_not_delete_orphan_metadata(): void
+	{
+		$missing_id = PHP_INT_MAX;
+		$this->insert_orphan_meta( $missing_id, 'orphan', 'preserved' );
+		$delete_queries = [];
+		$success_calls = 0;
+		$query_filter = static function ( string $query ) use ( &$delete_queries ): string {
+			if ( 1 === preg_match( '/^DELETE FROM /i', trim( $query ) ) ) {
+				$delete_queries[] = trim( $query );
+			}
+
+			return $query;
+		};
+		$success = static function () use ( &$success_calls ): void {
+			$success_calls++;
+		};
+		add_filter( 'query', $query_filter );
+		add_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+
+		try {
+			self::assertSame(
+				0,
+				$this->client->getStorage()->deleteSpecificConnections( $missing_id )
+			);
+		} finally {
+			remove_filter( 'query', $query_filter );
+			remove_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+		}
+
+		self::assertSame( 1, $this->meta_count( $missing_id ) );
+		self::assertSame( [], $delete_queries );
+		self::assertSame( 0, $success_calls );
+	}
+
+	public function test_direct_id_partial_match_writes_only_locked_connection_ids(): void
+	{
+		$connection = $this->create_connection( 'partial-match', 'deleted' );
+		$missing_id = $connection->id + 1000000;
+		$this->insert_orphan_meta( $missing_id, 'orphan', 'preserved' );
+
+		self::assertSame(
+			1,
+			$this->client->getStorage()->deleteSpecificConnections(
+				[ $connection->id, $missing_id ]
+			)
+		);
+
+		self::assertSame( 0, $this->connection_count( $connection->id ) );
+		self::assertSame( 0, $this->meta_count( $connection->id ) );
+		self::assertSame( 1, $this->meta_count( $missing_id ) );
+	}
+
+	/**
+	 * @dataProvider delete_entrypoint_selector_provider
+	 */
+	public function test_delete_no_match_has_no_dml_or_success_hook(
+		string $entrypoint,
+		string $selector
+	): void {
+		$this->create_connection( "no-match-control-{$entrypoint}-{$selector}", 'preserved' );
+		$before = $this->storage_snapshot();
+		$delete_queries = [];
+		$global_success_calls = 0;
+		$client_success_calls = 0;
+		$success_hook = $this->delete_success_hook( $selector );
+		$client_success_hook = sprintf(
+			'wpConnections/client/%s/storage/%s',
+			$this->client->getName(),
+			$success_hook
+		);
+		$query_filter = static function ( string $query ) use ( &$delete_queries ): string {
+			if ( 1 === preg_match( '/^DELETE FROM /i', trim( $query ) ) ) {
+				$delete_queries[] = trim( $query );
+			}
+
+			return $query;
+		};
+		$global_success = static function () use ( &$global_success_calls ): void {
+			$global_success_calls++;
+		};
+		$client_success = static function () use ( &$client_success_calls ): void {
+			$client_success_calls++;
+		};
+		add_filter( 'query', $query_filter );
+		add_action( "wpConnections/storage/{$success_hook}", $global_success );
+		add_action( $client_success_hook, $client_success );
+
+		try {
+			self::assertSame( 0, $this->invoke_no_match_delete( $entrypoint, $selector ) );
+		} finally {
+			remove_filter( 'query', $query_filter );
+			remove_action( "wpConnections/storage/{$success_hook}", $global_success );
+			remove_action( $client_success_hook, $client_success );
+		}
+
+		self::assertSame( $before, $this->storage_snapshot() );
+		self::assertSame( [], $delete_queries );
+		self::assertSame( 0, $global_success_calls );
+		self::assertSame( 0, $client_success_calls );
+	}
+
+	/**
+	 * @dataProvider delete_entrypoint_selector_provider
+	 */
+	public function test_delete_hooks_preserve_arguments_and_run_after_owning_commit(
+		string $entrypoint,
+		string $selector
+	): void {
+		$connection = $this->create_connection(
+			"delete-hooks-{$entrypoint}-{$selector}",
+			'deleted'
+		);
+		$timeline = [];
+		$attempt_global_arguments = [];
+		$attempt_client_arguments = [];
+		$success_global_arguments = [];
+		$success_client_arguments = [];
+		$attempt_hook = $this->delete_attempt_hook( $selector );
+		$success_hook = $this->delete_success_hook( $selector );
+		$client_attempt_hook = sprintf(
+			'wpConnections/client/%s/storage/%s',
+			$this->client->getName(),
+			$attempt_hook
+		);
+		$client_success_hook = sprintf(
+			'wpConnections/client/%s/storage/%s',
+			$this->client->getName(),
+			$success_hook
+		);
+		$query_filter = static function ( string $query ) use ( &$timeline ): string {
+			$query = trim( $query );
+			if ( 1 === preg_match( '/^START TRANSACTION$/i', $query ) ) {
+				$timeline[] = 'start';
+			} elseif ( 1 === preg_match( '/^SAVEPOINT /i', $query ) ) {
+				$timeline[] = 'savepoint';
+			} elseif ( 1 === preg_match( '/^RELEASE SAVEPOINT /i', $query ) ) {
+				$timeline[] = 'release';
+			} elseif ( 1 === preg_match( '/^COMMIT$/i', $query ) ) {
+				$timeline[] = 'commit';
+			}
+
+			return $query;
+		};
+		$attempt_global = static function ( ...$arguments ) use (
+			&$timeline,
+			&$attempt_global_arguments
+		): void {
+			$timeline[] = 'attempt-global';
+			$attempt_global_arguments = $arguments;
+		};
+		$attempt_client = static function ( ...$arguments ) use (
+			&$timeline,
+			&$attempt_client_arguments
+		): void {
+			$timeline[] = 'attempt-client';
+			$attempt_client_arguments = $arguments;
+		};
+		$success_global = static function ( ...$arguments ) use (
+			&$timeline,
+			&$success_global_arguments
+		): void {
+			$timeline[] = 'success-global';
+			$success_global_arguments = $arguments;
+		};
+		$success_client = static function ( ...$arguments ) use (
+			&$timeline,
+			&$success_client_arguments
+		): void {
+			$timeline[] = 'success-client';
+			$success_client_arguments = $arguments;
+		};
+		add_filter( 'query', $query_filter );
+		add_action( "wpConnections/storage/{$attempt_hook}", $attempt_global, 10, 10 );
+		add_action( $client_attempt_hook, $attempt_client, 10, 10 );
+		add_action( "wpConnections/storage/{$success_hook}", $success_global, 10, 10 );
+		add_action( $client_success_hook, $success_client, 10, 10 );
+
+		try {
+			self::assertSame( 1, $this->invoke_delete( $entrypoint, $selector, $connection ) );
+		} finally {
+			remove_filter( 'query', $query_filter );
+			remove_action( "wpConnections/storage/{$attempt_hook}", $attempt_global );
+			remove_action( $client_attempt_hook, $attempt_client );
+			remove_action( "wpConnections/storage/{$success_hook}", $success_global );
+			remove_action( $client_success_hook, $success_client );
+		}
+
+		self::assertSame(
+			$this->expected_delete_timeline( $entrypoint ),
+			$timeline
+		);
+		self::assertSame(
+			$this->expected_delete_attempt_arguments( $selector, $connection, true ),
+			$attempt_global_arguments
+		);
+		self::assertSame(
+			$this->expected_delete_attempt_arguments( $selector, $connection, false ),
+			$attempt_client_arguments
+		);
+		self::assertSame(
+			$this->expected_delete_success_arguments( $selector, $connection, true ),
+			$success_global_arguments
+		);
+		self::assertSame(
+			$this->expected_delete_success_arguments( $selector, $connection, false ),
+			$success_client_arguments
+		);
+		self::assertSame( 0, $this->connection_count( $connection->id ) );
+		self::assertSame( 0, $this->meta_count( $connection->id ) );
+	}
+
+	public function delete_entrypoint_selector_provider(): array
+	{
+		$cases = [];
+		foreach ( [ 'direct', 'relation' ] as $entrypoint ) {
+			foreach ( [ 'id', 'pair', 'both', 'from', 'to' ] as $selector ) {
+				$cases[ "{$entrypoint}-{$selector}" ] = [ $entrypoint, $selector ];
+			}
+		}
+
+		return $cases;
+	}
+
+	public function test_delete_commit_failure_restores_rows_and_discards_success_hooks(): void
+	{
+		$connection = $this->create_connection( 'delete-commit-failure', 'preserved' );
+		$before = $this->storage_snapshot();
+		$success_calls = 0;
+		$success = static function () use ( &$success_calls ): void {
+			$success_calls++;
+		};
+		add_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+
+		try {
+			$failure = $this->capture_query_failure(
+				static function ( string $query ): bool {
+					return 1 === preg_match( '/^COMMIT$/i', trim( $query ) );
+				},
+				function () use ( $connection ): void {
+					$this->client->getStorage()->deleteSpecificConnections( $connection->id );
+				},
+				false
+			);
+		} finally {
+			remove_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+		}
+
+		$this->assert_storage_failure( 'commit transaction', $failure );
+		self::assertSame( $before, $this->storage_snapshot() );
+		self::assertSame( 0, $success_calls );
+	}
+
+	public function test_delete_query_filter_throwable_rolls_back_and_escapes_unchanged(): void
+	{
+		$connection = $this->create_connection( 'delete-query-throwable', 'preserved' );
+		$before = $this->storage_snapshot();
+		$expected = new \RuntimeException( 'delete query filter failure' );
+		$success_calls = 0;
+		$success = static function () use ( &$success_calls ): void {
+			$success_calls++;
+		};
+		$query_filter = function ( string $query ) use ( $expected ): string {
+			if ( 1 === preg_match(
+				'/^DELETE FROM ' . preg_quote( $this->connections_table(), '/' ) . ' WHERE /i',
+				trim( $query )
+			) ) {
+				throw $expected;
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $query_filter );
+		add_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+
+		$actual = null;
+		try {
+			$this->client->getStorage()->deleteSpecificConnections( $connection->id );
+		} catch ( Throwable $failure ) {
+			$actual = $failure;
+		} finally {
+			remove_filter( 'query', $query_filter );
+			remove_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+		}
+
+		self::assertSame( $expected, $actual );
+		self::assertSame( $before, $this->storage_snapshot() );
+		self::assertSame( 0, $success_calls );
+	}
+
+	public function test_successful_child_delete_is_restored_when_outer_scope_rolls_back(): void
+	{
+		$connection = $this->create_connection( 'delete-outer-rollback', 'preserved' );
+		$before = $this->storage_snapshot();
+		$expected = new \RuntimeException( 'outer mutation rejected after child delete' );
+		$global_success_calls = 0;
+		$client_success_calls = 0;
+		$global_success = static function () use ( &$global_success_calls ): void {
+			$global_success_calls++;
+		};
+		$client_success = static function () use ( &$client_success_calls ): void {
+			$client_success_calls++;
+		};
+		$client_success_hook = sprintf(
+			'wpConnections/client/%s/storage/deletedSpecificConnections',
+			$this->client->getName()
+		);
+		add_action( 'wpConnections/storage/deletedSpecificConnections', $global_success );
+		add_action( $client_success_hook, $client_success );
+
+		$actual = null;
+		try {
+			$this->client->runAtomically(
+				function () use ( $connection, $expected ): void {
+					self::assertSame(
+						1,
+						$this->client->getStorage()->deleteSpecificConnections( $connection->id )
+					);
+					throw $expected;
+				}
+			);
+		} catch ( Throwable $failure ) {
+			$actual = $failure;
+		} finally {
+			remove_action( 'wpConnections/storage/deletedSpecificConnections', $global_success );
+			remove_action( $client_success_hook, $client_success );
+		}
+
+		self::assertSame( $expected, $actual );
+		self::assertSame( $before, $this->storage_snapshot() );
+		self::assertSame( 0, $global_success_calls );
+		self::assertSame( 0, $client_success_calls );
+	}
+
+	public function test_delete_post_commit_hook_throwable_preserves_durable_delete(): void
+	{
+		$connection = $this->create_connection( 'delete-hook-throwable', 'deleted' );
+		$expected = new \RuntimeException( 'delete success hook failure' );
+		$success = static function () use ( $expected ): void {
+			throw $expected;
+		};
+		add_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+
+		$actual = null;
+		try {
+			$this->client->getStorage()->deleteSpecificConnections( $connection->id );
+		} catch ( Throwable $failure ) {
+			$actual = $failure;
+		} finally {
+			remove_action( 'wpConnections/storage/deletedSpecificConnections', $success );
+		}
+
+		self::assertSame( $expected, $actual );
+		self::assertSame( 0, $this->connection_count( $connection->id ) );
+		self::assertSame( 0, $this->meta_count( $connection->id ) );
+	}
+
+	public function test_relation_id_delete_serializes_membership_change_before_cascade(): void
+	{
+		$connection = $this->create_connection( 'delete-lock-target', 'deleted' );
+		$other_to = wp_insert_post(
+			[
+				'post_type'   => 'post',
+				'post_status' => 'publish',
+				'post_title'  => 'Atomic mutation unrelated target',
+			]
+		);
+		self::assertIsInt( $other_to );
+		$this->post_ids[] = $other_to;
+		$unrelated_query = new ConnectionQuery( $this->post_ids['from'], $other_to );
+		$unrelated_query->meta->add( new QueryMeta( 'unrelated', 'preserved' ) );
+		$unrelated = $this->client->getRelation( self::RELATION )->createConnection(
+			$unrelated_query
+		);
+		$secondary = $this->secondary_database_connection();
+		$observer = $this->secondary_database_connection();
+		$secondary->query( 'SET SESSION innodb_lock_wait_timeout = 5' );
+		$update_reached_lock_wait = false;
+		$membership_changed_before_cascade = null;
+		$secondary_affected_rows = null;
+		$attempt = function () use (
+			$secondary,
+			$observer,
+			$connection,
+			$other_to,
+			&$update_reached_lock_wait,
+			&$membership_changed_before_cascade,
+			&$secondary_affected_rows
+		): void {
+			$table = str_replace( '`', '``', $this->connections_table() );
+			$relation = $secondary->real_escape_string( self::RELATION . '-foreign' );
+			$sql = "UPDATE `{$table}` SET `relation` = '{$relation}', `to` = {$other_to} "
+				. "WHERE `ID` = {$connection->id}";
+			self::assertTrue( $secondary->query( $sql, MYSQLI_ASYNC ) );
+			$update_reached_lock_wait = $this->wait_for_database_query(
+				$observer,
+				$secondary->thread_id,
+				"UPDATE `{$table}`",
+				2.0
+			);
+			$membership_changed_before_cascade = $this->wait_for_async_query( $secondary, 0.0 );
+			if ( $membership_changed_before_cascade ) {
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+		};
+		add_action( 'wpConnections/storage/deleteSpecificConnections', $attempt );
+		$query = new ConnectionQuery();
+		$query->set( 'id', $connection->id );
+
+		try {
+			$deleted = $this->client->getRelation( self::RELATION )->detachConnections( $query );
+			if ( ! $membership_changed_before_cascade ) {
+				self::assertTrue( $this->wait_for_async_query( $secondary, 5.0 ) );
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+		} finally {
+			remove_action( 'wpConnections/storage/deleteSpecificConnections', $attempt );
+			$secondary->close();
+			$observer->close();
+		}
+
+		self::assertTrue(
+			$update_reached_lock_wait,
+			'The concurrent relation and endpoint update never became visible in the database process list.'
+		);
+		self::assertFalse(
+			$membership_changed_before_cascade,
+			'A concurrent relation membership update completed between relation lookup and delete cascade.'
+		);
+		self::assertSame( 1, $deleted );
+		self::assertSame( 0, $secondary_affected_rows );
+		self::assertSame( 0, $this->connection_count( $connection->id ) );
+		self::assertSame( 0, $this->meta_count( $connection->id ) );
+		self::assertSame( 1, $this->connection_count( $unrelated->id ) );
+		self::assertSame( 1, $this->meta_count( $unrelated->id ) );
+	}
+
+	public function test_from_selector_lock_serializes_endpoint_change_before_cascade(): void
+	{
+		$target = $this->create_connection( 'from-lock-target', 'deleted' );
+		$other_from = wp_insert_post(
+			[
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'Atomic mutation unrelated source',
+			]
+		);
+		$other_to = wp_insert_post(
+			[
+				'post_type'   => 'post',
+				'post_status' => 'publish',
+				'post_title'  => 'Atomic mutation unrelated endpoint',
+			]
+		);
+		self::assertIsInt( $other_from );
+		self::assertIsInt( $other_to );
+		$this->post_ids[] = $other_from;
+		$this->post_ids[] = $other_to;
+		$unrelated_query = new ConnectionQuery( $other_from, $other_to );
+		$unrelated_query->meta->add( new QueryMeta( 'unrelated', 'preserved' ) );
+		$unrelated = $this->client->getRelation( self::RELATION )->createConnection(
+			$unrelated_query
+		);
+		$secondary = $this->secondary_database_connection();
+		$observer = $this->secondary_database_connection();
+		$secondary->query( 'SET SESSION innodb_lock_wait_timeout = 5' );
+		$update_started = false;
+		$update_reached_lock_wait = false;
+		$endpoint_changed_before_cascade = null;
+		$secondary_affected_rows = null;
+		$query_filter = function ( string $query ) use (
+			$secondary,
+			$observer,
+			$target,
+			$other_from,
+			&$update_started,
+			&$update_reached_lock_wait,
+			&$endpoint_changed_before_cascade,
+			&$secondary_affected_rows
+		): string {
+			if (
+				$update_started
+				|| 1 !== preg_match(
+					'/^DELETE FROM ' . preg_quote( $this->meta_table(), '/' ) . ' WHERE /i',
+					trim( $query )
+				)
+			) {
+				return $query;
+			}
+
+			$update_started = true;
+			$table = str_replace( '`', '``', $this->connections_table() );
+			$sql = "UPDATE `{$table}` SET `from` = {$other_from} WHERE `ID` = {$target->id}";
+			self::assertTrue( $secondary->query( $sql, MYSQLI_ASYNC ) );
+			$update_reached_lock_wait = $this->wait_for_database_query(
+				$observer,
+				$secondary->thread_id,
+				"UPDATE `{$table}`",
+				2.0
+			);
+			$endpoint_changed_before_cascade = $this->wait_for_async_query( $secondary, 0.0 );
+			if ( $endpoint_changed_before_cascade ) {
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $query_filter );
+		$query = new ConnectionQuery();
+		$query->set( 'from', $target->from );
+
+		try {
+			$deleted = $this->client->getRelation( self::RELATION )->detachConnections( $query );
+			if ( ! $endpoint_changed_before_cascade ) {
+				self::assertTrue( $this->wait_for_async_query( $secondary, 5.0 ) );
+				self::assertTrue( $secondary->reap_async_query() );
+				$secondary_affected_rows = $secondary->affected_rows;
+			}
+		} finally {
+			remove_filter( 'query', $query_filter );
+			$secondary->close();
+			$observer->close();
+		}
+
+		self::assertTrue( $update_started );
+		self::assertTrue(
+			$update_reached_lock_wait,
+			'The concurrent endpoint update never became visible in the database process list.'
+		);
+		self::assertFalse(
+			$endpoint_changed_before_cascade,
+			'A concurrent endpoint update completed between selector lock and delete cascade.'
+		);
+		self::assertSame( 1, $deleted );
+		self::assertSame( 0, $secondary_affected_rows );
+		self::assertSame( 0, $this->connection_count( $target->id ) );
+		self::assertSame( 0, $this->meta_count( $target->id ) );
+		self::assertSame( 1, $this->connection_count( $unrelated->id ) );
+		self::assertSame( 1, $this->meta_count( $unrelated->id ) );
+	}
+
 	public function test_create_success_hooks_run_in_order_after_commit(): void
 	{
 		$timeline = [];
@@ -582,6 +1305,392 @@ class AtomicMutationTest extends TestCase
 		);
 
 		return $failure;
+	}
+
+	private function capture_query_failure(
+		callable $matches_query,
+		callable $operation,
+		bool $silent
+	): ?Throwable {
+		global $wpdb;
+
+		$intercepted = false;
+		$seen_queries = [];
+		$query_filter = static function ( string $query ) use (
+			$matches_query,
+			$silent,
+			&$intercepted,
+			&$seen_queries,
+			$wpdb
+		): string {
+			$seen_queries[] = $query;
+			if ( ! $intercepted && $matches_query( $query ) ) {
+				$intercepted = true;
+				if ( $silent ) {
+					$wpdb->last_error = '';
+					return '';
+				}
+
+				return 'SELECT * FROM `wpconnections_batch15_forced_delete_failure`';
+			}
+
+			return $query;
+		};
+
+		$failure = null;
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $query_filter );
+		try {
+			$operation();
+		} catch ( Throwable $exception ) {
+			$failure = $exception;
+		} finally {
+			remove_filter( 'query', $query_filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		self::assertTrue(
+			$intercepted,
+			"Expected to intercept a delete query. Saw:\n" . implode( "\n", $seen_queries )
+		);
+
+		return $failure;
+	}
+
+	private function invoke_delete( string $entrypoint, string $selector, Connection $connection ): int
+	{
+		if ( 'direct' === $entrypoint ) {
+			switch ( $selector ) {
+				case 'id':
+					return $this->client->getStorage()->deleteSpecificConnections( $connection->id );
+				case 'pair':
+					return $this->client->getStorage()->deleteDirectedConnections(
+						$connection->from,
+						$connection->to,
+						self::RELATION
+					);
+				case 'both':
+					return $this->client->getStorage()->deleteByObjectID( $connection->from, self::RELATION );
+				case 'from':
+					return $this->client->getStorage()->deleteByObjectID(
+						$connection->from,
+						self::RELATION,
+						true
+					);
+				case 'to':
+					return $this->client->getStorage()->deleteByObjectID(
+						$connection->to,
+						self::RELATION,
+						false,
+						true
+					);
+			}
+		}
+
+		$query = new ConnectionQuery();
+		switch ( $selector ) {
+			case 'id':
+				$query->set( 'id', $connection->id );
+				break;
+			case 'pair':
+				$query->set( 'from', $connection->from );
+				$query->set( 'to', $connection->to );
+				break;
+			case 'both':
+				$query->set( 'both', $connection->from );
+				break;
+			case 'from':
+				$query->set( 'from', $connection->from );
+				break;
+			case 'to':
+				$query->set( 'to', $connection->to );
+				break;
+		}
+
+		return $this->client->getRelation( self::RELATION )->detachConnections( $query );
+	}
+
+	private function invoke_no_match_delete( string $entrypoint, string $selector ): int
+	{
+		$first = PHP_INT_MAX - 1;
+		$second = PHP_INT_MAX;
+
+		if ( 'direct' === $entrypoint ) {
+			switch ( $selector ) {
+				case 'id':
+					return $this->client->getStorage()->deleteSpecificConnections( $first );
+				case 'pair':
+					return $this->client->getStorage()->deleteDirectedConnections(
+						$first,
+						$second,
+						self::RELATION
+					);
+				case 'both':
+					return $this->client->getStorage()->deleteByObjectID( $first, self::RELATION );
+				case 'from':
+					return $this->client->getStorage()->deleteByObjectID( $first, self::RELATION, true );
+				case 'to':
+					return $this->client->getStorage()->deleteByObjectID(
+						$first,
+						self::RELATION,
+						false,
+						true
+					);
+			}
+		}
+
+		$query = new ConnectionQuery();
+		switch ( $selector ) {
+			case 'id':
+				$query->set( 'id', $first );
+				break;
+			case 'pair':
+				$query->set( 'from', $first );
+				$query->set( 'to', $second );
+				break;
+			case 'both':
+				$query->set( 'both', $first );
+				break;
+			case 'from':
+				$query->set( 'from', $first );
+				break;
+			case 'to':
+				$query->set( 'to', $first );
+				break;
+		}
+
+		return $this->client->getRelation( self::RELATION )->detachConnections( $query );
+	}
+
+	private function delete_attempt_hook( string $selector ): string
+	{
+		if ( 'id' === $selector ) {
+			return 'deleteSpecificConnections';
+		}
+
+		return 'pair' === $selector ? 'deleteDirectedConnections' : 'deleteByObjectID';
+	}
+
+	private function expected_delete_timeline( string $entrypoint ): array
+	{
+		if ( 'direct' === $entrypoint ) {
+			return [
+				'attempt-global',
+				'attempt-client',
+				'start',
+				'commit',
+				'success-global',
+				'success-client',
+			];
+		}
+
+		return [
+			'start',
+			'attempt-global',
+			'attempt-client',
+			'savepoint',
+			'release',
+			'commit',
+			'success-global',
+			'success-client',
+		];
+	}
+
+	private function expected_delete_attempt_arguments(
+		string $selector,
+		Connection $connection,
+		bool $global
+	): array {
+		$arguments = [];
+		if ( $global ) {
+			$arguments[] = $this->client;
+		}
+
+		if ( 'id' === $selector ) {
+			$arguments[] = $connection->id;
+			return $arguments;
+		}
+
+		if ( 'pair' === $selector ) {
+			array_push( $arguments, $connection->from, $connection->to, self::RELATION );
+			return $arguments;
+		}
+
+		$arguments[] = 'to' === $selector ? $connection->to : $connection->from;
+		$arguments[] = self::RELATION;
+		$arguments[] = 'from' === $selector;
+		$arguments[] = 'to' === $selector;
+
+		return $arguments;
+	}
+
+	private function expected_delete_success_arguments(
+		string $selector,
+		Connection $connection,
+		bool $global
+	): array {
+		$arguments = [];
+		if ( $global ) {
+			$arguments[] = $this->client;
+		}
+
+		$arguments[] = [ $connection->id ];
+		if ( 'id' === $selector ) {
+			$arguments[] = 1;
+		}
+
+		return $arguments;
+	}
+
+	private function delete_fault_matcher( string $selector, string $stage ): callable
+	{
+		if ( 'meta' === $stage ) {
+			return function ( string $query ): bool {
+				return 1 === preg_match(
+					'/^DELETE FROM ' . preg_quote( $this->meta_table(), '/' ) . ' WHERE /i',
+					trim( $query )
+				);
+			};
+		}
+
+		if ( 'connection' === $stage ) {
+			return function ( string $query ): bool {
+				return 1 === preg_match(
+					'/^DELETE FROM ' . preg_quote( $this->connections_table(), '/' ) . ' WHERE /i',
+					trim( $query )
+				);
+			};
+		}
+
+		return function ( string $query ) use ( $selector ): bool {
+			$query = trim( $query );
+			if ( 1 !== preg_match( '/^SELECT `ID` FROM .* FOR UPDATE$/i', $query ) ) {
+				return false;
+			}
+
+			if ( 'id' === $selector ) {
+				return false !== strpos( $query, 'WHERE `ID` IN' );
+			}
+
+			if ( 'pair' === $selector ) {
+				return false !== strpos( $query, 'AND `from` =' )
+					&& false !== strpos( $query, 'AND `to` =' );
+			}
+
+			return false !== strpos( $query, ' IN (' );
+		};
+	}
+
+	private function delete_failure_operation( string $selector, string $stage ): string
+	{
+		if ( 'selector' === $stage ) {
+			return 'id' === $selector ? 'lock connections for delete' : 'select connections for delete';
+		}
+
+		return 'meta' === $stage ? 'delete connection metadata' : 'delete connections';
+	}
+
+	private function delete_success_hook( string $selector ): string
+	{
+		if ( 'id' === $selector ) {
+			return 'deletedSpecificConnections';
+		}
+
+		return 'pair' === $selector ? 'deletedDirectedConnections' : 'deletedByObjectID';
+	}
+
+	private function assert_storage_failure( string $operation, ?Throwable $failure ): void
+	{
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame( StorageFailure::CODE, $failure->getCode() );
+		self::assertSame( $operation, $failure->getOperation() );
+		self::assertSame( "Storage operation failed: {$operation}.", $failure->getMessage() );
+		self::assertInstanceOf( \RuntimeException::class, $failure->getPrevious() );
+	}
+
+	private function storage_snapshot(): array
+	{
+		global $wpdb;
+
+		return [
+			'connections' => $wpdb->get_results(
+				"SELECT * FROM {$this->connections_table()} ORDER BY `ID`",
+				ARRAY_A
+			),
+			'meta'        => $wpdb->get_results(
+				"SELECT * FROM {$this->meta_table()} ORDER BY `meta_id`",
+				ARRAY_A
+			),
+		];
+	}
+
+	private function insert_orphan_meta( int $connection_id, string $key, string $value ): void
+	{
+		global $wpdb;
+
+		self::assertSame(
+			1,
+			$wpdb->insert(
+				$this->meta_table(),
+				[
+					'connection_id' => $connection_id,
+					'meta_key'      => $key,
+					'meta_value'    => $value,
+				],
+				[ '%d', '%s', '%s' ]
+			)
+		);
+	}
+
+	private function secondary_database_connection(): \mysqli
+	{
+		$host = getenv( 'DB_HOST' ) ?: '127.0.0.1';
+		$user = getenv( 'DB_USER' ) ?: 'wordpress';
+		$password = getenv( 'DB_PASSWORD' ) ?: 'wordpress';
+		$database = getenv( 'DB_NAME' ) ?: 'wordpress_test';
+		$port = (int) ( getenv( 'DB_PORT' ) ?: 3306 );
+		$connection = new \mysqli( $host, $user, $password, $database, $port );
+		$connection->set_charset( 'utf8mb4' );
+
+		return $connection;
+	}
+
+	private function wait_for_async_query( \mysqli $connection, float $timeout ): bool
+	{
+		$read = [ $connection ];
+		$error = [ $connection ];
+		$reject = [ $connection ];
+		$seconds = (int) $timeout;
+		$microseconds = (int) ( ( $timeout - $seconds ) * 1000000 );
+
+		return 0 < \mysqli_poll( $read, $error, $reject, $seconds, $microseconds );
+	}
+
+	private function wait_for_database_query(
+		\mysqli $observer,
+		int $thread_id,
+		string $query_fragment,
+		float $timeout
+	): bool {
+		$deadline = microtime( true ) + $timeout;
+		do {
+			$result = $observer->query(
+				"SELECT `INFO` FROM information_schema.PROCESSLIST WHERE `ID` = {$thread_id}"
+			);
+			$row = $result->fetch_assoc();
+			$result->free();
+			if (
+				is_array( $row )
+				&& is_string( $row['INFO'] )
+				&& false !== strpos( $row['INFO'], $query_fragment )
+			) {
+				return true;
+			}
+
+			usleep( 10000 );
+		} while ( microtime( true ) < $deadline );
+
+		return false;
 	}
 
 	private function connection_count( int $connection_id = 0 ): int

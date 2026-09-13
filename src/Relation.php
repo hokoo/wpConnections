@@ -146,17 +146,7 @@ class Relation extends Abstracts\Relation
 
             return $this->executeAtomicDelete(
                 function () use ($connectionID): int {
-                    try {
-                        $connection = $this->getClient()->findConnection($connectionID);
-                    } catch (ConnectionNotFound $exception) {
-                        return 0;
-                    }
-
-                    if ($this->name !== $connection->relation) {
-                        return 0;
-                    }
-
-                    return $this->getClient()->getStorage()->deleteSpecificConnections($connectionID);
+                    return $this->detachSpecificConnection($connectionID);
                 }
             );
         }
@@ -219,6 +209,30 @@ class Relation extends Abstracts\Relation
         }
 
         throw new ConnectionWrongData('A connection delete selector is required.');
+    }
+
+    private function detachSpecificConnection(int $connectionID): int
+    {
+        $storage = $this->getClient()->getStorage();
+        if ($storage instanceof RelationScopedDeleteStorageInterface) {
+            if (! $storage->lockConnectionForDelete($connectionID, $this->name)) {
+                return 0;
+            }
+
+            return $storage->deleteSpecificConnections($connectionID);
+        }
+
+        try {
+            $connection = $this->getClient()->findConnection($connectionID);
+        } catch (ConnectionNotFound $exception) {
+            return 0;
+        }
+
+        if ($this->name !== $connection->relation) {
+            return 0;
+        }
+
+        return $storage->deleteSpecificConnections($connectionID);
     }
 
     private function executeAtomicDelete(callable $delete): int
