@@ -212,6 +212,41 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		self::assertSame( $invalid_ownership, get_option( self::OWNERSHIP_OPTION ) );
 	}
 
+	public function test_persisted_ownership_cannot_be_overridden_by_option_filter_or_stale_cache(): void
+	{
+		global $wpdb;
+
+		( new DeletedPostRepairLedger() )->ensureReady();
+		self::assertSame( $this->expected_ownership(), get_option( self::OWNERSHIP_OPTION ) );
+		self::assertNotFalse(
+			$wpdb->update(
+				$wpdb->options,
+				[ 'option_value' => maybe_serialize( [ 'owner' => 'someone/else' ] ) ],
+				[ 'option_name' => self::OWNERSHIP_OPTION ]
+			)
+		);
+
+		$override = fn() => $this->expected_ownership();
+		add_filter( 'pre_option_' . self::OWNERSHIP_OPTION, $override );
+		try {
+			$failure = null;
+			$queries = $this->record_queries(
+				static function () use ( &$failure ): void {
+					try {
+						( new DeletedPostRepairLedger() )->ensureReady();
+					} catch ( Throwable $exception ) {
+						$failure = $exception;
+					}
+				}
+			);
+		} finally {
+			remove_filter( 'pre_option_' . self::OWNERSHIP_OPTION, $override );
+		}
+
+		$this->assert_failure( $failure, 'ownership' );
+		self::assertSame( [], $this->ddl_queries( $queries ) );
+	}
+
 	public function invalid_ownership_provider(): array
 	{
 		return [
@@ -365,10 +400,13 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		$ledger           = new DeletedPostRepairLedger();
 		$original_prefix  = $wpdb->prefix;
 		$original_blog_id = $blog_id;
+		$original_options = $wpdb->options;
 		$failure          = null;
 		try {
 			if ( 'prefix' === $changed_context ) {
 				$wpdb->prefix = 'other_' . $original_prefix;
+			} elseif ( 'options' === $changed_context ) {
+				$wpdb->options = 'other_options';
 			} else {
 				$blog_id = (int) $original_blog_id + 1;
 			}
@@ -384,6 +422,7 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 			);
 		} finally {
 			$wpdb->prefix = $original_prefix;
+			$wpdb->options = $original_options;
 			$blog_id      = $original_blog_id;
 		}
 
@@ -436,6 +475,7 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		return [
 			'changed table prefix' => [ 'prefix' ],
 			'changed site ID'      => [ 'site_id' ],
+			'changed options map'   => [ 'options' ],
 		];
 	}
 

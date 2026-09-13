@@ -486,6 +486,127 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertNull( $this->ledger->findForClient( 'ledger-client-a', $transient->getKey() ) );
 	}
 
+	public function test_backward_transition_timestamps_are_rejected_without_corrupting_state(): void
+	{
+		$storage = new DeletedPostRepairLedgerStorageA();
+
+		$retry = $this->identity( 'ledger-client-a', 138 );
+		$retry_lease = $this->arm( $retry, $storage, '+10 minutes' );
+		self::assertFalse(
+			$this->ledger->markRetryWait(
+				$retry_lease,
+				$this->diagnostic( 'storage', 'stale retry transition' ),
+				$this->instantAt( '+5 minutes' ),
+				$this->instantAt( '-1 minute' )
+			)
+		);
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $this->record( $retry )->getStatus() );
+
+		$attention = $this->identity( 'ledger-client-a', 139 );
+		$attention_lease = $this->arm( $attention, $storage, '+10 minutes' );
+		self::assertFalse(
+			$this->ledger->markNeedsAttention(
+				$attention_lease,
+				$this->diagnostic( 'storage', 'stale attention transition' ),
+				$this->instantAt( '-1 minute' )
+			)
+		);
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $this->record( $attention )->getStatus() );
+
+		$resolved = $this->identity( 'ledger-client-a', 140 );
+		$initial = $this->arm( $resolved, $storage, '+5 minutes' );
+		self::assertTrue(
+			$this->ledger->markRetryWait(
+				$initial,
+				$this->diagnostic( 'storage', 'recorded failure' ),
+				$this->instantAt( '+10 minutes' ),
+				$this->instantAt( '+1 minute' )
+			)
+		);
+		$current = $this->assert_acquired(
+			$this->ledger->tryClaimDue(
+				$resolved->getKey(),
+				$storage,
+				$this->instantAt( '+10 minutes' ),
+				$this->instantAt( '+20 minutes' )
+			),
+			$resolved->getKey()
+		);
+		self::assertFalse( $this->ledger->markResolved( $current, $this->instantAt( '+9 minutes' ) ) );
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $this->record( $resolved )->getStatus() );
+
+		$wakeup = $this->identity( 'ledger-client-a', 141 );
+		$this->arm( $wakeup, $storage, '+10 minutes' );
+		self::assertFalse(
+			$this->ledger->recordWakeupFailure(
+				$wakeup->getKey(),
+				$this->diagnostic( 'scheduler', 'stale wake-up transition' ),
+				$this->instantAt( '-1 minute' )
+			)
+		);
+		self::assertNull( $this->record( $wakeup )->getWakeupFailureAt() );
+	}
+
+	public function test_backward_claim_and_mismatch_timestamps_leave_retry_state_unchanged(): void
+	{
+		$storage = new DeletedPostRepairLedgerStorageA();
+		$claim = $this->identity( 'ledger-client-a', 142 );
+		$claim_lease = $this->arm( $claim, $storage, '+5 minutes' );
+		self::assertTrue(
+			$this->ledger->markRetryWait(
+				$claim_lease,
+				$this->diagnostic( 'storage', 'claim clock baseline' ),
+				$this->instantAt( '+10 minutes' ),
+				$this->instantAt( '+1 minute' )
+			)
+		);
+
+		$claim_result = $this->ledger->tryClaimManually(
+			$claim->getKey(),
+			$storage,
+			$this->now,
+			$this->instantAt( '+5 minutes' )
+		);
+		self::assertSame( 'unavailable', $claim_result->getOutcome() );
+		self::assertSame( DeletedPostRepairStatus::RETRY_WAIT, $this->record( $claim )->getStatus() );
+
+		$mismatch = $this->identity( 'ledger-client-a', 143 );
+		$mismatch_lease = $this->arm( $mismatch, $storage, '+5 minutes' );
+		self::assertTrue(
+			$this->ledger->markRetryWait(
+				$mismatch_lease,
+				$this->diagnostic( 'storage', 'mismatch clock baseline' ),
+				$this->instantAt( '+10 minutes' ),
+				$this->instantAt( '+1 minute' )
+			)
+		);
+		$mismatch_result = $this->ledger->tryClaimManually(
+			$mismatch->getKey(),
+			new DeletedPostRepairLedgerStorageB(),
+			$this->now,
+			$this->instantAt( '+5 minutes' )
+		);
+		self::assertSame( 'unavailable', $mismatch_result->getOutcome() );
+		self::assertSame( DeletedPostRepairStatus::RETRY_WAIT, $this->record( $mismatch )->getStatus() );
+	}
+
+	public function test_wakeup_failure_cannot_advance_a_running_record_beyond_its_lease(): void
+	{
+		$identity = $this->identity( 'ledger-client-a', 144 );
+		$this->arm( $identity, new DeletedPostRepairLedgerStorageA(), '+5 minutes' );
+
+		self::assertFalse(
+			$this->ledger->recordWakeupFailure(
+				$identity->getKey(),
+				$this->diagnostic( 'scheduler', 'wake-up after lease expiry' ),
+				$this->instantAt( '+6 minutes' )
+			)
+		);
+		$record = $this->record( $identity );
+		self::assertNull( $record->getWakeupFailureAt() );
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $record->getStatus() );
+	}
+
 	public function test_success_after_a_recorded_failure_is_resolved_not_transiently_deleted(): void
 	{
 		$identity = $this->identity( 'ledger-client-a', 112 );
@@ -914,6 +1035,7 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		return [
 			'running row without a lease token' => [ [ 'lease_token' => null ] ],
 			'partial failure diagnostic'        => [ [ 'failure_class' => StorageFailure::class ] ],
+			'noncanonical adapter label'        => [ [ 'storage_class' => 'printable secret path' ] ],
 			'expired lease before last update'  => [ [ 'lease_expires_at' => '2026-09-13 23:59:59' ] ],
 			'retry before its recorded failure' => [
 				[
