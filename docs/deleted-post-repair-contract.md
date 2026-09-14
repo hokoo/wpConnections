@@ -45,9 +45,9 @@ This document converts that policy into three explicit choices:
 3. how work is woken, retried, observed, and manually recovered.
 
 All three original choices were explicitly approved. `DB-04-I1` is complete
-and the gate-independent core of `DB-04-I2` is executable; three implementation
-details discovered while decomposing Batch 18 remain explicit pending gates.
-Later slices retain their recorded implementation dependencies.
+and the gate-independent timing core of `DB-04-I2` is completed; three
+implementation details discovered while decomposing Batch 18 remain explicit
+pending gates. Later slices retain their recorded implementation dependencies.
 
 ## Current runtime and compatibility boundary
 
@@ -743,9 +743,9 @@ explicitly.
 ## Planned executable implementation slices
 
 The following slice order implements approved R1—R3 plus the recommended R4—R6
-options. Only the gate-independent first Batch 18 slice is executable while
-R4—R6 remain pending. Changing an approved choice requires a new decision and
-revised plan before affected code starts.
+options. The gate-independent first Batch 18 slice is completed; every
+remaining affected slice waits for R4—R6. Changing an approved choice requires
+a new decision and revised plan before affected code starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
