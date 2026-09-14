@@ -1095,6 +1095,18 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 					'resolved_at'      => '2026-09-14 00:00:01',
 				]
 			],
+			'resolution before last failure'    => [
+				[
+					...$diagnostic,
+					'status'            => DeletedPostRepairStatus::RESOLVED,
+					'first_failure_at'  => '2026-09-14 00:00:01',
+					'last_failure_at'   => '2026-09-14 00:00:01',
+					'lease_token'       => null,
+					'lease_expires_at'  => null,
+					'updated_at'        => '2026-09-14 00:00:02',
+					'resolved_at'       => '2026-09-14 00:00:00',
+				]
+			],
 		];
 	}
 
