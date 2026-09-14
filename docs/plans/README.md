@@ -178,8 +178,10 @@ map находятся в
   DG-RESTERR-01/02/04/A и DG-DELETE-05/06/A утверждены 2026-09-14.
   DG-DELETE-06/A дополнительно потребовал human-approved технического
   refinement durable repair/scheduler contract до DB-04 implementation.
-  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем 2026-09-14;
-  pending остаются DG-API20-01—DG-API20-09. Полные тексты находятся в
+  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем 2026-09-14.
+  DG-API20-01—DG-API20-09 также утверждены владельцем 2026-09-14 в вариантах
+  B/B/A/B/B/A/B/B/B; REST-06 теперь `todo`, API-03 ждёт REST-06, а API-04 и
+  DOC-01 сохраняют последующие dependencies. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
   [storage SPI contract](../storage-spi-contract.md),
