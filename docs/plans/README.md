@@ -69,7 +69,8 @@
 11. Batch 17 / DB-04-I1 завершён PR #99. Exact candidate `14abfd5` получил
     independent exact-candidate QA и security/SQL audit PASS без open P0/P1/P2
     findings и прошёл 19/19 protected checks; merge `c2f4b98` также прошёл
-    19/19 post-merge jobs. DB-04-I2 переведён в `todo` как Batch 18.
+    19/19 post-merge jobs. DB-04-I2 начат как Batch 18: policy/clock slice
+    разблокирован, а executor/public/scheduler ждут DG-DELETE-06R4—R6.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -179,6 +180,8 @@ map находятся в
   DG-DELETE-06/A дополнительно потребовал human-approved технического
   refinement durable repair/scheduler contract до DB-04 implementation.
   DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем 2026-09-14.
+  Выявленные при декомпозиции Batch 18 DG-DELETE-06R4—DG-DELETE-06R6 пока
+  `pending`; их рекомендации не считаются принятыми без нового owner decision.
   DG-API20-01—DG-API20-09 также утверждены владельцем 2026-09-14 в вариантах
   B/B/A/B/B/A/B/B/B; REST-06 теперь `todo`, API-03 ждёт REST-06, а API-04 и
   DOC-01 сохраняют последующие dependencies. Полные тексты находятся в
@@ -201,7 +204,8 @@ map находятся в
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
   `deleted_post` recovery. DB-03B-A, DB-03B-B, DB-04-D и DB-04-I1 завершены;
-  DB-04-I2 готова как Batch 18, а I3/Q сохраняют свои зависимости. REST-03
+  DB-04-I2 выполняется как Batch 18: первый policy/clock slice разблокирован,
+  affected slices ждут DG-DELETE-06R4—R6, а I3/Q сохраняют зависимости. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
@@ -213,7 +217,8 @@ map находятся в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
   DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A. DB-04-I1 завершена PR
   #99; durable internal ledger доступен, но ещё не подключён к callback или
-  scheduler. DB-04-I2 находится в `todo` как Batch 18.
+  scheduler. DB-04-I2 находится в `in_progress` как Batch 18; новые R4—R6
+  gates не блокируют первый policy/clock slice.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.
