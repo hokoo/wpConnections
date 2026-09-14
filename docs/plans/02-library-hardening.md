@@ -59,8 +59,10 @@ design находится в
 [`docs/deleted-post-repair-contract.md`](../deleted-post-repair-contract.md);
 DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем 2026-09-14.
 DB-04-D завершена PR #97 после independent QA и 19/19 protected/post-merge
-checks. DB-04-I1 выполняется в `batch17-deleted-post-repair-ledger` как Batch
-17; последующие production slices сохраняют свои записанные зависимости.
+checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получил два
+independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
+checks. DB-04-I2 находится в `todo` как Batch 18; последующие production slices
+сохраняют свои записанные зависимости.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1108,7 +1110,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14 | DB-03B-A/B and DB-04-D completed; DB-04-I1 is ready as Batch 17 |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 is ready as Batch 18 |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
@@ -1889,7 +1891,7 @@ Next batch:
 
 ### Batch 17. Build the durable deleted-post repair ledger
 
-Status: in_progress
+Status: completed
 
 Goal: реализовать только DB-04-I1 — site-local shared repair ledger и schema
 lifecycle — без преждевременного включения scheduler или `deleted_post`
@@ -1897,21 +1899,25 @@ coordinator.
 
 Execution slices:
 
-1. `B17/R — ledger/schema red contract` — `completed` в branch: 18 unit и 31
-   WordPress integration cases доходят до product boundary и дают ожидаемый
-   red из-за отсутствующих production classes; покрыты exact schema,
-   deterministic identity, arm/upsert deduplication, conditional
-   claim/lease/reclaim, transitions, retention и ownership failure.
-2. `B17/G1 — schema lifecycle` — реализовать site-local InnoDB table,
+1. `B17/R — ledger/schema red contract` — `completed`: red-first contracts
+   покрыли exact schema, deterministic identity, arm/upsert deduplication,
+   conditional claim/lease/reclaim, transitions, retention и ownership
+   failures до production implementation.
+2. `B17/G1 — schema lifecycle` — `completed`: site-local InnoDB table,
    `<site-prefix>wpconnections_repair`, site-scoped ownership option и
-   fail-closed readiness без DDL в failure path; basename не пересекается с
-   per-Client `post_connections_<client>` namespace.
-3. `B17/G2 — repair repository` — реализовать identity, arm/claim/transition и
-   bounded retention queries; не связывать их с hooks или WP-Cron.
-4. `B17/V — vendor and concurrency proof` — выполнить focused/full suites,
-   pinned MySQL/MariaDB lanes, PHPCS и independent exact-candidate QA.
-5. `B17/C — delivery closeout` — merge только после protected checks, записать
-   post-merge evidence и перевести DB-04-I2 в `todo`.
+   fail-closed readiness реализованы без DDL в mutation paths; basename не
+   пересекается с per-Client `post_connections_<client>` namespace.
+3. `B17/G2 — repair repository` — `completed`: internal identity,
+   arm/claim/transition, bounded query/retention и strict persisted-state
+   validation реализованы без подключения hooks или WP-Cron.
+4. `B17/V — vendor and concurrency proof` — `completed`: exact candidate
+   `14abfd5` прошёл focused/full/isolation suites, pinned MySQL 8.0.46 и
+   MariaDB 10.11.16, PHPCS, coverage 2624/2825 statements (92,88%),
+   independent exact-candidate QA и независимый security/SQL audit без open
+   P0/P1/P2 findings.
+5. `B17/C — delivery closeout` — `completed`: PR #99 прошёл 19/19 protected
+   checks и влит как `c2f4b98`; exact merge прошёл те же 19/19 post-merge jobs,
+   DB-04-I2 переведён в `todo`.
 
 Exit criteria:
 
@@ -1922,8 +1928,8 @@ Exit criteria:
   unresolved state не удаляется автоматически.
 - Exact candidate имеет independent QA PASS, protected и post-merge evidence.
 
-Next batch: DB-04-I2 retry engine, WP-Cron wake-up и Client-scoped operator
-service; HOOK-03/DB-04-I3 остаётся заблокированным до I1 и I2.
+Next batch: Batch 18 / DB-04-I2 retry engine, WP-Cron wake-up и Client-scoped
+operator service; HOOK-03/DB-04-I3 остаётся заблокированным до I2.
 
 ## E1. Test foundation и regression harness
 
@@ -3976,7 +3982,7 @@ Notes/Risks:
 
 #### DB-04-I1. Shared repair ledger and schema lifecycle
 
-Status: in_progress
+Status: completed
 
 Scope: site-local shared `<site-prefix>wpconnections_repair` table,
 site-scoped ownership/version preflight, deterministic repair identity,
@@ -3996,7 +4002,7 @@ DoD/AC:
 
 #### DB-04-I2. Retry engine, scheduler adapter and operator service
 
-Status: waiting_dependency
+Status: todo
 
 Scope: state machine, clock/scheduler abstractions, WP-Cron wake-up, backoff,
 Client runtime registry, PHP operator service и optional WP-CLI bridge.

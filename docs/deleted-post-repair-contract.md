@@ -1,9 +1,9 @@
 # Deleted-post cleanup repair contract
 
-Status: `DB-04-D` completed; `DG-DELETE-06R1` through `DG-DELETE-06R3` were
-approved as A by the repository owner on 2026-09-14. This document contains no
-production repair code; the downstream slices are authorized only in their
-recorded dependency order and against this contract.
+Status: `DB-04-D` and `DB-04-I1` completed; `DG-DELETE-06R1` through
+`DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14.
+The remaining production slices are authorized only in their recorded
+dependency order and against this contract.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -16,7 +16,15 @@ no blocking findings and passed 19/19 protected checks. PR #97 merged as
 `419e4d97d5958d23cc814011c77537d226782bd9`; the exact merge passed 19/19
 post-merge checks.
 
-Owner tasks: completed `DB-04-D`, then `DB-04-I1` through `DB-04-Q`.
+The exact DB-04-I1 candidate
+`14abfd54cbbdfd252d6afa65eacbc69f981d9cbb` received independent
+exact-candidate QA and security/SQL audit PASS with no open P0/P1/P2 findings,
+and passed 19/19 protected checks. PR #99 merged as
+`c2f4b98cb6b2420d9b82a7f5967c780b2cabdf42`; all five post-merge workflows,
+comprising the same 19 jobs, passed on the exact merge.
+
+Owner tasks: completed `DB-04-D` and `DB-04-I1`, then `DB-04-I2` through
+`DB-04-Q`.
 
 ## Purpose
 
@@ -33,8 +41,9 @@ This document converts that policy into three explicit choices:
 2. which store is authoritative for unresolved work;
 3. how work is woken, retried, observed, and manually recovered.
 
-All three choices were explicitly approved. `DB-04-I1` is executable; later
-slices retain their recorded implementation dependencies.
+All three choices were explicitly approved. `DB-04-I1` is complete and
+`DB-04-I2` is executable; later slices retain their recorded implementation
+dependencies.
 
 ## Current runtime and compatibility boundary
 
@@ -468,7 +477,8 @@ starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
-Status: `in_progress` in `batch17-deleted-post-repair-ledger`.
+Status: `completed` in PR #99; exact candidate `14abfd5` and merge `c2f4b98`
+passed independent review and 19/19 protected/post-merge checks.
 
 Scope: shared site table `<site-prefix>wpconnections_repair`, site-scoped
 ownership/version preflight, repository, deterministic arm/upsert, conditional
@@ -487,7 +497,7 @@ DoD:
 
 ### DB-04-I2 — retry engine, WP-Cron adapter, and operator service
 
-Status: `waiting_dependency` on I1 completion.
+Status: `todo`; I1 dependency is complete. Planned as Batch 18.
 
 Scope: state machine, clock/scheduler abstractions, single site wake-up,
 backoff/exhaustion/retention, Client runtime registry, PHP operator service, and
