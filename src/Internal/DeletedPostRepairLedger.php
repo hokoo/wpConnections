@@ -953,6 +953,7 @@ final class DeletedPostRepairLedger
             (null !== $firstFailureAt && $firstFailureAt < $createdAt) ||
             (null !== $lastFailureAt && $lastFailureAt > $updatedAt) ||
             (null !== $wakeupFailureAt && ($wakeupFailureAt < $createdAt || $wakeupFailureAt > $updatedAt)) ||
+            (null !== $resolvedAt && $resolvedAt < $createdAt) ||
             (null !== $resolvedAt && $resolvedAt > $updatedAt)
         ) {
             throw new RuntimeException('Repair ledger event timestamp is outside the record lifetime.');
@@ -1003,7 +1004,9 @@ final class DeletedPostRepairLedger
             1 > $failureCount ||
             $hasLease ||
             null !== $nextAttemptAt ||
-            null === $resolvedAt
+            null === $resolvedAt ||
+            null === $lastFailureAt ||
+            $resolvedAt < $lastFailureAt
         ) {
             throw new RuntimeException('Repair ledger resolved state is malformed.');
         }
