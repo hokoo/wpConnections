@@ -85,6 +85,7 @@ final class DeletedPostRepairLedger
     private int $siteId;
     private string $sitePrefix;
     private string $tableName;
+    private string $optionsTable;
 
     public function __construct()
     {
@@ -94,6 +95,7 @@ final class DeletedPostRepairLedger
         $this->siteId = (int) get_current_blog_id();
         $this->sitePrefix = (string) $wpdb->prefix;
         $this->tableName = $this->sitePrefix . self::TABLE_KEY;
+        $this->optionsTable = (string) $wpdb->options;
     }
 
     public function getTableName(): string
@@ -245,7 +247,7 @@ final class DeletedPostRepairLedger
                 `updated_at` = %s,
                 `resolved_at` = NULL
              WHERE `repair_key` = %s AND `status` = %s AND `lease_token` = %s
-                AND `failure_count` < " . self::MAX_COUNTER,
+                AND `failure_count` < " . self::MAX_COUNTER . " AND `updated_at` <= %s",
             DeletedPostRepairStatus::RETRY_WAIT,
             $this->formatTime($nextAttemptAt),
             $failure->getCategory(),
@@ -257,7 +259,8 @@ final class DeletedPostRepairLedger
             $this->formatTime($now),
             $lease->getRepairKey(),
             DeletedPostRepairStatus::RUNNING,
-            $lease->getToken()
+            $lease->getToken(),
+            $this->formatTime($now)
         );
 
         return $this->failureTransitionResult(
@@ -292,7 +295,7 @@ final class DeletedPostRepairLedger
                 `updated_at` = %s,
                 `resolved_at` = NULL
              WHERE `repair_key` = %s AND `status` = %s AND `lease_token` = %s
-                AND `failure_count` < " . self::MAX_COUNTER,
+                AND `failure_count` < " . self::MAX_COUNTER . " AND `updated_at` <= %s",
             DeletedPostRepairStatus::NEEDS_ATTENTION,
             $failure->getCategory(),
             $failure->getClass(),
@@ -303,7 +306,8 @@ final class DeletedPostRepairLedger
             $this->formatTime($now),
             $lease->getRepairKey(),
             DeletedPostRepairStatus::RUNNING,
-            $lease->getToken()
+            $lease->getToken(),
+            $this->formatTime($now)
         );
 
         return $this->failureTransitionResult(
@@ -328,13 +332,14 @@ final class DeletedPostRepairLedger
                 `updated_at` = %s,
                 `resolved_at` = %s
              WHERE `repair_key` = %s AND `status` = %s AND `lease_token` = %s
-                AND `failure_count` > 0",
+                AND `failure_count` > 0 AND `updated_at` <= %s",
             DeletedPostRepairStatus::RESOLVED,
             $this->formatTime($now),
             $this->formatTime($now),
             $lease->getRepairKey(),
             DeletedPostRepairStatus::RUNNING,
-            $lease->getToken()
+            $lease->getToken(),
+            $this->formatTime($now)
         );
 
         return 0 < $this->mutationOrFail($query, 'resolve deleted-post repair');
@@ -372,13 +377,17 @@ final class DeletedPostRepairLedger
                 `wakeup_failure_summary` = %s,
                 `wakeup_failure_at` = %s,
                 `updated_at` = %s
-             WHERE `repair_key` = %s AND `status` <> %s",
+             WHERE `repair_key` = %s AND `status` <> %s AND `updated_at` <= %s
+                AND (`status` <> %s OR `lease_expires_at` > %s)",
             $failure->getCategory(),
             $failure->getSummary(),
             $this->formatTime($now),
             $this->formatTime($now),
             $repairKey,
-            DeletedPostRepairStatus::RESOLVED
+            DeletedPostRepairStatus::RESOLVED,
+            $this->formatTime($now),
+            DeletedPostRepairStatus::RUNNING,
+            $this->formatTime($now)
         );
 
         return 0 < $this->mutationOrFail($query, 'record deleted-post repair wake-up failure');
@@ -474,18 +483,41 @@ final class DeletedPostRepairLedger
         $this->assertReady();
         $this->assertUtc($cutoff);
         $limit = $this->assertLimit($limit);
+        $timestamp = $this->formatTime($cutoff);
 
         global $wpdb;
-        $query = $wpdb->prepare(
-            "DELETE FROM `{$this->tableName}`
+        $candidates = $this->selectRecords(
+            $wpdb->prepare(
+                "SELECT * FROM `{$this->tableName}`
              WHERE `status` = %s AND `failure_count` > 0 AND `resolved_at` < %s
              ORDER BY `repair_key` ASC LIMIT %d",
-            DeletedPostRepairStatus::RESOLVED,
-            $this->formatTime($cutoff),
-            $limit
+                DeletedPostRepairStatus::RESOLVED,
+                $timestamp,
+                $limit
+            ),
+            'validate resolved deleted-post repairs before purge'
         );
+        if ([] === $candidates) {
+            return 0;
+        }
 
-        return $this->mutationOrFail($query, 'purge resolved deleted-post repairs');
+        $repairKeys = array_map(
+            static fn(DeletedPostRepairRecord $record): string => $record->getIdentity()->getKey(),
+            $candidates
+        );
+        $placeholders = implode(', ', array_fill(0, count($repairKeys), '%s'));
+        $query = $wpdb->prepare(
+            "DELETE FROM `{$this->tableName}`
+             WHERE `repair_key` IN ({$placeholders})
+                AND `status` = %s AND `failure_count` > 0 AND `resolved_at` < %s",
+            ...[ ...$repairKeys, DeletedPostRepairStatus::RESOLVED, $timestamp ]
+        );
+        $affected = $this->mutationOrFail($query, 'purge resolved deleted-post repairs');
+        if (count($repairKeys) < $affected) {
+            throw $this->failure('purge resolved deleted-post repairs: unexpected affected-row count');
+        }
+
+        return $affected;
     }
 
     private function tryClaim(
@@ -542,6 +574,7 @@ final class DeletedPostRepairLedger
             $timestamp,
             $repairKey,
             $storageFingerprint,
+            $timestamp,
             ...$conditionValues,
         ];
         $query = $wpdb->prepare(
@@ -554,6 +587,7 @@ final class DeletedPostRepairLedger
                 `updated_at` = %s,
                 `resolved_at` = NULL
              WHERE `repair_key` = %s AND `storage_fingerprint` = %s
+                AND `updated_at` <= %s
                 AND `attempt_count` < " . self::MAX_COUNTER . " AND {$claimable}",
             ...$values
         );
@@ -641,12 +675,14 @@ final class DeletedPostRepairLedger
                 `resolved_at` = NULL
              WHERE `repair_key` = %s
                 AND `storage_fingerprint` <> %s
+                AND `updated_at` <= %s
                 AND `status` <> %s
                 AND (`status` <> %s OR `lease_expires_at` <= %s)",
             DeletedPostRepairStatus::NEEDS_ATTENTION,
             $this->formatTime($now),
             $repairKey,
             $runtimeFingerprint,
+            $this->formatTime($now),
             DeletedPostRepairStatus::RESOLVED,
             DeletedPostRepairStatus::RUNNING,
             $this->formatTime($now)
@@ -680,6 +716,9 @@ final class DeletedPostRepairLedger
             $current->getLeaseExpiresAt() > $now
         ) {
             return new DeletedPostRepairClaimResult('already_running');
+        }
+        if ($current->getUpdatedAt() > $now) {
+            return new DeletedPostRepairClaimResult('unavailable');
         }
         if ($current->getStorageFingerprint() !== $runtimeFingerprint) {
             return new DeletedPostRepairClaimResult('adapter_mismatch');
@@ -753,12 +792,14 @@ final class DeletedPostRepairLedger
 
         $storageClass = $this->rowString($row, 'storage_class');
         $storageFingerprint = $this->rowString($row, 'storage_fingerprint');
+        $storageLabel = new DeletedPostRepairDiagnostic('adapter', $storageClass, '', '');
         $status = $this->rowString($row, 'status');
         DeletedPostRepairStatus::assertValid($status);
         if (
             '' === $storageClass ||
             191 < strlen($storageClass) ||
             preg_match('/[\x00-\x1F\x7F]/', $storageClass) ||
+            $storageClass !== $storageLabel->getClass() ||
             ! preg_match('/^[a-f0-9]{64}$/D', $storageFingerprint)
         ) {
             throw new RuntimeException('Repair ledger adapter identity is malformed.');
@@ -1150,60 +1191,70 @@ final class DeletedPostRepairLedger
         } finally {
             $wpdb->suppress_errors($suppress);
         }
-        if ($added) {
-            return;
+        if (! $added) {
+            wp_cache_delete(self::OWNERSHIP_OPTION, 'options');
+            wp_cache_delete('notoptions', 'options');
         }
-
-        wp_cache_delete(self::OWNERSHIP_OPTION, 'options');
-        wp_cache_delete('notoptions', 'options');
-        $persisted = $this->readPersistedOwnershipRecord();
+        $persisted = $this->readOwnershipRecord();
         if (null === $persisted) {
             throw $this->failure('claim repair ledger ownership: ambiguous concurrent result');
         }
         $this->assertOwnership($persisted);
     }
 
-    private function readOwnershipRecord()
-    {
-        $missing = new \stdClass();
-        $record = get_option(self::OWNERSHIP_OPTION, $missing);
-
-        return $missing === $record ? null : $record;
-    }
-
-    private function readPersistedOwnershipRecord()
+    /**
+     * @return array{record: mixed, autoload: string}|null
+     */
+    private function readOwnershipRecord(): ?array
     {
         global $wpdb;
-        $serialized = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT `option_value` FROM `{$wpdb->options}` WHERE `option_name` = %s LIMIT 1",
-                self::OWNERSHIP_OPTION
-            )
-        );
+        $suppress = $wpdb->suppress_errors();
+        try {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT `option_value`, `autoload` FROM `{$this->optionsTable}` "
+                    . "WHERE `option_name` = %s LIMIT 1",
+                    self::OWNERSHIP_OPTION
+                ),
+                ARRAY_A
+            );
+            $databaseError = trim((string) $wpdb->last_error);
+        } finally {
+            $wpdb->suppress_errors($suppress);
+        }
+        if ('' !== $databaseError) {
+            throw $this->failure('read repair ledger ownership');
+        }
+        if (null === $row) {
+            return null;
+        }
+        if (
+            [ 'option_value', 'autoload' ] !== array_keys($row) ||
+            ! is_string($row['option_value']) ||
+            ! is_string($row['autoload'])
+        ) {
+            throw $this->failure('read repair ledger ownership: malformed result');
+        }
 
-        return null === $serialized ? null : maybe_unserialize($serialized);
+        return [
+            'record' => maybe_unserialize($row['option_value']),
+            'autoload' => $row['autoload'],
+        ];
     }
 
-    private function assertOwnership($record): void
+    /**
+     * @param array{record: mixed, autoload: string} $ownership
+     */
+    private function assertOwnership(array $ownership): void
     {
-        if ($this->expectedOwnership() !== $record) {
+        if ($this->expectedOwnership() !== $ownership['record']) {
             throw $this->failure('verify repair ledger ownership: record is malformed or incompatible');
         }
 
-        global $wpdb;
-        $autoload = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT `autoload` FROM `{$wpdb->options}` WHERE `option_name` = %s LIMIT 1",
-                self::OWNERSHIP_OPTION
-            )
-        );
-        if (null === $autoload || '' !== trim((string) $wpdb->last_error)) {
-            throw $this->failure('verify repair ledger ownership autoload policy');
-        }
         $autoloadValues = function_exists('wp_autoload_values_to_autoload')
             ? wp_autoload_values_to_autoload()
             : [ 'yes', 'on', 'auto-on', 'auto' ];
-        if (in_array($autoload, $autoloadValues, true)) {
+        if (in_array($ownership['autoload'], $autoloadValues, true)) {
             throw $this->failure('verify repair ledger ownership: record must not autoload');
         }
     }
@@ -1232,7 +1283,8 @@ final class DeletedPostRepairLedger
         if (
             $wpdb !== $this->database ||
             $this->sitePrefix !== (string) $wpdb->prefix ||
-            $this->siteId !== (int) get_current_blog_id()
+            $this->siteId !== (int) get_current_blog_id() ||
+            $this->optionsTable !== (string) $wpdb->options
         ) {
             throw $this->failure('repair ledger context changed after construction');
         }
@@ -1241,7 +1293,10 @@ final class DeletedPostRepairLedger
             '' === $this->sitePrefix ||
             ! preg_match('/^[A-Za-z0-9_]+$/D', $this->sitePrefix) ||
             ! preg_match('/^[A-Za-z0-9_]+$/D', $this->tableName) ||
-            64 < strlen($this->tableName)
+            ! preg_match('/^[A-Za-z0-9_]+$/D', $this->optionsTable) ||
+            $this->sitePrefix . 'options' !== $this->optionsTable ||
+            64 < strlen($this->tableName) ||
+            64 < strlen($this->optionsTable)
         ) {
             throw $this->failure('repair ledger table identifier is unsafe or exceeds the 64-character database limit');
         }
