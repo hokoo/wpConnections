@@ -63,6 +63,9 @@ checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получ
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `todo` как Batch 18; последующие production slices
 сохраняют свои записанные зависимости.
+DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
+вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
+REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -695,15 +698,15 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | DG-M7 | approved A | repository owner | 2026-09-10 | Atomic compound operations или pre-mutation error |
 | DG-M8 | approved B | repository owner | 2026-09-10 | RC: 70% statements + all critical scenarios |
 | DG-M9 | approved A | repository owner | 2026-09-10 | Storage — SPI; invariants на domain boundary |
-| [DG-API20-01](../api-01-related-entities-contract.md#dg-api20-01-selector-cardinality-and-combination) | pending; recommendation B | repository owner | — | REST-06 selector semantics wait |
-| [DG-API20-02](../api-01-related-entities-contract.md#dg-api20-02-endpoint-projection-vocabulary) | pending; recommendation B | repository owner | — | API-03/API-04 projection vocabulary waits |
-| [DG-API20-03](../api-01-related-entities-contract.md#dg-api20-03-opt-in-rest-representation) | pending; recommendation A | repository owner | — | API-04/DOC-01 representation waits |
-| [DG-API20-04](../api-01-related-entities-contract.md#dg-api20-04-pagination-ordering-and-totals) | pending; recommendation B | repository owner | — | API-04 collection contract waits |
-| [DG-API20-05](../api-01-related-entities-contract.md#dg-api20-05-entity-filter-namespace-and-matching) | pending; recommendation B | repository owner | — | API-03/API-04 filtering waits |
-| [DG-API20-06](../api-01-related-entities-contract.md#dg-api20-06-missing-and-inaccessible-projected-entities) | pending; recommendation A | repository owner/security | — | API-03/API-04 unavailable-entity policy waits |
-| [DG-API20-07](../api-01-related-entities-contract.md#dg-api20-07-entity-authorization-and-rest-context) | pending; recommendation B | repository owner/security | — | API-04 authorization/context waits |
-| [DG-API20-08](../api-01-related-entities-contract.md#dg-api20-08-fate-of-connectioncollectiongetposts) | pending; recommendation B | repository owner | — | API-03/getPosts compatibility path waits |
-| [DG-API20-09](../api-01-related-entities-contract.md#dg-api20-09-resolver-query-budget) | pending; recommendation B | repository owner | — | API-03/API-04 query budget waits |
+| [DG-API20-01](../api-01-related-entities-contract.md#dg-api20-01-selector-cardinality-and-combination) | approved B | repository owner | 2026-09-14 | Positive scalar selectors; AND across selectors, OR only inside `both`; REST-06 unblocked |
+| [DG-API20-02](../api-01-related-entities-contract.md#dg-api20-02-endpoint-projection-vocabulary) | approved B | repository owner | 2026-09-14 | Absolute targets plus `opposite` for one traversal anchor |
+| [DG-API20-03](../api-01-related-entities-contract.md#dg-api20-03-opt-in-rest-representation) | approved A | repository owner | 2026-09-14 | `representation=expanded` adds side-keyed entities without changing default v1 items |
+| [DG-API20-04](../api-01-related-entities-contract.md#dg-api20-04-pagination-ordering-and-totals) | approved B | repository owner | 2026-09-14 | Opt-in pagination; deterministic `order ASC, id ASC`; WordPress total headers; default 20/max 100 |
+| [DG-API20-05](../api-01-related-entities-contract.md#dg-api20-05-entity-filter-namespace-and-matching) | approved B | repository owner | 2026-09-14 | Validated `entity[...]` filters; fields AND, same-field values OR |
+| [DG-API20-06](../api-01-related-entities-contract.md#dg-api20-06-missing-and-inaccessible-projected-entities) | approved A | repository owner/security | 2026-09-14 | Preserve connection with generic unavailable side; unavailable never matches entity filters |
+| [DG-API20-07](../api-01-related-entities-contract.md#dg-api20-07-entity-authorization-and-rest-context) | approved B | repository owner/security | 2026-09-14 | Client capability plus entity authorization and registered REST preparation/context |
+| [DG-API20-08](../api-01-related-entities-contract.md#dg-api20-08-fate-of-connectioncollectiongetposts) | approved B | repository owner | 2026-09-14 | Explicit resolver plus narrow `getPosts('from'\|'to')` compatibility facade |
+| [DG-API20-09](../api-01-related-entities-contract.md#dg-api20-09-resolver-query-budget) | approved B | repository owner | 2026-09-14 | One batch call per adapter/type group with de-duplication and non-linear-growth tests |
 | DG-QMETA-01 | approved A | repository owner | 2026-09-11 | TEST-02F + CORE-07 started in Batch 6 |
 | DG-UPDATE-01 | approved A | repository owner | 2026-09-11 | Sparse PHP/PATCH; replacement Connection/PUT/legacy POST |
 | DG-UPDATE-02 | approved A | repository owner | 2026-09-11 | Field-specific omitted/null/empty/zero semantics |
@@ -846,8 +849,9 @@ Verification:
   strict-base update.
 - REST-01: PR #55; independent QA pass; 17/17 required checks pass после
   strict-base update.
-- API-01 завершила research, но DG-API20-01—DG-API20-09 остаются pending и не
-  считаются принятыми в результате merge ADR.
+- На момент завершения Batch 2 API-01 закончила research, но
+  DG-API20-01—DG-API20-09 ещё оставались pending и не считались принятыми в
+  результате merge ADR; владелец позднее утвердил их 2026-09-14.
 
 ### Batch 3. Automated guardrails и первые vertical fixes
 
@@ -871,8 +875,8 @@ Execution model:
 - В двух vertical PR сначала записывается наблюдаемый red и regression task
   переводится в `review`; paired fix выполняется в той же утверждённой ветке;
   оба task получают `completed` только после итогового green.
-- API-02 не расширяет issue #20/`getPosts()` и не зависит от pending
-  DG-API20-01—DG-API20-09.
+- API-02 не расширяет issue #20/`getPosts()` и была независимо исполнима от
+  DG-API20-01—DG-API20-09, которые на момент её delivery ещё были pending.
 - Каждый workstream проходит independent QA, полный релевантный suite и
   protected-branch CI; ветки обновляются последовательно при strict-base rule.
 
@@ -1112,8 +1116,8 @@ Decision packets:
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
 | DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 is ready as Batch 18 |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
-| DP-7 Issue #21 selector | DG-API20-01 | pending; B recommended | REST-06 |
-| DP-8 Issue #20 expansion | DG-API20-02—09 | pending; B/A/B/B/A/B/B/B recommended | API-03/API-04/DOC-01 |
+| DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
+| DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
 | DP-9 Factory compatibility | DG-SPI-05 | approved A for v1, C next-major target, 2026-09-14 | REL-02/release documentation contract fixed |
 
 Entry criteria:
@@ -3516,9 +3520,9 @@ Dependencies:
 Notes/Risks:
 
 - Этот path понадобится issue #21, если REST filter поддержит `both`.
-- Ordering намеренно остаётся unspecified до решения DG-API20-04: DB-01 не
-  добавляет глобальный `ORDER BY`, а identity/multiplicity и repeated-meta
-  assertions canonicalized и не зависят от порядка строк.
+- DB-01 не добавляет глобальный `ORDER BY`: утверждённый DG-API20-04/B вводит
+  deterministic `order ASC, id ASC` только для будущих paginated/expanded
+  requests; legacy unpaginated ordering остаётся unspecified.
 - Green evidence 2026-09-10: DB-01 class — `8 tests / 48 assertions`; reverse
   order с `--repeat=2` — `16 / 96`; полный `test:all` — unit `4 / 7` и
   integration `18 / 117`; полный integration reverse/repeat — `36 / 234`.
@@ -4885,12 +4889,12 @@ Notes/Risks:
 
 ### REST-06. Реализовать filters relation list из issue #21
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
-Goal: GET relation connections принимает документированные `from`, `to` и,
-если утверждено, `both` filters.
+Goal: GET relation connections принимает документированные `from`, `to` и
+`both` filters согласно DG-API20-01/B.
 
 Scope:
 
@@ -4900,14 +4904,14 @@ Scope:
 
 Out of Scope:
 
-- Pagination/sorting, если они не выделены отдельным contract task.
+- Pagination/sorting, принадлежащие API-04 по DG-API20-04/B.
 - Full entity expansion issue #20.
 
 DoR:
 
 - DG-M4 решён.
-- API-01 завершил decision-ready исследование границы connection filters issue
-  #21 и issue #20 entity representation; это не является approval.
+- API-01 завершил исследование границы connection filters issue #21 и issue #20
+  entity representation; DG-API20-01/B теперь утверждён.
 - DG-API20-01 утверждён владельцем и задаёт selector combination semantics.
 - DB-01 завершена.
 
@@ -4935,8 +4939,10 @@ Dependencies:
 
 Notes/Risks:
 
-- Pagination и deterministic ordering понадобятся при больших relation lists;
-  при необходимости создать отдельный follow-up issue.
+- REST-06 не добавляет pagination или ordering. Их утверждённый entity-aware
+  contract принадлежит API-04; отдельный pre-expansion task не создаётся.
+- Любое будущее расширение pagination вне approved API-04 scope требует нового
+  contract/task, а не неявного расширения REST-06.
 
 ## E5. Незавершённый API, related entities и документация
 
@@ -5056,9 +5062,9 @@ Notes/Risks:
   [`docs/api-01-related-entities-contract.md`](../api-01-related-entities-contract.md).
 - Issues #20/#21 и отсутствие комментариев повторно проверены 2026-09-10;
   production-код не изменялся.
-- DG-API20-01—DG-API20-09 остаются pending: completion API-01 означает
-  завершённое исследование, но не утверждение рекомендаций. Implementation
-  остаётся `waiting_dependency` до явных решений владельца.
+- DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
+  вариантах B/B/A/B/B/A/B/B/B. REST-06 разблокирован; API-03 ждёт REST-06,
+  API-04 ждёт API-03/REST-06, а DOC-01 — завершённые REST tasks и API-04.
 
 Verification:
 
@@ -5185,6 +5191,8 @@ Dependencies:
 Notes/Risks:
 
 - Реализация не должна заставлять storage отвечать за entity permissions.
+- Все собственные decision gates API-03 утверждены; текущая блокировка — только
+  незавершённый REST-06.
 
 ### API-04. Реализовать opt-in REST representation issue #20
 
@@ -5237,6 +5245,8 @@ Notes/Risks:
 
 - Entity filtering и pagination должны выполняться в утверждённом порядке, иначе
   страницы и totals будут вводить consumer в заблуждение.
+- Все собственные public-contract gates утверждены; задача остаётся зависимой от
+  API-03 и REST-06.
 
 ### API-05. Спроектировать selection connections по stored metadata
 

@@ -1,6 +1,7 @@
 # API-01: connection filters and related-entity contract
 
-Status: proposed; research complete, human decisions pending
+Status: approved decision contract; DG-API20-01 through DG-API20-09 approved
+in their recommended variants by the repository owner on 2026-09-14
 
 Date: 2026-09-10
 
@@ -17,10 +18,10 @@ This document separates three concerns that the original issues combine:
 3. **Entity filtering and representation** decides which target entities match
    and whether permission-safe entity data is added to the response.
 
-The contract is decision-ready, not accepted. Every material public API choice
-is listed as `DG-API20-*` below with alternatives and a recommendation. A
-recommendation does not become normative until the repository owner records an
-explicit decision. API-03, REST-06 and API-04 must not implement a pending gate.
+The contract is accepted. Every material public API choice is listed as
+`DG-API20-*` below with alternatives, the approved option and its rationale.
+REST-06 may implement the approved connection-selector subset. API-03 and
+API-04 retain their recorded implementation dependencies.
 
 ## Sources and current behavior
 
@@ -80,7 +81,7 @@ parameters are positive scalar endpoint IDs:
 | `to=B` | `connection.to = B` |
 | `both=C` | `connection.from = C OR connection.to = C` |
 
-The recommended combination rule is:
+The approved combination rule is:
 
 ```text
 (!from OR connection.from = from)
@@ -93,12 +94,12 @@ such as `from=4&to=10`. Empty, zero, negative, non-integer and repeated scalar
 values are validation errors rather than silently ignored filters. Multi-ID
 selectors are deferred until there is a demonstrated use case.
 
-This recommendation is pending **DG-API20-01**.
+This is approved by **DG-API20-01/B**.
 
 ### 2. Endpoint projection
 
 Projection occurs after selecting connections and never changes which rows are
-stored. The recommended vocabulary is a separate `target` parameter:
+stored. The approved vocabulary is a separate `target` parameter:
 
 | `target` | Projected endpoint roles |
 |---|---|
@@ -120,11 +121,11 @@ present:
 Absolute targets remain valid with combined selectors. An absent `target` means
 no entity projection and preserves the connection-only behavior.
 
-This recommendation is pending **DG-API20-02**.
+This is approved by **DG-API20-02/B**.
 
 ### 3. Entity filtering and representation
 
-The recommended opt-in request grammar is:
+The approved opt-in request grammar is:
 
 ```text
 GET /wp-connections/v1/client/{client}/relation/{relation}
@@ -150,7 +151,7 @@ validation (WordPress global REST parameters remain governed by WordPress).
 They are never ignored, because an ignored access/status filter can expose a
 broader result than the caller intended.
 
-The proposed default WordPress post adapter initially supports an allowlist of
+The default WordPress post adapter initially supports an allowlist of
 portable filters: `status`, `type`, `slug` and `search`. Filters on one entity
 are ANDed; multiple values of one filter are ORed. With `target=both`, a
 connection matches when at least one permitted projected entity matches all
@@ -158,8 +159,8 @@ filters; after the connection matches, both requested and permitted endpoint
 roles may be represented. Filtering is completed before pagination and total
 calculation.
 
-Parameter names, the initial allowlist and target matching are pending
-**DG-API20-03** and **DG-API20-05**.
+Parameter names, the initial allowlist and target matching are approved by
+**DG-API20-03/A** and **DG-API20-05/B**.
 
 ## Response compatibility and representation
 
@@ -174,7 +175,7 @@ Requests without new selector, representation or pagination parameters remain
 unbounded and keep the currently unspecified ordering. This avoids silently
 truncating an existing consumer response.
 
-### Recommended expanded mode
+### Approved expanded mode
 
 `representation=expanded` keeps each connection item and adds a side-keyed
 `entities` member. Numeric IDs remain authoritative connection fields:
@@ -222,7 +223,7 @@ credible alternatives in **DG-API20-03**.
 
 ## Ordering, pagination and totals
 
-Pagination cannot become implicit for legacy requests. The recommended v1
+Pagination cannot become implicit for legacy requests. The approved v1
 addition is opt-in `page`/`per_page` behavior:
 
 - If neither parameter is supplied, legacy mode is not truncated.
@@ -237,16 +238,15 @@ addition is opt-in `page`/`per_page` behavior:
 - Entity-specific ordering is out of scope for v1. It can be added only with an
   explicit `orderby` contract because it changes connection ordering.
 
-This recommendation is pending **DG-API20-04**. REST-06 may deliver connection
-selectors without pagination; API-04 owns the approved entity-aware pagination
-pipeline unless the owner creates a separate implementation task.
+This is approved by **DG-API20-04/B**. REST-06 delivers connection selectors
+without pagination; API-04 owns the approved entity-aware pagination pipeline.
 
 ## Missing endpoints, visibility and context
 
 Strict validation prevents new invalid references after CORE-04, but legacy
 rows can still point to deleted, missing or adapter-unavailable entities.
 
-The recommended policy is:
+The approved policy is:
 
 1. The relation-route capability is checked first.
 2. Each projected entity is authorized and prepared by its registered REST
@@ -265,8 +265,8 @@ The recommended policy is:
 
 Dropping unavailable rows always is simpler but changes connection cardinality.
 Failing the whole collection lets one legacy row deny all results. Those are the
-alternatives in **DG-API20-06**. The authorization and `context` boundary is a
-separate pending choice in **DG-API20-07**.
+rejected alternatives in **DG-API20-06/A**. The authorization and `context`
+boundary is approved by **DG-API20-07/B**.
 
 The exact HTTP/body mapping for invalid request arguments remains owned by
 REST-00A/REST-03. At minimum, invalid selector/target/filter/context inputs must
@@ -308,7 +308,7 @@ absolute `from` or `to` projection and promises `WP_Post[]`. It cannot represent
 `opposite`, unavailable slots, a non-post adapter, current-user context or
 filter metadata.
 
-The recommendation is to introduce an explicit batch resolver API with target
+The approved approach is to introduce an explicit batch resolver API with target
 and resolution-result objects, then implement `getPosts('from'|'to')` as a
 WordPress-post-only compatibility facade over it:
 
@@ -319,14 +319,14 @@ WordPress-post-only compatibility facade over it:
 - keep REST permission checks in the REST resolver path rather than pretending
   a general PHP collection method has a current-user security boundary.
 
-If REL-00 finds consumers that depend on the current `null` return, a documented
-deprecation plus a new resolver is safer. Implementing all new semantics directly
-inside `getPosts()` is the other alternative, but its signature is too narrow.
-The owner decision is **DG-API20-08**.
+REL-00 found no public consumer that depends on the current `null` return;
+private consumers remain a residual compatibility risk. Implementing all new
+semantics directly inside `getPosts()` was rejected because its signature is
+too narrow. The approved decision is **DG-API20-08/B**.
 
 ## Performance and query-count contract
 
-The recommendation is an asymptotic, testable budget rather than a brittle
+The approved contract is an asymptotic, testable budget rather than a brittle
 absolute WordPress query count:
 
 - Storage performs the connection selection and, when enabled, one count query.
@@ -343,8 +343,8 @@ absolute WordPress query count:
   loaded and prepared once per compatible context.
 
 A fixed absolute query ceiling can be added after API-03 records a stable
-baseline. No budget would permit accidental N+1. The owner decision is
-**DG-API20-09**.
+baseline. No budget would permit accidental N+1. This is approved by
+**DG-API20-09/B**.
 
 ## End-to-end examples
 
@@ -357,8 +357,8 @@ baseline. No budget would permit accidental N+1. The owner decision is
 | Exact edge plus incident constraint | `?from=4&to=10&both=4` | all three predicates (AND); `both` is internally OR | none unless opted in |
 | Published visible targets from 4 | `?from=4&representation=expanded&target=to&entity[status]=publish&context=view&page=1&per_page=20` | rows whose permitted `to` entity matches before paging | prepared `to` role |
 
-These request names and outputs illustrate the recommended alternatives. They
-are not implementation authority until their gates are approved.
+These request names and outputs illustrate the approved contract and are
+implementation authority for their recorded downstream slices.
 
 ## Decision gates
 
@@ -375,7 +375,7 @@ Recommendation: **B**, because exact-pair queries remain possible and it matches
 the intended PHP/storage predicate without turning extra filters into broader
 results.
 
-Status: pending repository-owner decision. Unblocks REST-06.
+Status: approved B by the repository owner on 2026-09-14. REST-06 is unblocked.
 
 ### DG-API20-02. Endpoint projection vocabulary
 
@@ -388,7 +388,8 @@ Question: how does a caller choose returned endpoint roles?
 Recommendation: **B**. It covers bidirectional traversal explicitly; C conflicts
 with DG-M2.
 
-Status: pending repository-owner decision. Unblocks API-03/API-04.
+Status: approved B by the repository owner on 2026-09-14. The gate no longer
+blocks API-03/API-04.
 
 ### DG-API20-03. Opt-in REST representation
 
@@ -402,7 +403,8 @@ Question: how are resolved entities returned while default v1 stays unchanged?
 Recommendation: **A** for correlation, duplicate semantics and smallest v1
 change. B is preferable only if payload de-duplication outweighs shape cost.
 
-Status: pending repository-owner decision. Unblocks API-04 and DOC-01.
+Status: approved A by the repository owner on 2026-09-14. The gate no longer
+blocks API-04/DOC-01.
 
 ### DG-API20-04. Pagination, ordering and totals
 
@@ -416,8 +418,8 @@ Question: what collection semantics apply to the new behavior?
 Recommendation: **B**. It is deterministic without truncating unchanged legacy
 requests.
 
-Status: pending repository-owner decision. Unblocks API-04; may create a
-separate REST collection task if the owner wants pagination before expansion.
+Status: approved B by the repository owner on 2026-09-14. API-04 owns this
+pagination contract; no separate pre-expansion task was requested.
 
 ### DG-API20-05. Entity-filter namespace and matching
 
@@ -431,7 +433,8 @@ Question: how are entity fields filtered?
 Recommendation: **B**. A namespaced allowlist prevents collisions with
 connection fields and allows adapters to declare capabilities.
 
-Status: pending repository-owner decision. Unblocks API-03/API-04.
+Status: approved B by the repository owner on 2026-09-14. The gate no longer
+blocks API-03/API-04.
 
 ### DG-API20-06. Missing and inaccessible projected entities
 
@@ -445,7 +448,8 @@ Question: what happens when a selected row cannot yield a permitted entity?
 Recommendation: **A**. It preserves connection cardinality, avoids one stale row
 denying the collection and does not disclose the unavailable reason.
 
-Status: pending repository-owner/security decision. Unblocks API-03/API-04.
+Status: approved A by the repository owner on 2026-09-14. The gate no longer
+blocks API-03/API-04.
 
 ### DG-API20-07. Entity authorization and REST context
 
@@ -463,7 +467,8 @@ Recommendation: **B**. A client may configure a capability weaker than
 `manage_options`; neither that capability nor a custom adapter is sufficient
 reason to bypass post visibility or REST field-context rules.
 
-Status: pending repository-owner/security decision. Unblocks API-04.
+Status: approved B by the repository owner on 2026-09-14. The gate no longer
+blocks API-04.
 
 ### DG-API20-08. Fate of `ConnectionCollection::getPosts()`
 
@@ -477,8 +482,8 @@ Question: should the currently empty public method be implemented or retired?
 Recommendation: **B**, subject to REL-00 consumer evidence. Choose C if a
 meaningful consumer depends on its current `null` return.
 
-Status: pending repository-owner decision after REL-00 evidence. Unblocks
-API-03.
+Status: approved B by the repository owner on 2026-09-14 after REL-00 found no
+public call. The gate no longer blocks API-03.
 
 ### DG-API20-09. Resolver query budget
 
@@ -492,13 +497,13 @@ Question: what performance promise prevents N+1?
 Recommendation: **B**. It is enforceable across WordPress environments without
 normalizing per-item lookup.
 
-Status: pending repository-owner decision. Unblocks API-03/API-04.
+Status: approved B by the repository owner on 2026-09-14. The gate no longer
+blocks API-03/API-04.
 
 ## Approval and implementation handoff
 
-Record decisions in this document by replacing each gate status with the chosen
-option, owner and date. Then update the main decision registry or link its
-approval evidence before pulling dependent implementation work.
+All nine decisions are recorded above. The main decision registry and task
+statuses must remain aligned with the following handoff:
 
 - **REST-06:** DG-API20-01; implement only connection selectors and their
   validation/combinations.
