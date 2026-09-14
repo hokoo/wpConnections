@@ -506,6 +506,32 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		self::assertFalse( get_option( self::OWNERSHIP_OPTION, false ) );
 	}
 
+	public function test_non_site_options_mapping_fails_before_ledger_or_ownership_access(): void
+	{
+		global $wpdb;
+
+		$original_options = $wpdb->options;
+		$failure = null;
+		try {
+			$wpdb->options = 'other_options';
+			$ledger = new DeletedPostRepairLedger();
+			$queries = $this->record_queries(
+				static function () use ( $ledger, &$failure ): void {
+					try {
+						$ledger->ensureReady();
+					} catch ( Throwable $exception ) {
+						$failure = $exception;
+					}
+				}
+			);
+		} finally {
+			$wpdb->options = $original_options;
+		}
+
+		$this->assert_failure( $failure, 'identifier' );
+		self::assertSame( [], $this->ledger_access_queries( $queries ) );
+	}
+
 	public function test_unsafe_table_prefix_fails_before_ownership_or_ddl(): void
 	{
 		global $wpdb;

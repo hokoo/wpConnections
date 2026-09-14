@@ -795,6 +795,40 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		);
 	}
 
+	public function test_purge_fails_closed_before_deleting_a_malformed_resolved_record(): void
+	{
+		global $wpdb;
+
+		$identity = $this->identity( 'ledger-client-a', 145 );
+		$this->create_resolved(
+			$identity,
+			new DeletedPostRepairLedgerStorageA(),
+			$this->instantAt( '-40 days' )
+		);
+		self::assertNotFalse(
+			$wpdb->update(
+				$this->table,
+				[ 'failure_summary' => null ],
+				[ 'repair_key' => $identity->getKey() ]
+			)
+		);
+
+		$failure = $this->capture_failure(
+			fn() => $this->ledger->purgeResolvedBefore( $this->instantAt( '-30 days' ), 10 )
+		);
+
+		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertSame(
+			'1',
+			$wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM `{$this->table}` WHERE `repair_key` = %s",
+					$identity->getKey()
+				)
+			)
+		);
+	}
+
 	public function test_listing_and_lookup_are_client_scoped_status_filtered_and_keyset_paginated(): void
 	{
 		$storage = new DeletedPostRepairLedgerStorageA();
