@@ -205,8 +205,8 @@ map находятся в
 - DB-04-D завершена PR #97: current call graph, crash windows, pre-armed
   ledger, retry state machine, operator boundary и executable slices записаны в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
-  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A; DB-04-I1 находится в
-  `todo` как отдельный Batch 17.
+  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A; DB-04-I1 выполняется в
+  `batch17-deleted-post-repair-ledger`.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.

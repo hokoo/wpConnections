@@ -59,8 +59,8 @@ design находится в
 [`docs/deleted-post-repair-contract.md`](../deleted-post-repair-contract.md);
 DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A владельцем 2026-09-14.
 DB-04-D завершена PR #97 после independent QA и 19/19 protected/post-merge
-checks. DB-04-I1 находится в `todo` как Batch 17; последующие production slices
-сохраняют свои записанные зависимости.
+checks. DB-04-I1 выполняется в `batch17-deleted-post-repair-ledger` как Batch
+17; последующие production slices сохраняют свои записанные зависимости.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1889,7 +1889,7 @@ Next batch:
 
 ### Batch 17. Build the durable deleted-post repair ledger
 
-Status: todo
+Status: in_progress
 
 Goal: реализовать только DB-04-I1 — site-local shared repair ledger и schema
 lifecycle — без преждевременного включения scheduler или `deleted_post`
@@ -1897,8 +1897,10 @@ coordinator.
 
 Execution slices:
 
-1. `B17/R — ledger/schema red contract` — добавить failing tests для exact
-   schema, deterministic identity, arm/upsert deduplication, conditional
+1. `B17/R — ledger/schema red contract` — `completed` в branch: 18 unit и 31
+   WordPress integration cases доходят до product boundary и дают ожидаемый
+   red из-за отсутствующих production classes; покрыты exact schema,
+   deterministic identity, arm/upsert deduplication, conditional
    claim/lease/reclaim, transitions, retention и ownership failure.
 2. `B17/G1 — schema lifecycle` — реализовать site-local InnoDB table,
    `<site-prefix>wpconnections_repair`, site-scoped ownership option и
@@ -3910,7 +3912,7 @@ Notes/Risks:
 
 ### DB-04-I. Реализовать WordPress `deleted_post` cleanup и repair
 
-Status: todo
+Status: in_progress
 
 Priority: P0
 
@@ -3974,7 +3976,7 @@ Notes/Risks:
 
 #### DB-04-I1. Shared repair ledger and schema lifecycle
 
-Status: todo
+Status: in_progress
 
 Scope: site-local shared `<site-prefix>wpconnections_repair` table,
 site-scoped ownership/version preflight, deterministic repair identity,
