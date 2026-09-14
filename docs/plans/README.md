@@ -66,6 +66,10 @@
     получил independent QA PASS и 19/19 protected checks; merge `419e4d9`
     также прошёл 19/19 post-merge checks. DG-DELETE-06R1/R2/R3 утверждены A;
     DB-04-I1 готов к отдельному production Batch 17.
+11. Batch 17 / DB-04-I1 завершён PR #99. Exact candidate `14abfd5` получил
+    independent exact-candidate QA и security/SQL audit PASS без open P0/P1/P2
+    findings и прошёл 19/19 protected checks; merge `c2f4b98` также прошёл
+    19/19 post-merge jobs. DB-04-I2 переведён в `todo` как Batch 18.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -194,8 +198,8 @@ map находятся в
   [delete result/failure contract](../delete-result-contract.md) отделяет
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
-  `deleted_post` recovery. DB-03B-A и DB-03B-B завершены. DB-04-D завершена,
-  DB-04-I1 готова как Batch 17, а I2/I3/Q сохраняют свои зависимости. REST-03
+  `deleted_post` recovery. DB-03B-A, DB-03B-B, DB-04-D и DB-04-I1 завершены;
+  DB-04-I2 готова как Batch 18, а I3/Q сохраняют свои зависимости. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
@@ -205,8 +209,9 @@ map находятся в
 - DB-04-D завершена PR #97: current call graph, crash windows, pre-armed
   ledger, retry state machine, operator boundary и executable slices записаны в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
-  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A; DB-04-I1 выполняется в
-  `batch17-deleted-post-repair-ledger`.
+  DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A. DB-04-I1 завершена PR
+  #99; durable internal ledger доступен, но ещё не подключён к callback или
+  scheduler. DB-04-I2 находится в `todo` как Batch 18.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.
