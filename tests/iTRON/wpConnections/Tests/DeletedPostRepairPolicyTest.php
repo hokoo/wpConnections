@@ -61,6 +61,36 @@ final class DeletedPostRepairPolicyTest extends TestCase
         $this->policy()->leaseExpiresAt($london_before_dst);
     }
 
+    public function test_timestamp_outside_database_datetime_range_is_rejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->policy()->leaseExpiresAt($this->utc('0999-12-31 23:59:59'));
+    }
+
+    /**
+     * @dataProvider derived_timestamp_overflow_provider
+     */
+    public function test_derived_timestamp_outside_database_range_is_rejected(string $operation): void
+    {
+        $now = $this->utc('9999-12-31 23:59:59');
+
+        $this->expectException(InvalidArgumentException::class);
+        if ('lease' === $operation) {
+            $this->policy()->leaseExpiresAt($now);
+            return;
+        }
+
+        $this->policy()->nextAttemptAt($now, 0);
+    }
+
+    public function derived_timestamp_overflow_provider(): array
+    {
+        return [
+            'lease' => [ 'lease' ],
+            'retry' => [ 'retry' ],
+        ];
+    }
+
     public function test_lease_deadline_is_exactly_ten_minutes_across_day_boundary(): void
     {
         $policy = $this->policy();
