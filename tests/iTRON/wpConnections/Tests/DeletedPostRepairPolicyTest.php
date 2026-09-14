@@ -49,6 +49,18 @@ final class DeletedPostRepairPolicyTest extends TestCase
         ( new DeletedPostRepairPolicy($clock) )->utcNow();
     }
 
+    public function test_zero_offset_named_timezone_is_not_accepted_as_utc(): void
+    {
+        $london_before_dst = new DateTimeImmutable(
+            '2026-03-29 00:55:00',
+            new DateTimeZone('Europe/London')
+        );
+        self::assertSame(0, $london_before_dst->getOffset());
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->policy()->leaseExpiresAt($london_before_dst);
+    }
+
     public function test_lease_deadline_is_exactly_ten_minutes_across_day_boundary(): void
     {
         $policy = $this->policy();
