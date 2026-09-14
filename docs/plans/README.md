@@ -70,7 +70,8 @@
     independent exact-candidate QA и security/SQL audit PASS без open P0/P1/P2
     findings и прошёл 19/19 protected checks; merge `c2f4b98` также прошёл
     19/19 post-merge jobs. DB-04-I2 начат как Batch 18: policy/clock slice
-    разблокирован, а executor/public/scheduler ждут DG-DELETE-06R4—R6.
+    завершён локально green `46d7f65`, а executor/public/scheduler ждут
+    DG-DELETE-06R4—R6.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -204,8 +205,9 @@ map находятся в
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
   `deleted_post` recovery. DB-03B-A, DB-03B-B, DB-04-D и DB-04-I1 завершены;
-  DB-04-I2 выполняется как Batch 18: первый policy/clock slice разблокирован,
-  affected slices ждут DG-DELETE-06R4—R6, а I3/Q сохраняют зависимости. REST-03
+  DB-04-I2 выполняется как Batch 18: первый policy/clock slice завершён
+  локально, affected slices ждут DG-DELETE-06R4—R6, а I3/Q сохраняют
+  зависимости. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
@@ -217,8 +219,8 @@ map находятся в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
   DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A. DB-04-I1 завершена PR
   #99; durable internal ledger доступен, но ещё не подключён к callback или
-  scheduler. DB-04-I2 находится в `in_progress` как Batch 18; новые R4—R6
-  gates не блокируют первый policy/clock slice.
+  scheduler. DB-04-I2 находится в `in_progress` как Batch 18; B18-01 завершён
+  локально, а новые R4—R6 блокируют оставшиеся affected slices.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.

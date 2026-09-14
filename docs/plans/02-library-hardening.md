@@ -62,7 +62,7 @@ DB-04-D завершена PR #97 после independent QA и 19/19 protected/p
 checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получил два
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
-slice разблокирован, а executor/public/scheduler slices ждут
+slice завершён локально, а executor/public/scheduler slices ждут
 DG-DELETE-06R4—R6; последующие production slices сохраняют зависимости.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
@@ -1976,7 +1976,7 @@ Notes/Risks: R6 существует отдельно, потому что manua
 
 #### B18-01. Retry policy and testable clocks
 
-Status: in_progress
+Status: completed
 
 Goal: выделить чистые UTC/backoff/lease/retention primitives, не
 зависящие от Client, cron или callback wiring.
@@ -2007,6 +2007,20 @@ Dependencies: DB-04-I1.
 
 Notes/Risks: B18-01 не связывает delay index с attempt/failure counters. Это
 делает только R6-dependent executor/worker.
+
+Delivery evidence:
+
+- red contract `55f8464`, UTC/DST regression `0f49fd0` и database-range
+  regression `f647d68` зафиксированы до production fix;
+- green implementation `46d7f65` получила два независимых PASS без open
+  P0/P1/P2;
+- focused unit — 24/24 tests, 51 assertions; full unit — 61/61, 173;
+  WordPress integration — 437/437, 3854;
+- isolation seed `1801`: reverse/random unit по 122/122 tests, 346 assertions,
+  reverse/random integration по 874/874 tests, 7708 assertions;
+- project PHPCS для всех новых source/test files прошёл. Protected CI и merge
+  evidence будут собраны на полном Batch 18 candidate, а не приписаны этому
+  промежуточному slice.
 
 #### B18-02. Unified cleanup executor
 

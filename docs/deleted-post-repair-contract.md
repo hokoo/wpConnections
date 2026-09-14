@@ -3,7 +3,7 @@
 Status: `DB-04-D` and `DB-04-I1` completed; `DG-DELETE-06R1` through
 `DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14.
 `DB-04-I2` is in progress as Batch 18. Its clock/backoff/lease/retention
-primitives may proceed. The public facade waits for `DG-DELETE-06R4`, automatic
+primitives are completed locally in `46d7f65`. The public facade waits for `DG-DELETE-06R4`, automatic
 registry/query/cron work waits for `DG-DELETE-06R5`, and exhaustion/executor
 work waits for `DG-DELETE-06R6`. The remaining production slices are
 authorized only in their recorded dependency order and against this contract.
@@ -770,8 +770,8 @@ DoD:
 ### DB-04-I2 — retry engine, WP-Cron adapter, and operator service
 
 Status: `in_progress`; I1 dependency is complete. Batch 18 starts with the
-gate-independent clock/backoff/lease/retention policy. Executor, public and
-scheduler slices retain the R4/R5/R6 dependencies above.
+completed gate-independent clock/backoff/lease/retention policy. Executor,
+public and scheduler slices retain the R4/R5/R6 dependencies above.
 
 Batch 18 decomposition baseline:
 `40a36c3a2512234e0d61db564dfb1e833a8ec5d2`.
