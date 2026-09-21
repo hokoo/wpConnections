@@ -40,17 +40,41 @@ tests_add_filter( 'muplugins_loaded', function() {
 	// readiness intentionally uses information_schema, where temporary-table
 	// visibility differs between supported MySQL and MariaDB versions. Keep
 	// this one production-owned table real throughout every integration test.
+	// Record the original permanent DDL before the core priority-10 rewrite so
+	// the restoring filter cannot hide a production CREATE TEMPORARY regression
+	// or rewrite a deliberately temporary isolation fixture.
+	$repair_table_pattern = '[A-Za-z0-9_]+wpconnections_repair';
+	$restore_repair_ddl   = false;
 	add_filter(
 		'query',
-		static function ( string $query ): string {
+		static function ( string $query ) use ( &$restore_repair_ddl, $repair_table_pattern ): string {
+			$restore_repair_ddl = false;
+			$restore_repair_ddl = 1 === preg_match(
+				'/^(?:CREATE\s+TABLE|DROP\s+TABLE(?:\s+IF\s+EXISTS)?)\s+`' . $repair_table_pattern . '`/i',
+				$query
+			);
+
+			return $query;
+		},
+		9
+	);
+	add_filter(
+		'query',
+		static function ( string $query ) use ( &$restore_repair_ddl, $repair_table_pattern ): string {
+			$should_restore     = $restore_repair_ddl;
+			$restore_repair_ddl = false;
+			if ( ! $should_restore ) {
+				return $query;
+			}
+
 			$query = (string) preg_replace(
-				'/^CREATE\s+TEMPORARY\s+TABLE\s+`([A-Za-z0-9_]*wpconnections_repair)`/i',
+				'/^CREATE\s+TEMPORARY\s+TABLE\s+`(' . $repair_table_pattern . ')`/i',
 				'CREATE TABLE `$1`',
 				$query
 			);
 
 			return (string) preg_replace(
-				'/^DROP\s+TEMPORARY\s+TABLE(\s+IF\s+EXISTS)?\s+`([A-Za-z0-9_]*wpconnections_repair)`/i',
+				'/^DROP\s+TEMPORARY\s+TABLE(\s+IF\s+EXISTS)?\s+`(' . $repair_table_pattern . ')`/i',
 				'DROP TABLE$1 `$2`',
 				$query
 			);

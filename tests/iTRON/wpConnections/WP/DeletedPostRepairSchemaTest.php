@@ -41,6 +41,18 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 	{
 		global $wpdb;
 
+		// Capture production DDL before any WordPress test-harness rewrite.
+		$original_create_queries = [];
+		$capture_original_ddl     = static function ( string $query ) use ( &$original_create_queries, $wpdb ): string {
+			$table = preg_quote( $wpdb->prefix . self::TABLE_KEY, '/' );
+			if ( preg_match( '/^CREATE(?:\s+TEMPORARY)?\s+TABLE\s+`' . $table . '`/i', $query ) ) {
+				$original_create_queries[] = $query;
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $capture_original_ddl, 8 );
+
 		$default_engine = (string) $wpdb->get_var( 'SELECT @@SESSION.default_storage_engine' );
 		try {
 			$wpdb->query( 'SET SESSION default_storage_engine = MyISAM' );
@@ -59,10 +71,14 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 			self::assertSame( $this->table, $wpdb->{self::TABLE_KEY} );
 			self::assertSame( 1, count( array_keys( $wpdb->tables, self::TABLE_KEY, true ) ) );
 		} finally {
+			remove_filter( 'query', $capture_original_ddl, 8 );
 			$wpdb->query(
 				'SET SESSION default_storage_engine = ' . preg_replace( '/[^A-Za-z0-9_]/', '', $default_engine )
 			);
 		}
+
+		self::assertCount( 1, $original_create_queries );
+		self::assertStringStartsWith( "CREATE TABLE `{$this->table}`", $original_create_queries[0] );
 	}
 
 	public function test_exact_names_do_not_collide_with_the_valid_repair_client_tables_or_unrelated_options(): void
