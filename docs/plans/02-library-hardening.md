@@ -63,7 +63,8 @@ checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получ
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
 slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 завершён green
-`0c23a15`, B18-03 — green `44d4bc8`, B18-04 выполняется, а последующие
+`0c23a15`, B18-03 — green `44d4bc8`, B18-04 — green `bccbca0`, B18-06
+выполняется, а последующие
 production slices сохраняют записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
@@ -2124,7 +2125,7 @@ Delivery evidence:
 
 #### B18-04. Eligible due and next-wakeup ledger queries
 
-Status: in_progress
+Status: completed
 
 Goal: prevent missing/disabled Clients from starving runnable work or creating
 an immediate cron loop.
@@ -2152,6 +2153,16 @@ Dependencies: DG-DELETE-06R5, B18-01, B18-03.
 
 Notes/Risks: use existing indexes unless measured vendor evidence proves a
 schema revision necessary; new DDL is outside I2 without a schema gate.
+
+Delivery evidence:
+
+- red contract `81d3e2b` зафиксировал Client-filtered due/deadline queries,
+  site-wide retention lookup, deterministic ordering и fail-closed hydration;
+- green `bccbca0` реализовал эти queries без schema/DDL changes;
+- focused policy unit: 25/25 tests, 52 assertions; focused WordPress ledger
+  integration: 37/37, 591;
+- full unit: 92/92 tests, 316 assertions; full WordPress integration: 444/444,
+  3970 assertions; полный source PHPCS прошёл.
 
 #### B18-05. Client-scoped public operator service
 
@@ -2188,7 +2199,7 @@ style choices.
 
 #### B18-06. Bounded site worker
 
-Status: waiting_dependency
+Status: in_progress
 
 Goal: process eligible due repairs through the same executor without duplicate
 live cleanup.
