@@ -2675,8 +2675,22 @@ then found two P2 activation/readiness gaps and one P3 stale idempotent-enable
 gap; no new decision gate was required. Red contract `8426e96` reproduces all
 three findings, and production correction `53c6171` makes the focused suite
 green at single-site `16/16` with 44 assertions and four expected multisite
-skips, and true multisite `16/16` with 59 assertions. Final full verification,
-independent re-audit, protected checks and merge evidence remain pending.
+skips, and true multisite `16/16` with 59 assertions. The subsequent full run
+exposed two pre-existing synthetic-prefix fixture assumptions made visible by
+eager ledger readiness; test-only correction `6ec5ef5` now models a coherent
+`$wpdb->prefix`/`$wpdb->options` context and removes the shared ledger between
+cases. Post-correction local verification is unit `139/139` with 509
+assertions, current single-site `474/474` with 4147 assertions and six expected
+skips, current true multisite `474/474` with 4178 assertions, and PHPCS
+`100/100`. Fixed PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0
+coverage is `613/613` with 4654 assertions and six expected skips; the PR gate
+passes at `3783/4136` statements (`91.47%`) and the RC threshold is ready. The
+same fixed floor passes true multisite `474/474` with 4178 assertions and all
+synthetic quality-tool gates. Isolation seed `19019` passes unit reverse and
+random at `278/278` with 1018 assertions each, plus WordPress reverse and
+random at `948/948` with 8294 assertions and 12 expected skips each.
+Independent exact-candidate re-audit, protected checks and merge evidence
+remain pending.
 
 ## E1. Test foundation и regression harness
 
