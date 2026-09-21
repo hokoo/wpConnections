@@ -64,7 +64,8 @@ independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
 slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 завершён green
 `0c23a15`, B18-03 — green `44d4bc8`, B18-04 — green `bccbca0`, B18-06 —
-green `d8e77b5`, B18-05 — green `5729673`, B18-07 выполняется, а последующие
+green `d8e77b5`, B18-05 — green `5729673`, B18-07 — green `c1eb7f2`, B18-Q
+выполняется, а последующие
 production slices сохраняют записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
@@ -2262,7 +2263,7 @@ Delivery evidence:
 
 #### B18-07. Dormant WP-Cron gateway and reconciliation
 
-Status: in_progress
+Status: completed
 
 Goal: use WP-Cron only as a replaceable site wake-up over ledger truth.
 
@@ -2299,6 +2300,21 @@ Dependencies: DG-DELETE-06R5, B18-06.
 Notes/Risks: WordPress's ten-minute duplicate suppression means “single” is a
 best-effort logical invariant, never authoritative persistence.
 
+Delivery evidence:
+
+- red contract `e221839` и DateTime expectation correction `f5ce939`
+  зафиксировали attributable deadline, eligibility, retention-only wake-up,
+  schedule-before-unschedule replacement, redaction и dormant gateway;
+- green `c1eb7f2` добавил feature-specific scheduler abstraction, native
+  empty-args WP-Cron adapter, reconciler/result и callback-to-worker gateway;
+- focused reconciler/gateway unit: 45/45 tests, 134 assertions; focused native
+  scheduler/ledger WordPress integration: 43/43, 653;
+- full unit: 114/114 tests, 432 assertions; full WordPress integration: 455/455,
+  4098 assertions; полный source PHPCS прошёл;
+- source не вызывает `add_action()` для repair event и не регистрирует Client:
+  hook subscription, Client-init activation и deleted-post coordinator остаются
+  только I3/2.0.
+
 #### B18-08. Optional WP-CLI bridge
 
 Status: deferred
@@ -2325,7 +2341,7 @@ which to reconstruct a Client.
 
 #### B18-Q. Exact-candidate verification and closeout
 
-Status: waiting_dependency
+Status: in_progress
 
 Goal: verify I2 across supported runtimes/vendors without claiming the I3 real
 hook guarantee.
