@@ -2,11 +2,18 @@
 
 namespace iTRON\wpConnections\Tests\iTRON\wpConnections\WP;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use iTRON\wpConnections\Abstracts\Connection as AbstractConnection;
 use iTRON\wpConnections\Abstracts\Storage;
 use iTRON\wpConnections\AtomicStorageInterface;
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\ConnectionCollection;
+use iTRON\wpConnections\Exceptions\StorageFailure;
+use iTRON\wpConnections\Internal\DeletedPostRepairDiagnostic;
+use iTRON\wpConnections\Internal\DeletedPostRepairIdentity;
+use iTRON\wpConnections\Internal\DeletedPostRepairLedger;
+use iTRON\wpConnections\Internal\DeletedPostRepairRuntime;
 use iTRON\wpConnections\Internal\DeletedPostRepairStatus;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\Internal\WordPressDeletedPostRepairScheduler;
@@ -14,6 +21,7 @@ use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
 use iTRON\wpConnections\Query\MetaCollection as MetaQueryCollection;
 use iTRON\wpConnections\TransactionContext;
+use LogicException;
 use RuntimeException;
 
 final class DeletedPostRepairHookMigrationStorage extends Storage implements AtomicStorageInterface
@@ -277,6 +285,109 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         self::assertSame(
             [ 514 ],
             DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $name ]
+        );
+    }
+
+    public function test_schema_failure_does_not_leave_a_callable_site_cron_handler(): void
+    {
+        $ledger = new DeletedPostRepairLedger();
+        $ledger->ensureReady();
+        delete_option(self::OWNERSHIP_OPTION);
+        wp_cache_delete(self::OWNERSHIP_OPTION, 'options');
+
+        try {
+            $this->newClient('unowned-schema');
+            self::fail('An unowned repair ledger must reject Client initialization.');
+        } catch (StorageFailure $failure) {
+            self::assertStringContainsString('ownership', $failure->getMessage());
+        }
+
+        self::assertFalse(has_action(WordPressDeletedPostRepairScheduler::EVENT_HOOK));
+    }
+
+    public function test_disabled_initialization_reconciles_a_lost_retention_wakeup(): void
+    {
+        global $wpdb;
+
+        $seed = $this->newClient('retention-seed');
+        $ledger = new DeletedPostRepairLedger();
+        $ledger->assertReady();
+        $initialAt = new DateTimeImmutable('-30 days', new DateTimeZone('UTC'));
+        $retryAt = new DateTimeImmutable('-29 days', new DateTimeZone('UTC'));
+        $resolvedAt = $retryAt->modify('+1 minute');
+        $identity = new DeletedPostRepairIdentity(
+            (int) get_current_blog_id(),
+            (string) $wpdb->prefix,
+            $seed->getName(),
+            'delete_post_connections:v1',
+            515
+        );
+        $initial = $ledger->armAndTryClaim(
+            $identity,
+            $seed->getStorage(),
+            $initialAt,
+            $initialAt->modify('+10 minutes')
+        )->getLease();
+        self::assertNotNull($initial);
+        self::assertTrue($ledger->markNeedsAttention(
+            $initial,
+            new DeletedPostRepairDiagnostic('storage', RuntimeException::class, '73', 'private'),
+            $initialAt->modify('+1 minute')
+        ));
+        $retry = $ledger->tryClaimManually(
+            $identity->getKey(),
+            $seed->getStorage(),
+            $retryAt,
+            $retryAt->modify('+10 minutes')
+        )->getLease();
+        self::assertNotNull($retry);
+        self::assertTrue($ledger->markResolved($retry, $resolvedAt));
+
+        DeletedPostRepairRuntime::instance()->resetForTests();
+        wp_clear_scheduled_hook(WordPressDeletedPostRepairScheduler::EVENT_HOOK);
+
+        $name = 'repair-hook-retention-disabled-' . ++self::$clientSequence;
+        $disable = static function (Client $client) use ($name): void {
+            if ($name === $client->getName()) {
+                $client->disablePostDeletionCleanup();
+            }
+        };
+        add_action('wpConnections/client/inited', $disable);
+        try {
+            $this->newNamedClient($name);
+        } finally {
+            remove_action('wpConnections/client/inited', $disable);
+        }
+
+        self::assertIsInt(
+            wp_next_scheduled(WordPressDeletedPostRepairScheduler::EVENT_HOOK, [])
+        );
+    }
+
+    public function test_repeated_enable_from_an_inactive_site_is_rejected(): void
+    {
+        if (! is_multisite()) {
+            self::markTestSkipped('Requires the true WordPress multisite lane.');
+        }
+
+        $client = $this->newClient('stale-repeated-enable');
+        $siteB = self::factory()->blog->create();
+        switch_to_blog($siteB);
+        try {
+            try {
+                $client->enablePostDeletionCleanup();
+                self::fail('A stale Client command must fail before the idempotent fast path.');
+            } catch (LogicException $failure) {
+                self::assertStringContainsString('context changed', $failure->getMessage());
+            }
+        } finally {
+            restore_current_blog();
+        }
+
+        do_action('deleted_post', 519, null);
+        self::assertSame(
+            [ 519 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $client->getName() ]
         );
     }
 
