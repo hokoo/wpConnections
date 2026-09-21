@@ -65,8 +65,8 @@ checks. DB-04-I2 завершён как Batch 18: DG-DELETE-06R4—R6 approved 
 B18-01—B18-07 и B18-Q completed, B18-08 deferred. Exact candidate `4c18fde`
 получил три independent PASS без open P0—P3 и 19/19 protected jobs; PR #102
 влит как `66f6fd3`, а exact merge прошёл 19/19 post-merge jobs.
-HOOK-03/DB-04-I3 исполняется как Batch 19: B19-01—B19-05 completed на
-candidate branch, B19-06 ready; DB-04-Q ждёт полного I3 closeout.
+HOOK-03/DB-04-I3 исполняется как Batch 19: B19-01—B19-06 completed на
+candidate branch, B19-Q in progress; DB-04-Q ждёт полного I3 closeout.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -2627,19 +2627,21 @@ DoD/AC:
 
 Dependencies: B19-03, B19-04 and B19-05.
 
-Evidence: implementation/test commit `6fda0b9`; focused real-hook suite is
-`14/14` with 44 assertions in the single-site lane (three expected multisite
-skips) and `13/13` with 50 assertions in the true-multisite lane. Full current
-runtime verification is unit `139/139` with 509 assertions, single-site
-integration `471/471` with 4135 assertions and five expected skips, and true
-multisite `471/471` with 4164 assertions and no skips. PHPCS passes `100/100`
-source files; the entrypoint shell, both PHPUnit XML files, workflow YAML and
-the whitespace check are valid. The dedicated fixed-floor multisite CI job is
-part of the exact-candidate B19-Q protected matrix.
+Evidence: implementation/test commit `6fda0b9`; its migration class alone is
+`13/13` with 37 assertions in the single-site lane (three expected multisite
+skips), while the focused selection including the separate default-storage
+success proof is `14/14` with 44 assertions. The same migration class is
+`13/13` with 50 assertions in the true-multisite lane. Full current runtime
+verification at that checkpoint is unit `139/139` with 509 assertions,
+single-site integration `471/471` with 4135 assertions and five expected
+skips, and true multisite `471/471` with 4164 assertions and no skips. PHPCS
+passes `100/100` source files; the entrypoint shell, both PHPUnit XML files,
+workflow YAML and the whitespace check are valid. The dedicated fixed-floor
+multisite CI job is part of the exact-candidate B19-Q protected matrix.
 
 #### B19-Q. Exact-candidate verification and I3 closeout
 
-Status: todo
+Status: in_progress
 
 Goal: verify HOOK-03/DB-04-I3 as one exact candidate and merge it without
 claiming DB-04-Q or a 2.0 release complete.
@@ -2665,6 +2667,16 @@ DoD/AC:
   but no release/tag is created by this closeout.
 
 Dependencies: B19-01—B19-06.
+
+Progress evidence: pre-audit candidate `dd5c23e` passed local full unit,
+single-site and true-multisite suites, deterministic isolation seed `19019`,
+fixed-floor PR coverage and quality-tool gates. Independent security review
+then found two P2 activation/readiness gaps and one P3 stale idempotent-enable
+gap; no new decision gate was required. Red contract `8426e96` reproduces all
+three findings, and production correction `53c6171` makes the focused suite
+green at single-site `16/16` with 44 assertions and four expected multisite
+skips, and true multisite `16/16` with 59 assertions. Final full verification,
+independent re-audit, protected checks and merge evidence remain pending.
 
 ## E1. Test foundation и regression harness
 

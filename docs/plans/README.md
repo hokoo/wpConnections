@@ -82,7 +82,9 @@
     site-local cron delivery `860a474` завершили B19-01—B19-04. B19-05
     фиксирует focused 1.x→2.0 migration/rollback docs; B19-06 commit
     `6fda0b9` закрыл real-hook и dedicated true-multisite verification. B19-Q
-    готов к exact-candidate QA. Tag/release остаётся вне Batch 19.
+    выполняется: audit gaps воспроизведены в `8426e96` и исправлены в
+    `53c6171`; full exact-candidate re-verification ещё не закрыт. Tag/release
+    остаётся вне Batch 19.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
