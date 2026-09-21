@@ -61,12 +61,12 @@ DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A вла
 DB-04-D завершена PR #97 после independent QA и 19/19 protected/post-merge
 checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получил два
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
-checks. DB-04-I2 находится в `review` как Batch 18: DG-DELETE-06R4—R6 approved
-A, B18-01 завершён green `46d7f65`, B18-02 — green `0c23a15`, B18-03 — green
-`44d4bc8`, B18-04 — green `bccbca0`, B18-06 —
-green `d8e77b5`, B18-05 — green `5729673`, B18-07 — green `c1eb7f2`, B18-Q
-проходит closeout после corrective commits `bc08a31`/`e23cd38`, а последующие
-I3/Q slices сохраняют записанные code dependencies.
+checks. DB-04-I2 завершён как Batch 18: DG-DELETE-06R4—R6 approved A,
+B18-01—B18-07 и B18-Q completed, B18-08 deferred. Exact candidate `4c18fde`
+получил три independent PASS без open P0—P3 и 19/19 protected jobs; PR #102
+влит как `66f6fd3`, а exact merge прошёл 19/19 post-merge jobs.
+HOOK-03/DB-04-I3 разблокирован и переведён в `todo`; DB-04-Q ждёт его
+завершения.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -1121,7 +1121,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 in review as Batch 18 |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D, DB-04-I1 and DB-04-I2 completed; HOOK-03/DB-04-I3 ready |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
@@ -1939,12 +1939,13 @@ Exit criteria:
   unresolved state не удаляется автоматически.
 - Exact candidate имеет independent QA PASS, protected и post-merge evidence.
 
-Next batch: Batch 18 / DB-04-I2 retry engine, WP-Cron wake-up и Client-scoped
-operator service; HOOK-03/DB-04-I3 остаётся заблокированным до I2.
+Batch 18 / DB-04-I2 завершён PR #102. Next batch: Batch 19 /
+HOOK-03/DB-04-I3 manager-backed recovery delivery; все его записанные DoR и
+dependencies выполнены.
 
 ### Batch 18. Build the deleted-post repair runner
 
-Status: review
+Status: completed
 
 Goal: завершить DB-04-I2 как безопасный, но ещё не подключённый к
 `deleted_post` retry/operator core. Batch не меняет 1.x callback identity и не
@@ -2026,9 +2027,9 @@ Delivery evidence:
   WordPress integration — 437/437, 3854;
 - isolation seed `1801`: reverse/random unit по 122/122 tests, 346 assertions,
   reverse/random integration по 874/874 tests, 7708 assertions;
-- project PHPCS для всех новых source/test files прошёл. Protected CI и merge
-  evidence будут собраны на полном Batch 18 candidate, а не приписаны этому
-  промежуточному slice.
+- project PHPCS для всех новых source/test files прошёл. Полный Batch 18
+  candidate и merge evidence впоследствии собраны B18-Q; они не приписываются
+  этому промежуточному slice отдельно.
 
 #### B18-02. Unified cleanup executor
 
@@ -2074,7 +2075,8 @@ Delivery evidence:
   focused WordPress integration: 3/3, 39;
 - full unit: 75/75 tests, 261 assertions; full WordPress integration: 440/440,
   3893 assertions; полный source PHPCS прошёл;
-- protected/exact-candidate и independent epic QA остаются обязанностью B18-Q.
+- protected/exact-candidate и independent epic QA завершены B18-Q на полном
+  Batch 18 candidate.
 
 #### B18-03. Current-site Client runtime registry
 
@@ -2122,7 +2124,8 @@ Delivery evidence:
 - registry registration/re-enable emits an injected reconciliation signal,
   duplicate owners and cross-site object reuse fail closed, disabled Clients
   remain manually resolvable, stale-context eligibility commands are rejected;
-- protected/exact-candidate и independent epic QA остаются обязанностью B18-Q.
+- protected/exact-candidate и independent epic QA завершены B18-Q на полном
+  Batch 18 candidate.
 
 #### B18-04. Eligible due and next-wakeup ledger queries
 
@@ -2341,7 +2344,7 @@ which to reconstruct a Client.
 
 #### B18-Q. Exact-candidate verification and closeout
 
-Status: review
+Status: completed
 
 Goal: verify I2 across supported runtimes/vendors without claiming the I3 real
 hook guarantee.
@@ -2391,8 +2394,245 @@ Delivery evidence:
 - exact pinned MySQL 8.0.46 and MariaDB 10.11.16 lanes each pass 458 tests and
   4099 assertions; source PHPCS passes 95/95 files;
 - RC coverage passes with 3599/3946 statements (91.21%) and zero active test
-  policy exceptions. Independent closure review, protected checks, merge and
-  exact post-merge evidence remain required before `completed`.
+  policy exceptions;
+- exact candidate `4c18fde9934a6d74f143faf0acc6dc97650a1a93` received three
+  independent closure PASS results with no open P0—P3 findings and passed
+  19/19 protected jobs;
+- PR #102 merged as `66f6fd3413d316081f431ff7bcc5d8ae6beefc9c`, and all five
+  workflows comprising 19 jobs passed on that exact post-merge SHA.
+
+### Batch 19. Activate manager-backed deleted-post recovery
+
+Status: todo
+
+Goal: завершить HOOK-03 / DB-04-I3 — заменить 1.x direct storage callback на
+context-aware Client coordinator, подключить уже поставленные ledger, executor,
+registry, worker и WP-Cron primitives и доказать focused real-hook behavior, не
+приписывая батчу полный operational/vendor closeout DB-04-Q.
+
+Compatibility boundary:
+
+- это утверждённый 2.0 break: direct
+  `remove_action('deleted_post', [$client->getStorage(), 'deleteByObjectID'])`
+  больше не управляет cleanup;
+- `Client::enablePostDeletionCleanup()` и
+  `Client::disablePostDeletionCleanup()` сохраняют semantic contract и являются
+  migration path;
+- consumer по-прежнему обязан создать отдельный свежий Client для каждого site
+  context; библиотека не вызывает `switch_to_blog()` и не реконструирует
+  custom factory/storage;
+- Batch 19 не выпускает tag/release. Release и consumer-wide guide остаются
+  HOOK-04/DB-04-Q concerns.
+
+Decision state: новых открытых gates на входе нет. DG-NAME-06R,
+DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, DG-DELETE-06/A и
+DG-DELETE-06R1—R6/A уже утверждают version boundary, dispatcher, ledger,
+retry, operator, eligibility и budget contracts. Если реализация потребует
+нового public method/DTO, persistent field/schema version, hook payload,
+настройки scheduler или другого behavior вне этих contracts, affected slice
+останавливается и создаёт отдельный decision gate до production code.
+
+#### B19-01. Freeze coordinator and activation regressions
+
+Status: todo
+
+Goal: до production wiring зафиксировать красными тестами точную around-callback
+последовательность и 2.0 compatibility boundary.
+
+Scope: focused unit seams и WordPress integration regressions для arm-before-DML,
+active/inactive/restored context, semantic enable/disable, direct legacy
+`remove_action()` break, same-name multisite Clients, accepted arguments и
+active exception semantics.
+
+Out of Scope: full DB vendor matrix, retention/uninstall runbook и release tag.
+
+DoR: Batch 18 completed; all Batch 19 decisions approved.
+
+DoD/AC:
+
+- ledger-arm/schema/context failure proves zero connection/meta DML and
+  propagates as critical recovery uncertainty;
+- an ordinary persisted cleanup failure returns from one Client coordinator so
+  later current-site Client subscriptions still execute;
+- mismatched-site manager wrapper never enters the coordinator;
+- tests prove that semantic disable/enable, not direct storage callback removal,
+  controls 2.0 delivery;
+- failures are red for the missing I3 production path, not for an altered I2
+  primitive.
+
+Dependencies: Batch 18 / DB-04-I2.
+
+#### B19-02. Implement the synchronous repair coordinator
+
+Status: waiting_dependency
+
+Goal: compose deterministic identity, durable arm/claim, best-effort safety
+wake-up, shared executor and final reconciliation around one current Client's
+`deleted_post` delivery.
+
+Scope: internal coordinator and narrow test seams; operation
+`delete_post_connections:v1`; current site ID/prefix and canonical Client name;
+primary-failure preservation when reconciliation also fails.
+
+Out of Scope: WordPress subscription ownership, Client constructor wiring and
+cron hook registration.
+
+DoD/AC:
+
+- arm/claim completes before storage cleanup; arm uncertainty performs zero
+  cleanup and propagates;
+- scheduler failure after durable arm is recorded/observable but cannot erase
+  the record or prevent the synchronous attempt;
+- executor result `resolved`, `retry_wait` or `needs_attention` drives a final
+  reconciliation without duplicating cleanup logic;
+- cleanup success with a never-failed arm removes the transient record; handled
+  failure remains durable and does not escape as the original Throwable;
+- a final ledger uncertainty remains reclaimable and propagates without being
+  replaced by a secondary scheduler/logging failure.
+
+Dependencies: B19-01 and completed I1/I2 primitives.
+
+#### B19-03. Own Client registration and semantic subscription lifecycle
+
+Status: waiting_dependency
+
+Goal: activate a successfully initialized Client through
+`wp-hooks-dispatcher`, retain revocable ownership handles and route existing
+semantic enable/disable methods through the 2.0 runtime.
+
+Scope: one Client repair registration and one manager subscription handle;
+idempotent enable/disable; schema readiness before subscription activation;
+registration reservation/rollback; exact priority 10 and one accepted argument.
+
+Out of Scope: final cross-integration disposal API owned by LIFE-HOOK-01 and
+support for the 1.x direct callback identity.
+
+DoD/AC:
+
+- only a fully initialized Client becomes registry owner and hook subscriber;
+- initialization failure revokes any partial registry/subscription state and
+  leaves no callable coordinator;
+- repeated semantic enable creates one effective delivery; repeated disable is
+  harmless and also removes automatic retry eligibility;
+- re-enable restores both delivery and eligibility and reconciles pending work;
+- a different live Client with the same site/name is rejected deterministically;
+  the same name on another site remains independent;
+- the Client retains the exact handles that future LIFE-HOOK-01 disposal can
+  revoke without reconstructing callback identity.
+
+Dependencies: B19-02, HOOK-01 and HOOK-02.
+
+#### B19-04. Activate the site-local cron delivery path
+
+Status: waiting_dependency
+
+Goal: connect the stable empty-argument cron event to the bounded automatic
+worker and convergence loop for the current initialized site.
+
+Scope: manager-backed
+`wpConnections/deletedPostRepair/run` subscription with zero accepted
+arguments; one logical current-site handler; automatic registry, worker,
+scheduler and reconciler composition; retention-only wake-ups.
+
+Out of Scope: network-wide scans, recurring events, Action Scheduler and
+automatic Client reconstruction.
+
+DoD/AC:
+
+- cron delivery in an inactive site context never enters the worker;
+- duplicate events remain harmless because ledger claims are authoritative;
+- no initialized eligible Client means no cleanup attempt and no loss of work;
+- worker success or failure requests reconciliation while preserving the
+  primary ledger/execution failure;
+- `DISABLE_WP_CRON` is reported through the existing operator observation but
+  manual PHP execution remains available;
+- multisite scheduling stays separated by each site's cron option and ledger
+  prefix.
+
+Dependencies: B19-03 and completed B18-04/B18-06/B18-07.
+
+#### B19-05. Prove the intentional 1.x-to-2.0 migration boundary
+
+Status: waiting_dependency
+
+Goal: make the callback-identity break executable and unambiguous without
+prematurely performing the full HOOK-04 consumer scan/release guide.
+
+Scope: upgrade fixture and focused README/deprecation/transition documentation;
+before/after examples using semantic lifecycle methods; rollback note retaining
+ledger/operator state.
+
+Out of Scope: release changelog, known-consumer repository changes and final
+2.0 tag.
+
+DoD/AC:
+
+- a fixture demonstrates that legacy direct storage `remove_action()` no
+  longer disables cleanup after I3;
+- the same fixture migrated to `disablePostDeletionCleanup()` preserves the
+  intended disabled state and can be re-enabled;
+- documentation places the breaking behavior next to the cleanup API and states
+  the per-site Client responsibility;
+- rollback instructions never drop or silently purge unresolved repair rows.
+
+Dependencies: B19-03.
+
+#### B19-06. Focused real-hook and multisite integration
+
+Status: waiting_dependency
+
+Goal: prove the activated I3 vertical through actual `deleted_post` and cron
+dispatch before the broader DB-04-Q qualification.
+
+Scope: real default storage success, custom atomic success/failure/no-match,
+non-atomic zero-write failure, two Clients with one persisted failure, duplicate
+delivery, active/inactive/restored multisite and semantic lifecycle.
+
+Out of Scope: exhaustive crash-window matrix, both pinned database lanes and
+the full operational runbook, all owned by DB-04-Q. Exact candidate and merge
+evidence are owned by B19-Q below.
+
+DoD/AC:
+
+- successful synchronous deletion leaves no connection/meta orphan and no
+  transient ledger row;
+- persisted failure of Client A does not prevent ordinary Client B cleanup;
+- retry from cron and explicit service converges through the same executor;
+- custom non-atomic storage performs zero writes and exposes redacted
+  `needs_attention` state;
+- true multisite proves no cross-site coordinator or worker entry for equal
+  numeric post IDs and same Client names.
+
+Dependencies: B19-03, B19-04 and B19-05.
+
+#### B19-Q. Exact-candidate verification and I3 closeout
+
+Status: waiting_dependency
+
+Goal: verify HOOK-03/DB-04-I3 as one exact candidate and merge it without
+claiming DB-04-Q or a 2.0 release complete.
+
+Scope: full unit/integration, reverse/random isolation, true multisite, PHPCS,
+coverage, supported PHP/WordPress/Ramsey pairwise matrix, independent
+exact-candidate plus security/concurrency review, protected merge and exact
+post-merge evidence.
+
+Out of Scope: final pinned-vendor/failure-crash operational closure and release
+tag, which remain DB-04-Q/HOOK-04 work.
+
+DoR: B19-01—B19-06 completed with no unresolved decision gate.
+
+DoD/AC:
+
+- no open P0/P1/P2/P3 correctness or security finding remains on the exact
+  candidate;
+- tests prove manager context filtering, arm-before-DML, later-Client
+  continuation, semantic lifecycle and dormant-direct-callback incompatibility;
+- protected checks and the exact merge SHA are green and recorded;
+- HOOK-03/DB-04-I3 becomes `completed`; DB-04-Q and LIFE-HOOK-01 become ready,
+  but no release/tag is created by this closeout.
+
+Dependencies: B19-01—B19-06.
 
 ## E1. Test foundation и regression harness
 
@@ -4467,7 +4707,7 @@ DoD/AC:
 
 #### DB-04-I2. Retry engine, scheduler adapter and operator service
 
-Status: review
+Status: completed
 
 Scope: state machine, clock/scheduler abstractions, WP-Cron wake-up, backoff,
 Client runtime registry и PHP operator service. Optional WP-CLI bridge deferred.
@@ -4477,8 +4717,9 @@ DoR:
 - DG-DELETE-06R3 утверждён.
 - DG-DELETE-06R4—R6 утверждены вариантом A.
 - DB-04-I1 завершена.
-- B18-01—B18-07 completed; B18-08 deferred; B18-Q проходит independent,
-  protected и merge closeout.
+- B18-01—B18-07 and B18-Q completed; B18-08 deferred. Exact candidate
+  `4c18fde`, PR #102 and merge `66f6fd3` carry independent and 19/19
+  protected/post-merge evidence.
 
 DoD/AC:
 
@@ -4490,7 +4731,7 @@ DoD/AC:
 
 #### HOOK-03 / DB-04-I3. Manager-backed recovery delivery
 
-Status: waiting_dependency
+Status: todo
 
 Scope: context-aware coordinator subscription, pre-arm/cleanup/resolve flow,
 semantic enable/disable и retained subscription handle.
@@ -6729,7 +6970,7 @@ Verification evidence (2026-09-12):
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0 для 2.0
 
