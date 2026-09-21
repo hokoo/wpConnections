@@ -11,7 +11,7 @@ use Throwable;
 /**
  * @internal Processes one current-site bounded repair batch without hook wiring.
  */
-final class DeletedPostRepairWorker
+final class DeletedPostRepairWorker implements DeletedPostRepairAutomaticRunnerInterface
 {
     private const DEFAULT_LIMIT = 20;
     private const MAX_LIMIT = 100;

@@ -11,7 +11,8 @@ use Throwable;
 
 final class DeletedPostRepairLedger implements
     DeletedPostRepairLedgerInterface,
-    DeletedPostRepairWorkerLedgerInterface
+    DeletedPostRepairWorkerLedgerInterface,
+    DeletedPostRepairReconcilerLedgerInterface
 {
     private const TABLE_KEY = 'wpconnections_repair';
     private const OWNERSHIP_OPTION = 'wpconnections_repair_schema_owner';
@@ -573,6 +574,18 @@ final class DeletedPostRepairLedger implements
         array $clientNames,
         DateTimeImmutable $now
     ): ?DateTimeImmutable {
+        $wakeup = $this->findNextAutomaticWakeupForClients($clientNames, $now);
+
+        return null === $wakeup ? null : $wakeup->getAt();
+    }
+
+    /**
+     * @param string[] $clientNames
+     */
+    public function findNextAutomaticWakeupForClients(
+        array $clientNames,
+        DateTimeImmutable $now
+    ): ?DeletedPostRepairAutomaticWakeup {
         $clientNames = $this->canonicalClientNames($clientNames);
         $this->assertUtc($now);
         if ([] === $clientNames) {
@@ -612,7 +625,10 @@ final class DeletedPostRepairLedger implements
             return null;
         }
         if (DeletedPostRepairStatus::ARMED === $record->getStatus()) {
-            return $now;
+            return new DeletedPostRepairAutomaticWakeup(
+                $record->getIdentity()->getKey(),
+                $now
+            );
         }
 
         $deadline = DeletedPostRepairStatus::RETRY_WAIT === $record->getStatus()
@@ -622,7 +638,10 @@ final class DeletedPostRepairLedger implements
             throw $this->failure('read next eligible deleted-post repair deadline: missing timestamp');
         }
 
-        return $deadline;
+        return new DeletedPostRepairAutomaticWakeup(
+            $record->getIdentity()->getKey(),
+            $deadline
+        );
     }
 
     public function findOldestResolvedAt(): ?DateTimeImmutable
