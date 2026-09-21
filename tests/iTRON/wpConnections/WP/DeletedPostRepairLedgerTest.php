@@ -486,6 +486,117 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		self::assertNull( $this->ledger->findForClient( 'ledger-client-a', $transient->getKey() ) );
 	}
 
+	public function test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth(): void
+	{
+		$storage = new DeletedPostRepairLedgerStorageA();
+		$identity = $this->identity( 'ledger-client-a', 108 );
+		$this->arm( $identity, $storage, '+5 minutes' );
+
+		global $wpdb;
+		self::assertSame(
+			1,
+			$wpdb->update(
+				$this->table,
+				[ 'attempt_count' => 9 ],
+				[ 'repair_key' => $identity->getKey() ],
+				[ '%d' ],
+				[ '%s' ]
+			)
+		);
+
+		$automatic = $this->ledger->tryClaimDue(
+			$identity->getKey(),
+			$storage,
+			$this->instantAt( '+10 minutes' ),
+			$this->instantAt( '+20 minutes' )
+		);
+
+		self::assertSame( 'attempts_exhausted', $automatic->getOutcome() );
+		self::assertNull( $automatic->getLease() );
+		$attention = $this->require_record( 'ledger-client-a', $identity->getKey() );
+		self::assertSame( DeletedPostRepairStatus::NEEDS_ATTENTION, $attention->getStatus() );
+		self::assertSame( 9, $attention->getAttemptCount() );
+		self::assertSame( 0, $attention->getFailureCount() );
+
+		$manual = $this->ledger->tryClaimManually(
+			$identity->getKey(),
+			$storage,
+			$this->instantAt( '+11 minutes' ),
+			$this->instantAt( '+21 minutes' )
+		);
+		$this->assert_acquired( $manual, $identity->getKey() );
+		self::assertSame(
+			10,
+			$this->require_record( 'ledger-client-a', $identity->getKey() )->getAttemptCount()
+		);
+	}
+
+	public function test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state(): void
+	{
+		$storage = new DeletedPostRepairLedgerStorageA();
+		$due = $this->identity( 'ledger-client-a', 109 );
+		$future = $this->identity( 'ledger-client-a', 110 );
+		$attention = $this->identity( 'ledger-client-a', 111 );
+		$due_lease = $this->arm( $due, $storage, '+5 minutes' );
+		$future_lease = $this->arm( $future, $storage, '+5 minutes' );
+		$attention_lease = $this->arm( $attention, $storage, '+5 minutes' );
+		self::assertTrue(
+			$this->ledger->markRetryWait(
+				$future_lease,
+				$this->diagnostic( 'storage', 'future' ),
+				$this->instantAt( '+30 minutes' ),
+				$this->instantAt( '+1 minute' )
+			)
+		);
+		self::assertTrue(
+			$this->ledger->markNeedsAttention(
+				$attention_lease,
+				$this->diagnostic( 'storage', 'attention' ),
+				$this->instantAt( '+1 minute' )
+			)
+		);
+
+		global $wpdb;
+		self::assertSame(
+			1,
+			$wpdb->update(
+				$this->table,
+				[ 'attempt_count' => 9 ],
+				[ 'repair_key' => $due->getKey() ],
+				[ '%d' ],
+				[ '%s' ]
+			)
+		);
+
+		$this->assert_acquired(
+			$this->ledger->tryClaimDueManually(
+				$due->getKey(),
+				$storage,
+				$this->instantAt( '+10 minutes' ),
+				$this->instantAt( '+20 minutes' )
+			),
+			$due->getKey()
+		);
+		self::assertSame(
+			'not_due',
+			$this->ledger->tryClaimDueManually(
+				$future->getKey(),
+				$storage,
+				$this->instantAt( '+10 minutes' ),
+				$this->instantAt( '+20 minutes' )
+			)->getOutcome()
+		);
+		self::assertSame(
+			'unavailable',
+			$this->ledger->tryClaimDueManually(
+				$attention->getKey(),
+				$storage,
+				$this->instantAt( '+10 minutes' ),
+				$this->instantAt( '+20 minutes' )
+			)->getOutcome()
+		);
+	}
+
 	public function test_backward_transition_timestamps_are_rejected_without_corrupting_state(): void
 	{
 		$storage = new DeletedPostRepairLedgerStorageA();

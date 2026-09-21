@@ -172,6 +172,25 @@ final class DeletedPostRepairPolicyTest extends TestCase
         );
     }
 
+    public function test_resolved_retention_cutoff_preserves_the_strict_boundary(): void
+    {
+        self::assertSame(
+            '2026-08-15 10:00:00',
+            $this->policy()->resolvedRetentionCutoff(
+                $this->utc('2026-09-14 10:00:00')
+            )->format('Y-m-d H:i:s')
+        );
+    }
+
+    public function test_policy_exposes_a_validated_monotonic_reading(): void
+    {
+        $policy = new DeletedPostRepairPolicy(
+            $this->clock($this->utc('2026-09-14 10:00:00'), 123.5)
+        );
+
+        self::assertSame(123.5, $policy->monotonicSeconds());
+    }
+
     /**
      * @dataProvider non_utc_policy_argument_provider
      */
