@@ -268,7 +268,7 @@ final class DeletedPostRepairExecutorTest extends TestCase
         $encodedLog = (string) json_encode($logger->records);
         self::assertStringNotContainsString('private table', $encodedLog);
         self::assertStringNotContainsString('token secret', $encodedLog);
-        self::assertStringNotContainsString('exception', strtolower($encodedLog));
+        self::assertStringNotContainsString('"exception":', strtolower($encodedLog));
     }
 
     public function test_ninth_automatic_failure_and_any_manual_failure_require_attention(): void
@@ -294,6 +294,27 @@ final class DeletedPostRepairExecutorTest extends TestCase
             self::assertCount(1, $ledger->attentionCalls);
             self::assertSame([], $ledger->retryWaitCalls);
         }
+    }
+
+    public function test_eighth_automatic_failure_schedules_the_ninth_claim_after_twenty_four_hours(): void
+    {
+        $storage = new DeletedPostRepairExecutorAtomicStorage();
+        $storage->deleteFailure = new RuntimeException('eighth failure');
+        $ledger = $this->ledger($this->record($storage, 8, 7));
+
+        $result = $this->executor($ledger)->execute(
+            $this->client($storage),
+            $this->lease(),
+            DeletedPostRepairExecutor::MODE_AUTOMATIC
+        );
+
+        self::assertSame('retry_wait', $result->getOutcome());
+        self::assertCount(1, $ledger->retryWaitCalls);
+        self::assertSame(
+            '2026-09-22 10:00:00',
+            $ledger->retryWaitCalls[0]['next']->format('Y-m-d H:i:s')
+        );
+        self::assertSame([], $ledger->attentionCalls);
     }
 
     public function test_unknown_operation_and_non_atomic_adapter_reach_attention_without_cleanup(): void

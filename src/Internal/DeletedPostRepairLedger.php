@@ -9,7 +9,7 @@ use iTRON\wpConnections\Exceptions\StorageFailure;
 use RuntimeException;
 use Throwable;
 
-final class DeletedPostRepairLedger
+final class DeletedPostRepairLedger implements DeletedPostRepairLedgerInterface
 {
     private const TABLE_KEY = 'wpconnections_repair';
     private const OWNERSHIP_OPTION = 'wpconnections_repair_schema_owner';
