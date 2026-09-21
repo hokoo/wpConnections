@@ -123,6 +123,7 @@ final class DeletedPostRepairWorker implements DeletedPostRepairAutomaticRunnerI
                     continue;
                 }
 
+                $this->registry->assertCurrentClientContext($client);
                 $now = $this->policy->utcNow();
                 $claim = null === $manualClient
                     ? $this->ledger->tryClaimDue(

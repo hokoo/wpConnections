@@ -6,6 +6,7 @@ use Closure;
 use InvalidArgumentException;
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
+use iTRON\wpConnections\Exceptions\DeletedPostRepairUnavailable;
 use iTRON\wpHooksDispatcher\Contracts\SiteContextProvider;
 use iTRON\wpHooksDispatcher\SiteContext;
 use LogicException;
@@ -66,6 +67,13 @@ final class DeletedPostRepairClientRegistry
         bool $automaticEnabled = true
     ): DeletedPostRepairClientRegistration {
         $context = $this->currentContext();
+        try {
+            $this->assertClientContext($client, $context);
+        } catch (DeletedPostRepairUnavailable $failure) {
+            throw new ClientRegisterFail(
+                'A deleted-post repair Client cannot be registered outside its site context.'
+            );
+        }
         $clientName = $client->getName();
         $this->assertClientName($clientName);
         $ownerKey = $this->ownerKey($context, $clientName);
@@ -143,6 +151,15 @@ final class DeletedPostRepairClientRegistry
         $owner = $this->owners[ $this->ownerKey($context, $clientName) ] ?? null;
 
         return null === $owner || ! $owner['automatic'] ? null : $owner['client'];
+    }
+
+    /**
+     * @internal Workers revalidate immediately before acquiring a lease.
+     * @throws DeletedPostRepairUnavailable
+     */
+    public function assertCurrentClientContext(Client $client): void
+    {
+        $this->assertClientContext($client, $this->currentContext());
     }
 
     /**
@@ -244,6 +261,14 @@ final class DeletedPostRepairClientRegistry
     private function signalReconciliation(SiteContext $context): void
     {
         ($this->requestReconciliation)($context);
+    }
+
+    private function assertClientContext(Client $client, SiteContext $context): void
+    {
+        $client->assertDeletedPostRepairContext(
+            $context->blogId(),
+            $context->databasePrefix()
+        );
     }
 
     private function currentContext(): SiteContext

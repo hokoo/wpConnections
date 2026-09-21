@@ -94,6 +94,7 @@ final class DeletedPostRepairLedger implements
     private string $sitePrefix;
     private string $tableName;
     private string $optionsTable;
+    private bool $ready = false;
 
     public function __construct()
     {
@@ -125,6 +126,7 @@ final class DeletedPostRepairLedger implements
             $this->assertOwnership($ownership);
             $this->assertSchemaReady();
             $this->registerTable();
+            $this->ready = true;
             return;
         }
 
@@ -137,11 +139,15 @@ final class DeletedPostRepairLedger implements
         $this->createTable();
         $this->assertSchemaReady();
         $this->registerTable();
+        $this->ready = true;
     }
 
     public function assertReady(): void
     {
         $this->assertContextAndIdentifier();
+        if ($this->ready) {
+            return;
+        }
         if (! $this->tableExists()) {
             throw $this->failure('verify repair ledger schema: table is missing');
         }
@@ -154,6 +160,7 @@ final class DeletedPostRepairLedger implements
         $this->assertOwnership($ownership);
         $this->assertSchemaReady();
         $this->registerTable();
+        $this->ready = true;
     }
 
     public function armAndTryClaim(

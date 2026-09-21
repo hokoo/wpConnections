@@ -311,9 +311,23 @@ class Client
     final public function assertDeletedPostRepairCurrentContext(): void
     {
         global $wpdb;
+        $this->assertDeletedPostRepairContext(
+            (int) get_current_blog_id(),
+            (string) $wpdb->prefix
+        );
+    }
+
+    /**
+     * @internal Repair coordinators must compare their exact site context before work.
+     * @throws Exceptions\DeletedPostRepairUnavailable
+     */
+    final public function assertDeletedPostRepairContext(
+        int $siteId,
+        string $sitePrefix
+    ): void {
         if (
-            $this->deletedPostRepairSiteId !== (int) get_current_blog_id() ||
-            $this->deletedPostRepairSitePrefix !== (string) $wpdb->prefix
+            $this->deletedPostRepairSiteId !== $siteId ||
+            $this->deletedPostRepairSitePrefix !== $sitePrefix
         ) {
             throw new Exceptions\DeletedPostRepairUnavailable();
         }

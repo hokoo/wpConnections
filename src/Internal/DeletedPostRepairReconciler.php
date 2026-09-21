@@ -45,7 +45,6 @@ final class DeletedPostRepairReconciler
 
         try {
             $dispatchAvailable = $this->scheduler->isAutomaticDispatchAvailable();
-            $existingAt = $this->scheduler->nextWakeupAt();
         } catch (Throwable $failure) {
             return $this->failureResult(
                 $failure,
@@ -54,6 +53,19 @@ final class DeletedPostRepairReconciler
                 $desiredAt,
                 null,
                 false
+            );
+        }
+
+        try {
+            $existingAt = $this->scheduler->nextWakeupAt();
+        } catch (Throwable $failure) {
+            return $this->failureResult(
+                $failure,
+                $automatic,
+                $now,
+                $desiredAt,
+                null,
+                $dispatchAvailable
             );
         }
 
