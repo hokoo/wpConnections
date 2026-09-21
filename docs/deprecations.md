@@ -42,3 +42,28 @@ related-entity use case and the future of that separate method are designed in
 The public-consumer search completed by REL-00 found no call to `load()`, but
 that is only negative public evidence; private consumers remain unknown. See
 the [compatibility inventory](compatibility-inventory.md).
+
+## Direct `deleted_post` Storage callback identity
+
+Status: compatibility removed at the intentional 2.0 manager boundary
+
+The public cleanup methods are not deprecated. Continue using
+`Client::disablePostDeletionCleanup()` and
+`Client::enablePostDeletionCleanup()`.
+
+What no longer works is consumer manipulation of the former implementation
+callback:
+
+```php
+remove_action(
+    'deleted_post',
+    [ $client->getStorage(), 'deleteByObjectID' ],
+    10
+);
+```
+
+The 2.0 runtime owns a different, context-aware callback and durable recovery
+coordinator. Review the
+[deleted-post cleanup upgrade guide](deleted-post-cleanup-upgrade.md) before
+updating. In particular, preserve unresolved repair rows and their ownership
+option during rollback.

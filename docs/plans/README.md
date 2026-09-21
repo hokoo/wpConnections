@@ -76,6 +76,12 @@
     `4c18fde` получил три independent PASS без open P0—P3 и 19/19 protected
     jobs. Merge `66f6fd3` прошёл 19/19 post-merge jobs. HOOK-03/DB-04-I3
     разблокирован как Batch 19; DB-04-Q по-прежнему ждёт I3.
+13. Batch 19 / HOOK-03/DB-04-I3 исполняется на ветке
+    `batch19-manager-backed-recovery`. Красный contract `ad98a7b`, synchronous
+    coordinator `a99a8c5`, manager-backed Client lifecycle `332136f` и
+    site-local cron delivery `860a474` завершили B19-01—B19-04. B19-05
+    фиксирует focused 1.x→2.0 migration/rollback docs; B19-06 готов к
+    true-multisite и real-hook closeout. Tag/release остаётся вне Batch 19.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
