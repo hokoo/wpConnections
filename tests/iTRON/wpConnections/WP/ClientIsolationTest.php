@@ -79,26 +79,30 @@ class ClientIsolationMemoryStorage extends Storage
 class ClientIsolationTest extends \WP_UnitTestCase
 {
 	private string $original_prefix;
+	private string $original_options_table;
 	private array $original_tables = [];
 	private array $original_option_names = [];
 	private array $clients = [];
 	private array $physical_tables = [];
+	private array $temporary_options_tables = [];
 
 	public function set_up()
 	{
 		parent::set_up();
 
 		global $wpdb;
-		$this->original_prefix       = $wpdb->prefix;
-		$this->original_tables       = $wpdb->tables;
-		$this->original_option_names = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options}" );
+		$this->original_prefix        = $wpdb->prefix;
+		$this->original_options_table = $wpdb->options;
+		$this->original_tables        = $wpdb->tables;
+		$this->original_option_names  = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options}" );
+		$this->physical_tables[]      = $wpdb->prefix . 'wpconnections_repair';
 	}
 
 	public function tear_down()
 	{
 		global $wpdb;
 
-		$wpdb->prefix = $this->original_prefix;
+		$this->restore_original_prefix();
 		foreach ( $this->clients as $client ) {
 			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 			if ( class_exists( RestRouteRegistry::class ) ) {
@@ -109,6 +113,9 @@ class ClientIsolationTest extends \WP_UnitTestCase
 
 		foreach ( array_unique( $this->physical_tables ) as $table ) {
 			$wpdb->query( 'DROP TABLE IF EXISTS `' . str_replace( '`', '``', $table ) . '`' );
+		}
+		foreach ( array_unique( $this->temporary_options_tables ) as $table ) {
+			$wpdb->query( 'DROP TEMPORARY TABLE IF EXISTS `' . str_replace( '`', '``', $table ) . '`' );
 		}
 
 		$current_options = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options}" );
@@ -364,9 +371,11 @@ class ClientIsolationTest extends \WP_UnitTestCase
 	{
 		global $wpdb;
 
-		$wpdb->prefix = str_repeat( 'p', 41 );
+		$this->use_synthetic_prefix( str_repeat( 'p', 41 ) );
 		$boundary = $this->new_default_client( 'z', false, false );
 		self::assertSame( 64, strlen( $wpdb->prefix . $boundary->getStorage()->get_meta_table() ) );
+		self::assertSame( $wpdb->prefix . 'wpconnections_repair', $wpdb->wpconnections_repair );
+		self::assertTrue( $this->table_exists( $wpdb->wpconnections_repair ) );
 
 		$this->assert_client_registration_error(
 			'Client table identifier exceeds the 64-character database limit.',
@@ -375,7 +384,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			}
 		);
 
-		$wpdb->prefix = str_repeat( 'q', 42 );
+		$this->use_synthetic_prefix( str_repeat( 'q', 42 ) );
 		$this->assert_client_registration_error(
 			'Client table identifier exceeds the 64-character database limit.',
 			function (): void {
@@ -636,7 +645,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		$nested_call         = static function ( int $deleted_post_id ) use ( $bound, &$nested_result ): void {
 			$nested_result = $bound->getStorage()->deleteByObjectID( $deleted_post_id );
 		};
-		$wpdb->prefix = 'alternate_';
+		$this->use_synthetic_prefix( 'alternate_' );
 
 		$this->assert_client_registration_error(
 			'Client storage is bound to a different WordPress site prefix.',
@@ -663,7 +672,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			$wpdb->prefix . $fresh->getStorage()->get_connections_table()
 		);
 
-		$wpdb->prefix = $this->original_prefix;
+		$this->restore_original_prefix();
 		if ( ! is_multisite() ) {
 			return;
 		}
@@ -835,6 +844,12 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		bool $repair_enabled = true
 	): Client
 	{
+		global $wpdb;
+		$repair_table = $wpdb->prefix . 'wpconnections_repair';
+		if ( strlen( $repair_table ) <= 64 ) {
+			$this->physical_tables[] = $repair_table;
+		}
+
 		$install_filter = static function () use ( $install ): bool {
 			return $install;
 		};
@@ -854,7 +869,6 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			remove_filter( 'wpConnections/storage/installOnInit', $install_filter, 999 );
 		}
 
-		global $wpdb;
 		if ( $client->getStorage() instanceof WPStorage ) {
 			foreach ( [
 				$wpdb->prefix . $client->getStorage()->get_connections_table(),
@@ -966,7 +980,42 @@ class ClientIsolationTest extends \WP_UnitTestCase
 	private function option_names(): array
 	{
 		global $wpdb;
-		return $wpdb->get_col( "SELECT option_name FROM {$wpdb->options}" );
+		return array_values(
+			array_filter(
+				$wpdb->get_col( "SELECT option_name FROM {$wpdb->options}" ),
+				static fn( string $option_name ): bool => 'wpconnections_repair_schema_owner' !== $option_name
+			)
+		);
+	}
+
+	private function use_synthetic_prefix( string $prefix ): void
+	{
+		global $wpdb;
+
+		$options_table  = $prefix . 'options';
+		$escaped_table  = str_replace( '`', '``', $options_table );
+		$escaped_source = str_replace( '`', '``', $this->original_options_table );
+		$wpdb->query( "DROP TEMPORARY TABLE IF EXISTS `{$escaped_table}`" );
+		self::assertNotFalse(
+			$wpdb->query( "CREATE TEMPORARY TABLE `{$escaped_table}` LIKE `{$escaped_source}`" )
+		);
+
+		$this->temporary_options_tables[] = $options_table;
+		$this->physical_tables[]          = $prefix . 'wpconnections_repair';
+		$wpdb->prefix                     = $prefix;
+		$wpdb->options                    = $options_table;
+		unset( $wpdb->wpconnections_repair );
+		wp_cache_flush();
+	}
+
+	private function restore_original_prefix(): void
+	{
+		global $wpdb;
+
+		$wpdb->prefix  = $this->original_prefix;
+		$wpdb->options = $this->original_options_table;
+		unset( $wpdb->wpconnections_repair );
+		wp_cache_flush();
 	}
 
 	private function register_relation( Client $client, string $name ): \iTRON\wpConnections\Relation
