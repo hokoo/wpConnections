@@ -1116,6 +1116,26 @@ class DeletedPostRepairLedgerTest extends \WP_UnitTestCase
 		);
 	}
 
+	public function test_next_automatic_wakeup_includes_the_attributable_repair_key(): void
+	{
+		$storage = new DeletedPostRepairLedgerStorageA();
+		$first = $this->identity( 'eligible-a', 166 );
+		$second = $this->identity( 'eligible-a', 167 );
+		$this->force_armed( $first, $storage );
+		$this->force_armed( $second, $storage );
+		$expectedKeys = [ $first->getKey(), $second->getKey() ];
+		sort( $expectedKeys, SORT_STRING );
+
+		$wakeup = $this->ledger->findNextAutomaticWakeupForClients(
+			[ 'eligible-a' ],
+			$this->instantAt( '+1 minute' )
+		);
+
+		self::assertNotNull( $wakeup );
+		self::assertSame( $expectedKeys[0], $wakeup->getRepairKey() );
+		self::assertEquals( $this->instantAt( '+1 minute' ), $wakeup->getAt() );
+	}
+
 	public function test_oldest_resolved_timestamp_is_site_wide_and_deterministic(): void
 	{
 		$storage = new DeletedPostRepairLedgerStorageA();
