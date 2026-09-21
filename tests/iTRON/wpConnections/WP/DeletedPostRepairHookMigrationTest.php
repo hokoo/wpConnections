@@ -171,7 +171,6 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         global $wpdb;
         $this->wpdbTablesBefore = $wpdb->tables;
         $this->table = $wpdb->prefix . self::TABLE_BASENAME;
-        add_filter('query', [ $this, 'preserve_real_repair_ledger_table' ], 11);
         $this->dropLedgerArtifacts();
         DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient = [];
         DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage = [];
@@ -209,7 +208,6 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
             $this->dropLedgerArtifacts();
             $wpdb->tables = $this->wpdbTablesBefore;
         } finally {
-            remove_filter('query', [ $this, 'preserve_real_repair_ledger_table' ], 11);
             parent::tear_down();
         }
     }
@@ -641,22 +639,6 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         self::assertSame(
             [ 551, 551 ],
             DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteBStorageId ]
-        );
-    }
-
-    public function preserve_real_repair_ledger_table(string $query): string
-    {
-        $table = preg_quote($this->table, '/');
-        $query = (string) preg_replace(
-            '/^CREATE\s+TEMPORARY\s+TABLE\s+`' . $table . '`/i',
-            'CREATE TABLE `' . $this->table . '`',
-            $query
-        );
-
-        return (string) preg_replace(
-            '/^DROP\s+TEMPORARY\s+TABLE(\s+IF\s+EXISTS)?\s+`' . $table . '`/i',
-            'DROP TABLE$1 `' . $this->table . '`',
-            $query
         );
     }
 

@@ -60,7 +60,6 @@ final class DeletedPostRepairExecutorTest extends WPConnectionsTestCase
 		global $wpdb;
 		$this->wpdb_tables_before_ledger = $wpdb->tables;
 		$this->ledger_table = $wpdb->prefix . self::TABLE_BASENAME;
-		add_filter( 'query', [ $this, 'preserve_real_repair_ledger_table' ], 11 );
 		$this->drop_ledger_artifacts();
 		$this->clock = new DeletedPostRepairExecutorWPClock( $this->utc( '2026-09-21 10:00:00' ) );
 		$this->policy = new DeletedPostRepairPolicy( $this->clock );
@@ -76,7 +75,6 @@ final class DeletedPostRepairExecutorTest extends WPConnectionsTestCase
 			$this->drop_ledger_artifacts();
 			$wpdb->tables = $this->wpdb_tables_before_ledger;
 		} finally {
-			remove_filter( 'query', [ $this, 'preserve_real_repair_ledger_table' ], 11 );
 			parent::tear_down();
 		}
 	}
@@ -270,19 +268,4 @@ final class DeletedPostRepairExecutorTest extends WPConnectionsTestCase
 		);
 	}
 
-	public function preserve_real_repair_ledger_table( string $query ): string
-	{
-		$table = preg_quote( $this->ledger_table, '/' );
-		$query = (string) preg_replace(
-			'/^CREATE\s+TEMPORARY\s+TABLE\s+`' . $table . '`/i',
-			'CREATE TABLE `' . $this->ledger_table . '`',
-			$query
-		);
-
-		return (string) preg_replace(
-			'/^DROP\s+TEMPORARY\s+TABLE(\s+IF\s+EXISTS)?\s+`' . $table . '`/i',
-			'DROP TABLE$1 `' . $this->ledger_table . '`',
-			$query
-		);
-	}
 }
