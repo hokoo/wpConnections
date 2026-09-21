@@ -4789,7 +4789,7 @@ DoD/AC:
 
 #### HOOK-03 / DB-04-I3. Manager-backed recovery delivery
 
-Status: todo
+Status: in_progress
 
 Scope: context-aware coordinator subscription, pre-arm/cleanup/resolve flow,
 semantic enable/disable и retained subscription handle.
@@ -7028,7 +7028,7 @@ Verification evidence (2026-09-12):
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
-Status: todo
+Status: in_progress
 
 Priority: P0 для 2.0
 
