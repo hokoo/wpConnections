@@ -76,30 +76,15 @@
     `4c18fde` получил три independent PASS без open P0—P3 и 19/19 protected
     jobs. Merge `66f6fd3` прошёл 19/19 post-merge jobs. HOOK-03/DB-04-I3
     разблокирован как Batch 19; DB-04-Q по-прежнему ждёт I3.
-13. Batch 19 / HOOK-03/DB-04-I3 исполняется на ветке
-    `batch19-manager-backed-recovery`. Красный contract `ad98a7b`, synchronous
-    coordinator `a99a8c5`, manager-backed Client lifecycle `332136f` и
-    site-local cron delivery `860a474` завершили B19-01—B19-04. B19-05
-    фиксирует focused 1.x→2.0 migration/rollback docs; B19-06 commit
-    `6fda0b9` закрыл real-hook и dedicated true-multisite verification. B19-Q
-    выполняется: audit gaps воспроизведены в `8426e96` и исправлены в
-    `53c6171`; test-only fixture correction `6ec5ef5` закрыла найденные полным
-    прогоном synthetic-prefix assumptions. Local full/fixed-floor/coverage/
-    isolation matrix зелёная, independent exact-candidate re-audit прошёл без
-    findings. Первый PR #104 run был `17/20`: cross-database temporary-ledger
-    fixture и repeat cleanup исправлены test-only commit `0de3a8a`. Первый
-    independent delta review прошёл, но security review нашёл P3 false-green:
-    первоначальный guard мог скрыть будущий production `CREATE TEMPORARY`
-    regression. Commit `7a453bb` добавил двухфазную DDL-provenance защиту,
-    непустой prefix contract и assertion исходного production DDL до любых
-    WordPress test rewrites. Повторные security и QA reviews нашли ещё два P3:
-    shared marker не был reentrant-safe, а пять legacy class-local filters всё
-    ещё безусловно переписывали deliberate temporary fixtures. Commit
-    `dbd1c04` заменил shared state на stateless in-query nonce, удалил legacy
-    filters и добавил dedicated temporary/reentrant regressions. Финальная
-    local MySQL/MariaDB/full/coverage/multisite/isolation matrix зелёная;
-    повторный exact audit и replacement protected checks ещё не закрыты.
-    Tag/release остаётся вне Batch 19.
+13. Batch 19 / HOOK-03/DB-04-I3 завершён PR #104. После исправления всех
+    audit и cross-database test-integrity findings exact candidate
+    `ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` получил PASS от exact
+    verification, independent QA и security/test-integrity review без open
+    P0—P3 или новых decision gates. Он прошёл 20/20 protected checks; merge
+    `7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01` прошёл 20/20 post-merge jobs.
+    B19-01—B19-06 и B19-Q completed; DB-04-Q и LIFE-HOOK-01 разблокированы.
+    Следующим выбран LIFE-HOOK-01, чтобы последующий DB-04-Q квалифицировал уже
+    финальный Client lifecycle. Tag/release намеренно остаётся вне Batch 19.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -123,13 +108,16 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged baseline — Batch 18 / DB-04-I2 PR #102 (`66f6fd3`). Exact
-  candidate `4c18fde` получил три independent PASS без open P0—P3 и прошёл
-  19/19 protected jobs; exact merge прошёл 19/19 post-merge jobs. Локально:
-  unit `117 / 443`, integration `458 / 4099`, true multisite `458 / 4115`,
-  pinned MySQL 8.0.46 и MariaDB 10.11.16 по `458 / 4099`, PHPCS `95/95`, RC
-  coverage `3599/3946 (91.21%)` без active exceptions. Repair runner остаётся
-  dormant до HOOK-03/DB-04-I3.
+- Текущий merged baseline — Batch 19 / HOOK-03/DB-04-I3 PR #104
+  (`7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`). Exact candidate
+  `ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` получил три independent PASS без
+  open P0—P3 или новых decision gates; candidate и exact merge прошли по 20/20
+  protected/post-merge jobs. Локально: unit `139 / 509`, integration
+  `476 / 4152` с шестью expected skips, true multisite `476 / 4183`, pinned
+  MySQL 8.0.46 и MariaDB 10.11.16 по `476 / 4152` с шестью expected skips,
+  PHPCS `100/100`, fixed-floor coverage `3783/4136 (91.47%)`. Manager-backed
+  deleted-post recovery активирован. Следующим идёт LIFE-HOOK-01, затем
+  DB-04-Q выполняет финальную real-flow/vendor/operational qualification.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -236,8 +224,9 @@ map находятся в
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
   `deleted_post` recovery. DB-03B-A, DB-03B-B, DB-04-D, DB-04-I1 и DB-04-I2
   завершены; Batch 18 закрыт PR #102 и exact merge `66f6fd3` с полным 19/19
-  protected/post-merge evidence. HOOK-03/DB-04-I3 переведён в `todo`, а
-  DB-04-Q ждёт I3. REST-03
+  protected/post-merge evidence. HOOK-03/DB-04-I3 завершён Batch 19 / PR #104
+  с exact merge `7cfe684` и полным 20/20 protected/post-merge evidence;
+  DB-04-Q и LIFE-HOOK-01 готовы. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
@@ -248,9 +237,9 @@ map находятся в
   ledger, retry state machine, operator boundary и executable slices записаны в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
   DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A. DB-04-I1 завершена PR
-  #99; durable internal ledger доступен, но ещё не подключён к callback или
-  scheduler. DB-04-I2 завершён PR #102; его runner/operator primitives всё ещё
-  dormant до HOOK-03/DB-04-I3, который теперь готов к отдельному Batch 19.
+  #99; durable internal ledger был подготовлен без callback/scheduler
+  activation. DB-04-I2 завершён PR #102, а Batch 19 / PR #104 подключил его
+  runner/operator primitives через manager-backed deleted-post recovery.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.
