@@ -212,6 +212,14 @@ class DeletedPostRepairServiceTest extends \WP_UnitTestCase
 		$success = $this->expiredRunningRecord( $this->client, 221 );
 		$live = $this->liveRunningRecord( $this->client, 222 );
 		$failed = $this->expiredRunningRecord( $this->client, 223 );
+		$mismatch = $this->identity( $this->client, 224 );
+		$now = $this->now();
+		self::assertNotNull( $this->ledger->armAndTryClaim(
+			$mismatch,
+			new \stdClass(),
+			$now->modify( '-20 minutes' ),
+			$now->modify( '-10 minutes' )
+		)->getLease() );
 		DeletedPostRepairServiceStorage::$failingPostIds[223] = true;
 
 		$successResult = $service->retryRepair( $success->getKey() );
@@ -234,10 +242,17 @@ class DeletedPostRepairServiceTest extends \WP_UnitTestCase
 		self::assertTrue( $failedResult->wasCleanupAttempted() );
 		self::assertSame( DeletedPostRepairStatus::NEEDS_ATTENTION, $failedResult->getRepair()->getStatus() );
 		self::assertSame( '[diagnostic details redacted]', $failedResult->getRepair()->getFailureSummary() );
+
+		$mismatchResult = $service->retryRepair( $mismatch->getKey() );
+		self::assertSame( 'retry_failed', $mismatchResult->getOutcome() );
+		self::assertFalse( $mismatchResult->wasCleanupAttempted() );
+		self::assertSame( DeletedPostRepairStatus::NEEDS_ATTENTION, $mismatchResult->getRepair()->getStatus() );
+		self::assertNotContains( 224, DeletedPostRepairServiceStorage::$deletedPostIds );
 	}
 
 	public function test_due_batch_is_bounded_uses_manual_mode_and_reports_exact_more_state(): void
 	{
+		$this->client->disablePostDeletionCleanup();
 		$first = $this->expiredRunningRecord( $this->client, 231 );
 		$second = $this->expiredRunningRecord( $this->client, 232 );
 		$keys = [ $first->getKey(), $second->getKey() ];

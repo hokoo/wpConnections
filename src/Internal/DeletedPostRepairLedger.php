@@ -19,6 +19,7 @@ final class DeletedPostRepairLedger implements
     private const SCHEMA_VERSION = 1;
     private const REQUIRED_ENGINE = 'INNODB';
     private const MAX_PAGE_SIZE = 100;
+    private const MAX_LIST_READ_SIZE = 101;
     private const MAX_COUNTER = 4294967295;
     private const MAX_AUTOMATIC_ATTEMPTS = 9;
     private const CLAIM_AUTOMATIC = 'automatic';
@@ -465,7 +466,7 @@ final class DeletedPostRepairLedger implements
     ): array {
         $this->assertReady();
         $this->assertClientName($clientName);
-        $limit = $this->assertLimit($limit);
+        $limit = $this->assertListReadLimit($limit);
         if (null !== $status) {
             DeletedPostRepairStatus::assertValid($status);
         }
@@ -1667,6 +1668,15 @@ final class DeletedPostRepairLedger implements
     {
         if (0 >= $limit || self::MAX_PAGE_SIZE < $limit) {
             throw new InvalidArgumentException('Repair query limit must be between 1 and 100.');
+        }
+
+        return $limit;
+    }
+
+    private function assertListReadLimit(int $limit): int
+    {
+        if (0 >= $limit || self::MAX_LIST_READ_SIZE < $limit) {
+            throw new InvalidArgumentException('Repair list read size must be between 1 and 101.');
         }
 
         return $limit;

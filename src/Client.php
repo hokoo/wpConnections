@@ -26,6 +26,9 @@ class Client
     private LoggerInterface $logger;
     private ConnectionEntityValidator $entityValidator;
     private RestRouteRegistration $restRegistration;
+    private int $deletedPostRepairSiteId;
+    private string $deletedPostRepairSitePrefix;
+    private ?DeletedPostRepairService $deletedPostRepairService = null;
     private array $atomicScopes = [];
 
     private static ?self $atomicOwner = null;
@@ -54,6 +57,9 @@ class Client
         }
 
         $this->name = $canonicalName;
+        global $wpdb;
+        $this->deletedPostRepairSiteId = (int) get_current_blog_id();
+        $this->deletedPostRepairSitePrefix = (string) $wpdb->prefix;
         $this->entityValidator = new ConnectionEntityValidator();
         $this->init();
     }
@@ -287,6 +293,30 @@ class Client
     public function getLogger(): LoggerInterface
     {
         return $this->logger;
+    }
+
+    public function getDeletedPostRepairService(): DeletedPostRepairService
+    {
+        if (null === $this->deletedPostRepairService) {
+            $this->deletedPostRepairService = new DeletedPostRepairService($this);
+        }
+
+        return $this->deletedPostRepairService;
+    }
+
+    /**
+     * @internal Repair operations must retain the Client's initialization context.
+     * @throws Exceptions\DeletedPostRepairUnavailable
+     */
+    final public function assertDeletedPostRepairCurrentContext(): void
+    {
+        global $wpdb;
+        if (
+            $this->deletedPostRepairSiteId !== (int) get_current_blog_id() ||
+            $this->deletedPostRepairSitePrefix !== (string) $wpdb->prefix
+        ) {
+            throw new Exceptions\DeletedPostRepairUnavailable();
+        }
     }
 
     /**
