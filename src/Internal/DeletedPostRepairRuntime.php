@@ -96,6 +96,8 @@ final class DeletedPostRepairRuntime
         try {
             if ($automaticEnabled) {
                 $activation->enable();
+            } else {
+                $site['reconciler']->reconcile();
             }
             $this->activations[ $clientId ] = $activation;
 
@@ -162,6 +164,7 @@ final class DeletedPostRepairRuntime
         $key = $this->contextKey($context);
         if (! isset($this->sites[ $key ])) {
             $ledger = new DeletedPostRepairLedger();
+            $ledger->ensureReady();
             $policy = new DeletedPostRepairPolicy(new SystemDeletedPostRepairClock());
             $executor = new DeletedPostRepairExecutor($ledger, $policy);
             $reconciler = new DeletedPostRepairReconciler(

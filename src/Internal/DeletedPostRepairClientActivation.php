@@ -41,7 +41,11 @@ final class DeletedPostRepairClientActivation
 
     public function enable(): void
     {
-        if (! $this->active || null !== $this->subscription) {
+        if (! $this->active) {
+            return;
+        }
+        if (null !== $this->subscription) {
+            $this->registration->enableAutomatic();
             return;
         }
 
