@@ -63,8 +63,8 @@ checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получ
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
 slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 завершён green
-`0c23a15`, B18-03 выполняется, а последующие production slices сохраняют
-записанные code dependencies.
+`0c23a15`, B18-03 — green `44d4bc8`, B18-04 выполняется, а последующие
+production slices сохраняют записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -2076,7 +2076,7 @@ Delivery evidence:
 
 #### B18-03. Current-site Client runtime registry
 
-Status: in_progress
+Status: completed
 
 Goal: resolve only a freshly initialized Client in its exact site context and
 separate automatic eligibility from explicit manual access.
@@ -2110,9 +2110,21 @@ Dependencies: DG-DELETE-06R5, DG-HOOK-LIFE-01/A.
 Notes/Risks: automatic registration/activation belongs to HOOK-03/I3 at 2.0;
 I2 may only provide dormant primitives.
 
+Delivery evidence:
+
+- red contract `96a3cf9` зафиксировал 15 отсутствующих registry scenarios;
+- green `44d4bc8` реализовал injected exact-context registry и ABA-safe
+  registration handles без production wiring;
+- focused unit: 16/16 tests, 54 assertions; full unit: 91/91, 315; full source
+  PHPCS прошёл;
+- registry registration/re-enable emits an injected reconciliation signal,
+  duplicate owners and cross-site object reuse fail closed, disabled Clients
+  remain manually resolvable, stale-context eligibility commands are rejected;
+- protected/exact-candidate и independent epic QA остаются обязанностью B18-Q.
+
 #### B18-04. Eligible due and next-wakeup ledger queries
 
-Status: waiting_dependency
+Status: in_progress
 
 Goal: prevent missing/disabled Clients from starving runnable work or creating
 an immediate cron loop.
