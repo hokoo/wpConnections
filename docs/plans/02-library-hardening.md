@@ -64,7 +64,7 @@ independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
 slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 завершён green
 `0c23a15`, B18-03 — green `44d4bc8`, B18-04 — green `bccbca0`, B18-06 —
-green `d8e77b5`, B18-05 выполняется, а последующие
+green `d8e77b5`, B18-05 — green `5729673`, B18-07 выполняется, а последующие
 production slices сохраняют записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
@@ -2166,7 +2166,7 @@ Delivery evidence:
 
 #### B18-05. Client-scoped public operator service
 
-Status: in_progress
+Status: completed
 
 Goal: expose the approved get/list/retry capabilities without leaking internal
 ledger objects or cross-Client existence.
@@ -2196,6 +2196,22 @@ Dependencies: DG-DELETE-06R4, B18-02, B18-06.
 
 Notes/Risks: exact public names/types are part of R4, not implementation-local
 style choices.
+
+Delivery evidence:
+
+- red contract `6016242` зафиксировал private-constructor DTOs, Client-scoped
+  get/list/retry/batch surface, keyset pagination, redaction и stale-context
+  rejection;
+- green `5729673` реализовал утверждённые public names/outcomes, lazy
+  side-effect-free Client getter, one-read `limit + 1` pagination и safe
+  `DeletedPostRepairUnavailable` boundary;
+- disabled legacy cleanup hook не ограничивает explicit manual batch; foreign
+  key не достигает unscoped claim, adapter mismatch даёт `retry_failed` без
+  cleanup;
+- focused DTO/related unit: 54/54 tests, 223 assertions; focused public service
+  WordPress integration: 5/5, 66;
+- full unit: 107/107 tests, 399 assertions; full WordPress integration: 451/451,
+  4074 assertions; полный source PHPCS прошёл.
 
 #### B18-06. Bounded site worker
 
@@ -2246,7 +2262,7 @@ Delivery evidence:
 
 #### B18-07. Dormant WP-Cron gateway and reconciliation
 
-Status: todo
+Status: in_progress
 
 Goal: use WP-Cron only as a replaceable site wake-up over ledger truth.
 
