@@ -478,6 +478,132 @@ final class DeletedPostRepairLedger implements DeletedPostRepairLedgerInterface
         return $this->selectRecords($query, 'list due deleted-post repairs');
     }
 
+    /**
+     * @param string[] $clientNames
+     * @return DeletedPostRepairRecord[]
+     */
+    public function findDueForClients(
+        array $clientNames,
+        int $limit,
+        DateTimeImmutable $now
+    ): array {
+        $clientNames = $this->canonicalClientNames($clientNames);
+        $limit = $this->assertLimit($limit);
+        $this->assertUtc($now);
+        if ([] === $clientNames) {
+            return [];
+        }
+
+        $this->assertReady();
+        $timestamp = $this->formatTime($now);
+        $clientPlaceholders = implode(', ', array_fill(0, count($clientNames), '%s'));
+
+        global $wpdb;
+        $query = $wpdb->prepare(
+            "SELECT * FROM `{$this->tableName}`
+             WHERE `client_name` IN ({$clientPlaceholders}) AND (
+                `status` = %s
+                OR (`status` = %s AND (`next_attempt_at` IS NULL OR `next_attempt_at` <= %s))
+                OR (`status` = %s AND (`lease_expires_at` IS NULL OR `lease_expires_at` <= %s))
+             )
+             ORDER BY `repair_key` ASC LIMIT %d",
+            ...[
+                ...$clientNames,
+                DeletedPostRepairStatus::ARMED,
+                DeletedPostRepairStatus::RETRY_WAIT,
+                $timestamp,
+                DeletedPostRepairStatus::RUNNING,
+                $timestamp,
+                $limit,
+            ]
+        );
+
+        return $this->selectRecords($query, 'list eligible due deleted-post repairs');
+    }
+
+    /**
+     * @param string[] $clientNames
+     */
+    public function findNextAutomaticAtForClients(
+        array $clientNames,
+        DateTimeImmutable $now
+    ): ?DateTimeImmutable {
+        $clientNames = $this->canonicalClientNames($clientNames);
+        $this->assertUtc($now);
+        if ([] === $clientNames) {
+            return null;
+        }
+
+        $this->assertReady();
+        $clientPlaceholders = implode(', ', array_fill(0, count($clientNames), '%s'));
+
+        global $wpdb;
+        $query = $wpdb->prepare(
+            "SELECT * FROM `{$this->tableName}`
+             WHERE `client_name` IN ({$clientPlaceholders})
+                AND `status` IN (%s, %s, %s)
+             ORDER BY
+                CASE WHEN `status` = %s THEN 0 ELSE 1 END ASC,
+                CASE
+                    WHEN `status` = %s THEN `next_attempt_at`
+                    WHEN `status` = %s THEN `lease_expires_at`
+                    ELSE `updated_at`
+                END ASC,
+                `repair_key` ASC
+             LIMIT 1",
+            ...[
+                ...$clientNames,
+                DeletedPostRepairStatus::ARMED,
+                DeletedPostRepairStatus::RETRY_WAIT,
+                DeletedPostRepairStatus::RUNNING,
+                DeletedPostRepairStatus::ARMED,
+                DeletedPostRepairStatus::RETRY_WAIT,
+                DeletedPostRepairStatus::RUNNING,
+            ]
+        );
+        $records = $this->selectRecords($query, 'read next eligible deleted-post repair deadline');
+        $record = $records[0] ?? null;
+        if (null === $record) {
+            return null;
+        }
+        if (DeletedPostRepairStatus::ARMED === $record->getStatus()) {
+            return $now;
+        }
+
+        $deadline = DeletedPostRepairStatus::RETRY_WAIT === $record->getStatus()
+            ? $record->getNextAttemptAt()
+            : $record->getLeaseExpiresAt();
+        if (null === $deadline) {
+            throw $this->failure('read next eligible deleted-post repair deadline: missing timestamp');
+        }
+
+        return $deadline;
+    }
+
+    public function findOldestResolvedAt(): ?DateTimeImmutable
+    {
+        $this->assertReady();
+
+        global $wpdb;
+        $query = $wpdb->prepare(
+            "SELECT * FROM `{$this->tableName}`
+             WHERE `status` = %s
+             ORDER BY `resolved_at` ASC, `repair_key` ASC
+             LIMIT 1",
+            DeletedPostRepairStatus::RESOLVED
+        );
+        $records = $this->selectRecords($query, 'read oldest resolved deleted-post repair');
+        $record = $records[0] ?? null;
+        if (null === $record) {
+            return null;
+        }
+        if (null === $record->getResolvedAt()) {
+            throw $this->failure('read oldest resolved deleted-post repair: missing timestamp');
+        }
+
+        return $record->getResolvedAt();
+    }
+
     public function purgeResolvedBefore(DateTimeImmutable $cutoff, int $limit): int
     {
         $this->assertReady();
@@ -1327,6 +1453,27 @@ final class DeletedPostRepairLedger implements DeletedPostRepairLedgerInterface
         ) {
             throw new InvalidArgumentException('Repair Client name is not canonical.');
         }
+    }
+
+    /**
+     * @param mixed[] $clientNames
+     * @return string[]
+     */
+    private function canonicalClientNames(array $clientNames): array
+    {
+        $canonical = [];
+        foreach ($clientNames as $clientName) {
+            if (! is_string($clientName)) {
+                throw new InvalidArgumentException('Repair Client names must be strings.');
+            }
+            $this->assertClientName($clientName);
+            $canonical[ $clientName ] = true;
+        }
+
+        $names = array_keys($canonical);
+        sort($names, SORT_STRING);
+
+        return $names;
     }
 
     private function assertRepairKey(string $repairKey): void

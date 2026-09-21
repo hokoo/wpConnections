@@ -63,6 +63,13 @@ final class DeletedPostRepairPolicy
         return $resolvedAt->getTimestamp() < $now->getTimestamp() - self::RESOLVED_RETENTION_SECONDS;
     }
 
+    public function resolvedPurgeAt(DateTimeImmutable $resolvedAt): DateTimeImmutable
+    {
+        $this->assertUtc($resolvedAt);
+
+        return $this->addSeconds($resolvedAt, self::RESOLVED_RETENTION_SECONDS + 1);
+    }
+
     private function addSeconds(DateTimeImmutable $time, int $seconds): DateTimeImmutable
     {
         $result = $time->setTimestamp($time->getTimestamp() + $seconds);
