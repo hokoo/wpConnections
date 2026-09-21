@@ -248,7 +248,7 @@ final class DeletedPostRepairReconcilerTest extends TestCase
 
         self::assertSame('failed', $result->getOutcome());
         self::assertSame([ 'next', 'schedule:2026-09-21 10:00:00' ], $scheduler->operations);
-        self::assertSame($this->now->modify('+20 minutes'), $scheduler->scheduledAt);
+        self::assertEquals($this->now->modify('+20 minutes'), $scheduler->scheduledAt);
         self::assertSame(str_repeat('c', 64), $ledger->wakeupFailures[0][0]);
         self::assertSame('scheduler', $ledger->wakeupFailures[0][1]->getCategory());
         self::assertSame('[diagnostic details redacted]', $ledger->wakeupFailures[0][1]->getSummary());
