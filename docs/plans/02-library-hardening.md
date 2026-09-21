@@ -65,8 +65,12 @@ checks. DB-04-I2 завершён как Batch 18: DG-DELETE-06R4—R6 approved 
 B18-01—B18-07 и B18-Q completed, B18-08 deferred. Exact candidate `4c18fde`
 получил три independent PASS без open P0—P3 и 19/19 protected jobs; PR #102
 влит как `66f6fd3`, а exact merge прошёл 19/19 post-merge jobs.
-HOOK-03/DB-04-I3 исполняется как Batch 19: B19-01—B19-06 completed на
-candidate branch, B19-Q in progress; DB-04-Q ждёт полного I3 closeout.
+HOOK-03/DB-04-I3 завершён как Batch 19. Exact candidate
+`ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` получил три independent PASS без
+open P0—P3 или новых decision gates и прошёл 20/20 protected checks; PR #104
+влит как `7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`, exact merge прошёл 20/20
+post-merge checks. DB-04-Q и LIFE-HOOK-01 разблокированы; следующим выбран
+LIFE-HOOK-01, чтобы DB-04-Q квалифицировал уже финальный Client lifecycle.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -1121,7 +1125,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D, DB-04-I1 and DB-04-I2 completed; HOOK-03/DB-04-I3 ready |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D and DB-04-I1—DB-04-I3 completed; DB-04-Q ready |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
@@ -1346,8 +1350,10 @@ Execution model:
 - REST-HOOK-01 теперь `completed`: REST-01 и все decision gates, включая
   refinement DG-HOOK-REST-05/A, завершены; exact implementation head `9d5b74e`
   получил independent QA PASS и 17/17 protected checks.
-  LIFE-HOOK-01 ждёт downstream hook/REST/logging tasks, а HOOK-03/DB-04-I3 —
-  DB-04-I1/I2 и утверждённый DG-DELETE-06R1/A; DB-04-Q следует после I3.
+  HOOK-03/DB-04-I3 теперь `completed`; LIFE-HOOK-01 и DB-04-Q имеют полный
+  DoR. LIFE-HOOK-01 выбран следующим, а DB-04-Q следует после него как
+  финальная real-flow/vendor/operational qualification окончательного Client
+  lifecycle.
 
 Exit criteria:
 
@@ -2403,7 +2409,7 @@ Delivery evidence:
 
 ### Batch 19. Activate manager-backed deleted-post recovery
 
-Status: in_progress
+Status: completed
 
 Goal: завершить HOOK-03 / DB-04-I3 — заменить 1.x direct storage callback на
 context-aware Client coordinator, подключить уже поставленные ledger, executor,
@@ -2641,7 +2647,7 @@ multisite CI job is part of the exact-candidate B19-Q protected matrix.
 
 #### B19-Q. Exact-candidate verification and I3 closeout
 
-Status: in_progress
+Status: completed
 
 Goal: verify HOOK-03/DB-04-I3 as one exact candidate and merge it without
 claiming DB-04-Q or a 2.0 release complete.
@@ -2728,8 +2734,14 @@ and six expected skips at unchanged `3783/4136` statements (`91.47%`), with
 the PR gate passing and RC threshold ready; PHPCS and all quality-tool probes
 remain green. Both current seed `19019` and fixed-floor seed `20260910` pass
 unit reverse/random at `278/278` with 1018 assertions, plus WordPress
-reverse/random at `952/952` with 8304 assertions and 12 expected skips. Repeat
-exact audit, replacement protected checks and merge evidence remain pending.
+reverse/random at `952/952` with 8304 assertions and 12 expected skips. Final
+exact verification, independent QA and security/test-integrity audits all
+passed on exact candidate `ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737`
+without open P0—P3 findings or new decision gates. Replacement PR #104 passed
+20/20 protected checks and was merged as
+`7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`; all 20 post-merge jobs passed on
+that exact merge SHA. HOOK-03/DB-04-I3 and B19-Q are completed. DB-04-Q and
+LIFE-HOOK-01 are ready; Batch 19 intentionally created no tag or release.
 
 ## E1. Test foundation и regression harness
 
@@ -4828,7 +4840,7 @@ DoD/AC:
 
 #### HOOK-03 / DB-04-I3. Manager-backed recovery delivery
 
-Status: in_progress
+Status: completed
 
 Scope: context-aware coordinator subscription, pre-arm/cleanup/resolve flow,
 semantic enable/disable и retained subscription handle.
@@ -4848,7 +4860,7 @@ DoD/AC:
 
 #### DB-04-Q. Real-flow, vendor and operational closure
 
-Status: waiting_dependency
+Status: todo
 
 Scope: real `wp_delete_post()`, failure/crash/concurrency, true multisite,
 pinned vendors, operator/uninstall docs, independent QA и release evidence.
@@ -6793,7 +6805,7 @@ Notes/Risks:
 
 ### LIFE-HOOK-01. Ввести полный lifecycle Client-owned subscriptions
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P0 для 2.0
 
@@ -7067,7 +7079,7 @@ Verification evidence (2026-09-12):
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
-Status: in_progress
+Status: completed
 
 Priority: P0 для 2.0
 
