@@ -50,6 +50,7 @@ final class DeletedPostRepairReconcilerClient extends Client
 {
     public function __construct(private string $testName)
     {
+        DeletedPostRepairTestClientContext::initialize($this);
     }
 
     public function getName(): string
@@ -98,10 +99,14 @@ final class DeletedPostRepairSchedulerDouble implements DeletedPostRepairSchedul
     public array $operations = [];
     public ?RuntimeException $scheduleFailure = null;
     public ?RuntimeException $unscheduleFailure = null;
+    public ?RuntimeException $nextFailure = null;
 
     public function nextWakeupAt(): ?DateTimeImmutable
     {
         $this->operations[] = 'next';
+        if (null !== $this->nextFailure) {
+            throw $this->nextFailure;
+        }
 
         return $this->scheduledAt;
     }
@@ -270,6 +275,22 @@ final class DeletedPostRepairReconcilerTest extends TestCase
             'next',
             'unschedule:2026-09-21 10:20:00',
         ], $scheduler->operations);
+    }
+
+    public function test_failed_event_read_preserves_observed_dispatch_availability(): void
+    {
+        $ledger = new DeletedPostRepairReconcilerLedgerDouble();
+        $scheduler = new DeletedPostRepairSchedulerDouble();
+        $scheduler->nextFailure = new RuntimeException('private cron read failure');
+
+        $result = $this->reconciler($ledger, $scheduler)->reconcile();
+
+        self::assertSame('failed', $result->getOutcome());
+        self::assertTrue($result->isAutomaticDispatchAvailable());
+        self::assertStringNotContainsString(
+            'private cron',
+            $result->getDiagnostic()->getSummary()
+        );
     }
 
     public function test_failed_stale_event_cleanup_preserves_the_new_earlier_wakeup(): void

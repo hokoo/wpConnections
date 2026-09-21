@@ -73,4 +73,30 @@ class DeletedPostRepairSchedulerTest extends \WP_UnitTestCase
 			( new WordPressDeletedPostRepairScheduler() )->isAutomaticDispatchAvailable()
 		);
 	}
+
+	public function test_multisite_blogs_keep_independent_repair_wakeups(): void
+	{
+		if ( ! is_multisite() ) {
+			self::markTestSkipped( 'Requires the true WordPress multisite lane.' );
+		}
+
+		$first_at = new DateTimeImmutable( '+1 hour', new DateTimeZone( 'UTC' ) );
+		$second_at = new DateTimeImmutable( '+2 hours', new DateTimeZone( 'UTC' ) );
+		$scheduler = new WordPressDeletedPostRepairScheduler();
+		$scheduler->scheduleWakeup( $first_at );
+		$second_blog_id = self::factory()->blog->create();
+
+		switch_to_blog( $second_blog_id );
+		try {
+			$second_scheduler = new WordPressDeletedPostRepairScheduler();
+			self::assertNull( $second_scheduler->nextWakeupAt() );
+			$second_scheduler->scheduleWakeup( $second_at );
+			self::assertSame( $second_at->getTimestamp(), $second_scheduler->nextWakeupAt()->getTimestamp() );
+			$second_scheduler->unscheduleWakeup( $second_at );
+		} finally {
+			restore_current_blog();
+		}
+
+		self::assertSame( $first_at->getTimestamp(), $scheduler->nextWakeupAt()->getTimestamp() );
+	}
 }

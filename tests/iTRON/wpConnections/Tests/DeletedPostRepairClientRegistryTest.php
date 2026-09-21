@@ -36,9 +36,10 @@ final class DeletedPostRepairRegistryClient extends Client
 {
     private string $testName;
 
-    public function __construct(string $name)
+    public function __construct(string $name, int $siteId, string $sitePrefix)
     {
         $this->testName = $name;
+        DeletedPostRepairTestClientContext::initialize($this, $siteId, $sitePrefix);
     }
 
     public function getName(): string
@@ -126,10 +127,10 @@ final class DeletedPostRepairClientRegistryTest extends TestCase
     {
         $registry = $this->registry();
         $siteAClient = $this->client('shared');
-        $siteBClient = $this->client('shared');
         $registry->register($siteAClient);
 
         $this->contexts->switchTo($this->siteB);
+        $siteBClient = $this->client('shared');
         $registry->register($siteBClient);
         self::assertSame($siteBClient, $registry->resolve('shared'));
         self::assertSame([ 'shared' ], $registry->getAutomaticallyEligibleClientNames());
@@ -143,11 +144,11 @@ final class DeletedPostRepairClientRegistryTest extends TestCase
     {
         $registry = $this->registry();
         $siteAClient = $this->client('prefix-owner');
-        $otherPrefixClient = $this->client('prefix-owner');
         $registry->register($siteAClient);
 
         $this->contexts->switchTo($this->siteASameBlogDifferentPrefix);
         self::assertNull($registry->resolve('prefix-owner'));
+        $otherPrefixClient = $this->client('prefix-owner');
         $registry->register($otherPrefixClient);
         self::assertSame($otherPrefixClient, $registry->resolve('prefix-owner'));
 
@@ -164,6 +165,23 @@ final class DeletedPostRepairClientRegistryTest extends TestCase
 
         $this->expectException(ClientRegisterFail::class);
         $registry->register($client);
+    }
+
+    public function test_first_registration_rejects_client_constructed_in_another_context(): void
+    {
+        $registry = $this->registry();
+        $client = $this->client('stale-first-registration');
+        $this->contexts->switchTo($this->siteB);
+
+        try {
+            $registry->register($client);
+            self::fail('A stale Client must be rejected before its first registration.');
+        } catch (ClientRegisterFail $failure) {
+            self::assertStringContainsString('site context', $failure->getMessage());
+        }
+
+        self::assertNull($registry->resolve('stale-first-registration'));
+        self::assertSame([], $this->reconciliationSignals);
     }
 
     public function test_tokenized_revoke_cannot_remove_a_replacement_owner(): void
@@ -321,6 +339,12 @@ final class DeletedPostRepairClientRegistryTest extends TestCase
 
     private function client(string $name): DeletedPostRepairRegistryClient
     {
-        return new DeletedPostRepairRegistryClient($name);
+        $context = $this->contexts->current();
+
+        return new DeletedPostRepairRegistryClient(
+            $name,
+            $context->blogId(),
+            $context->databasePrefix()
+        );
     }
 }

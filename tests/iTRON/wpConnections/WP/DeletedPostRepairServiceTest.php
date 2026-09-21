@@ -9,12 +9,15 @@ use iTRON\wpConnections\Abstracts\Storage;
 use iTRON\wpConnections\AtomicStorageInterface;
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\ConnectionCollection;
+use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\DeletedPostRepairUnavailable;
+use iTRON\wpConnections\Internal\DeletedPostRepairClientRegistry;
 use iTRON\wpConnections\Internal\DeletedPostRepairDiagnostic;
 use iTRON\wpConnections\Internal\DeletedPostRepairIdentity;
 use iTRON\wpConnections\Internal\DeletedPostRepairLedger;
 use iTRON\wpConnections\Internal\DeletedPostRepairStatus;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
+use iTRON\wpHooksDispatcher\WordPressSiteContextProvider;
 use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
 use iTRON\wpConnections\Query\MetaCollection as MetaQueryCollection;
@@ -134,6 +137,32 @@ class DeletedPostRepairServiceTest extends \WP_UnitTestCase
 	public function storage_class(): string
 	{
 		return DeletedPostRepairServiceStorage::class;
+	}
+
+	public function test_custom_atomic_client_cannot_first_register_after_multisite_switch(): void
+	{
+		if ( ! is_multisite() ) {
+			self::markTestSkipped( 'Requires the true WordPress multisite lane.' );
+		}
+
+		$stale_client = $this->newClient( 'repair-stale-first-registration' );
+		$registry = new DeletedPostRepairClientRegistry( new WordPressSiteContextProvider() );
+		$second_blog_id = self::factory()->blog->create();
+
+		switch_to_blog( $second_blog_id );
+		try {
+			try {
+				$registry->register( $stale_client );
+				self::fail( 'A Client from another site must fail before registration.' );
+			} catch ( ClientRegisterFail $failure ) {
+				self::assertStringContainsString( 'site context', $failure->getMessage() );
+			}
+
+			self::assertNull( $registry->resolve( $stale_client->getName() ) );
+			self::assertSame( [], DeletedPostRepairServiceStorage::$deletedPostIds );
+		} finally {
+			restore_current_blog();
+		}
 	}
 
 	public function test_getter_is_lazy_and_get_is_client_scoped_with_safe_projection(): void

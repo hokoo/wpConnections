@@ -61,9 +61,32 @@ final class DeletedPostRepairWorkerClock implements DeletedPostRepairClockInterf
 
 final class DeletedPostRepairWorkerContextProvider implements SiteContextProvider
 {
+    private SiteContext $context;
+    private array $queuedContexts = [];
+
+    public function __construct()
+    {
+        $this->context = new SiteContext(1, 'wp_');
+    }
+
     public function current(): SiteContext
     {
-        return new SiteContext(1, 'wp_');
+        if ([] !== $this->queuedContexts) {
+            return array_shift($this->queuedContexts);
+        }
+
+        return $this->context;
+    }
+
+    public function switchTo(SiteContext $context): void
+    {
+        $this->context = $context;
+    }
+
+    /** @param SiteContext[] $contexts */
+    public function queue(array $contexts): void
+    {
+        $this->queuedContexts = $contexts;
     }
 }
 
@@ -125,6 +148,7 @@ final class DeletedPostRepairWorkerClient extends Client
     {
         $this->testName = $name;
         $this->testStorage = new DeletedPostRepairWorkerStorage();
+        DeletedPostRepairTestClientContext::initialize($this);
     }
 
     public function getName(): string
@@ -253,15 +277,15 @@ final class DeletedPostRepairWorkerTest extends TestCase
 {
     private DateTimeImmutable $now;
     private DeletedPostRepairClientRegistry $registry;
+    private DeletedPostRepairWorkerContextProvider $contexts;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->now = new DateTimeImmutable('2026-09-21 10:00:00', new DateTimeZone('UTC'));
-        $this->registry = new DeletedPostRepairClientRegistry(
-            new DeletedPostRepairWorkerContextProvider()
-        );
+        $this->contexts = new DeletedPostRepairWorkerContextProvider();
+        $this->registry = new DeletedPostRepairClientRegistry($this->contexts);
     }
 
     public function test_automatic_batch_filters_before_limit_and_continues_after_record_failure(): void
@@ -379,6 +403,30 @@ final class DeletedPostRepairWorkerTest extends TestCase
         self::assertSame([ $record->getIdentity()->getKey() ], $ledger->manualClaims);
         self::assertSame('manual', $executor->calls[0][2]);
         self::assertSame('complete', $result->getStopReason());
+    }
+
+    public function test_context_change_after_resolution_fails_before_claim_or_execution(): void
+    {
+        $client = new DeletedPostRepairWorkerClient('stale-before-claim');
+        $this->registry->register($client);
+        $ledger = new DeletedPostRepairWorkerLedgerDouble();
+        $ledger->due = $this->recordsByKey([ $this->record('stale-before-claim', 52) ]);
+        $siteA = new SiteContext(1, 'wp_');
+        $this->contexts->queue([ $siteA, $siteA, new SiteContext(2, 'wp_2_') ]);
+        $executor = new DeletedPostRepairWorkerExecutorDouble();
+        $signals = 0;
+
+        try {
+            $this->worker($ledger, $executor, null, $signals)->runAutomatically();
+            self::fail('A stale Client must fail before claim.');
+        } catch (\iTRON\wpConnections\Exceptions\DeletedPostRepairUnavailable $failure) {
+            self::assertNotSame('', $failure->getMessage());
+        }
+
+        self::assertSame([], $ledger->automaticClaims);
+        self::assertSame([], $ledger->manualClaims);
+        self::assertSame([], $executor->calls);
+        self::assertSame(1, $signals);
     }
 
     public function test_retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound(): void
