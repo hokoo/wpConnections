@@ -8,6 +8,7 @@ use iTRON\wpConnections\Internal\DeletedPostRepairClientRegistry;
 use iTRON\wpHooksDispatcher\Contracts\SiteContextProvider;
 use iTRON\wpHooksDispatcher\SiteContext;
 use InvalidArgumentException;
+use LogicException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -197,6 +198,25 @@ final class DeletedPostRepairClientRegistryTest extends TestCase
         $this->contexts->switchTo($this->siteA);
         self::assertNull($registry->resolve('cross-context-revoke'));
         self::assertSame([], $registry->getAutomaticallyEligibleClientNames());
+    }
+
+    public function test_eligibility_changes_from_a_stale_site_context_are_rejected(): void
+    {
+        $registry = $this->registry();
+        $client = $this->client('stale-toggle');
+        $registration = $registry->register($client);
+        $this->contexts->switchTo($this->siteB);
+
+        try {
+            $registration->disableAutomatic();
+            self::fail('A stale-context Client command must be rejected.');
+        } catch (LogicException $failure) {
+            self::assertStringContainsString('context', strtolower($failure->getMessage()));
+        }
+
+        $this->contexts->switchTo($this->siteA);
+        self::assertTrue($registration->isAutomaticEnabled());
+        self::assertSame($client, $registry->resolveAutomatically('stale-toggle'));
     }
 
     public function test_failed_initial_reconciliation_rolls_back_owner_and_reservation(): void
