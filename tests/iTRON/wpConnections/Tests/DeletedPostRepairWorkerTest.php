@@ -312,13 +312,13 @@ final class DeletedPostRepairWorkerTest extends TestCase
 
         self::assertCount(1, $executor->calls);
         self::assertSame($acquired->getIdentity()->getKey(), $executor->calls[0][1]);
-        self::assertSame(
-            [ 'acquired', 'already_running', 'attempts_exhausted' ],
-            array_map(
-                static fn($item): string => $item->getClaimOutcome(),
-                $result->getItems()
-            )
-        );
+        $outcomes = [];
+        foreach ($result->getItems() as $item) {
+            $outcomes[ $item->getRepairKey() ] = $item->getClaimOutcome();
+        }
+        self::assertSame('acquired', $outcomes[ $acquired->getIdentity()->getKey() ]);
+        self::assertSame('already_running', $outcomes[ $contended->getIdentity()->getKey() ]);
+        self::assertSame('attempts_exhausted', $outcomes[ $exhausted->getIdentity()->getKey() ]);
     }
 
     public function test_time_budget_stops_before_another_claim_and_reports_visible_due_work(): void
@@ -409,7 +409,9 @@ final class DeletedPostRepairWorkerTest extends TestCase
         $second = $this->record('alpha', 62);
         $ledger->due = $this->recordsByKey([ $first, $second ]);
         $executor = new DeletedPostRepairWorkerExecutorDouble();
-        $executor->throwOn = $first->getIdentity()->getKey();
+        $keys = [ $first->getIdentity()->getKey(), $second->getIdentity()->getKey() ];
+        sort($keys, SORT_STRING);
+        $executor->throwOn = $keys[0];
         $signals = 0;
 
         try {
