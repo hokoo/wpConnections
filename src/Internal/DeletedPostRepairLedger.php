@@ -9,7 +9,10 @@ use iTRON\wpConnections\Exceptions\StorageFailure;
 use RuntimeException;
 use Throwable;
 
-final class DeletedPostRepairLedger
+final class DeletedPostRepairLedger implements
+    DeletedPostRepairLedgerInterface,
+    DeletedPostRepairWorkerLedgerInterface,
+    DeletedPostRepairReconcilerLedgerInterface
 {
     private const TABLE_KEY = 'wpconnections_repair';
     private const OWNERSHIP_OPTION = 'wpconnections_repair_schema_owner';
@@ -17,7 +20,12 @@ final class DeletedPostRepairLedger
     private const SCHEMA_VERSION = 1;
     private const REQUIRED_ENGINE = 'INNODB';
     private const MAX_PAGE_SIZE = 100;
+    private const MAX_LIST_READ_SIZE = 101;
     private const MAX_COUNTER = 4294967295;
+    private const MAX_AUTOMATIC_ATTEMPTS = 9;
+    private const CLAIM_AUTOMATIC = 'automatic';
+    private const CLAIM_MANUAL = 'manual';
+    private const CLAIM_MANUAL_DUE = 'manual_due';
 
     private const COLUMNS = [
         'repair_key' => [ 'type' => 'char(64)', 'nullable' => false, 'default' => null, 'extra' => '' ],
@@ -86,6 +94,7 @@ final class DeletedPostRepairLedger
     private string $sitePrefix;
     private string $tableName;
     private string $optionsTable;
+    private bool $ready = false;
 
     public function __construct()
     {
@@ -117,6 +126,7 @@ final class DeletedPostRepairLedger
             $this->assertOwnership($ownership);
             $this->assertSchemaReady();
             $this->registerTable();
+            $this->ready = true;
             return;
         }
 
@@ -129,11 +139,15 @@ final class DeletedPostRepairLedger
         $this->createTable();
         $this->assertSchemaReady();
         $this->registerTable();
+        $this->ready = true;
     }
 
     public function assertReady(): void
     {
         $this->assertContextAndIdentifier();
+        if ($this->ready) {
+            return;
+        }
         if (! $this->tableExists()) {
             throw $this->failure('verify repair ledger schema: table is missing');
         }
@@ -146,6 +160,7 @@ final class DeletedPostRepairLedger
         $this->assertOwnership($ownership);
         $this->assertSchemaReady();
         $this->registerTable();
+        $this->ready = true;
     }
 
     public function armAndTryClaim(
@@ -186,7 +201,13 @@ final class DeletedPostRepairLedger
             throw $this->failure('verify armed deleted-post repair identity');
         }
 
-        return $this->tryClaim($identity->getKey(), $storageFingerprint, $now, $leaseUntil, false);
+        return $this->tryClaim(
+            $identity->getKey(),
+            $storageFingerprint,
+            $now,
+            $leaseUntil,
+            self::CLAIM_AUTOMATIC
+        );
     }
 
     public function tryClaimDue(
@@ -200,7 +221,33 @@ final class DeletedPostRepairLedger
         $this->assertLeaseWindow($now, $leaseUntil);
         [ , $storageFingerprint ] = $this->storageIdentity($storage);
 
-        return $this->tryClaim($repairKey, $storageFingerprint, $now, $leaseUntil, false);
+        return $this->tryClaim(
+            $repairKey,
+            $storageFingerprint,
+            $now,
+            $leaseUntil,
+            self::CLAIM_AUTOMATIC
+        );
+    }
+
+    public function tryClaimDueManually(
+        string $repairKey,
+        object $storage,
+        DateTimeImmutable $now,
+        DateTimeImmutable $leaseUntil
+    ): DeletedPostRepairClaimResult {
+        $this->assertReady();
+        $this->assertRepairKey($repairKey);
+        $this->assertLeaseWindow($now, $leaseUntil);
+        [ , $storageFingerprint ] = $this->storageIdentity($storage);
+
+        return $this->tryClaim(
+            $repairKey,
+            $storageFingerprint,
+            $now,
+            $leaseUntil,
+            self::CLAIM_MANUAL_DUE
+        );
     }
 
     public function tryClaimManually(
@@ -214,7 +261,13 @@ final class DeletedPostRepairLedger
         $this->assertLeaseWindow($now, $leaseUntil);
         [ , $storageFingerprint ] = $this->storageIdentity($storage);
 
-        return $this->tryClaim($repairKey, $storageFingerprint, $now, $leaseUntil, true);
+        return $this->tryClaim(
+            $repairKey,
+            $storageFingerprint,
+            $now,
+            $leaseUntil,
+            self::CLAIM_MANUAL
+        );
     }
 
     public function markRetryWait(
@@ -421,7 +474,7 @@ final class DeletedPostRepairLedger
     ): array {
         $this->assertReady();
         $this->assertClientName($clientName);
-        $limit = $this->assertLimit($limit);
+        $limit = $this->assertListReadLimit($limit);
         if (null !== $status) {
             DeletedPostRepairStatus::assertValid($status);
         }
@@ -478,6 +531,150 @@ final class DeletedPostRepairLedger
         return $this->selectRecords($query, 'list due deleted-post repairs');
     }
 
+    /**
+     * @param string[] $clientNames
+     * @return DeletedPostRepairRecord[]
+     */
+    public function findDueForClients(
+        array $clientNames,
+        int $limit,
+        DateTimeImmutable $now
+    ): array {
+        $clientNames = $this->canonicalClientNames($clientNames);
+        $limit = $this->assertLimit($limit);
+        $this->assertUtc($now);
+        if ([] === $clientNames) {
+            return [];
+        }
+
+        $this->assertReady();
+        $timestamp = $this->formatTime($now);
+        $clientPlaceholders = implode(', ', array_fill(0, count($clientNames), '%s'));
+
+        global $wpdb;
+        $query = $wpdb->prepare(
+            "SELECT * FROM `{$this->tableName}`
+             WHERE `client_name` IN ({$clientPlaceholders}) AND (
+                `status` = %s
+                OR (`status` = %s AND (`next_attempt_at` IS NULL OR `next_attempt_at` <= %s))
+                OR (`status` = %s AND (`lease_expires_at` IS NULL OR `lease_expires_at` <= %s))
+             )
+             ORDER BY `repair_key` ASC LIMIT %d",
+            ...[
+                ...$clientNames,
+                DeletedPostRepairStatus::ARMED,
+                DeletedPostRepairStatus::RETRY_WAIT,
+                $timestamp,
+                DeletedPostRepairStatus::RUNNING,
+                $timestamp,
+                $limit,
+            ]
+        );
+
+        return $this->selectRecords($query, 'list eligible due deleted-post repairs');
+    }
+
+    /**
+     * @param string[] $clientNames
+     */
+    public function findNextAutomaticAtForClients(
+        array $clientNames,
+        DateTimeImmutable $now
+    ): ?DateTimeImmutable {
+        $wakeup = $this->findNextAutomaticWakeupForClients($clientNames, $now);
+
+        return null === $wakeup ? null : $wakeup->getAt();
+    }
+
+    /**
+     * @param string[] $clientNames
+     */
+    public function findNextAutomaticWakeupForClients(
+        array $clientNames,
+        DateTimeImmutable $now
+    ): ?DeletedPostRepairAutomaticWakeup {
+        $clientNames = $this->canonicalClientNames($clientNames);
+        $this->assertUtc($now);
+        if ([] === $clientNames) {
+            return null;
+        }
+
+        $this->assertReady();
+        $clientPlaceholders = implode(', ', array_fill(0, count($clientNames), '%s'));
+
+        global $wpdb;
+        $query = $wpdb->prepare(
+            "SELECT * FROM `{$this->tableName}`
+             WHERE `client_name` IN ({$clientPlaceholders})
+                AND `status` IN (%s, %s, %s)
+             ORDER BY
+                CASE WHEN `status` = %s THEN 0 ELSE 1 END ASC,
+                CASE
+                    WHEN `status` = %s THEN `next_attempt_at`
+                    WHEN `status` = %s THEN `lease_expires_at`
+                    ELSE `updated_at`
+                END ASC,
+                `repair_key` ASC
+             LIMIT 1",
+            ...[
+                ...$clientNames,
+                DeletedPostRepairStatus::ARMED,
+                DeletedPostRepairStatus::RETRY_WAIT,
+                DeletedPostRepairStatus::RUNNING,
+                DeletedPostRepairStatus::ARMED,
+                DeletedPostRepairStatus::RETRY_WAIT,
+                DeletedPostRepairStatus::RUNNING,
+            ]
+        );
+        $records = $this->selectRecords($query, 'read next eligible deleted-post repair deadline');
+        $record = $records[0] ?? null;
+        if (null === $record) {
+            return null;
+        }
+        if (DeletedPostRepairStatus::ARMED === $record->getStatus()) {
+            return new DeletedPostRepairAutomaticWakeup(
+                $record->getIdentity()->getKey(),
+                $now
+            );
+        }
+
+        $deadline = DeletedPostRepairStatus::RETRY_WAIT === $record->getStatus()
+            ? $record->getNextAttemptAt()
+            : $record->getLeaseExpiresAt();
+        if (null === $deadline) {
+            throw $this->failure('read next eligible deleted-post repair deadline: missing timestamp');
+        }
+
+        return new DeletedPostRepairAutomaticWakeup(
+            $record->getIdentity()->getKey(),
+            $deadline
+        );
+    }
+
+    public function findOldestResolvedAt(): ?DateTimeImmutable
+    {
+        $this->assertReady();
+
+        global $wpdb;
+        $query = $wpdb->prepare(
+            "SELECT * FROM `{$this->tableName}`
+             WHERE `status` = %s
+             ORDER BY `resolved_at` ASC, `repair_key` ASC
+             LIMIT 1",
+            DeletedPostRepairStatus::RESOLVED
+        );
+        $records = $this->selectRecords($query, 'read oldest resolved deleted-post repair');
+        $record = $records[0] ?? null;
+        if (null === $record) {
+            return null;
+        }
+        if (null === $record->getResolvedAt()) {
+            throw $this->failure('read oldest resolved deleted-post repair: missing timestamp');
+        }
+
+        return $record->getResolvedAt();
+    }
+
     public function purgeResolvedBefore(DateTimeImmutable $cutoff, int $limit): int
     {
         $this->assertReady();
@@ -525,7 +722,7 @@ final class DeletedPostRepairLedger
         string $storageFingerprint,
         DateTimeImmutable $now,
         DateTimeImmutable $leaseUntil,
-        bool $manual
+        string $mode
     ): DeletedPostRepairClaimResult {
         $record = $this->findByKey($repairKey);
         if (null === $record) {
@@ -540,11 +737,24 @@ final class DeletedPostRepairLedger
             return $this->adapterMismatchResult($repairKey, $storageFingerprint, $now);
         }
 
+        $automatic = self::CLAIM_AUTOMATIC === $mode;
+        $dueOnly = $automatic || self::CLAIM_MANUAL_DUE === $mode;
+        if (
+            $automatic &&
+            self::MAX_AUTOMATIC_ATTEMPTS <= $record->getAttemptCount()
+        ) {
+            return $this->automaticExhaustionResult(
+                $record,
+                $storageFingerprint,
+                $now
+            );
+        }
+
         $token = bin2hex(random_bytes(32));
         $timestamp = $this->formatTime($now);
         global $wpdb;
 
-        if ($manual) {
+        if (! $dueOnly) {
             $claimable = "(`status` IN (%s, %s, %s) OR
                 (`status` = %s AND `lease_expires_at` <= %s))";
             $conditionValues = [
@@ -567,6 +777,8 @@ final class DeletedPostRepairLedger
             ];
         }
 
+        $attemptLimit = $automatic ? self::MAX_AUTOMATIC_ATTEMPTS : self::MAX_COUNTER;
+
         $values = [
             DeletedPostRepairStatus::RUNNING,
             $token,
@@ -588,7 +800,7 @@ final class DeletedPostRepairLedger
                 `resolved_at` = NULL
              WHERE `repair_key` = %s AND `storage_fingerprint` = %s
                 AND `updated_at` <= %s
-                AND `attempt_count` < " . self::MAX_COUNTER . " AND {$claimable}",
+                AND `attempt_count` < {$attemptLimit} AND {$claimable}",
             ...$values
         );
         $affected = $this->mutationOrFail($query, 'claim deleted-post repair lease');
@@ -620,15 +832,136 @@ final class DeletedPostRepairLedger
             return new DeletedPostRepairClaimResult('already_running');
         }
         if (
-            ! $manual &&
+            $dueOnly &&
             DeletedPostRepairStatus::RETRY_WAIT === $current->getStatus() &&
             null !== $current->getNextAttemptAt() &&
             $current->getNextAttemptAt() > $now
         ) {
             return new DeletedPostRepairClaimResult('not_due');
         }
+        if (
+            $automatic &&
+            self::MAX_AUTOMATIC_ATTEMPTS <= $current->getAttemptCount()
+        ) {
+            return $this->automaticExhaustionResult(
+                $current,
+                $storageFingerprint,
+                $now
+            );
+        }
         if (self::MAX_COUNTER === $current->getAttemptCount()) {
             throw $this->failure('claim deleted-post repair lease: attempt counter exhausted');
+        }
+
+        return new DeletedPostRepairClaimResult('unavailable');
+    }
+
+    private function automaticExhaustionResult(
+        DeletedPostRepairRecord $record,
+        string $storageFingerprint,
+        DateTimeImmutable $now
+    ): DeletedPostRepairClaimResult {
+        if (
+            DeletedPostRepairStatus::RUNNING === $record->getStatus() &&
+            null !== $record->getLeaseExpiresAt() &&
+            $record->getLeaseExpiresAt() > $now
+        ) {
+            return new DeletedPostRepairClaimResult('already_running');
+        }
+        if (
+            DeletedPostRepairStatus::RETRY_WAIT === $record->getStatus() &&
+            null !== $record->getNextAttemptAt() &&
+            $record->getNextAttemptAt() > $now
+        ) {
+            return new DeletedPostRepairClaimResult('not_due');
+        }
+        if (
+            ! in_array(
+                $record->getStatus(),
+                [
+                    DeletedPostRepairStatus::ARMED,
+                    DeletedPostRepairStatus::RETRY_WAIT,
+                    DeletedPostRepairStatus::RUNNING,
+                ],
+                true
+            )
+        ) {
+            return new DeletedPostRepairClaimResult('unavailable');
+        }
+
+        global $wpdb;
+        $timestamp = $this->formatTime($now);
+        $affected = $this->mutationOrFail(
+            $wpdb->prepare(
+                "UPDATE `{$this->tableName}` SET
+                    `status` = %s,
+                    `next_attempt_at` = NULL,
+                    `lease_token` = NULL,
+                    `lease_expires_at` = NULL,
+                    `updated_at` = %s,
+                    `resolved_at` = NULL
+                 WHERE `repair_key` = %s AND `storage_fingerprint` = %s
+                    AND `attempt_count` >= " . self::MAX_AUTOMATIC_ATTEMPTS . "
+                    AND `updated_at` <= %s AND (
+                        `status` = %s
+                        OR (`status` = %s AND `next_attempt_at` <= %s)
+                        OR (`status` = %s AND `lease_expires_at` <= %s)
+                    )",
+                DeletedPostRepairStatus::NEEDS_ATTENTION,
+                $timestamp,
+                $record->getIdentity()->getKey(),
+                $storageFingerprint,
+                $timestamp,
+                DeletedPostRepairStatus::ARMED,
+                DeletedPostRepairStatus::RETRY_WAIT,
+                $timestamp,
+                DeletedPostRepairStatus::RUNNING,
+                $timestamp
+            ),
+            'record deleted-post repair automatic exhaustion'
+        );
+        if (1 === $affected) {
+            return new DeletedPostRepairClaimResult('attempts_exhausted');
+        }
+        if (1 < $affected) {
+            throw $this->failure(
+                'record deleted-post repair automatic exhaustion: unexpected affected-row count'
+            );
+        }
+
+        $current = $this->findByKey($record->getIdentity()->getKey());
+        if (null === $current) {
+            return new DeletedPostRepairClaimResult('not_found');
+        }
+        if (DeletedPostRepairStatus::RESOLVED === $current->getStatus()) {
+            return new DeletedPostRepairClaimResult('resolved');
+        }
+        if ($current->getStorageFingerprint() !== $storageFingerprint) {
+            return $this->adapterMismatchResult(
+                $record->getIdentity()->getKey(),
+                $storageFingerprint,
+                $now
+            );
+        }
+        if (
+            DeletedPostRepairStatus::NEEDS_ATTENTION === $current->getStatus() &&
+            self::MAX_AUTOMATIC_ATTEMPTS <= $current->getAttemptCount()
+        ) {
+            return new DeletedPostRepairClaimResult('attempts_exhausted');
+        }
+        if (
+            DeletedPostRepairStatus::RUNNING === $current->getStatus() &&
+            null !== $current->getLeaseExpiresAt() &&
+            $current->getLeaseExpiresAt() > $now
+        ) {
+            return new DeletedPostRepairClaimResult('already_running');
+        }
+        if (
+            DeletedPostRepairStatus::RETRY_WAIT === $current->getStatus() &&
+            null !== $current->getNextAttemptAt() &&
+            $current->getNextAttemptAt() > $now
+        ) {
+            return new DeletedPostRepairClaimResult('not_due');
         }
 
         return new DeletedPostRepairClaimResult('unavailable');
@@ -1329,6 +1662,27 @@ final class DeletedPostRepairLedger
         }
     }
 
+    /**
+     * @param mixed[] $clientNames
+     * @return string[]
+     */
+    private function canonicalClientNames(array $clientNames): array
+    {
+        $canonical = [];
+        foreach ($clientNames as $clientName) {
+            if (! is_string($clientName)) {
+                throw new InvalidArgumentException('Repair Client names must be strings.');
+            }
+            $this->assertClientName($clientName);
+            $canonical[ $clientName ] = true;
+        }
+
+        $names = array_keys($canonical);
+        sort($names, SORT_STRING);
+
+        return $names;
+    }
+
     private function assertRepairKey(string $repairKey): void
     {
         if (! preg_match('/^[a-f0-9]{64}$/D', $repairKey)) {
@@ -1340,6 +1694,15 @@ final class DeletedPostRepairLedger
     {
         if (0 >= $limit || self::MAX_PAGE_SIZE < $limit) {
             throw new InvalidArgumentException('Repair query limit must be between 1 and 100.');
+        }
+
+        return $limit;
+    }
+
+    private function assertListReadLimit(int $limit): int
+    {
+        if (0 >= $limit || self::MAX_LIST_READ_SIZE < $limit) {
+            throw new InvalidArgumentException('Repair list read size must be between 1 and 101.');
         }
 
         return $limit;

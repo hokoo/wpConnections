@@ -61,8 +61,12 @@ DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A вла
 DB-04-D завершена PR #97 после independent QA и 19/19 protected/post-merge
 checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получил два
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
-checks. DB-04-I2 находится в `todo` как Batch 18; последующие production slices
-сохраняют свои записанные зависимости.
+checks. DB-04-I2 находится в `review` как Batch 18: DG-DELETE-06R4—R6 approved
+A, B18-01 завершён green `46d7f65`, B18-02 — green `0c23a15`, B18-03 — green
+`44d4bc8`, B18-04 — green `bccbca0`, B18-06 —
+green `d8e77b5`, B18-05 — green `5729673`, B18-07 — green `c1eb7f2`, B18-Q
+проходит closeout после corrective commits `bc08a31`/`e23cd38`, а последующие
+I3/Q slices сохраняют записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -749,6 +753,9 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [DG-DELETE-06R1](../deleted-post-repair-contract.md#dg-delete-06r1) | approved A | repository owner | 2026-09-14 | 2.0 manager-backed Client coordinator; exact 1.x callback identity remains unchanged |
 | [DG-DELETE-06R2](../deleted-post-repair-contract.md#dg-delete-06r2) | approved A | repository owner | 2026-09-14 | One library-owned site-local InnoDB repair ledger |
 | [DG-DELETE-06R3](../deleted-post-repair-contract.md#dg-delete-06r3) | approved A | repository owner | 2026-09-14 | WP-Cron wake-up, durable ledger truth, bounded retries and Client-scoped operator paths |
+| [DG-DELETE-06R4](../deleted-post-repair-contract.md#dg-delete-06r4) | approved A | repository owner | 2026-09-21 | Stable public operator representation without exposing internal ledger/schema objects |
+| [DG-DELETE-06R5](../deleted-post-repair-contract.md#dg-delete-06r5) | approved A | repository owner | 2026-09-21 | Registered/enabled automatic eligibility and best-effort single logical WP-Cron wake-up |
+| [DG-DELETE-06R6](../deleted-post-repair-contract.md#dg-delete-06r6) | approved A | repository owner | 2026-09-21 | Conservative nine-claim unattended ceiling with explicit manual recovery after exhaustion |
 | [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | approved A | repository owner | 2026-09-11 | Compatibility normalization plus safe canonical identity |
 | [`DG-NAME-02`](../client-naming-contract.md#dg-name-02) | approved A | repository owner | 2026-09-11 | Two-phase `ClientRegisterFail` code 4 boundary |
 | [`DG-NAME-03`](../client-naming-contract.md#dg-name-03) | approved A | repository owner | 2026-09-11 | Legacy postfix retained with atomic site-local ownership claim |
@@ -1114,7 +1121,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 is ready as Batch 18 |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 in review as Batch 18 |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
@@ -1130,10 +1137,10 @@ Entry criteria:
   bodies и central registry.
 - DP-4, DP-5, DP-6 и DP-9 утверждены в перечисленных вариантах. В DP-5
   технический механизм DG-DELETE-06/A зафиксирован утверждёнными
-  DG-DELETE-06R1/R2/R3/A; DB-04-D завершена, I1 готова, а последующие
-  implementation slices ждут только записанные dependencies. DP-7 и DP-8 не
-  считаются неявно утверждёнными и продолжают блокировать только перечисленные
-  downstream tasks.
+  DG-DELETE-06R1/R2/R3/A; R4/R5/R6/A утверждены 2026-09-21; DB-04-D и I1
+  завершены, I2 начата, а affected slices следуют code dependencies. DP-7 и
+  DP-8 впоследствии явно утверждены решениями
+  DG-API20-01—09; их downstream tasks сохраняют записанные dependencies.
 - TEST-02F red evidence остаётся вне `master` до paired green CORE-07 PR.
 
 Tasks:
@@ -1934,6 +1941,458 @@ Exit criteria:
 
 Next batch: Batch 18 / DB-04-I2 retry engine, WP-Cron wake-up и Client-scoped
 operator service; HOOK-03/DB-04-I3 остаётся заблокированным до I2.
+
+### Batch 18. Build the deleted-post repair runner
+
+Status: review
+
+Goal: завершить DB-04-I2 как безопасный, но ещё не подключённый к
+`deleted_post` retry/operator core. Batch не меняет 1.x callback identity и не
+активирует будущий 2.0 coordinator.
+
+#### B18-D. Refine the remaining I2 decisions
+
+Status: completed
+
+Goal: не превратить детали реализации scheduler/operator path в случайный
+public или compatibility contract.
+
+Scope: canonical problem/options/impact для DG-DELETE-06R4—R6, registry status
+и dependency mapping.
+
+Out of Scope: production code и неявное принятие рекомендаций.
+
+DoR: DG-DELETE-06R1—R3 approved; DB-04-I1 completed.
+
+DoD: все три gate имеют полный decision body и owner approval; зависимые срезы
+получают статус из фактической readiness, а не из самого факта approval.
+
+Acceptance Criteria:
+
+- Ни один public type/method, cron/eligibility semantic или exhaustion rule не
+  выбирается внутри code review.
+- Optional WP-CLI явно отложен и не блокирует PHP operator path.
+
+Dependencies: DB-04-D, DB-04-I1.
+
+Notes/Risks: R6 существует отдельно, потому что manual/crashed claims нельзя
+однозначно отнести к восьмишаговому automatic budget по текущей schema.
+
+Delivery evidence: repository owner approved recommendation A for
+DG-DELETE-06R4, DG-DELETE-06R5 and DG-DELETE-06R6 on 2026-09-21; canonical
+decision bodies and the central registry record that approval.
+
+#### B18-01. Retry policy and testable clocks
+
+Status: completed
+
+Goal: выделить чистые UTC/backoff/lease/retention primitives, не
+зависящие от Client, cron или callback wiring.
+
+Scope: UTC clock abstraction; десятиминутная lease; утверждённая таблица
+восьми delay; 30-day resolved retention boundary.
+
+Out of Scope: mapping manual/crashed attempts onto the automatic budget, which
+belongs to B18-02 under approved DG-DELETE-06R6; storage cleanup, registry,
+WP-Cron и public operator API.
+
+DoR: DG-DELETE-06R3 approved; DB-04-I1 completed.
+
+DoD: policy не читает системное время напрямую; все boundary values
+детерминированы; exhaustion/manual semantics остаётся в B18-02.
+
+Acceptance Criteria:
+
+- Delay indexes 0—7 дают `1m`, `5m`, `15m`, `1h`, `3h`, `6h`, `12h`, `24h`,
+  а следующий index не создаёт новый automatic delay.
+- Lease deadline равен UTC `now + 10m`.
+- Ровно 30 дней ещё не purgeable, старше 30 дней — purgeable.
+- Non-UTC input fails before persistence access.
+- Test clock может воспроизводить forward и backward wall-clock movement;
+  production clock даёт отдельный monotonic source для будущего run budget.
+
+Dependencies: DB-04-I1.
+
+Notes/Risks: B18-01 не связывает delay index с attempt/failure counters. Это
+делает только R6-dependent executor/worker.
+
+Delivery evidence:
+
+- red contract `55f8464`, UTC/DST regression `0f49fd0` и database-range
+  regression `f647d68` зафиксированы до production fix;
+- green implementation `46d7f65` получила два независимых PASS без open
+  P0/P1/P2;
+- focused unit — 24/24 tests, 51 assertions; full unit — 61/61, 173;
+  WordPress integration — 437/437, 3854;
+- isolation seed `1801`: reverse/random unit по 122/122 tests, 346 assertions,
+  reverse/random integration по 874/874 tests, 7708 assertions;
+- project PHPCS для всех новых source/test files прошёл. Protected CI и merge
+  evidence будут собраны на полном Batch 18 candidate, а не приписаны этому
+  промежуточному slice.
+
+#### B18-02. Unified cleanup executor
+
+Status: completed
+
+Goal: один внутренний cleanup/finalization path для automatic и manual callers.
+
+Scope: operation allowlist; `AtomicStorageInterface` guard; strict Client
+atomic boundary; success/failure transitions; safe logging; manual/automatic
+mode inputs.
+
+Out of Scope: `deleted_post` arm/coordinator, cron registration, public facade
+и Client lookup.
+
+DoR: DG-DELETE-06R6 approved; B18-01 completed.
+
+DoD: cleanup вызывается только для live claim; unsafe adapters perform zero
+writes; terminal mutations stay lease-conditional; ordinary failure remains
+durably observable.
+
+Acceptance Criteria:
+
+- Result `0` or positive confirms cleanup; a negative/malformed result fails.
+- Never-failed success deletes transient arm; prior-failed success resolves it.
+- Automatic failure receives the approved delay or attention state; manual
+  failure remains attention.
+- Unknown operation and non-atomic adapter reach attention without cleanup.
+- Logger `Throwable` cannot undo durable state or expose original failure.
+- Final ledger-transition failure leaves the running lease reclaimable.
+
+Dependencies: DG-DELETE-06R6, B18-01 and approved DG-SPI atomicity decisions.
+
+Notes/Risks: cleanup commit followed by a success-hook failure deliberately
+retries; a later idempotent zero result resolves the uncertainty.
+
+Delivery evidence:
+
+- red contract `d74ec4a` зафиксировал 13 отсутствующих executor scenarios до
+  production implementation;
+- green `0c23a15` добавил narrow internal ledger seam, unified executor/result
+  и real WPStorage/ledger vertical без подключения production callback;
+- focused unit после граничного claim-8 assertion: 14/14 tests, 88 assertions;
+  focused WordPress integration: 3/3, 39;
+- full unit: 75/75 tests, 261 assertions; full WordPress integration: 440/440,
+  3893 assertions; полный source PHPCS прошёл;
+- protected/exact-candidate и independent epic QA остаются обязанностью B18-Q.
+
+#### B18-03. Current-site Client runtime registry
+
+Status: completed
+
+Goal: resolve only a freshly initialized Client in its exact site context and
+separate automatic eligibility from explicit manual access.
+
+Scope: identity `(blog ID, DB prefix, canonical Client name)`; successful-init
+registration primitive; enabled/disabled eligibility; reconciliation signal;
+current-site resolution.
+
+Out of Scope: Client reconstruction, LIFE-HOOK-01 disposal, Client-init
+activation, dispatcher callback replacement and 1.x behavior changes.
+
+DoR: DG-DELETE-06R5 approved; dormant-until-I3 compatibility boundary remains
+enforced.
+
+DoD: stale/failed Clients never resolve; disable removes automatic eligibility
+without removing manual authority; current 1.x callback stays equivalent in
+identity/priority/arity.
+
+Acceptance Criteria:
+
+- Same Client name on two blogs resolves independently.
+- Failed initialization leaves no registry owner.
+- Re-registering the same object is idempotent; a different live object with
+  the same site/name is rejected; tokenized revoke cannot remove a replacement.
+- Failed activation rollback releases its reservation.
+- I2 neither arms the ledger nor performs repair on ordinary
+  `wp_delete_post()`.
+
+Dependencies: DG-DELETE-06R5, DG-HOOK-LIFE-01/A.
+
+Notes/Risks: automatic registration/activation belongs to HOOK-03/I3 at 2.0;
+I2 may only provide dormant primitives.
+
+Delivery evidence:
+
+- red contract `96a3cf9` зафиксировал 15 отсутствующих registry scenarios;
+- green `44d4bc8` реализовал injected exact-context registry и ABA-safe
+  registration handles без production wiring;
+- focused unit: 16/16 tests, 54 assertions; full unit: 91/91, 315; full source
+  PHPCS прошёл;
+- registry registration/re-enable emits an injected reconciliation signal,
+  duplicate owners and cross-site object reuse fail closed, disabled Clients
+  remain manually resolvable, stale-context eligibility commands are rejected;
+- protected/exact-candidate и independent epic QA остаются обязанностью B18-Q.
+
+#### B18-04. Eligible due and next-wakeup ledger queries
+
+Status: completed
+
+Goal: prevent missing/disabled Clients from starving runnable work or creating
+an immediate cron loop.
+
+Scope: bounded due query for an explicit eligible Client set; nearest future
+automatic deadline from armed/retry/lease states; deterministic ordering;
+MySQL/MariaDB-compatible SQL; resolved-retention deadline lookup.
+
+Out of Scope: scheduler mutation and storage execution.
+
+DoR: DG-DELETE-06R5 approved; B18-01 and B18-03 completed.
+
+DoD: unavailable Clients consume no eligible batch slots; future retry, expired
+lease and retention work can restore a lost event; malformed rows fail closed.
+
+Acceptance Criteria:
+
+- More than the batch limit of unavailable due rows cannot hide eligible work.
+- Immediate arm, `next_attempt_at` and `lease_expires_at` participate in the
+  next automatic deadline; attention/resolved do not.
+- Resolved retention deadline is site-wide and separate from Client cleanup.
+- Empty eligible set produces no cleanup wake-up; ties are deterministic.
+
+Dependencies: DG-DELETE-06R5, B18-01, B18-03.
+
+Notes/Risks: use existing indexes unless measured vendor evidence proves a
+schema revision necessary; new DDL is outside I2 without a schema gate.
+
+Delivery evidence:
+
+- red contract `81d3e2b` зафиксировал Client-filtered due/deadline queries,
+  site-wide retention lookup, deterministic ordering и fail-closed hydration;
+- green `bccbca0` реализовал эти queries без schema/DDL changes;
+- focused policy unit: 25/25 tests, 52 assertions; focused WordPress ledger
+  integration: 37/37, 591;
+- full unit: 92/92 tests, 316 assertions; full WordPress integration: 444/444,
+  3970 assertions; полный source PHPCS прошёл.
+
+#### B18-05. Client-scoped public operator service
+
+Status: completed
+
+Goal: expose the approved get/list/retry capabilities without leaking internal
+ledger objects or cross-Client existence.
+
+Scope: get/list; status filter and bounded keyset pagination; retry one; thin
+bounded manual due-batch call into B18-06; approved public projections/results.
+
+Out of Scope: REST/admin UI, raw ledger access, unresolved purge, CLI and
+network-wide operations.
+
+DoR: DG-DELETE-06R4 approved; B18-02 and B18-06 completed.
+
+DoD: site/Client scope cannot be bypassed; absent and foreign keys are
+indistinguishable; disabled Client retains explicit manual retry; all output is
+bounded and redacted.
+
+Acceptance Criteria:
+
+- `already_running`, `not_found_or_foreign`, `resolved` and `retry_failed` are
+  distinct stable outcomes.
+- Invalid status/cursor/limit fails before mutation.
+- No raw SQL, trace, Throwable, site prefix, adapter fingerprint or lease token
+  escapes the service.
+- A foreign key never reaches an unscoped claim mutation.
+
+Dependencies: DG-DELETE-06R4, B18-02, B18-06.
+
+Notes/Risks: exact public names/types are part of R4, not implementation-local
+style choices.
+
+Delivery evidence:
+
+- red contract `6016242` зафиксировал private-constructor DTOs, Client-scoped
+  get/list/retry/batch surface, keyset pagination, redaction и stale-context
+  rejection;
+- green `5729673` реализовал утверждённые public names/outcomes, lazy
+  side-effect-free Client getter, one-read `limit + 1` pagination и safe
+  `DeletedPostRepairUnavailable` boundary;
+- disabled legacy cleanup hook не ограничивает explicit manual batch; foreign
+  key не достигает unscoped claim, adapter mismatch даёт `retry_failed` без
+  cleanup;
+- focused DTO/related unit: 54/54 tests, 223 assertions; focused public service
+  WordPress integration: 5/5, 66;
+- full unit: 107/107 tests, 399 assertions; full WordPress integration: 451/451,
+  4074 assertions; полный source PHPCS прошёл.
+
+#### B18-06. Bounded site worker
+
+Status: completed
+
+Goal: process eligible due repairs through the same executor without duplicate
+live cleanup.
+
+Scope: batch/time limits; registry resolution; claim; per-record continuation;
+final reconciliation request; opportunistic resolved retention.
+
+Out of Scope: cron gateway and synchronous deletion coordinator.
+
+DoR: DG-DELETE-06R4 approved; B18-02—B18-04 completed.
+
+DoD: concurrent workers invoke storage only for the lease owner; an ordinary
+record failure does not stop later records; ledger uncertainty stops safely.
+
+Acceptance Criteria:
+
+- Two snapshots of one row lead to one cleanup invocation.
+- Live lease is skipped, expired lease is reclaimable, stale completion cannot
+  overwrite the new owner.
+- Time budget stops new claims; an acquired claim is finalized or reclaimable.
+- Adapter mismatch reaches attention with zero cleanup.
+- Retention honors the exact 30-day boundary and never receives unresolved
+  rows.
+
+Dependencies: DG-DELETE-06R4, B18-02, B18-03, B18-04.
+
+Notes/Risks: malformed retention candidates stop before destructive SQL.
+
+Delivery evidence:
+
+- red contracts `64b09c0` and deterministic-order correction `26fd928`
+  зафиксировали automatic/manual batch bounds, monotonic stop, final due read,
+  reconciliation, retention и conservative attempt exhaustion;
+- green `d8e77b5` добавил dormant bounded worker, narrow worker/executor seams,
+  internal results и conditional ninth-claim exhaustion without a schema or
+  production-hook change;
+- focused unit: 52/52 tests, 189 assertions; focused WordPress ledger/executor
+  integration: 42/42, 668;
+- full unit: 105/105 tests, 365 assertions; full WordPress integration: 446/446,
+  4008 assertions; полный source PHPCS прошёл;
+- final reconciliation вызывается и после нормального bounded run, и после
+  primary ledger uncertainty; reconciliation failure не маскирует primary
+  uncertainty. Реальная scheduler mutation остаётся B18-07.
+
+#### B18-07. Dormant WP-Cron gateway and reconciliation
+
+Status: completed
+
+Goal: use WP-Cron only as a replaceable site wake-up over ledger truth.
+
+Scope: scheduler abstraction; native single-event adapter; one stable logical
+site hook/args; dormant callback-to-worker adapter; callable reconciliation
+primitives and post-run reconciliation; scheduling diagnostics.
+
+Out of Scope: automatic Client-init activation before I3/2.0, recurring events,
+Action Scheduler and `deleted_post` coordination.
+
+DoR: DG-DELETE-06R5 approved; B18-06 completed.
+
+DoD: schedule failure cannot remove work; duplicate/lost delivery is safe;
+reconciliation is idempotent for the same site snapshot; event data contains
+no repair/client or diagnostic payload. I2 performs no global hook registration.
+
+Acceptance Criteria:
+
+- Multiple repairs converge on one logical earliest eligible wake-up.
+- Resolved retention alone can schedule the same empty-args site event; its
+  deadline competes with eligible cleanup by earliest timestamp.
+- An existing earlier event is not moved later and replacement does not first
+  delete the only known wake-up.
+- Consumed/missing events are reconciled from ledger state.
+- Duplicate callbacks rely on lease exclusion, not cron uniqueness.
+- Scheduler false/error/Throwable is redacted and manual retry remains usable.
+- Multisite blogs keep separate cron state; disabled WP-Cron is not reported
+  as completed work.
+- I2 tests invoke reconciliation primitives directly; actual Client-init,
+  enable and hook subscription wiring remains I3-only.
+
+Dependencies: DG-DELETE-06R5, B18-06.
+
+Notes/Risks: WordPress's ten-minute duplicate suppression means “single” is a
+best-effort logical invariant, never authoritative persistence.
+
+Delivery evidence:
+
+- red contract `e221839` и DateTime expectation correction `f5ce939`
+  зафиксировали attributable deadline, eligibility, retention-only wake-up,
+  schedule-before-unschedule replacement, redaction и dormant gateway;
+- green `c1eb7f2` добавил feature-specific scheduler abstraction, native
+  empty-args WP-Cron adapter, reconciler/result и callback-to-worker gateway;
+- focused reconciler/gateway unit: 45/45 tests, 134 assertions; focused native
+  scheduler/ledger WordPress integration: 43/43, 653;
+- full unit: 114/114 tests, 432 assertions; full WordPress integration: 455/455,
+  4098 assertions; полный source PHPCS прошёл;
+- source не вызывает `add_action()` для repair event и не регистрирует Client:
+  hook subscription, Client-init activation и deleted-post coordinator остаются
+  только I3/2.0.
+
+#### B18-08. Optional WP-CLI bridge
+
+Status: deferred
+
+Goal: optionally provide a thin shell over the stable PHP service in a later
+batch.
+
+Scope: none in Batch 18.
+
+Out of Scope: command namespace/output/exit contracts, Client reconstruction,
+network scanning and destructive purge.
+
+DoR: a separate owner-approved CLI contract and B18-05 completed.
+
+DoD: not applicable to Batch 18.
+
+Acceptance Criteria: DB-04-I2 and its deterministic manual PHP path can close
+without WP-CLI.
+
+Dependencies: B18-05 and a future CLI gate.
+
+Notes/Risks: Composer library code has no safe implicit consumer bootstrap from
+which to reconstruct a Client.
+
+#### B18-Q. Exact-candidate verification and closeout
+
+Status: review
+
+Goal: verify I2 across supported runtimes/vendors without claiming the I3 real
+hook guarantee.
+
+Scope: focused/full unit and integration suites; reverse/random isolation;
+PHPCS and coverage; pinned MySQL/MariaDB; true multisite; independent exact
+candidate and security review; protected/merge/post-merge evidence.
+
+Out of Scope: coordinated real `wp_delete_post()` end-to-end proof, which
+belongs to I3/Q.
+
+DoR: B18-01—B18-07 completed; B18-08 is not required while deferred.
+
+DoD: exact candidate, PR merge and exact merge all carry the required evidence;
+plans state the dormant-until-I3 boundary accurately.
+
+Acceptance Criteria:
+
+- Full failure/security matrix covers context, adapter, lease, clock,
+  diagnostic and scheduler boundaries.
+- `Client::enablePostDeletionCleanup()` still registers the exact 1.x storage
+  callback at priority 10 with one argument.
+- No automatic repair coordinator is connected to `deleted_post` in I2.
+
+Dependencies: B18-01—B18-07 and approved R4—R6 decisions.
+
+Notes/Risks: a release/tag decision occurs only after I3/Q unless an explicitly
+narrow prerelease is separately authorized.
+
+Delivery evidence:
+
+- independent review of candidate `1dd7abc` found one common P1: a Client
+  constructed on site A could be first registered on site B before the worker
+  acquired a claim; the security audit also found repeated full schema
+  introspection, while QA found an inaccurate scheduler-availability result
+  and stale plan text;
+- red/corrective commits `bc08a31` and `e23cd38` reject first stale
+  registration, revalidate immediately before claim, preserve an already read
+  dispatch-availability value, cache expensive readiness metadata per
+  context-bound ledger instance, and add real multisite cron/context coverage;
+- full local unit is 117/117 tests and 443 assertions; WordPress integration is
+  458/458 and 4099; true multisite is 458/458 and 4115;
+- PHP 8.1/8.2/8.3/8.4/8.5 pairwise `test:all` lanes pass; expected legacy
+  deprecation output on newer PHP remains outside this batch;
+- isolation seed `18018` passes reverse/random unit at 234 tests and 886
+  assertions and reverse/random integration at 916 tests and 8198 assertions;
+- exact pinned MySQL 8.0.46 and MariaDB 10.11.16 lanes each pass 458 tests and
+  4099 assertions; source PHPCS passes 95/95 files;
+- RC coverage passes with 3599/3946 statements (91.21%) and zero active test
+  policy exceptions. Independent closure review, protected checks, merge and
+  exact post-merge evidence remain required before `completed`.
 
 ## E1. Test foundation и regression harness
 
@@ -3919,6 +4378,8 @@ Notes/Risks:
   2026-09-14. Approved path сохраняет exact 1.x callback identity, вводит
   coordinator только в 2.0, использует site-local InnoDB ledger и WP-Cron
   только как wake-up.
+- DG-DELETE-06R4—DG-DELETE-06R6 утверждены вариантом A владельцем
+  2026-09-21; execution сохраняет task-level dependencies Batch 18.
 
 ### DB-04-I. Реализовать WordPress `deleted_post` cleanup и repair
 
@@ -4006,15 +4467,18 @@ DoD/AC:
 
 #### DB-04-I2. Retry engine, scheduler adapter and operator service
 
-Status: todo
+Status: review
 
 Scope: state machine, clock/scheduler abstractions, WP-Cron wake-up, backoff,
-Client runtime registry, PHP operator service и optional WP-CLI bridge.
+Client runtime registry и PHP operator service. Optional WP-CLI bridge deferred.
 
 DoR:
 
 - DG-DELETE-06R3 утверждён.
+- DG-DELETE-06R4—R6 утверждены вариантом A.
 - DB-04-I1 завершена.
+- B18-01—B18-07 completed; B18-08 deferred; B18-Q проходит independent,
+  protected и merge closeout.
 
 DoD/AC:
 

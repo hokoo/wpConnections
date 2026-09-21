@@ -124,6 +124,21 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		self::assertSame( $this->expected_columns(), $this->table_columns( $this->table ) );
 	}
 
+	public function test_assert_ready_caches_expensive_metadata_for_one_context_bound_instance(): void
+	{
+		$ledger = new DeletedPostRepairLedger();
+		$ledger->ensureReady();
+
+		$queries = $this->record_queries(
+			static function () use ( $ledger ): void {
+				$ledger->assertReady();
+				$ledger->assertReady();
+			}
+		);
+
+		self::assertSame( [], $this->schema_metadata_queries( $queries ) );
+	}
+
 	public function test_owned_missing_table_is_recovered_once_without_alter_or_drop(): void
 	{
 		global $wpdb;
@@ -790,6 +805,19 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 						'/^\s*(?:CREATE(?:\s+TEMPORARY)?|ALTER|DROP(?:\s+TEMPORARY)?|RENAME|TRUNCATE)\s+TABLE\b/i',
 						$query
 					);
+				}
+			)
+		);
+	}
+
+	private function schema_metadata_queries( array $queries ): array
+	{
+		return array_values(
+			array_filter(
+				$queries,
+				static function ( string $query ): bool {
+					return false !== stripos( $query, 'information_schema' ) ||
+						1 === preg_match( '/^\s*SHOW\s+(?:FULL\s+COLUMNS|INDEX|CREATE\s+TABLE)\b/i', $query );
 				}
 			)
 		);

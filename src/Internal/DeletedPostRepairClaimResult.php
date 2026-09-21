@@ -10,6 +10,7 @@ final class DeletedPostRepairClaimResult
         'acquired',
         'adapter_mismatch',
         'already_running',
+        'attempts_exhausted',
         'not_due',
         'not_found',
         'resolved',

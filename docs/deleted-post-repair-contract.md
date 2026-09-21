@@ -1,9 +1,16 @@
 # Deleted-post cleanup repair contract
 
 Status: `DB-04-D` and `DB-04-I1` completed; `DG-DELETE-06R1` through
-`DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14.
-The remaining production slices are authorized only in their recorded
-dependency order and against this contract.
+`DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14,
+and `DG-DELETE-06R4` through `DG-DELETE-06R6` were approved as A by the
+repository owner on 2026-09-21.
+`DB-04-I2` is in review as Batch 18. B18-01 through B18-07 are implemented;
+B18-08 remains explicitly deferred. The first exact-candidate reviews found a
+cross-site first-registration defect plus lower-severity scheduler observation,
+schema-query amplification and plan-consistency findings. Regression commit
+`bc08a31` and corrective implementation `e23cd38` close those findings locally.
+B18-Q now owns independent closure review, protected CI, merge and post-merge
+evidence; no I3 hook activation is included.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -41,9 +48,10 @@ This document converts that policy into three explicit choices:
 2. which store is authoritative for unresolved work;
 3. how work is woken, retried, observed, and manually recovered.
 
-All three choices were explicitly approved. `DB-04-I1` is complete and
-`DB-04-I2` is executable; later slices retain their recorded implementation
-dependencies.
+All three original choices and all three Batch 18 refinements were explicitly
+approved. `DB-04-I1` is complete and all required `DB-04-I2` production slices
+are implemented; B18-Q is in review. Later I3/Q slices retain their recorded
+implementation dependencies, and I2 approval does not activate their hooks.
 
 ## Current runtime and compatibility boundary
 
@@ -455,6 +463,274 @@ class/code may be retained for attribution, but an original exception message
 is not persisted blindly because current storage messages may contain physical
 table names or database details.
 
+<a id="dg-delete-06r4"></a>
+## DG-DELETE-06R4 — public PHP operator representation
+
+**Status:** approved A by repository owner on 2026-09-21.
+
+**Problem:** R3 approved the operator capabilities but deliberately left exact
+class and method shapes to I2. The internal ledger and its records mirror
+persistence concerns, include fields that must never become an existence
+oracle, and are expected to evolve with schema revisions. Returning them from a
+public Client method would unintentionally make storage layout and unsafe
+diagnostics part of the compatibility promise. I2 therefore needs an explicit
+boundary between the stable consumer API and the internal ledger.
+
+- **A — Client-scoped service with immutable safe projections/results
+  (recommended).** A successfully initialized Client exposes a repair service.
+  The service owns current-site/current-Client scoping and returns dedicated,
+  bounded value objects for listing, inspection, retry outcomes and cursors.
+  The ledger and persistence records stay internal. Missing and foreign keys
+  intentionally share `not_found_or_foreign`; retry outcomes retain the R3
+  taxonomy without returning a Throwable, SQL, trace, or arbitrary persisted
+  payload.
+- **B — Client-scoped service returning documented arrays and strings.** This
+  preserves the security boundary and costs less code initially, but makes
+  field presence, spelling and invalid combinations easier to expose
+  accidentally and harder to evolve compatibly.
+- **C — expose the internal ledger and record objects.** This is the smallest
+  facade, but freezes a schema-oriented API, lets consumers bypass service
+  invariants, and couples every persistence migration to public compatibility.
+
+**Why A:** it preserves the approved Client-scoped authority model while
+keeping schema details replaceable. The extra value objects are a small cost
+for a long-lived public library API. This gate does not block the internal
+policy, cleanup executor, registry or ledger-query slices; it blocks only the
+public operator facade and consumers of that facade. WP-CLI remains deferred
+and optional; adding it requires its own command/output/exit-code contract.
+
+Under A, the exact public surface proposed for approval is:
+
+- `Client::getDeletedPostRepairService()` returns one Client-bound
+  `iTRON\wpConnections\DeletedPostRepairService`; the getter is lazy and
+  side-effect-free, while each operation checks the bound Client's site context
+  and ledger readiness before its first read or mutation;
+- `getRepair(string $repairKey): ?DeletedPostRepairView`,
+  `listRepairs(?string $status = null, ?string $afterKey = null, int $limit =
+  20): DeletedPostRepairPage`,
+  `retryRepair(string $repairKey): DeletedPostRepairRetryResult`, and
+  `retryDueRepairs(int $limit = 20, int $timeBudgetSeconds = 10):
+  DeletedPostRepairBatchResult` are the four service operations;
+- immutable `DeletedPostRepairView`, `DeletedPostRepairPage`,
+  `DeletedPostRepairRetryResult`, and `DeletedPostRepairBatchResult` objects
+  carry results; no `Internal\DeletedPostRepair*` type appears in a public
+  signature;
+- page and due-batch defaults are 20 records with a hard maximum of 100; a due
+  batch has a default 10-second monotonic budget and a hard maximum of 60
+  seconds; no public filter, option, or mutable global configuration is added;
+- repair keys and non-null cursors are lowercase SHA-256 strings matching
+  `[a-f0-9]{64}` exactly; limits are integers from 1 through 100 and the time
+  budget is an integer from 1 through 60 seconds;
+- views expose repair key, post ID, status, attempt/failure counts, next-at,
+  bounded failure/wake-up diagnostics, and created/updated/resolved timestamps;
+  they omit site prefix, storage fingerprint, lease token and persistence
+  objects;
+- `DeletedPostRepairView` exposes exactly `getRepairKey(): string`,
+  `getPostId(): int`, `getStatus(): string`, `getAttemptCount(): int`,
+  `getFailureCount(): int`, `getNextAttemptAt(): ?DateTimeImmutable`, nullable
+  `getFailureCategory(): ?string`, `getFailureClass(): ?string`,
+  `getFailureCode(): ?string`, `getFailureSummary(): ?string`,
+  `getFirstFailureAt(): ?DateTimeImmutable`,
+  `getLastFailureAt(): ?DateTimeImmutable`,
+  `getWakeupFailureCategory(): ?string`,
+  `getWakeupFailureSummary(): ?string`,
+  `getWakeupFailureAt(): ?DateTimeImmutable`,
+  `getCreatedAt(): DateTimeImmutable`, `getUpdatedAt(): DateTimeImmutable`, and
+  `getResolvedAt(): ?DateTimeImmutable`; every time is UTC;
+- a page is ordered by repair key ascending and applies `afterKey` exclusively.
+  It returns at most `limit` views. `nextAfterKey` is the last returned key only
+  when an additional matching row existed in the same validated read; otherwise
+  it is `null`. An absent or foreign `getRepair()` key returns the same `null`;
+  allowed status values are exactly the five ledger states or `null` for all;
+- `retryRepair()` returns exactly `resolved`, `already_running`,
+  `not_found_or_foreign`, or `retry_failed`; a batch is an ordered bounded
+  collection of the same per-record results, `hasMoreDue`, and one stop reason:
+  `complete`, `batch_limit`, or `time_budget`;
+- `DeletedPostRepairPage` exposes `getItems(): array` and
+  `getNextAfterKey(): ?string`; `DeletedPostRepairRetryResult` exposes the
+  echoed `getRepairKey(): string`, `getOutcome(): string`,
+  `wasCleanupAttempted(): bool`, and `getRepair(): ?DeletedPostRepairView`, so
+  batch results remain correlatable without another lookup;
+- `retryRepair()` is the explicit override path: for this service's one bound
+  site/Client it may claim `armed`, due or not-yet-due `retry_wait`,
+  `needs_attention`, or expired `running`; it never breaks a live lease.
+  `retryDueRepairs()` is also restricted to that one bound site/Client but
+  selects only `armed`, due `retry_wait`, and expired `running`; it excludes
+  future `retry_wait`, `needs_attention`, and `resolved`. A disabled Client may
+  invoke both manual methods because disable controls automatic eligibility,
+  not explicit operator authority;
+- outcome `resolved` covers both an already-resolved record and a successful
+  current retry; `wasCleanupAttempted()` distinguishes them. Adapter mismatch,
+  unsupported atomic capability, unknown operation and safely classified
+  claim races map to redacted `retry_failed`; the flag remains false when
+  storage was not called. `not_found_or_foreign` has no view, while the other
+  outcomes return the safely re-read current view when it is available;
+- `DeletedPostRepairBatchResult` exposes `getResults(): array`,
+  `hasMoreDue(): bool`, and `getStopReason(): string`; both arrays contain only
+  their declared immutable public object type and preserve deterministic repair
+  order. `complete` means no more due record for the bound Client was visible
+  at the final read and requires `hasMoreDue=false`; `batch_limit` means the
+  record limit was reached with more due work visible, and `time_budget` means
+  the monotonic deadline was reached before another claim while due work
+  remained—both require `hasMoreDue=true`. Ledger uncertainty throws instead
+  of returning a potentially false completion result;
+- all four DTO constructors are private; library-owned `@internal` factories
+  create them. Consumers receive DTOs only through the service, and those
+  construction factories are explicitly outside the compatibility surface;
+- invalid key/status/cursor/limit/budget fails before SQL with
+  `InvalidArgumentException`; stale context or ledger/schema uncertainty throws
+  a new safe `iTRON\wpConnections\Exceptions\DeletedPostRepairUnavailable`
+  exception without the original database/adapter message. A handled
+  cleanup/capability failure is represented by redacted `retry_failed`, not
+  leaked as the original Throwable.
+
+**Compatibility, rollback, and affected tasks:** A is additive but stable once
+released; DTO fields and method outcomes then require normal compatibility
+discipline. Rolling back the facade does not delete ledger state. B18-05,
+B18-06's shared batch-limit policy, and the public portion of B18-Q are governed
+by this approved contract; the optional CLI is excluded from Batch 18.
+B18-01—B18-04 and the single-record internal executor do not depend on public
+names.
+
+<a id="dg-delete-06r5"></a>
+## DG-DELETE-06R5 — automatic eligibility and single wake-up semantics
+
+**Status:** approved A by repository owner on 2026-09-21.
+
+**Problem:** the ledger is shared by all Clients on one site, but a future
+request can execute a repair only for Clients freshly initialized in that site
+context. A global bounded due query can be filled by records for missing or
+disabled Clients, starving an eligible Client beyond the limit. Rescheduling
+those skipped records immediately can also create a cron hot loop. Separately,
+WordPress cannot strictly maintain exactly one event at an exact timestamp:
+identical single events can be rejected within ten minutes, callbacks consume
+their event before invocation, and cron-option updates have no compare-and-swap
+replacement primitive.
+
+- **A — registered-and-enabled eligibility plus best-effort logical wake-up
+  convergence (recommended).** Automatic selection considers only Clients
+  successfully registered for the current site and enabled for automatic
+  cleanup. Missing/disabled work remains unchanged and visible but neither
+  consumes automatic batch capacity nor keeps cron spinning. Registration and
+  re-enable reconcile the next wake-up. “One site wake-up” means one stable
+  logical hook/argument set converging best-effort toward the earliest eligible
+  work; harmless duplicate events are allowed and lease claims remain the
+  concurrency authority.
+- **B — scan all due records and skip unavailable Clients in the worker.** This
+  avoids an eligibility-aware query but bounded scans can starve eligible work,
+  while immediate reconciliation of the same skipped head rows can hot-loop.
+- **C — move missing/disabled Client records to `needs_attention`.** This makes
+  the global scan progress, but contradicts the approved lifecycle: missing
+  initialization is a request condition, disable is reversible, and neither is
+  evidence that the persisted repair itself failed.
+
+**Why A:** it implements the already approved rule that consumers initialize
+each Client per site without turning temporary unavailability into failure.
+An existing earlier event is not moved later; replacement must not first remove
+the only known wake-up; a callback establishes a safety wake-up no later than
+the nearest claimed lease expiry and reconciles again after its bounded batch.
+The ledger, never the cron option, remains authoritative. This gate blocks the
+runtime eligibility registry, worker-oriented due/next-wakeup query and cron
+adapter, but not the retry policy or direct-Client cleanup executor.
+
+The same empty-argument site event also wakes resolved-retention work. Its next
+timestamp is the earlier of the nearest eligible Client cleanup deadline and
+the nearest site-wide `resolved_at + 30 days` deadline. Retention can therefore
+schedule the event even when no Client is automatically eligible; the callback
+may purge only validated resolved rows and never uses that exception to process
+missing/disabled Client cleanup. If no handler is initialized in a cron
+request, ledger state remains intact and the next Client initialization
+reconciles the lost wake-up.
+
+Under A, the persisted event contract is one single event named
+`wpConnections/deletedPostRepair/run`, with an empty argument array. No repair
+key, Client name, adapter name or diagnostic becomes cron-option data. I2 may
+build and test the adapter and registry, but it does not subscribe this hook,
+register Clients from `Client::init()`, arm repairs from `deleted_post`, or
+change `enablePostDeletionCleanup()`/`disablePostDeletionCleanup()`. Those 2.0
+activation steps remain I3. Automatic defaults are internal constants; adding
+a public filter, option, or toggle later is a new gate.
+
+The internal registry key is exact `(blog ID, DB prefix, canonical Client
+name)`. Re-registering the same live Client is idempotent; a different live
+Client for the same key is rejected rather than last-wins. A tokenized
+revocation handle prevents an older owner from revoking a replacement. The
+same name on another site is independent. Only successful initialization can
+be activated by I3, and failure rollback releases any reservation.
+
+**Compatibility, rollback, and affected tasks:** the 1.x callback remains
+`[$storage, 'deleteByObjectID']` at priority 10 with one argument, including its
+direct `remove_action()` escape hatch. Rolling back scheduling unschedules only
+the known future event and retains every ledger row/manual path. B18-03,
+B18-04, B18-06, B18-07 and their automatic QA are governed by this approved
+contract. I3 alone owns production activation and lifecycle wiring.
+
+<a id="dg-delete-06r6"></a>
+## DG-DELETE-06R6 — automatic retry budget accounting
+
+**Status:** approved A by repository owner on 2026-09-21.
+
+**Problem:** R3 bounds unattended work to an initial synchronous attempt plus
+up to eight automatic retries. The I1 ledger counts every acquired lease in
+`attempt_count` and every recorded failure in `failure_count`, but deliberately
+does not persist whether a claim was synchronous, automatic, or manual. A
+process can die after acquiring a lease and before recording a failure; an
+operator can also interleave manual claims. The runner must decide which
+durable counter exhausts automatic work. That choice affects crash behavior,
+manual recovery and potentially the ledger schema.
+
+- **A — count every acquired claim against one nine-attempt unattended ceiling
+  (recommended).** Automatic claim is allowed only while `attempt_count < 9`.
+  The initial synchronous claim, expired/crashed claims and any interleaved
+  manual claims all consume that conservative ceiling. An expired claim at the
+  ceiling moves conditionally to `needs_attention` without a tenth automatic
+  cleanup. Explicit manual retry remains available after exhaustion; a failed
+  manual retry stays in `needs_attention` and never starts a new automatic
+  chain.
+- **B — count only recorded failures.** Automatic work stops after the eighth
+  failure transition. This preserves more cleanup opportunities after manual
+  work, but a process repeatedly dying while holding a lease never increments
+  `failure_count` and can therefore be reclaimed automatically without a hard
+  attempt bound.
+- **C — add durable claim provenance and a separate automatic counter.** Store
+  claim mode/counters so only synchronous/automatic claims consume the
+  unattended budget while manual work does not. This models every distinction,
+  but requires a schema version/migration and new crash-state invariants before
+  the first runner can ship.
+
+**Why A:** it satisfies “up to eight” with the existing schema, bounds crashes
+as well as handled failures, and fails toward explicit operator control. Its
+intentional cost is that manual intervention before exhaustion can reduce the
+remaining automatic attempts. Failures of claims 1 through 8 select the eight
+R3 delays in order and schedule claims 2 through 9; failure of claim 9 reaches
+`needs_attention`.
+
+Manual claim remains available from `armed`, `retry_wait`, `needs_attention`
+and expired `running`, matching I1. Any observed manual failure goes directly
+to `needs_attention`, irrespective of the remaining automatic budget; manual
+success deletes a never-failed transient arm or resolves a previously failed
+record. If the manual process dies without a transition, the indistinguishable
+expired `running` lease becomes automatically reclaimable subject to the same
+nine-claim ceiling. Specifically, expired `running` with `attempt_count >= 9`
+is conditionally moved to `needs_attention` without another cleanup; this also
+covers a crashed manual retry after exhaustion. An `armed` row left before its synchronous claim uses claim
+1 when first recovered automatically, preserving at most nine total unattended
+executions rather than inventing an extra slot. All exhaustion/lease
+transitions remain conditional on the current lease so a stale worker cannot
+overwrite a replacement owner.
+
+**Compatibility, rollback, and affected tasks:** A requires no I1 schema
+migration. Changing it later to provenance-aware C would require an explicit
+schema/version migration and revised attempt reporting. B18-02, B18-06 and
+their exhaustion/crash QA are governed by this approved contract; clock, lease
+duration, the eight delay values and retention cutoff do not depend on it.
+
+Rolling A back stops automatic claims but leaves all rows and counters valid
+under I1; no counter is decremented and no unresolved row is deleted. A later
+compatible runner can resume from the retained status. B also avoids a schema
+migration but cannot guarantee bounded crash reclaims; C cannot be rolled back
+to schema v1 until every v2 provenance field has an explicit downgrade policy.
+
 ## Failure semantics at the hook boundary
 
 The manager continues to propagate failures from its active callback. The
@@ -469,11 +745,13 @@ record can be attributed. The request may therefore fail although WordPress has
 already deleted the post. Documentation and logs must state that boundary
 explicitly.
 
-## Approved executable implementation slices
+## Planned executable implementation slices
 
-The following slice order implements the approved A options. Changing an
-approved choice requires a new decision and revised plan before affected code
-starts.
+The following slice order implements approved R1—R6. B18-01 through B18-07 are
+completed; exact-candidate verification B18-Q is in progress and later slices
+retain
+their recorded code dependencies. Changing an approved choice requires a new
+decision and revised plan before affected code starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
@@ -497,11 +775,18 @@ DoD:
 
 ### DB-04-I2 — retry engine, WP-Cron adapter, and operator service
 
-Status: `todo`; I1 dependency is complete. Planned as Batch 18.
+Status: `review`; I1 dependency is complete. Batch 18 has completed the
+clock/backoff/lease/retention policy, unified cleanup executor, dormant
+current-site Client registry, eligible ledger queries, the bounded worker, the
+public operator and the dormant scheduler gateway. Exact-candidate verification
+is in progress under the approved R4/R5/R6 contracts.
+
+Batch 18 decomposition baseline:
+`40a36c3a2512234e0d61db564dfb1e833a8ec5d2`.
 
 Scope: state machine, clock/scheduler abstractions, single site wake-up,
-backoff/exhaustion/retention, Client runtime registry, PHP operator service, and
-optional WP-CLI bridge.
+backoff/exhaustion/retention, Client runtime registry and PHP operator service.
+The optional WP-CLI bridge is deferred from Batch 18.
 
 Out of scope: `deleted_post` callback replacement, REST/admin UI, and an Action
 Scheduler dependency under R3/A.
