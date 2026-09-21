@@ -87,6 +87,64 @@ final class DeletedPostRepairHookMigrationStorage extends Storage implements Ato
     }
 }
 
+final class DeletedPostRepairHookNonAtomicStorage extends Storage
+{
+    public static int $cleanupCalls = 0;
+
+    public function __construct(Client $client)
+    {
+        unset($client);
+    }
+
+    public function createConnection(ConnectionQuery $connectionQuery): int
+    {
+        return 1;
+    }
+
+    public function updateConnection(AbstractConnection $connection): bool
+    {
+        return true;
+    }
+
+    public function deleteSpecificConnections($connectionIDs): int
+    {
+        return 0;
+    }
+
+    public function deleteByObjectID(
+        $objectIDs,
+        string $relation = '',
+        bool $onlyFrom = false,
+        bool $onlyTo = false
+    ): int {
+        self::$cleanupCalls++;
+
+        return 0;
+    }
+
+    public function deleteDirectedConnections(
+        ?int $from = null,
+        ?int $to = null,
+        string $relation = ''
+    ): int {
+        return 0;
+    }
+
+    public function findConnections(ConnectionQuery $params): ConnectionCollection
+    {
+        return new ConnectionCollection();
+    }
+
+    public function addConnectionMeta(int $objectID, MetaCollection $metaCollection): void
+    {
+    }
+
+    public function removeConnectionMeta(int $objectID, MetaQueryCollection $metaQuery)
+    {
+        return 0;
+    }
+}
+
 class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
 {
     private const TABLE_BASENAME = 'wpconnections_repair';
@@ -110,6 +168,7 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient = [];
         DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage = [];
         DeletedPostRepairHookMigrationStorage::$failingClients = [];
+        DeletedPostRepairHookNonAtomicStorage::$cleanupCalls = 0;
         add_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
     }
 
@@ -326,6 +385,31 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         );
     }
 
+    public function test_non_atomic_storage_performs_zero_writes_and_exposes_redacted_attention(): void
+    {
+        remove_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
+        $nonAtomic = static function (): string {
+            return DeletedPostRepairHookNonAtomicStorage::class;
+        };
+        add_filter('wpConnections/factory/getStorage/class', $nonAtomic);
+        try {
+            $client = $this->newClient('non-atomic');
+        } finally {
+            remove_filter('wpConnections/factory/getStorage/class', $nonAtomic);
+            add_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
+        }
+
+        do_action('deleted_post', 518, null);
+
+        self::assertSame(0, DeletedPostRepairHookNonAtomicStorage::$cleanupCalls);
+        $repairs = $client->getDeletedPostRepairService()->listRepairs(
+            DeletedPostRepairStatus::NEEDS_ATTENTION
+        )->getItems();
+        self::assertCount(1, $repairs);
+        self::assertSame('adapter', $repairs[0]->getFailureCategory());
+        self::assertSame('[diagnostic details redacted]', $repairs[0]->getFailureSummary());
+    }
+
     public function test_persisted_failure_of_one_client_does_not_stop_later_client_cleanup(): void
     {
         $failing = $this->newClient('failing-first');
@@ -391,13 +475,61 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
             restore_current_blog();
         }
 
+        do_action('deleted_post', 541, null);
+
         self::assertSame(
-            [],
-            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteAStorageId ] ?? []
+            [ 541 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteAStorageId ]
         );
         self::assertSame(
             [ 541 ],
             DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteBStorageId ] ?? []
+        );
+    }
+
+    public function test_same_name_multisite_cron_runs_only_the_active_site_worker(): void
+    {
+        if (! is_multisite()) {
+            self::markTestSkipped('Requires the true WordPress multisite lane.');
+        }
+
+        $name = 'repair-hook-cron-same-name-' . ++self::$clientSequence;
+        DeletedPostRepairHookMigrationStorage::$failingClients[ $name ] = true;
+        $siteAClient = $this->newNamedClient($name);
+        $siteAStorageId = spl_object_id($siteAClient->getStorage());
+        do_action('deleted_post', 551, null);
+        $this->makeClientRepairDue($siteAClient);
+
+        $siteB = self::factory()->blog->create();
+        switch_to_blog($siteB);
+        try {
+            $siteBClient = $this->newNamedClient($name);
+            $siteBStorageId = spl_object_id($siteBClient->getStorage());
+            do_action('deleted_post', 551, null);
+            $this->makeClientRepairDue($siteBClient);
+            unset(DeletedPostRepairHookMigrationStorage::$failingClients[ $name ]);
+            $this->dispatchScheduledCron();
+
+            self::assertSame(
+                [ 551 ],
+                DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteAStorageId ]
+            );
+            self::assertSame(
+                [ 551, 551 ],
+                DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteBStorageId ]
+            );
+        } finally {
+            restore_current_blog();
+        }
+
+        $this->dispatchScheduledCron();
+        self::assertSame(
+            [ 551, 551 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteAStorageId ]
+        );
+        self::assertSame(
+            [ 551, 551 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteBStorageId ]
         );
     }
 
@@ -436,9 +568,10 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
     {
         global $wpdb;
 
+        $table = $wpdb->prefix . self::TABLE_BASENAME;
         $updated = $wpdb->query(
             $wpdb->prepare(
-                "UPDATE `{$this->table}` SET `next_attempt_at` = UTC_TIMESTAMP(), " .
+                "UPDATE `{$table}` SET `next_attempt_at` = UTC_TIMESTAMP(), " .
                 '`updated_at` = UTC_TIMESTAMP() WHERE `client_name` = %s',
                 $client->getName()
             )

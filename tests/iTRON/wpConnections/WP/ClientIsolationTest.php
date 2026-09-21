@@ -275,6 +275,10 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertSame( 1, $cleanup_calls );
 		self::assertSame( 1, $this->find_connection_count( $relation, $first->id ) );
 		self::assertSame( 0, $this->find_connection_count( $relation, $second->id ) );
+		self::assertSame(
+			[],
+			$client->getDeletedPostRepairService()->listRepairs()->getItems()
+		);
 	}
 
 	public function test_default_storage_rejects_collision_and_65_character_identifier(): void

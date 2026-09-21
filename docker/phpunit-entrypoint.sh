@@ -372,6 +372,12 @@ run_wp_integration() {
   vendor/bin/phpunit -c php-wp-unit.xml "$@"
 }
 
+run_wp_multisite() {
+  log_section "WP Multisite tests (php-wp-multisite-unit.xml)"
+  prepare_wp_tests
+  vendor/bin/phpunit -c php-wp-multisite-unit.xml "$@"
+}
+
 run_phpcs() {
   log_section "PHP CodeSniffer"
   composer run phpcs
@@ -502,6 +508,12 @@ case "$CMD" in
     shift
     run_composer_install
     run_wp_integration "$@"
+    ;;
+
+  test:multisite)
+    shift
+    run_composer_install
+    run_wp_multisite "$@"
     ;;
 
   test:coverage)

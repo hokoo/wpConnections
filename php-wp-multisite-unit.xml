@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	bootstrap="tests/wp_bootstrap.php"
+	colors="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="false"
+	convertWarningsToExceptions="false"
+	beStrictAboutTestsThatDoNotTestAnything="false"
+	xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd">
+	<php>
+		<const name="DOING_TESTS" value="1" />
+		<const name="WP_TESTS_MULTISITE" value="1" />
+		<const name="CLIENT_NAME" value="client-test" />
+		<const name="RELATION_0_NAME" value="relation-0-test" />
+		<const name="RELATION_1_NAME" value="relation-1-test" />
+	</php>
+	<testsuites>
+		<testsuite name="wpConnections WordPress multisite test suite">
+			<directory suffix=".php">tests/iTRON/wpConnections/WP</directory>
+		</testsuite>
+	</testsuites>
+</phpunit>

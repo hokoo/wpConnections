@@ -257,7 +257,9 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 
 		$first = $this->new_client( 'debug-site-first' );
 		$first_site_id = get_current_blog_id();
-		$second_site_id = $first_site_id + 1;
+		$second_site_id = is_multisite()
+			? self::factory()->blog->create()
+			: $first_site_id + 1;
 
 		\switch_to_blog( $second_site_id );
 		try {
