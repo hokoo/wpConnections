@@ -80,8 +80,9 @@
     `batch19-manager-backed-recovery`. Красный contract `ad98a7b`, synchronous
     coordinator `a99a8c5`, manager-backed Client lifecycle `332136f` и
     site-local cron delivery `860a474` завершили B19-01—B19-04. B19-05
-    фиксирует focused 1.x→2.0 migration/rollback docs; B19-06 готов к
-    true-multisite и real-hook closeout. Tag/release остаётся вне Batch 19.
+    фиксирует focused 1.x→2.0 migration/rollback docs; B19-06 commit
+    `6fda0b9` закрыл real-hook и dedicated true-multisite verification. B19-Q
+    готов к exact-candidate QA. Tag/release остаётся вне Batch 19.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

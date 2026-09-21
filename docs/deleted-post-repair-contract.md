@@ -804,9 +804,9 @@ DoD:
 
 ### HOOK-03 / DB-04-I3 — manager-backed recovery delivery
 
-Status: `in_progress` in Batch 19; B19-01—B19-05 are implemented on the
-candidate branch, while true-multisite/focused closeout and exact-candidate QA
-remain before merge.
+Status: `in_progress` in Batch 19; B19-01—B19-06 are implemented on the
+candidate branch, while exact-candidate QA and protected merge evidence remain
+before HOOK-03/DB-04-I3 can close.
 
 Scope: `wp-hooks-dispatcher` subscription, retained revocable handle,
 pre-arm/claim/cleanup/resolve coordinator, semantic enable/disable, and removal

@@ -2601,7 +2601,7 @@ per-site responsibility and non-destructive rollback boundary.
 
 #### B19-06. Focused real-hook and multisite integration
 
-Status: todo
+Status: completed
 
 Goal: prove the activated I3 vertical through actual `deleted_post` and cron
 dispatch before the broader DB-04-Q qualification.
@@ -2627,9 +2627,19 @@ DoD/AC:
 
 Dependencies: B19-03, B19-04 and B19-05.
 
+Evidence: implementation/test commit `6fda0b9`; focused real-hook suite is
+`14/14` with 44 assertions in the single-site lane (three expected multisite
+skips) and `13/13` with 50 assertions in the true-multisite lane. Full current
+runtime verification is unit `139/139` with 509 assertions, single-site
+integration `471/471` with 4135 assertions and five expected skips, and true
+multisite `471/471` with 4164 assertions and no skips. PHPCS passes `100/100`
+source files; the entrypoint shell, both PHPUnit XML files, workflow YAML and
+the whitespace check are valid. The dedicated fixed-floor multisite CI job is
+part of the exact-candidate B19-Q protected matrix.
+
 #### B19-Q. Exact-candidate verification and I3 closeout
 
-Status: waiting_dependency
+Status: todo
 
 Goal: verify HOOK-03/DB-04-I3 as one exact candidate and merge it without
 claiming DB-04-Q or a 2.0 release complete.

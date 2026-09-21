@@ -272,6 +272,14 @@ Batch 19 verification includes:
 - upgrade-path and known-consumer fixtures for the direct `remove_action()`
   break.
 
+B19-06 commit `6fda0b9` supplies the dedicated `WP_TESTS_MULTISITE=1` lane and
+the focused active/inactive/restored `deleted_post` and cron proofs. On the
+current local runtime, full single-site integration passes `471/471` with 4135
+assertions and five expected multisite skips; the same suite under the true
+multisite bootstrap passes `471/471` with 4164 assertions and no skips. Final
+pairwise compatibility, coverage, isolation and independent review remain the
+B19-Q exact-candidate gate.
+
 DB-04-D discovered that generic repair must surround the Storage call, while
 HOOK-03 previously waited for the whole DB-04 task. The dependency map is now
 explicit in the
