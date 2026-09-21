@@ -87,9 +87,15 @@
     прогоном synthetic-prefix assumptions. Local full/fixed-floor/coverage/
     isolation matrix зелёная, independent exact-candidate re-audit прошёл без
     findings. Первый PR #104 run был `17/20`: cross-database temporary-ledger
-    fixture и repeat cleanup исправлены test-only commit `0de3a8a`; exact local
-    MySQL/MariaDB/full/isolation contours зелёные, replacement protected checks
-    ещё не закрыты. Tag/release остаётся вне Batch 19.
+    fixture и repeat cleanup исправлены test-only commit `0de3a8a`. Первый
+    independent delta review прошёл, но security review нашёл P3 false-green:
+    первоначальный guard мог скрыть будущий production `CREATE TEMPORARY`
+    regression. Commit `7a453bb` добавил двухфазную DDL-provenance защиту,
+    непустой prefix contract и assertion исходного production DDL до любых
+    WordPress test rewrites. Post-correction local MySQL/MariaDB/full/coverage/
+    multisite/isolation/quality contours зелёные; повторный exact audit и
+    replacement protected checks ещё не закрыты. Tag/release остаётся вне
+    Batch 19.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

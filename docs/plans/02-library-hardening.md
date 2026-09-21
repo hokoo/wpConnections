@@ -2696,12 +2696,30 @@ DDL to a temporary table that MySQL 8.0.46 and MariaDB 10.11.16 do not expose
 through `information_schema`, while the coverage job exposed the corresponding
 real-table cleanup leak during repeat isolation. Test-only correction
 `0de3a8a` preserves every safe `<prefix>wpconnections_repair` identifier as a
-real table for both CREATE and DROP. On that correction, exact local external
-MySQL 8.0.46 and MariaDB 10.11.16 suites each pass `474/474` with 4147
-assertions and six expected skips; current single-site and true-multisite pass
-`474/474` with 4147/six skips and 4178 assertions respectively; seed `19019`
-again passes all four isolation phases at the counts above. Independent delta
-review, replacement protected checks and merge evidence remain pending.
+real table for both CREATE and DROP. Independent exact verification of that
+delta passed, but its security review found one P3 test-integrity gap: the
+initial unconditional priority-11 guard could also rewrite an erroneous
+production `CREATE TEMPORARY TABLE` and therefore hide that future regression.
+No new decision gate was needed because the durable real-table contract was
+already approved. Test-only correction `7a453bb` now records only original
+permanent CREATE/DROP DDL before the WordPress priority-10 conversion and
+restores only that marked query afterward; deliberately temporary isolation
+fixtures remain temporary. The allowlist requires a non-empty safe prefix, and
+the schema regression assertion captures production DDL at priority 8 and
+requires the original query to start with `CREATE TABLE` before any test-harness
+rewrite.
+
+On `7a453bb`, exact local external MySQL 8.0.46 and MariaDB 10.11.16 suites
+each pass `474/474` with 4149 assertions and six expected skips. Current
+single-site and true-multisite pass `474/474` with 4149/six skips and 4180
+assertions respectively; fixed-floor true multisite also passes `474/474` with
+4180 assertions. Fixed-floor coverage passes `613/613` with 4656 assertions
+and six expected skips at unchanged `3783/4136` statements (`91.47%`), with
+the PR gate passing and RC threshold ready; PHPCS and all quality-tool probes
+pass. Both current seed `19019` and fixed-floor seed `20260910` pass unit
+reverse/random at `278/278` with 1018 assertions, plus WordPress reverse/random
+at `948/948` with 8298 assertions and 12 expected skips. Repeat exact audit,
+replacement protected checks and merge evidence remain pending.
 
 ## E1. Test foundation и regression harness
 
