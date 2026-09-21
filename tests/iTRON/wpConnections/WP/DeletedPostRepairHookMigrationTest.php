@@ -9,6 +9,7 @@ use iTRON\wpConnections\Client;
 use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\Internal\DeletedPostRepairStatus;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
+use iTRON\wpConnections\Internal\WordPressDeletedPostRepairScheduler;
 use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
 use iTRON\wpConnections\Query\MetaCollection as MetaQueryCollection;
@@ -128,6 +129,7 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
                     );
                     RestRouteRegistry::instance()->deactivateClient($client);
                     remove_action('deleted_post', [ $client->getStorage(), 'deleteByObjectID' ], 10);
+                    wp_clear_scheduled_hook(WordPressDeletedPostRepairScheduler::EVENT_HOOK);
                     $this->dropLedgerArtifacts();
                 } finally {
                     if ($switched) {
@@ -135,6 +137,7 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
                     }
                 }
             }
+            \iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
             remove_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
             $this->dropLedgerArtifacts();
             $wpdb->tables = $this->wpdbTablesBefore;
@@ -257,6 +260,72 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         self::assertSame(1, $after[ $added[0] ]['accepted_args']);
     }
 
+    public function test_site_has_one_zero_argument_cron_subscription(): void
+    {
+        global $wp_filter;
+
+        $hook = WordPressDeletedPostRepairScheduler::EVENT_HOOK;
+        $before = array_keys($wp_filter[ $hook ]->callbacks[10] ?? []);
+        $this->newClient('cron-shape-first');
+        $this->newClient('cron-shape-second');
+        $after = $wp_filter[ $hook ]->callbacks[10] ?? [];
+        $added = array_values(array_diff(array_keys($after), $before));
+
+        self::assertCount(1, $added);
+        self::assertSame(0, $after[ $added[0] ]['accepted_args']);
+    }
+
+    public function test_cron_retries_due_failure_and_duplicate_delivery_is_harmless(): void
+    {
+        $client = $this->newClient('cron-retry');
+        DeletedPostRepairHookMigrationStorage::$failingClients[ $client->getName() ] = true;
+        do_action('deleted_post', 516, null);
+        unset(DeletedPostRepairHookMigrationStorage::$failingClients[ $client->getName() ]);
+        $this->makeClientRepairDue($client);
+
+        $this->dispatchScheduledCron();
+
+        self::assertSame(
+            [ 516, 516 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $client->getName() ]
+        );
+        self::assertCount(
+            1,
+            $client->getDeletedPostRepairService()->listRepairs(
+                DeletedPostRepairStatus::RESOLVED
+            )->getItems()
+        );
+
+        $this->dispatchScheduledCron();
+        self::assertSame(
+            [ 516, 516 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $client->getName() ]
+        );
+    }
+
+    public function test_cron_skips_due_work_while_client_is_disabled_and_reenable_recovers(): void
+    {
+        $client = $this->newClient('cron-disabled');
+        DeletedPostRepairHookMigrationStorage::$failingClients[ $client->getName() ] = true;
+        do_action('deleted_post', 517, null);
+        unset(DeletedPostRepairHookMigrationStorage::$failingClients[ $client->getName() ]);
+        $this->makeClientRepairDue($client);
+        $client->disablePostDeletionCleanup();
+
+        $this->dispatchScheduledCron();
+        self::assertSame(
+            [ 517 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $client->getName() ]
+        );
+
+        $client->enablePostDeletionCleanup();
+        $this->dispatchScheduledCron();
+        self::assertSame(
+            [ 517, 517 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $client->getName() ]
+        );
+    }
+
     public function test_persisted_failure_of_one_client_does_not_stop_later_client_cleanup(): void
     {
         $failing = $this->newClient('failing-first');
@@ -361,6 +430,29 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         $this->clients[] = [ $client, get_current_blog_id() ];
 
         return $client;
+    }
+
+    private function makeClientRepairDue(Client $client): void
+    {
+        global $wpdb;
+
+        $updated = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE `{$this->table}` SET `next_attempt_at` = UTC_TIMESTAMP(), " .
+                '`updated_at` = UTC_TIMESTAMP() WHERE `client_name` = %s',
+                $client->getName()
+            )
+        );
+        self::assertSame(1, $updated);
+    }
+
+    private function dispatchScheduledCron(): void
+    {
+        $hook = WordPressDeletedPostRepairScheduler::EVENT_HOOK;
+        $timestamp = wp_next_scheduled($hook, []);
+        self::assertIsInt($timestamp);
+        self::assertTrue(wp_unschedule_event($timestamp, $hook, [], true));
+        do_action($hook);
     }
 
     private function dropLedgerArtifacts(): void

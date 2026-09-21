@@ -318,6 +318,7 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 			foreach ( $this->clients as $client ) {
 				\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 			}
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
 
 			remove_filter( 'wpConnections/factory/getRestApi/class', $this->rest_api_filter, 10 );
 			remove_filter( 'wpConnections/factory/getStorage/class', $this->storage_filter, 10 );

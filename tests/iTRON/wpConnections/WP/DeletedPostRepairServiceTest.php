@@ -125,6 +125,7 @@ class DeletedPostRepairServiceTest extends \WP_UnitTestCase
 				\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 				RestRouteRegistry::instance()->deactivateClient( $client );
 			}
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
 			remove_filter( 'wpConnections/factory/getStorage/class', [ $this, 'storage_class' ] );
 			$this->dropLedgerArtifacts();
 			$wpdb->tables = $this->wpdbTablesBefore;

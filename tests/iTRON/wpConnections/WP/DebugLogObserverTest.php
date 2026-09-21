@@ -147,6 +147,7 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 			}
 			remove_action( 'deleted_post', [ $client->getStorage(), 'deleteByObjectID' ] );
 		}
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
 
 		parent::tear_down();
 	}

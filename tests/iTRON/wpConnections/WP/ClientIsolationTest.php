@@ -123,6 +123,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			unset( $wpdb->{$table_key} );
 		}
 		$wpdb->tables = $this->original_tables;
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
 
 		parent::tear_down();
 	}

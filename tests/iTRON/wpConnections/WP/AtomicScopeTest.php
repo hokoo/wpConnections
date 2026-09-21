@@ -101,6 +101,7 @@ class AtomicScopeTest extends TestCase
 			foreach ( array_reverse( $this->clients ) as $client ) {
 				$this->cleanup_client( $client );
 			}
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
 			$wpdb->tables = $this->wpdb_tables_before;
 			remove_filter( 'wpConnections/storage/installOnInit', '__return_true', 10 );
 		} finally {

@@ -41,6 +41,7 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 			}
 			$this->drop_client_tables();
 			$this->drop_repair_ledger();
+			DeletedPostRepairRuntime::instance()->resetForTests();
 		} finally {
 			parent::tear_down();
 		}

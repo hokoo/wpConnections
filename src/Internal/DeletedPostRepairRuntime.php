@@ -4,6 +4,7 @@ namespace iTRON\wpConnections\Internal;
 
 use iTRON\wpConnections\Client;
 use iTRON\wpHooksDispatcher\ActionDispatcher;
+use iTRON\wpHooksDispatcher\ActionSubscription;
 use iTRON\wpHooksDispatcher\Contracts\SiteContextProvider;
 use iTRON\wpHooksDispatcher\SiteContext;
 use iTRON\wpHooksDispatcher\WordPressSiteContextProvider;
@@ -27,7 +28,10 @@ final class DeletedPostRepairRuntime
      *     ledger: DeletedPostRepairLedger,
      *     policy: DeletedPostRepairPolicy,
      *     executor: DeletedPostRepairExecutor,
-     *     reconciler: DeletedPostRepairReconciler
+     *     reconciler: DeletedPostRepairReconciler,
+     *     worker: DeletedPostRepairWorker,
+     *     cron_gateway: DeletedPostRepairCronGateway,
+     *     cron_subscription: ActionSubscription
      * }>
      */
     private array $sites = [];
@@ -39,12 +43,7 @@ final class DeletedPostRepairRuntime
     {
         $this->contexts = new WordPressSiteContextProvider();
         $this->dispatcher = new ActionDispatcher(null, $this->contexts);
-        $this->registry = new DeletedPostRepairClientRegistry(
-            $this->contexts,
-            function (SiteContext $context): void {
-                $this->reconcile($context);
-            }
-        );
+        $this->registry = $this->newRegistry();
     }
 
     public static function instance(): self
@@ -122,6 +121,23 @@ final class DeletedPostRepairRuntime
         unset($this->activations[ $clientId ]);
     }
 
+    /**
+     * @internal Test suites reset WordPress's global hook registry between cases.
+     */
+    public function resetForTests(): void
+    {
+        foreach ($this->activations as $activation) {
+            $activation->revoke();
+        }
+        foreach ($this->sites as $site) {
+            $site['cron_subscription']->unsubscribe();
+        }
+
+        $this->activations = [];
+        $this->sites = [];
+        $this->registry = $this->newRegistry();
+    }
+
     private function reconcile(SiteContext $context): void
     {
         $this->assertCurrentContext($context);
@@ -134,7 +150,10 @@ final class DeletedPostRepairRuntime
      *     ledger: DeletedPostRepairLedger,
      *     policy: DeletedPostRepairPolicy,
      *     executor: DeletedPostRepairExecutor,
-     *     reconciler: DeletedPostRepairReconciler
+     *     reconciler: DeletedPostRepairReconciler,
+     *     worker: DeletedPostRepairWorker,
+     *     cron_gateway: DeletedPostRepairCronGateway,
+     *     cron_subscription: ActionSubscription
      * }
      */
     private function site(SiteContext $context): array
@@ -145,17 +164,37 @@ final class DeletedPostRepairRuntime
             $ledger = new DeletedPostRepairLedger();
             $policy = new DeletedPostRepairPolicy(new SystemDeletedPostRepairClock());
             $executor = new DeletedPostRepairExecutor($ledger, $policy);
+            $reconciler = new DeletedPostRepairReconciler(
+                $ledger,
+                $this->registry,
+                new WordPressDeletedPostRepairScheduler(),
+                $policy
+            );
+            $reconcile = static function () use ($reconciler): void {
+                $reconciler->reconcile();
+            };
+            $worker = new DeletedPostRepairWorker(
+                $ledger,
+                $this->registry,
+                $executor,
+                $policy
+            );
+            $cronGateway = new DeletedPostRepairCronGateway($worker, $reconcile);
+            $cronSubscription = $this->dispatcher->subscribe(
+                WordPressDeletedPostRepairScheduler::EVENT_HOOK,
+                [ $cronGateway, 'run' ],
+                10,
+                0
+            );
             $this->sites[ $key ] = [
                 'context' => $context,
                 'ledger' => $ledger,
                 'policy' => $policy,
                 'executor' => $executor,
-                'reconciler' => new DeletedPostRepairReconciler(
-                    $ledger,
-                    $this->registry,
-                    new WordPressDeletedPostRepairScheduler(),
-                    $policy
-                ),
+                'reconciler' => $reconciler,
+                'worker' => $worker,
+                'cron_gateway' => $cronGateway,
+                'cron_subscription' => $cronSubscription,
             ];
         }
 
@@ -174,5 +213,15 @@ final class DeletedPostRepairRuntime
     private function contextKey(SiteContext $context): string
     {
         return $context->blogId() . "\0" . $context->databasePrefix();
+    }
+
+    private function newRegistry(): DeletedPostRepairClientRegistry
+    {
+        return new DeletedPostRepairClientRegistry(
+            $this->contexts,
+            function (SiteContext $context): void {
+                $this->reconcile($context);
+            }
+        );
     }
 }

@@ -122,6 +122,7 @@ class AtomicMutationTest extends TestCase
 			foreach ( array_reverse( $this->clients ) as $client ) {
 				$this->cleanup_client( $client );
 			}
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
 			foreach ( $this->post_ids as $post_id ) {
 				wp_delete_post( $post_id, true );
 			}
