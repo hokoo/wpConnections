@@ -35,6 +35,16 @@ final class DeletedPostRepairPolicy
         return $now;
     }
 
+    public function monotonicSeconds(): float
+    {
+        $reading = $this->clock->monotonicSeconds();
+        if (! is_finite($reading) || 0 > $reading) {
+            throw new InvalidArgumentException('Repair monotonic clock reading is invalid.');
+        }
+
+        return $reading;
+    }
+
     public function leaseExpiresAt(DateTimeImmutable $now): DateTimeImmutable
     {
         $this->assertUtc($now);
@@ -68,6 +78,13 @@ final class DeletedPostRepairPolicy
         $this->assertUtc($resolvedAt);
 
         return $this->addSeconds($resolvedAt, self::RESOLVED_RETENTION_SECONDS + 1);
+    }
+
+    public function resolvedRetentionCutoff(DateTimeImmutable $now): DateTimeImmutable
+    {
+        $this->assertUtc($now);
+
+        return $this->addSeconds($now, -self::RESOLVED_RETENTION_SECONDS);
     }
 
     private function addSeconds(DateTimeImmutable $time, int $seconds): DateTimeImmutable

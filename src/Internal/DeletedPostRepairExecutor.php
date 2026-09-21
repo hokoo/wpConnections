@@ -15,7 +15,7 @@ use UnexpectedValueException;
 /**
  * @internal Executes one already-claimed repair without owning claim selection.
  */
-final class DeletedPostRepairExecutor
+final class DeletedPostRepairExecutor implements DeletedPostRepairExecutionInterface
 {
     public const MODE_AUTOMATIC = 'automatic';
     public const MODE_MANUAL = 'manual';
