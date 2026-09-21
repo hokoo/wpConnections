@@ -92,10 +92,14 @@
     первоначальный guard мог скрыть будущий production `CREATE TEMPORARY`
     regression. Commit `7a453bb` добавил двухфазную DDL-provenance защиту,
     непустой prefix contract и assertion исходного production DDL до любых
-    WordPress test rewrites. Post-correction local MySQL/MariaDB/full/coverage/
-    multisite/isolation/quality contours зелёные; повторный exact audit и
-    replacement protected checks ещё не закрыты. Tag/release остаётся вне
-    Batch 19.
+    WordPress test rewrites. Повторные security и QA reviews нашли ещё два P3:
+    shared marker не был reentrant-safe, а пять legacy class-local filters всё
+    ещё безусловно переписывали deliberate temporary fixtures. Commit
+    `dbd1c04` заменил shared state на stateless in-query nonce, удалил legacy
+    filters и добавил dedicated temporary/reentrant regressions. Финальная
+    local MySQL/MariaDB/full/coverage/multisite/isolation matrix зелёная;
+    повторный exact audit и replacement protected checks ещё не закрыты.
+    Tag/release остаётся вне Batch 19.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

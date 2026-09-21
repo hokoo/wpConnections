@@ -2709,17 +2709,27 @@ the schema regression assertion captures production DDL at priority 8 and
 requires the original query to start with `CREATE TABLE` before any test-harness
 rewrite.
 
-On `7a453bb`, exact local external MySQL 8.0.46 and MariaDB 10.11.16 suites
-each pass `474/474` with 4149 assertions and six expected skips. Current
-single-site and true-multisite pass `474/474` with 4149/six skips and 4180
-assertions respectively; fixed-floor true multisite also passes `474/474` with
-4180 assertions. Fixed-floor coverage passes `613/613` with 4656 assertions
+On exact candidate `68177b8`, independent verification passed, but independent
+security and QA reviews found two further P3 test-integrity gaps. The shared
+boolean provenance marker was not safe under a nested `$wpdb` query between
+priorities 9 and 11, and five legacy class-local priority-11 callbacks could
+still rewrite an intentionally temporary repair fixture. No new decision gate
+was needed. Test-only correction `dbd1c04` replaces shared state with a
+per-process nonce carried by the marked query itself, removes all five
+unconditional local callbacks, and adds explicit deliberate-temporary and
+reentrant-query regressions.
+
+On `dbd1c04`, exact local external MySQL 8.0.46 and MariaDB 10.11.16 suites
+each pass `476/476` with 4152 assertions and six expected skips. Current
+single-site and true-multisite pass `476/476` with 4152/six skips and 4183
+assertions respectively; fixed-floor true multisite also passes `476/476` with
+4183 assertions. Fixed-floor coverage passes `615/615` with 4659 assertions
 and six expected skips at unchanged `3783/4136` statements (`91.47%`), with
 the PR gate passing and RC threshold ready; PHPCS and all quality-tool probes
-pass. Both current seed `19019` and fixed-floor seed `20260910` pass unit
-reverse/random at `278/278` with 1018 assertions, plus WordPress reverse/random
-at `948/948` with 8298 assertions and 12 expected skips. Repeat exact audit,
-replacement protected checks and merge evidence remain pending.
+remain green. Both current seed `19019` and fixed-floor seed `20260910` pass
+unit reverse/random at `278/278` with 1018 assertions, plus WordPress
+reverse/random at `952/952` with 8304 assertions and 12 expected skips. Repeat
+exact audit, replacement protected checks and merge evidence remain pending.
 
 ## E1. Test foundation и regression harness
 
