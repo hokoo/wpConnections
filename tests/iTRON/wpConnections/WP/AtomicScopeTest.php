@@ -73,6 +73,9 @@ class IncapableAtomicScopeStorage extends Storage
 
 class AtomicScopeTest extends TestCase
 {
+	private const REPAIR_TABLE_BASENAME = 'wpconnections_repair';
+	private const REPAIR_OWNERSHIP_OPTION = 'wpconnections_repair_schema_owner';
+
 	private Client $client;
 	private array $clients = [];
 	private array $wpdb_tables_before = [];
@@ -81,7 +84,10 @@ class AtomicScopeTest extends TestCase
 	{
 		parent::setUp();
 
+		$this->clients = [];
+
 		global $wpdb;
+		$this->drop_repair_ledger();
 		$this->wpdb_tables_before = $wpdb->tables;
 		add_filter( 'wpConnections/storage/installOnInit', '__return_true', 10, 2 );
 
@@ -101,6 +107,8 @@ class AtomicScopeTest extends TestCase
 			foreach ( array_reverse( $this->clients ) as $client ) {
 				$this->cleanup_client( $client );
 			}
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
+			$this->drop_repair_ledger();
 			$wpdb->tables = $this->wpdb_tables_before;
 			remove_filter( 'wpConnections/storage/installOnInit', '__return_true', 10 );
 		} finally {
@@ -874,7 +882,7 @@ class AtomicScopeTest extends TestCase
 	{
 		global $wpdb;
 
-		$client->disablePostDeletionCleanup();
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 		RestRouteRegistry::instance()->deactivateClient( $client );
 
 		$postfix = Database::normalize_table_name( $client->getName() );
@@ -890,6 +898,28 @@ class AtomicScopeTest extends TestCase
 
 		delete_option(
 			'wpconnections_storage_owner_' . hash( 'sha256', str_replace( '-', '_', $client->getName() ) )
+		);
+	}
+
+	private function drop_repair_ledger(): void
+	{
+		global $wpdb;
+
+		delete_option( self::REPAIR_OWNERSHIP_OPTION );
+		wp_cache_delete( self::REPAIR_OWNERSHIP_OPTION, 'options' );
+		$wpdb->query(
+			'DROP TEMPORARY TABLE IF EXISTS `' .
+			$wpdb->prefix . self::REPAIR_TABLE_BASENAME . '`'
+		);
+		$wpdb->query(
+			'DROP TABLE IF EXISTS `' . $wpdb->prefix . self::REPAIR_TABLE_BASENAME . '`'
+		);
+		unset( $wpdb->{self::REPAIR_TABLE_BASENAME} );
+		$wpdb->tables = array_values(
+			array_filter(
+				$wpdb->tables,
+				static fn( string $table_key ): bool => self::REPAIR_TABLE_BASENAME !== $table_key
+			)
 		);
 	}
 

@@ -11,6 +11,7 @@ use Throwable;
 
 final class DeletedPostRepairLedger implements
     DeletedPostRepairLedgerInterface,
+    DeletedPostRepairCoordinatorLedgerInterface,
     DeletedPostRepairWorkerLedgerInterface,
     DeletedPostRepairReconcilerLedgerInterface
 {

@@ -3,7 +3,7 @@ COVERAGE_PHP_VERSION := 8.1.34
 COVERAGE_WP_VERSION := 6.7.7
 ISOLATION_SEED ?=
 
-.PHONY: tests.init tests.run tests.phpunit tests.integration tests.coverage tests.coverage.rc tests.isolation tests.quality-tools tests.build tests.rebuild tests.clean dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
+.PHONY: tests.init tests.run tests.phpunit tests.integration tests.multisite tests.coverage tests.coverage.rc tests.isolation tests.quality-tools tests.build tests.rebuild tests.clean dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
 
 tests.init:
 	cd ./local-dev/ && bash ./tests-init.sh
@@ -19,6 +19,10 @@ tests.phpunit:
 tests.integration:
 	cd ./local-dev/ && \
 	docker compose -p wpconnections run --rm phpunit test:integration
+
+tests.multisite:
+	cd ./local-dev/ && \
+	docker compose -p wpconnections run --rm phpunit test:multisite
 
 tests.coverage:
 	docker build \

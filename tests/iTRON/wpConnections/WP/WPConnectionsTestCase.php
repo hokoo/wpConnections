@@ -4,12 +4,15 @@ namespace iTRON\wpConnections\Tests\iTRON\wpConnections\WP;
 
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\Helpers\Database;
+use iTRON\wpConnections\Internal\DeletedPostRepairRuntime;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\Query\Relation;
 use iTRON\wpConnections\WPStorage;
 
 abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 {
+	private const STORAGE_OWNERSHIP_OPTION_PREFIX = 'wpconnections_storage_owner_';
+
 	protected Client $client;
 	protected array $post_ids = [];
 	protected array $page_ids = [];
@@ -22,6 +25,8 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 		parent::set_up();
 
 		global $wpdb;
+		$this->drop_client_artifacts( CLIENT_NAME );
+		$this->drop_repair_ledger();
 		$this->wpdb_tables_before_client = $wpdb->tables;
 
 		add_filter( 'wpConnections/storage/installOnInit', '__return_true', 10, 2 );
@@ -34,10 +39,13 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 	public function tear_down()
 	{
 		try {
+			DeletedPostRepairRuntime::instance()->deactivateClient( $this->client );
 			if ( class_exists( RestRouteRegistry::class ) ) {
 				RestRouteRegistry::instance()->deactivateClient( $this->client );
 			}
 			$this->drop_client_tables();
+			$this->drop_repair_ledger();
+			DeletedPostRepairRuntime::instance()->resetForTests();
 		} finally {
 			parent::tear_down();
 		}
@@ -154,17 +162,52 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 	{
 		global $wpdb;
 
-		$postfix = Database::normalize_table_name( $this->client->getName() );
+		$this->drop_client_artifacts( $this->client->getName() );
+		$wpdb->tables = $this->wpdb_tables_before_client;
+	}
+
+	private function drop_client_artifacts( string $client_name ): void
+	{
+		global $wpdb;
+
+		$postfix = Database::normalize_table_name( $client_name );
 		$table_keys = [
 			WPStorage::META_TABLE_PREFIX . $postfix,
 			WPStorage::CONNECTIONS_TABLE_PREFIX . $postfix,
 		];
 
 		foreach ( $table_keys as $table_key ) {
+			$wpdb->query( "DROP TEMPORARY TABLE IF EXISTS `{$wpdb->prefix}{$table_key}`" );
 			$wpdb->query( "DROP TABLE IF EXISTS `{$wpdb->prefix}{$table_key}`" );
 			unset( $wpdb->{$table_key} );
 		}
 
-		$wpdb->tables = $this->wpdb_tables_before_client;
+		$ownership_option = self::STORAGE_OWNERSHIP_OPTION_PREFIX . hash( 'sha256', $postfix );
+		delete_option( $ownership_option );
+		wp_cache_delete( $ownership_option, 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+		$wpdb->tables = array_values(
+			array_filter(
+				$wpdb->tables,
+				static fn( string $table_key ): bool => ! in_array( $table_key, $table_keys, true )
+			)
+		);
+	}
+
+	private function drop_repair_ledger(): void
+	{
+		global $wpdb;
+
+		delete_option( 'wpconnections_repair_schema_owner' );
+		wp_cache_delete( 'wpconnections_repair_schema_owner', 'options' );
+		$wpdb->query( "DROP TEMPORARY TABLE IF EXISTS `{$wpdb->prefix}wpconnections_repair`" );
+		$wpdb->query( "DROP TABLE IF EXISTS `{$wpdb->prefix}wpconnections_repair`" );
+		unset( $wpdb->wpconnections_repair );
+		$wpdb->tables = array_values(
+			array_filter(
+				$wpdb->tables,
+				static fn( string $table_key ): bool => 'wpconnections_repair' !== $table_key
+			)
+		);
 	}
 }

@@ -52,41 +52,42 @@ This document converts that policy into three explicit choices:
 3. how work is woken, retried, observed, and manually recovered.
 
 All three original choices and all three Batch 18 refinements were explicitly
-approved. `DB-04-I1` and `DB-04-I2` are complete. HOOK-03 / DB-04-I3 is now
-ready for its separate 2.0 activation batch; I2 completion itself did not
-activate any hook.
+approved. `DB-04-I1` and `DB-04-I2` are complete. HOOK-03 / DB-04-I3 is being
+activated in the separate Batch 19 candidate; this does not mark DB-04-Q or the
+2.0 release complete.
 
 ## Current runtime and compatibility boundary
 
-The current 1.x path is:
+The Batch 19 implementation candidate replaces the historical 1.x direct
+Storage callback with this 2.0 path:
 
 ```text
 Client::__construct()
   -> Factory::getStorage()
   -> Client::init()
-  -> Client::enablePostDeletionCleanup()
-  -> add_action(
-       'deleted_post',
-       [$storage, 'deleteByObjectID'],
-       10,
-       1
-     )
+  -> public Client inited actions complete
+  -> DeletedPostRepairRuntime registers the exact site/name owner
+  -> wp-hooks-dispatcher subscribes the Client coordinator
+       ('deleted_post', priority 10, accepted arguments 1)
+  -> site runtime subscribes the cron gateway
+       ('wpConnections/deletedPostRepair/run', priority 10, accepted arguments 0)
 
 wp_delete_post($postId, true)
   -> WordPress deletes the post row
   -> do_action('deleted_post', $postId, $post)
-  -> Storage::deleteByObjectID($postId)
-  -> Client::executeAtomicMutation()
-  -> connection/meta transaction or savepoint
-  -> commit
-  -> deferred success notifications
+  -> dispatcher rejects inactive site contexts
+  -> coordinator durably arms and claims the repair identity
+  -> shared executor invokes atomic Storage cleanup
+  -> success removes a never-failed transient record
+  -> handled failure remains durable for cron/operator retry
+  -> final wake-up reconciliation
 ```
 
 Relevant implementation boundaries:
 
-- [`Client::enablePostDeletionCleanup()`](../src/Client.php) registers the
-  concrete storage callback, and `disablePostDeletionCleanup()` removes that
-  exact identity.
+- [`Client::enablePostDeletionCleanup()`](../src/Client.php) and
+  `disablePostDeletionCleanup()` control manager subscription and automatic
+  retry eligibility without exposing callback identity.
 - [`WPStorage::deleteByObjectID()`](../src/WPStorage.php) supplies the default
   idempotent connection/meta effect and current 1.x stale-site guard.
 - [`AtomicStorageInterface`](../src/AtomicStorageInterface.php) is optional;
@@ -99,7 +100,7 @@ Relevant implementation boundaries:
   revocation, but deliberately lets failures from an active callback propagate.
   It is not a scheduler or durable queue.
 
-The concrete callback identity is an established 1.x compatibility surface:
+The concrete callback identity was a 1.x compatibility surface:
 
 ```php
 remove_action(
@@ -109,9 +110,10 @@ remove_action(
 );
 ```
 
-Replacing it with a Client/coordinator callback before 2.0 would invalidate the
-approved staged migration and the documented direct-`remove_action()` escape
-hatch.
+Batch 19 intentionally removes that compatibility at the approved 2.0
+boundary. The call now returns `false` and does not disable cleanup. Consumers
+must use the semantic Client methods; see the
+[focused upgrade guide](deleted-post-cleanup-upgrade.md).
 
 ## Non-negotiable invariants
 
@@ -802,9 +804,9 @@ DoD:
 
 ### HOOK-03 / DB-04-I3 — manager-backed recovery delivery
 
-Status: `todo`; I1/I2 are complete and the approved 2.0 delivery boundary is
-open. This slice remains unimplemented and inactive until its own reviewed
-merge.
+Status: `in_progress` in Batch 19; B19-01—B19-06 are implemented on the
+candidate branch, while exact-candidate QA and protected merge evidence remain
+before HOOK-03/DB-04-I3 can close.
 
 Scope: `wp-hooks-dispatcher` subscription, retained revocable handle,
 pre-arm/claim/cleanup/resolve coordinator, semantic enable/disable, and removal

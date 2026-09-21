@@ -37,6 +37,7 @@ access is required.
 | `make tests.run` | Run unit and WordPress integration suites | Fast local loop before a push |
 | `make tests.phpunit` | Run isolated unit tests from `phpunit.xml` | Changes that do not require WordPress bootstrap or MariaDB |
 | `make tests.integration` | Run WordPress integration tests from `php-wp-unit.xml` | Storage, WordPress hooks, database, and entity integration changes |
+| `make tests.multisite` | Run the WordPress integration suite with the true multisite bootstrap | Site-context, switch/restore, site-local hook, cron, and storage changes |
 | `make tests.coverage` | Run both suites and apply the default PR no-regression profile | Before requesting review and after source/test changes |
 | `make tests.coverage.rc` | Run both suites and apply the explicit RC 70% profile | Release-candidate preparation only |
 | `make tests.isolation` | Run both suites in reverse/repeat and seeded-random/repeat order | Before review after test, fixture, hook, or global-state changes |

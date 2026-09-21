@@ -115,13 +115,25 @@ class DebugLogEmittingStorage extends Storage
 
 class DebugLogObserverTest extends \WP_UnitTestCase
 {
+	private const REPAIR_TABLE_BASENAME = 'wpconnections_repair';
+	private const REPAIR_OWNERSHIP_OPTION = 'wpconnections_repair_schema_owner';
+
 	private array $clients = [];
+	private array $client_site_ids = [];
+	private array $wpdb_tables_before = [];
 	private $storage_filter;
 	private $logger_filter;
 
 	public function set_up()
 	{
 		parent::set_up();
+
+		$this->clients = [];
+		$this->client_site_ids = [];
+
+		global $wpdb;
+		$this->drop_repair_ledger();
+		$this->wpdb_tables_before = $wpdb->tables;
 
 		DebugLogRecordingLogger::$timeline = [];
 		$this->storage_filter = static function (): string {
@@ -141,11 +153,30 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 		remove_filter( 'wpConnections/factory/getStorage/class', $this->storage_filter );
 
 		foreach ( $this->clients as $client ) {
-			if ( class_exists( RestRouteRegistry::class ) ) {
-				RestRouteRegistry::instance()->deactivateClient( $client );
+			$site_id = $this->client_site_ids[ spl_object_id( $client ) ];
+			$switched = get_current_blog_id() !== $site_id;
+			if ( $switched ) {
+				\switch_to_blog( $site_id );
 			}
-			remove_action( 'deleted_post', [ $client->getStorage(), 'deleteByObjectID' ] );
+
+			try {
+				\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
+				if ( class_exists( RestRouteRegistry::class ) ) {
+					RestRouteRegistry::instance()->deactivateClient( $client );
+				}
+				remove_action( 'deleted_post', [ $client->getStorage(), 'deleteByObjectID' ] );
+				$this->drop_repair_ledger();
+			} finally {
+				if ( $switched ) {
+					\restore_current_blog();
+				}
+			}
 		}
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
+
+		global $wpdb;
+		$this->drop_repair_ledger();
+		$wpdb->tables = $this->wpdb_tables_before;
 
 		parent::tear_down();
 	}
@@ -255,7 +286,9 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 
 		$first = $this->new_client( 'debug-site-first' );
 		$first_site_id = get_current_blog_id();
-		$second_site_id = $first_site_id + 1;
+		$second_site_id = is_multisite()
+			? self::factory()->blog->create()
+			: $first_site_id + 1;
 
 		\switch_to_blog( $second_site_id );
 		try {
@@ -276,8 +309,31 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 	{
 		$client = new Client( $name );
 		$this->clients[] = $client;
+		$this->client_site_ids[ spl_object_id( $client ) ] = get_current_blog_id();
 
 		return $client;
+	}
+
+	private function drop_repair_ledger(): void
+	{
+		global $wpdb;
+
+		delete_option( self::REPAIR_OWNERSHIP_OPTION );
+		wp_cache_delete( self::REPAIR_OWNERSHIP_OPTION, 'options' );
+		$wpdb->query(
+			'DROP TEMPORARY TABLE IF EXISTS `' .
+			$wpdb->prefix . self::REPAIR_TABLE_BASENAME . '`'
+		);
+		$wpdb->query(
+			'DROP TABLE IF EXISTS `' . $wpdb->prefix . self::REPAIR_TABLE_BASENAME . '`'
+		);
+		unset( $wpdb->{self::REPAIR_TABLE_BASENAME} );
+		$wpdb->tables = array_values(
+			array_filter(
+				$wpdb->tables,
+				static fn( string $table_key ): bool => self::REPAIR_TABLE_BASENAME !== $table_key
+			)
+		);
 	}
 
 	private function logger( Client $client ): DebugLogRecordingLogger

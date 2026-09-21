@@ -7,6 +7,7 @@
 * [Why wpConnection?](#why-wpconnection)
 * [Quick Start](#ok-what-should-i-do-to-start-using)
 * [Atomic mutations](#atomic-compound-mutations)
+* [Deleted-post cleanup and recovery](#deleted-post-cleanup-and-recovery)
 * [Deprecations](#deprecations)
 * [WIKI](https://github.com/hokoo/wpConnections/wiki)
 <!-- TOC -->
@@ -84,10 +85,10 @@ $wpc_client->getRelation( 'post-to-page' )->createConnection( $qc );
 The default `WPStorage` adapter commits connection-plus-metadata changes as one
 unit. This applies automatically to create with metadata, aggregate
 `Connection::update()`, relation deletes, direct default-storage delete
-cascades and the legacy `deleted_post` callback. A database failure or callback
-`Throwable` rolls the whole unit back; success-named mutation hooks run only
-after commit. A hook exception still propagates synchronously, but storage is
-already durable at that point.
+cascades and manager-backed `deleted_post` cleanup. A database failure or
+callback `Throwable` rolls the whole unit back; success-named mutation hooks
+run only after commit. Outside automatic post cleanup, a hook exception still
+propagates synchronously, but storage is already durable at that point.
 
 Applications can group multiple operations for one Client in a library-owned
 root scope:
@@ -195,11 +196,15 @@ storage object is bound to the WordPress site prefix used at construction and
 must be recreated after `switch_to_blog()`; custom non-table Storage adapters
 receive only the logical-name rules. Direct access through a stale default
 storage object throws the documented prefix error. Its globally registered
-`deleted_post` callback instead becomes a no-op before storage hooks or SQL, so
-it cannot prevent the fresh current-site client from running its own cascade.
-The 1.x callback remains the concrete storage method at priority 10, preserving
-existing `remove_action()` usage. Cleanup is enabled automatically at Client
-construction and can now be controlled without depending on callback identity:
+managed callbacks instead skip delivery outside the exact captured blog ID and
+database prefix, so an inactive-site Client never enters repair or storage
+code. Consumers that call `switch_to_blog()` must construct and initialize a
+separate Client in every site context they use.
+
+### Deleted-post cleanup and recovery
+
+Cleanup is enabled automatically after successful Client initialization and is
+controlled through semantic methods:
 
 ```php
 $client->disablePostDeletionCleanup();
@@ -207,9 +212,32 @@ $client->enablePostDeletionCleanup();
 ```
 
 Both commands are idempotent. Direct callback removal remains compatible in
-1.x, but consumers should migrate to these semantic methods before 2.0: the
-context-aware subscription manager planned for that major version will own a
-different WordPress callback identity. See the
+1.x only. In the manager-backed 2.0 runtime, this no longer disables cleanup:
+
+```php
+remove_action(
+    'deleted_post',
+    [ $client->getStorage(), 'deleteByObjectID' ],
+    10
+);
+```
+
+Audit consumer code for that pattern before upgrading and replace it with
+`disablePostDeletionCleanup()`. The manager registers one context-aware Client
+subscription at priority 10 with one accepted argument and one site-local,
+zero-argument repair cron subscription.
+
+Before cleanup DML, the coordinator durably arms and claims a site-local repair
+record. A normal storage failure is rolled back, recorded with a redacted
+diagnostic and retried through WP-Cron without preventing later Clients on the
+same `deleted_post` action from running. Ledger, ownership or context
+uncertainty fails closed and may propagate because safe recovery could not be
+established. WP-Cron remains best-effort; operators can inspect and retry work
+through `Client::getDeletedPostRepairService()`.
+
+Do not drop the repair ledger or its ownership option during a rollback while
+unresolved records exist. See the
+[deleted-post 2.0 upgrade guide](docs/deleted-post-cleanup-upgrade.md) and the
 [hook lifecycle transition contract](docs/hook-lifecycle-transition.md).
 
 Existing complete tables without a matching ownership record, unowned partial

@@ -10,16 +10,14 @@ use iTRON\wpConnections\Exceptions\MissingParameters;
 use iTRON\wpConnections\Exceptions\StorageCapabilityUnavailable;
 use iTRON\wpConnections\Internal\RestRouteRegistration;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
+use iTRON\wpConnections\Internal\DeletedPostRepairClientActivation;
+use iTRON\wpConnections\Internal\DeletedPostRepairRuntime;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
 class Client
 {
     private const RELATION_CARDINALITIES = [ '1-1', '1-m', 'm-1', 'm-m' ];
-    private const POST_DELETION_HOOK = 'deleted_post';
-    private const POST_DELETION_PRIORITY = 10;
-    private const POST_DELETION_ACCEPTED_ARGUMENTS = 1;
-
     private string $name;
     private Abstracts\Storage $storage;
     private RelationCollection $relations;
@@ -28,6 +26,8 @@ class Client
     private RestRouteRegistration $restRegistration;
     private int $deletedPostRepairSiteId;
     private string $deletedPostRepairSitePrefix;
+    private bool $postDeletionCleanupEnabled = true;
+    private ?DeletedPostRepairClientActivation $deletedPostRepairActivation = null;
     private ?DeletedPostRepairService $deletedPostRepairService = null;
     private array $atomicScopes = [];
 
@@ -193,12 +193,10 @@ class Client
      */
     public function enablePostDeletionCleanup(): void
     {
-        add_action(
-            self::POST_DELETION_HOOK,
-            [ $this->storage, 'deleteByObjectID' ],
-            self::POST_DELETION_PRIORITY,
-            self::POST_DELETION_ACCEPTED_ARGUMENTS
-        );
+        if (null !== $this->deletedPostRepairActivation) {
+            $this->deletedPostRepairActivation->enable();
+        }
+        $this->postDeletionCleanupEnabled = true;
     }
 
     /**
@@ -206,11 +204,10 @@ class Client
      */
     public function disablePostDeletionCleanup(): void
     {
-        remove_action(
-            self::POST_DELETION_HOOK,
-            [ $this->storage, 'deleteByObjectID' ],
-            self::POST_DELETION_PRIORITY
-        );
+        if (null !== $this->deletedPostRepairActivation) {
+            $this->deletedPostRepairActivation->disable();
+        }
+        $this->postDeletionCleanupEnabled = false;
     }
 
     public function getRelations(): RelationCollection
@@ -407,11 +404,15 @@ class Client
 
             $this->relations = new RelationCollection();
 
-            $this->enablePostDeletionCleanup();
-
             do_action('wpConnections/client/inited', $this);
             do_action("wpConnections/client/{$this->getName()}/inited", $this);
+
+            $this->deletedPostRepairActivation = DeletedPostRepairRuntime::instance()->activate(
+                $this,
+                $this->postDeletionCleanupEnabled
+            );
         } catch (Throwable $exception) {
+            DeletedPostRepairRuntime::instance()->deactivateClient($this);
             $this->restRegistration->revoke();
             throw $exception;
         }

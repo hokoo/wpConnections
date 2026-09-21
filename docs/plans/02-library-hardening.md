@@ -65,8 +65,8 @@ checks. DB-04-I2 завершён как Batch 18: DG-DELETE-06R4—R6 approved 
 B18-01—B18-07 и B18-Q completed, B18-08 deferred. Exact candidate `4c18fde`
 получил три independent PASS без open P0—P3 и 19/19 protected jobs; PR #102
 влит как `66f6fd3`, а exact merge прошёл 19/19 post-merge jobs.
-HOOK-03/DB-04-I3 разблокирован и переведён в `todo`; DB-04-Q ждёт его
-завершения.
+HOOK-03/DB-04-I3 исполняется как Batch 19: B19-01—B19-06 completed на
+candidate branch, B19-Q in progress; DB-04-Q ждёт полного I3 closeout.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -2403,7 +2403,7 @@ Delivery evidence:
 
 ### Batch 19. Activate manager-backed deleted-post recovery
 
-Status: todo
+Status: in_progress
 
 Goal: завершить HOOK-03 / DB-04-I3 — заменить 1.x direct storage callback на
 context-aware Client coordinator, подключить уже поставленные ledger, executor,
@@ -2434,7 +2434,7 @@ retry, operator, eligibility и budget contracts. Если реализация 
 
 #### B19-01. Freeze coordinator and activation regressions
 
-Status: todo
+Status: completed
 
 Goal: до production wiring зафиксировать красными тестами точную around-callback
 последовательность и 2.0 compatibility boundary.
@@ -2462,9 +2462,13 @@ DoD/AC:
 
 Dependencies: Batch 18 / DB-04-I2.
 
+Evidence: red contract commit `ad98a7b`; focused unit baseline was 22 tests
+with 13 missing-class errors and 9 failures, while single-site integration was
+red on direct identity, later-Client continuation and inactive delivery.
+
 #### B19-02. Implement the synchronous repair coordinator
 
-Status: waiting_dependency
+Status: completed
 
 Goal: compose deterministic identity, durable arm/claim, best-effort safety
 wake-up, shared executor and final reconciliation around one current Client's
@@ -2492,9 +2496,12 @@ DoD/AC:
 
 Dependencies: B19-01 and completed I1/I2 primitives.
 
+Evidence: implementation commit `a99a8c5`; focused unit 22/22 with 66
+assertions, full unit 139/139 with 509 assertions and PHPCS green.
+
 #### B19-03. Own Client registration and semantic subscription lifecycle
 
-Status: waiting_dependency
+Status: completed
 
 Goal: activate a successfully initialized Client through
 `wp-hooks-dispatcher`, retain revocable ownership handles and route existing
@@ -2522,9 +2529,14 @@ DoD/AC:
 
 Dependencies: B19-02, HOOK-01 and HOOK-02.
 
+Evidence: implementation commit `332136f`; focused migration lifecycle 8/8,
+full integration 463/463 with 4107 assertions, full unit 139/139 and PHPCS
+100/100. Test teardown uses an internal runtime seam pending LIFE-HOOK-01's
+public final disposal API.
+
 #### B19-04. Activate the site-local cron delivery path
 
-Status: waiting_dependency
+Status: completed
 
 Goal: connect the stable empty-argument cron event to the bounded automatic
 worker and convergence loop for the current initialized site.
@@ -2551,9 +2563,14 @@ DoD/AC:
 
 Dependencies: B19-03 and completed B18-04/B18-06/B18-07.
 
+Evidence: implementation commit `860a474`; focused deletion/cron contour 11/11
+with 33 assertions (two true-multisite cases skipped in the single-site lane),
+full integration 469/469 with 4130 assertions, full unit 139/139 and PHPCS
+100/100.
+
 #### B19-05. Prove the intentional 1.x-to-2.0 migration boundary
 
-Status: waiting_dependency
+Status: completed
 
 Goal: make the callback-identity break executable and unambiguous without
 prematurely performing the full HOOK-04 consumer scan/release guide.
@@ -2577,9 +2594,14 @@ DoD/AC:
 
 Dependencies: B19-03.
 
+Evidence: executable fixture lives in
+`DeletedPostRepairHookMigrationTest`; README, deprecation note, transition
+contract and `docs/deleted-post-cleanup-upgrade.md` record the exact break,
+per-site responsibility and non-destructive rollback boundary.
+
 #### B19-06. Focused real-hook and multisite integration
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove the activated I3 vertical through actual `deleted_post` and cron
 dispatch before the broader DB-04-Q qualification.
@@ -2605,9 +2627,21 @@ DoD/AC:
 
 Dependencies: B19-03, B19-04 and B19-05.
 
+Evidence: implementation/test commit `6fda0b9`; its migration class alone is
+`13/13` with 37 assertions in the single-site lane (three expected multisite
+skips), while the focused selection including the separate default-storage
+success proof is `14/14` with 44 assertions. The same migration class is
+`13/13` with 50 assertions in the true-multisite lane. Full current runtime
+verification at that checkpoint is unit `139/139` with 509 assertions,
+single-site integration `471/471` with 4135 assertions and five expected
+skips, and true multisite `471/471` with 4164 assertions and no skips. PHPCS
+passes `100/100` source files; the entrypoint shell, both PHPUnit XML files,
+workflow YAML and the whitespace check are valid. The dedicated fixed-floor
+multisite CI job is part of the exact-candidate B19-Q protected matrix.
+
 #### B19-Q. Exact-candidate verification and I3 closeout
 
-Status: waiting_dependency
+Status: in_progress
 
 Goal: verify HOOK-03/DB-04-I3 as one exact candidate and merge it without
 claiming DB-04-Q or a 2.0 release complete.
@@ -2633,6 +2667,69 @@ DoD/AC:
   but no release/tag is created by this closeout.
 
 Dependencies: B19-01—B19-06.
+
+Progress evidence: pre-audit candidate `dd5c23e` passed local full unit,
+single-site and true-multisite suites, deterministic isolation seed `19019`,
+fixed-floor PR coverage and quality-tool gates. Independent security review
+then found two P2 activation/readiness gaps and one P3 stale idempotent-enable
+gap; no new decision gate was required. Red contract `8426e96` reproduces all
+three findings, and production correction `53c6171` makes the focused suite
+green at single-site `16/16` with 44 assertions and four expected multisite
+skips, and true multisite `16/16` with 59 assertions. The subsequent full run
+exposed two pre-existing synthetic-prefix fixture assumptions made visible by
+eager ledger readiness; test-only correction `6ec5ef5` now models a coherent
+`$wpdb->prefix`/`$wpdb->options` context and removes the shared ledger between
+cases. Post-correction local verification is unit `139/139` with 509
+assertions, current single-site `474/474` with 4147 assertions and six expected
+skips, current true multisite `474/474` with 4178 assertions, and PHPCS
+`100/100`. Fixed PHP 8.1.34 / WordPress 6.7.7 / Ramsey Collection 1.3.0
+coverage is `613/613` with 4654 assertions and six expected skips; the PR gate
+passes at `3783/4136` statements (`91.47%`) and the RC threshold is ready. The
+same fixed floor passes true multisite `474/474` with 4178 assertions and all
+synthetic quality-tool gates. Isolation seed `19019` passes unit reverse and
+random at `278/278` with 1018 assertions each, plus WordPress reverse and
+random at `948/948` with 8294 assertions and 12 expected skips each.
+Independent exact-candidate re-audit passed without open P0—P3 or new DG. The
+first PR #104 protected run on `ce809b23` finished `17/20`: both external
+database jobs exposed WordPress test-base conversion of the production ledger
+DDL to a temporary table that MySQL 8.0.46 and MariaDB 10.11.16 do not expose
+through `information_schema`, while the coverage job exposed the corresponding
+real-table cleanup leak during repeat isolation. Test-only correction
+`0de3a8a` preserves every safe `<prefix>wpconnections_repair` identifier as a
+real table for both CREATE and DROP. Independent exact verification of that
+delta passed, but its security review found one P3 test-integrity gap: the
+initial unconditional priority-11 guard could also rewrite an erroneous
+production `CREATE TEMPORARY TABLE` and therefore hide that future regression.
+No new decision gate was needed because the durable real-table contract was
+already approved. Test-only correction `7a453bb` now records only original
+permanent CREATE/DROP DDL before the WordPress priority-10 conversion and
+restores only that marked query afterward; deliberately temporary isolation
+fixtures remain temporary. The allowlist requires a non-empty safe prefix, and
+the schema regression assertion captures production DDL at priority 8 and
+requires the original query to start with `CREATE TABLE` before any test-harness
+rewrite.
+
+On exact candidate `68177b8`, independent verification passed, but independent
+security and QA reviews found two further P3 test-integrity gaps. The shared
+boolean provenance marker was not safe under a nested `$wpdb` query between
+priorities 9 and 11, and five legacy class-local priority-11 callbacks could
+still rewrite an intentionally temporary repair fixture. No new decision gate
+was needed. Test-only correction `dbd1c04` replaces shared state with a
+per-process nonce carried by the marked query itself, removes all five
+unconditional local callbacks, and adds explicit deliberate-temporary and
+reentrant-query regressions.
+
+On `dbd1c04`, exact local external MySQL 8.0.46 and MariaDB 10.11.16 suites
+each pass `476/476` with 4152 assertions and six expected skips. Current
+single-site and true-multisite pass `476/476` with 4152/six skips and 4183
+assertions respectively; fixed-floor true multisite also passes `476/476` with
+4183 assertions. Fixed-floor coverage passes `615/615` with 4659 assertions
+and six expected skips at unchanged `3783/4136` statements (`91.47%`), with
+the PR gate passing and RC threshold ready; PHPCS and all quality-tool probes
+remain green. Both current seed `19019` and fixed-floor seed `20260910` pass
+unit reverse/random at `278/278` with 1018 assertions, plus WordPress
+reverse/random at `952/952` with 8304 assertions and 12 expected skips. Repeat
+exact audit, replacement protected checks and merge evidence remain pending.
 
 ## E1. Test foundation и regression harness
 
@@ -4731,7 +4828,7 @@ DoD/AC:
 
 #### HOOK-03 / DB-04-I3. Manager-backed recovery delivery
 
-Status: todo
+Status: in_progress
 
 Scope: context-aware coordinator subscription, pre-arm/cleanup/resolve flow,
 semantic enable/disable и retained subscription handle.
@@ -6970,7 +7067,7 @@ Verification evidence (2026-09-12):
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
-Status: todo
+Status: in_progress
 
 Priority: P0 для 2.0
 

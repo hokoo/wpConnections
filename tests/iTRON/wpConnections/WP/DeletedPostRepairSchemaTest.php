@@ -23,7 +23,6 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		global $wpdb;
 		$this->wpdb_tables_before_test = $wpdb->tables;
 		$this->table                   = $wpdb->prefix . self::TABLE_KEY;
-		add_filter( 'query', [ $this, 'preserve_real_repair_ledger_table' ], 11 );
 		$this->reset_ledger_artifacts();
 	}
 
@@ -32,7 +31,6 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		try {
 			$this->reset_ledger_artifacts();
 		} finally {
-			remove_filter( 'query', [ $this, 'preserve_real_repair_ledger_table' ], 11 );
 			parent::tear_down();
 		}
 	}
@@ -40,6 +38,18 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 	public function test_clean_install_uses_the_exact_owned_nonautoloaded_innodb_schema(): void
 	{
 		global $wpdb;
+
+		// Capture production DDL before any WordPress test-harness rewrite.
+		$original_create_queries = [];
+		$capture_original_ddl     = static function ( string $query ) use ( &$original_create_queries, $wpdb ): string {
+			$table = preg_quote( $wpdb->prefix . self::TABLE_KEY, '/' );
+			if ( preg_match( '/^CREATE(?:\s+TEMPORARY)?\s+TABLE\s+`' . $table . '`/i', $query ) ) {
+				$original_create_queries[] = $query;
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $capture_original_ddl, 8 );
 
 		$default_engine = (string) $wpdb->get_var( 'SELECT @@SESSION.default_storage_engine' );
 		try {
@@ -59,9 +69,44 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 			self::assertSame( $this->table, $wpdb->{self::TABLE_KEY} );
 			self::assertSame( 1, count( array_keys( $wpdb->tables, self::TABLE_KEY, true ) ) );
 		} finally {
+			remove_filter( 'query', $capture_original_ddl, 8 );
 			$wpdb->query(
 				'SET SESSION default_storage_engine = ' . preg_replace( '/[^A-Za-z0-9_]/', '', $default_engine )
 			);
+		}
+
+		self::assertCount( 1, $original_create_queries );
+		self::assertStringStartsWith( "CREATE TABLE `{$this->table}`", $original_create_queries[0] );
+	}
+
+	public function test_deliberately_temporary_repair_fixture_remains_temporary(): void
+	{
+		$query = "CREATE TEMPORARY TABLE `{$this->table}` (`id` bigint)";
+
+		self::assertSame( $query, apply_filters( 'query', $query ) );
+	}
+
+	public function test_permanent_repair_ddl_survives_a_reentrant_query_filter(): void
+	{
+		global $wpdb;
+
+		$reentered = false;
+		$reenter   = static function ( string $query ) use ( &$reentered, $wpdb ): string {
+			if ( ! $reentered && preg_match( '/^CREATE\s+TEMPORARY\s+TABLE\s+`[^`]+wpconnections_repair`/i', $query ) ) {
+				$reentered = true;
+				$wpdb->get_var( 'SELECT 1' );
+			}
+
+			return $query;
+		};
+		add_filter( 'query', $reenter, 10 );
+
+		$query = "CREATE TABLE `{$this->table}` (`id` bigint)";
+		try {
+			self::assertSame( $query, apply_filters( 'query', $query ) );
+			self::assertTrue( $reentered );
+		} finally {
+			remove_filter( 'query', $reenter, 10 );
 		}
 	}
 
@@ -656,22 +701,6 @@ class DeletedPostRepairSchemaTest extends \WP_UnitTestCase
 		$wpdb->query( "DROP TABLE IF EXISTS `{$this->table}`" );
 		unset( $wpdb->{self::TABLE_KEY} );
 		$wpdb->tables = $this->wpdb_tables_before_test;
-	}
-
-	public function preserve_real_repair_ledger_table( string $query ): string
-	{
-		$table = preg_quote( $this->table, '/' );
-		$query = (string) preg_replace(
-			'/^CREATE\s+TEMPORARY\s+TABLE\s+`' . $table . '`/i',
-			'CREATE TABLE `' . $this->table . '`',
-			$query
-		);
-
-		return (string) preg_replace(
-			'/^DROP\s+TEMPORARY\s+TABLE(\s+IF\s+EXISTS)?\s+`' . $table . '`/i',
-			'DROP TABLE$1 `' . $this->table . '`',
-			$query
-		);
 	}
 
 	private function table_exists( string $table ): bool

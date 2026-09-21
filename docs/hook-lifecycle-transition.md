@@ -1,7 +1,7 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; standalone manager and logging correction
-delivered, context-safe REST integration active
+Status: executable staged plan; Batch 19 manager-backed deletion candidate in
+progress, final Client disposal and release-wide migration remain downstream
 
 Baseline: `master` merge `73bc71f13d27761f5898d7b49d4be03fbb964ea0`
 (LOG-HOOK-01, PR #82).
@@ -15,7 +15,8 @@ Decision date: 2026-09-11; package coordinates confirmed 2026-09-12.
 
 This document turns the approved DG-NAME-06R A-to-D direction into separate,
 reviewable delivery steps and records the approved standalone package choice.
-It does not move the 2.0 manager into the 1.x compatibility release.
+The historical 1.x bridge remains documented below; Batch 19 now implements
+the approved 2.0 deletion boundary without claiming the 2.0 release complete.
 
 The fixed ownership rule is:
 
@@ -175,10 +176,24 @@ Client subscription lifetime follows approved
 repository owner approved the initial options on 2026-09-11 and
 DG-HOOK-REST-05/A on 2026-09-12.
 
+## Batch 19 implementation candidate
+
+HOOK-03 / DB-04-I3 now composes one process runtime, an exact-context Client
+registry, one manager-backed `deleted_post` subscription per enabled Client and
+one zero-argument repair cron subscription per initialized site runtime. A
+Client is registered only after its public `inited` actions finish; an early
+semantic disable is retained and a failed initialization leaves no repair
+owner or callable subscription.
+
+The callback durably arms and claims the repair identity before cleanup,
+executes through the shared atomic repair executor, and reconciles the
+site-local wake-up afterwards. An ordinary persisted cleanup failure returns
+from that Client callback so later equal-priority Clients still run. Ledger or
+context uncertainty remains fail-closed and propagates.
+
 ## 2.0 breaking-change and upgrade boundary
 
-When HOOK-03 enables manager-backed delivery, this legacy operation is no
-longer guaranteed to work:
+In the Batch 19 manager-backed runtime, this legacy operation no longer works:
 
 ```php
 remove_action(
@@ -189,9 +204,10 @@ remove_action(
 
 That is a deliberate next-major break. The upgrade path is to use
 `Client::disablePostDeletionCleanup()` before upgrading and keep using the
-semantic method after upgrading. HOOK-04 must place this warning prominently in
-the changelog and upgrade guide and must search known consumers for the direct
-callback pattern.
+semantic method after upgrading. The focused
+[deleted-post upgrade guide](deleted-post-cleanup-upgrade.md) records the
+current fixture and rollback boundary. HOOK-04 must still place this warning in
+the release changelog and perform the known-consumer scan.
 
 Custom REST subclasses have a separate deliberate 2.0 boundary. An overridden
 `init()` must call `parent::init()`; `$namespace`, `$base`, permission methods
@@ -211,7 +227,7 @@ this check in the consumer upgrade scan.
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | completed, PR #79 |
 | Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | completed, `v1.0.1` |
 | 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | completed, PR #82 |
-| 2.0 deletion | HOOK-03 / DB-04-I3 | Manager-backed recovery coordinator and `deleted_post` tests | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1 | todo; dependencies complete |
+| 2.0 deletion | HOOK-03 / DB-04-I3 | Manager-backed recovery coordinator and `deleted_post` tests | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1 | in progress; Batch 19 candidate |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | completed, PR #83 / `33b659e` |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
@@ -220,7 +236,9 @@ Each implementation task has its own branch, independent QA, rollback point and
 protected-check run. HOOK-01 is delivered independently and installs no
 wpConnections dependency. LOG-HOOK-01 completed on exact candidate `234216e`
 with independent QA PASS and 17/17 protected checks; it changes logging only.
-Manager-backed runtime registrations remain in their downstream tasks.
+Batch 19 now supplies the manager-backed deletion registrations; final
+cross-integration disposal and release-wide consumer migration remain in
+LIFE-HOOK-01 and HOOK-04.
 REST-HOOK-01 is the completed task in Batch 10 and first wpConnections runtime
 consumer of `hokoo/wp-hooks-dispatcher`. DG-HOOK-REST-05/A is approved; task
 scope remains limited to the REST integration boundary. Implementation commit
@@ -242,7 +260,7 @@ HOOK-TRANS-01 must prove:
 - direct legacy removal still works, followed by semantic re-enable;
 - current CORE-06R stale/fresh multisite tests remain green.
 
-HOOK-03 must later add:
+Batch 19 verification includes:
 
 - active, inactive and restored site dispatch for each manager-backed hook;
 - same-name clients on multiple sites;
@@ -253,6 +271,14 @@ HOOK-03 must later add:
   final Client lifecycle can collect without reconstructing callback identity;
 - upgrade-path and known-consumer fixtures for the direct `remove_action()`
   break.
+
+B19-06 commit `6fda0b9` supplies the dedicated `WP_TESTS_MULTISITE=1` lane and
+the focused active/inactive/restored `deleted_post` and cron proofs. On the
+current local runtime, full single-site integration passes `471/471` with 4135
+assertions and five expected multisite skips; the same suite under the true
+multisite bootstrap passes `471/471` with 4164 assertions and no skips. Final
+pairwise compatibility, coverage, isolation and independent review remain the
+B19-Q exact-candidate gate.
 
 DB-04-D discovered that generic repair must surround the Storage call, while
 HOOK-03 previously waited for the whole DB-04 task. The dependency map is now
@@ -319,6 +345,8 @@ HOOK-TRANS-01 and Batch 7 are complete.
 ## Rollback
 
 HOOK-TRANS-01 is additive. Reverting it restores constructor-owned direct
-registration without altering stored data. HOOK-03 must retain its own
-next-major rollback plan; it may not depend on silently returning to the 1.x
-bridge after a public 2.0 release.
+registration without altering stored data. The Batch 19 rollback plan preserves
+the site-local repair ledger and ownership option; it does not silently return
+unresolved work to the 1.x callback bridge. See the
+[deleted-post upgrade guide](deleted-post-cleanup-upgrade.md). A public 2.0
+release still requires HOOK-04's consumer scan and rollback rehearsal.
