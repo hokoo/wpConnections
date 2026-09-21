@@ -162,6 +162,16 @@ final class DeletedPostRepairPolicyTest extends TestCase
         self::assertFalse($policy->isResolvedPurgeable($now->modify('+1 second'), $now));
     }
 
+    public function test_first_resolved_purge_wakeup_is_one_second_beyond_the_strict_boundary(): void
+    {
+        $resolvedAt = $this->utc('2026-09-14 10:00:00');
+
+        self::assertSame(
+            '2026-10-14 10:00:01',
+            $this->policy()->resolvedPurgeAt($resolvedAt)->format('Y-m-d H:i:s')
+        );
+    }
+
     /**
      * @dataProvider non_utc_policy_argument_provider
      */
