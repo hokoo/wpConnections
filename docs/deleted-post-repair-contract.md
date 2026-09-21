@@ -4,13 +4,13 @@ Status: `DB-04-D` and `DB-04-I1` completed; `DG-DELETE-06R1` through
 `DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14,
 and `DG-DELETE-06R4` through `DG-DELETE-06R6` were approved as A by the
 repository owner on 2026-09-21.
-`DB-04-I2` is in progress as Batch 18. Its clock/backoff/lease/retention
-primitives are completed locally in `46d7f65`, and its unified cleanup executor
-is completed locally in `0c23a15`; the dormant current-site Client registry is
-completed locally in `44d4bc8`. The public facade and automatic query/cron work
-are authorized by R4/R5 respectively; executor exhaustion follows approved R6.
-The remaining production slices may run only in their recorded dependency
-order and against this contract.
+`DB-04-I2` is in review as Batch 18. B18-01 through B18-07 are implemented;
+B18-08 remains explicitly deferred. The first exact-candidate reviews found a
+cross-site first-registration defect plus lower-severity scheduler observation,
+schema-query amplification and plan-consistency findings. Regression commit
+`bc08a31` and corrective implementation `e23cd38` close those findings locally.
+B18-Q now owns independent closure review, protected CI, merge and post-merge
+evidence; no I3 hook activation is included.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -49,9 +49,9 @@ This document converts that policy into three explicit choices:
 3. how work is woken, retried, observed, and manually recovered.
 
 All three original choices and all three Batch 18 refinements were explicitly
-approved. `DB-04-I1` is complete and the timing core of `DB-04-I2` is
-completed. Later slices retain their recorded implementation dependencies;
-approval does not imply that their prerequisite code is complete.
+approved. `DB-04-I1` is complete and all required `DB-04-I2` production slices
+are implemented; B18-Q is in review. Later I3/Q slices retain their recorded
+implementation dependencies, and I2 approval does not activate their hooks.
 
 ## Current runtime and compatibility boundary
 
@@ -775,7 +775,7 @@ DoD:
 
 ### DB-04-I2 — retry engine, WP-Cron adapter, and operator service
 
-Status: `in_progress`; I1 dependency is complete. Batch 18 has completed the
+Status: `review`; I1 dependency is complete. Batch 18 has completed the
 clock/backoff/lease/retention policy, unified cleanup executor, dormant
 current-site Client registry, eligible ledger queries, the bounded worker, the
 public operator and the dormant scheduler gateway. Exact-candidate verification

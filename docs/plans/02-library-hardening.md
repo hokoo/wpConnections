@@ -61,12 +61,12 @@ DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A вла
 DB-04-D завершена PR #97 после independent QA и 19/19 protected/post-merge
 checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получил два
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
-checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
-slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 завершён green
-`0c23a15`, B18-03 — green `44d4bc8`, B18-04 — green `bccbca0`, B18-06 —
+checks. DB-04-I2 находится в `review` как Batch 18: DG-DELETE-06R4—R6 approved
+A, B18-01 завершён green `46d7f65`, B18-02 — green `0c23a15`, B18-03 — green
+`44d4bc8`, B18-04 — green `bccbca0`, B18-06 —
 green `d8e77b5`, B18-05 — green `5729673`, B18-07 — green `c1eb7f2`, B18-Q
-выполняется, а последующие
-production slices сохраняют записанные code dependencies.
+проходит closeout после corrective commits `bc08a31`/`e23cd38`, а последующие
+I3/Q slices сохраняют записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -1121,7 +1121,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 in progress as Batch 18 |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 in review as Batch 18 |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
@@ -1944,7 +1944,7 @@ operator service; HOOK-03/DB-04-I3 остаётся заблокированны
 
 ### Batch 18. Build the deleted-post repair runner
 
-Status: in_progress
+Status: review
 
 Goal: завершить DB-04-I2 как безопасный, но ещё не подключённый к
 `deleted_post` retry/operator core. Batch не меняет 1.x callback identity и не
@@ -2341,7 +2341,7 @@ which to reconstruct a Client.
 
 #### B18-Q. Exact-candidate verification and closeout
 
-Status: in_progress
+Status: review
 
 Goal: verify I2 across supported runtimes/vendors without claiming the I3 real
 hook guarantee.
@@ -2370,6 +2370,29 @@ Dependencies: B18-01—B18-07 and approved R4—R6 decisions.
 
 Notes/Risks: a release/tag decision occurs only after I3/Q unless an explicitly
 narrow prerelease is separately authorized.
+
+Delivery evidence:
+
+- independent review of candidate `1dd7abc` found one common P1: a Client
+  constructed on site A could be first registered on site B before the worker
+  acquired a claim; the security audit also found repeated full schema
+  introspection, while QA found an inaccurate scheduler-availability result
+  and stale plan text;
+- red/corrective commits `bc08a31` and `e23cd38` reject first stale
+  registration, revalidate immediately before claim, preserve an already read
+  dispatch-availability value, cache expensive readiness metadata per
+  context-bound ledger instance, and add real multisite cron/context coverage;
+- full local unit is 117/117 tests and 443 assertions; WordPress integration is
+  458/458 and 4099; true multisite is 458/458 and 4115;
+- PHP 8.1/8.2/8.3/8.4/8.5 pairwise `test:all` lanes pass; expected legacy
+  deprecation output on newer PHP remains outside this batch;
+- isolation seed `18018` passes reverse/random unit at 234 tests and 886
+  assertions and reverse/random integration at 916 tests and 8198 assertions;
+- exact pinned MySQL 8.0.46 and MariaDB 10.11.16 lanes each pass 458 tests and
+  4099 assertions; source PHPCS passes 95/95 files;
+- RC coverage passes with 3599/3946 statements (91.21%) and zero active test
+  policy exceptions. Independent closure review, protected checks, merge and
+  exact post-merge evidence remain required before `completed`.
 
 ## E1. Test foundation и regression harness
 
@@ -4444,7 +4467,7 @@ DoD/AC:
 
 #### DB-04-I2. Retry engine, scheduler adapter and operator service
 
-Status: in_progress
+Status: review
 
 Scope: state machine, clock/scheduler abstractions, WP-Cron wake-up, backoff,
 Client runtime registry и PHP operator service. Optional WP-CLI bridge deferred.
@@ -4454,8 +4477,8 @@ DoR:
 - DG-DELETE-06R3 утверждён.
 - DG-DELETE-06R4—R6 утверждены вариантом A.
 - DB-04-I1 завершена.
-- B18-01 completed; B18-02 in progress, B18-03 todo, остальные affected slices
-  ждут только записанные code dependencies.
+- B18-01—B18-07 completed; B18-08 deferred; B18-Q проходит independent,
+  protected и merge closeout.
 
 DoD/AC:
 
