@@ -76,6 +76,8 @@ class AtomicMutationIncapableStorage extends Storage
 class AtomicMutationTest extends TestCase
 {
 	private const RELATION = 'atomic-mutation-relation';
+	private const REPAIR_TABLE_BASENAME = 'wpconnections_repair';
+	private const REPAIR_OWNERSHIP_OPTION = 'wpconnections_repair_schema_owner';
 
 	private Client $client;
 	private array $clients = [];
@@ -86,7 +88,11 @@ class AtomicMutationTest extends TestCase
 	{
 		parent::setUp();
 
+		$this->clients = [];
+		$this->post_ids = [];
+
 		global $wpdb;
+		$this->drop_repair_ledger();
 		$this->wpdb_tables_before = $wpdb->tables;
 		add_filter( 'wpConnections/storage/installOnInit', '__return_true', 10, 2 );
 
@@ -123,6 +129,7 @@ class AtomicMutationTest extends TestCase
 				$this->cleanup_client( $client );
 			}
 			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->resetForTests();
+			$this->drop_repair_ledger();
 			foreach ( $this->post_ids as $post_id ) {
 				wp_delete_post( $post_id, true );
 			}
@@ -1754,6 +1761,28 @@ class AtomicMutationTest extends TestCase
 
 		delete_option(
 			'wpconnections_storage_owner_' . hash( 'sha256', str_replace( '-', '_', $client->getName() ) )
+		);
+	}
+
+	private function drop_repair_ledger(): void
+	{
+		global $wpdb;
+
+		delete_option( self::REPAIR_OWNERSHIP_OPTION );
+		wp_cache_delete( self::REPAIR_OWNERSHIP_OPTION, 'options' );
+		$wpdb->query(
+			'DROP TEMPORARY TABLE IF EXISTS `' .
+			$wpdb->prefix . self::REPAIR_TABLE_BASENAME . '`'
+		);
+		$wpdb->query(
+			'DROP TABLE IF EXISTS `' . $wpdb->prefix . self::REPAIR_TABLE_BASENAME . '`'
+		);
+		unset( $wpdb->{self::REPAIR_TABLE_BASENAME} );
+		$wpdb->tables = array_values(
+			array_filter(
+				$wpdb->tables,
+				static fn( string $table_key ): bool => self::REPAIR_TABLE_BASENAME !== $table_key
+			)
 		);
 	}
 
