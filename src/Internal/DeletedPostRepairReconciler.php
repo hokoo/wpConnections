@@ -8,7 +8,7 @@ use Throwable;
 /**
  * @internal Converges one logical site wake-up toward current ledger truth.
  */
-final class DeletedPostRepairReconciler
+final class DeletedPostRepairReconciler implements DeletedPostRepairReconciliationInterface
 {
     private DeletedPostRepairReconcilerLedgerInterface $ledger;
     private DeletedPostRepairClientRegistry $registry;
