@@ -5,10 +5,11 @@ Status: `DB-04-D` and `DB-04-I1` completed; `DG-DELETE-06R1` through
 and `DG-DELETE-06R4` through `DG-DELETE-06R6` were approved as A by the
 repository owner on 2026-09-21.
 `DB-04-I2` is in progress as Batch 18. Its clock/backoff/lease/retention
-primitives are completed locally in `46d7f65`. The public facade,
-automatic registry/query/cron work and exhaustion/executor work are now
-authorized by R4/R5/R6 respectively. The remaining production slices may run
-only in their recorded dependency order and against this contract.
+primitives are completed locally in `46d7f65`, and its unified cleanup executor
+is completed locally in `0c23a15`. The public facade and automatic
+registry/query/cron work are authorized by R4/R5 respectively; executor
+exhaustion follows approved R6. The remaining production slices may run only
+in their recorded dependency order and against this contract.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -772,8 +773,8 @@ DoD:
 
 ### DB-04-I2 — retry engine, WP-Cron adapter, and operator service
 
-Status: `in_progress`; I1 dependency is complete. Batch 18 starts with the
-completed gate-independent clock/backoff/lease/retention policy. Executor,
+Status: `in_progress`; I1 dependency is complete. Batch 18 has completed the
+clock/backoff/lease/retention policy and unified cleanup executor. Registry,
 public and scheduler slices follow the approved R4/R5/R6 contracts and the
 implementation dependencies below.
 

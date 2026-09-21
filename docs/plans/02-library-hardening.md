@@ -62,9 +62,9 @@ DB-04-D завершена PR #97 после independent QA и 19/19 protected/p
 checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получил два
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
-slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 выполняется,
-B18-03 готов, а последующие production slices сохраняют записанные code
-dependencies.
+slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 завершён green
+`0c23a15`, B18-03 выполняется, а последующие production slices сохраняют
+записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -2030,7 +2030,7 @@ Delivery evidence:
 
 #### B18-02. Unified cleanup executor
 
-Status: in_progress
+Status: completed
 
 Goal: один внутренний cleanup/finalization path для automatic и manual callers.
 
@@ -2062,9 +2062,21 @@ Dependencies: DG-DELETE-06R6, B18-01 and approved DG-SPI atomicity decisions.
 Notes/Risks: cleanup commit followed by a success-hook failure deliberately
 retries; a later idempotent zero result resolves the uncertainty.
 
+Delivery evidence:
+
+- red contract `d74ec4a` зафиксировал 13 отсутствующих executor scenarios до
+  production implementation;
+- green `0c23a15` добавил narrow internal ledger seam, unified executor/result
+  и real WPStorage/ledger vertical без подключения production callback;
+- focused unit после граничного claim-8 assertion: 14/14 tests, 88 assertions;
+  focused WordPress integration: 3/3, 39;
+- full unit: 75/75 tests, 261 assertions; full WordPress integration: 440/440,
+  3893 assertions; полный source PHPCS прошёл;
+- protected/exact-candidate и independent epic QA остаются обязанностью B18-Q.
+
 #### B18-03. Current-site Client runtime registry
 
-Status: todo
+Status: in_progress
 
 Goal: resolve only a freshly initialized Client in its exact site context and
 separate automatic eligibility from explicit manual access.
