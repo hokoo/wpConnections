@@ -380,8 +380,7 @@ class AtomicMutationTest extends TestCase
 	public function test_deleted_post_callback_uses_atomic_delete_boundary(): void
 	{
 		$connection = $this->create_connection( 'deleted-post-failure', 'preserved' );
-		self::assertSame(
-			10,
+		self::assertFalse(
 			has_action( 'deleted_post', [ $this->client->getStorage(), 'deleteByObjectID' ] )
 		);
 		$deleted_calls = 0;
@@ -401,10 +400,16 @@ class AtomicMutationTest extends TestCase
 			remove_action( 'wpConnections/storage/deletedByObjectID', $deleted );
 		}
 
-		self::assertInstanceOf( StorageFailure::class, $failure );
+		self::assertNull( $failure );
 		self::assertSame( 1, $this->connection_count( $connection->id ) );
 		self::assertSame( 1, $this->meta_count( $connection->id ) );
 		self::assertSame( 0, $deleted_calls );
+		self::assertCount(
+			1,
+			$this->client->getDeletedPostRepairService()->listRepairs(
+				\iTRON\wpConnections\Internal\DeletedPostRepairStatus::RETRY_WAIT
+			)->getItems()
+		);
 	}
 
 	public function test_relation_id_delete_locks_connection_before_metadata_mutation(): void
@@ -1729,7 +1734,7 @@ class AtomicMutationTest extends TestCase
 	{
 		global $wpdb;
 
-		$client->disablePostDeletionCleanup();
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 		RestRouteRegistry::instance()->deactivateClient( $client );
 		if (! $client->getStorage() instanceof WPStorage ) {
 			return;

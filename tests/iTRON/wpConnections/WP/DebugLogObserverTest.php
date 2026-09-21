@@ -141,6 +141,7 @@ class DebugLogObserverTest extends \WP_UnitTestCase
 		remove_filter( 'wpConnections/factory/getStorage/class', $this->storage_filter );
 
 		foreach ( $this->clients as $client ) {
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 			if ( class_exists( RestRouteRegistry::class ) ) {
 				RestRouteRegistry::instance()->deactivateClient( $client );
 			}

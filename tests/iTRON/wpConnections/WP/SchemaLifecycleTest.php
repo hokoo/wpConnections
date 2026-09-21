@@ -47,7 +47,9 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 		$first_id = $this->create_storage_connection( 'before-repeat' );
 
 		RestRouteRegistry::instance()->deactivateClient( $this->client );
-		$this->client->disablePostDeletionCleanup();
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient(
+			$this->client
+		);
 		$this->client = new Client( CLIENT_NAME );
 
 		$this->assert_storage_schema();
@@ -265,7 +267,9 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 
 		$old_client = $this->client;
 		RestRouteRegistry::instance()->deactivateClient( $old_client );
-		$old_client->disablePostDeletionCleanup();
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient(
+			$old_client
+		);
 
 		$recovery_queries = [];
 		$record_recovery = static function ( string $query ) use ( &$recovery_queries ): string {
@@ -714,7 +718,7 @@ class SchemaLifecycleTest extends WPConnectionsTestCase
 		global $wpdb;
 
 		RestRouteRegistry::instance()->deactivateClient( $client );
-		$client->disablePostDeletionCleanup();
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 		$storage = $client->getStorage();
 		$table_keys = [ $storage->get_connections_table(), $storage->get_meta_table() ];
 		foreach ( $table_keys as $table_key ) {

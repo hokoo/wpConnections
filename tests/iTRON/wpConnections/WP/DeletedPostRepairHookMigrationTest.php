@@ -123,7 +123,9 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
                     switch_to_blog($siteId);
                 }
                 try {
-                    $client->disablePostDeletionCleanup();
+                    \iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient(
+                        $client
+                    );
                     RestRouteRegistry::instance()->deactivateClient($client);
                     remove_action('deleted_post', [ $client->getStorage(), 'deleteByObjectID' ], 10);
                     $this->dropLedgerArtifacts();
@@ -185,6 +187,74 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
             [ 512 ],
             DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $client->getName() ]
         );
+    }
+
+    public function test_inited_hook_can_disable_before_manager_activation(): void
+    {
+        $name = 'repair-hook-early-disable-' . ++self::$clientSequence;
+        $disable = static function (Client $client) use ($name): void {
+            if ($name === $client->getName()) {
+                $client->disablePostDeletionCleanup();
+            }
+        };
+        add_action('wpConnections/client/inited', $disable);
+        try {
+            $client = $this->newNamedClient($name);
+        } finally {
+            remove_action('wpConnections/client/inited', $disable);
+        }
+
+        do_action('deleted_post', 513, null);
+        self::assertSame(
+            [],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $name ] ?? []
+        );
+
+        $client->enablePostDeletionCleanup();
+        do_action('deleted_post', 514, null);
+        self::assertSame(
+            [ 514 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $name ]
+        );
+    }
+
+    public function test_failed_initialization_leaves_no_repair_owner_for_replacement(): void
+    {
+        $name = 'repair-hook-init-failure-' . ++self::$clientSequence;
+        $failure = static function (Client $client) use ($name): void {
+            if ($name === $client->getName()) {
+                throw new RuntimeException('intentional initialization failure');
+            }
+        };
+        add_action("wpConnections/client/{$name}/inited", $failure);
+        try {
+            new Client($name);
+            self::fail('The initialization fixture must fail before repair activation.');
+        } catch (RuntimeException $caught) {
+            self::assertSame('intentional initialization failure', $caught->getMessage());
+        } finally {
+            remove_action("wpConnections/client/{$name}/inited", $failure);
+        }
+
+        $replacement = $this->newNamedClient($name);
+        do_action('deleted_post', 515, null);
+        self::assertSame(
+            [ 515 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $replacement->getName() ]
+        );
+    }
+
+    public function test_manager_subscription_uses_priority_ten_and_one_accepted_argument(): void
+    {
+        global $wp_filter;
+
+        $before = array_keys($wp_filter['deleted_post']->callbacks[10] ?? []);
+        $this->newClient('hook-shape');
+        $after = $wp_filter['deleted_post']->callbacks[10] ?? [];
+        $added = array_values(array_diff(array_keys($after), $before));
+
+        self::assertCount(1, $added);
+        self::assertSame(1, $after[ $added[0] ]['accepted_args']);
     }
 
     public function test_persisted_failure_of_one_client_does_not_stop_later_client_cleanup(): void

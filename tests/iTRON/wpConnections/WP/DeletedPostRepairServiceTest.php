@@ -122,7 +122,7 @@ class DeletedPostRepairServiceTest extends \WP_UnitTestCase
 
 		try {
 			foreach ( $this->clients as $client ) {
-				$client->disablePostDeletionCleanup();
+				\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 				RestRouteRegistry::instance()->deactivateClient( $client );
 			}
 			remove_filter( 'wpConnections/factory/getStorage/class', [ $this, 'storage_class' ] );

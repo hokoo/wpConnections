@@ -874,7 +874,7 @@ class AtomicScopeTest extends TestCase
 	{
 		global $wpdb;
 
-		$client->disablePostDeletionCleanup();
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 		RestRouteRegistry::instance()->deactivateClient( $client );
 
 		$postfix = Database::normalize_table_name( $client->getName() );

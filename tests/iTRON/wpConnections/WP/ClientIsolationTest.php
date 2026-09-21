@@ -100,6 +100,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 
 		$wpdb->prefix = $this->original_prefix;
 		foreach ( $this->clients as $client ) {
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 			if ( class_exists( RestRouteRegistry::class ) ) {
 				RestRouteRegistry::instance()->deactivateClient( $client );
 			}
@@ -210,20 +211,18 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertSame( 0, $factory_calls );
 	}
 
-	public function test_legacy_deleted_post_callback_identity_remains_removable_in_1_x_bridge(): void
+	public function test_manager_callback_identity_is_not_the_storage_callback(): void
 	{
 		$client   = $this->new_default_client( 'legacy-delete-callback' );
 		$callback = [ $client->getStorage(), 'deleteByObjectID' ];
 
-		self::assertSame( 10, has_action( 'deleted_post', $callback ) );
-		self::assertTrue( remove_action( 'deleted_post', $callback ) );
+		self::assertFalse( has_action( 'deleted_post', $callback ) );
+		self::assertFalse( remove_action( 'deleted_post', $callback ) );
 		self::assertFalse( has_action( 'deleted_post', $callback ) );
 	}
 
-	public function test_semantic_post_deletion_lifecycle_is_idempotent_and_legacy_removable(): void
+	public function test_semantic_post_deletion_lifecycle_is_idempotent_and_manager_owned(): void
 	{
-		global $wp_filter;
-
 		$client   = $this->new_default_client( 'semantic-delete-callback' );
 		$callback = [ $client->getStorage(), 'deleteByObjectID' ];
 
@@ -233,15 +232,8 @@ class ClientIsolationTest extends \WP_UnitTestCase
 
 		$client->enablePostDeletionCleanup();
 		$client->enablePostDeletionCleanup();
-		self::assertSame( 10, has_action( 'deleted_post', $callback ) );
-
-		$callback_id = _wp_filter_build_unique_id( 'deleted_post', $callback, 10 );
-		self::assertSame( 1, $wp_filter['deleted_post']->callbacks[10][ $callback_id ]['accepted_args'] );
-		self::assertTrue( remove_action( 'deleted_post', $callback, 10 ) );
 		self::assertFalse( has_action( 'deleted_post', $callback ) );
-
-		$client->enablePostDeletionCleanup();
-		self::assertSame( 10, has_action( 'deleted_post', $callback ) );
+		self::assertFalse( remove_action( 'deleted_post', $callback, 10 ) );
 	}
 
 	public function test_semantic_post_deletion_lifecycle_controls_real_cleanup_once(): void
@@ -310,6 +302,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		);
 
 		RestRouteRegistry::instance()->deactivateClient( $first );
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $first );
 		$same_owner = $this->new_default_client( 'MY CLIENT' );
 		self::assertSame( $first->getName(), $same_owner->getName() );
 		self::assertCount(
@@ -367,13 +360,13 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		global $wpdb;
 
 		$wpdb->prefix = str_repeat( 'p', 41 );
-		$boundary = $this->new_default_client( 'z' );
+		$boundary = $this->new_default_client( 'z', false, false );
 		self::assertSame( 64, strlen( $wpdb->prefix . $boundary->getStorage()->get_meta_table() ) );
 
 		$this->assert_client_registration_error(
 			'Client table identifier exceeds the 64-character database limit.',
 			function (): void {
-				$this->new_default_client( 'zz' );
+				$this->new_default_client( 'zz', false, false );
 			}
 		);
 
@@ -381,7 +374,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		$this->assert_client_registration_error(
 			'Client table identifier exceeds the 64-character database limit.',
 			function (): void {
-				$this->new_default_client( 'x' );
+				$this->new_default_client( 'x', false, false );
 			}
 		);
 	}
@@ -472,6 +465,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		$this->unregister_storage( $seed->getStorage() );
 		$installed = $this->new_default_client( 'partial-client', true );
 		RestRouteRegistry::instance()->deactivateClient( $installed );
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $installed );
 		$installed->disablePostDeletionCleanup();
 		$this->unregister_storage( $installed->getStorage() );
 		$wpdb->query( "DROP TABLE `{$wpdb->prefix}post_connections_meta_partial_client`" );
@@ -658,7 +652,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertSame( 0, $stale_storage_calls );
 		self::assertSame( $queries_before, $wpdb->num_queries );
 
-		$fresh = $this->new_default_client( 'site-fresh' );
+		$fresh = $this->new_default_client( 'site-fresh', false, false );
 		self::assertSame(
 			'alternate_post_connections_site_fresh',
 			$wpdb->prefix . $fresh->getStorage()->get_connections_table()
@@ -813,11 +807,11 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			self::assertInstanceOf( ClientIsolationMemoryStorage::class, $client->getStorage() );
 			self::assertFalse( method_exists( $client->getStorage(), 'get_connections_table' ) );
 			$callback = [ $client->getStorage(), 'deleteByObjectID' ];
-			self::assertSame( 10, has_action( 'deleted_post', $callback ) );
+			self::assertFalse( has_action( 'deleted_post', $callback ) );
 			$client->disablePostDeletionCleanup();
 			self::assertFalse( has_action( 'deleted_post', $callback ) );
 			$client->enablePostDeletionCleanup();
-			self::assertSame( 10, has_action( 'deleted_post', $callback ) );
+			self::assertFalse( has_action( 'deleted_post', $callback ) );
 
 			$this->assert_client_registration_error(
 				'Client name is empty or unsafe after normalization.',
@@ -830,15 +824,28 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		}
 	}
 
-	private function new_default_client( string $name, bool $install = false ): Client
+	private function new_default_client(
+		string $name,
+		bool $install = false,
+		bool $repair_enabled = true
+	): Client
 	{
 		$install_filter = static function () use ( $install ): bool {
 			return $install;
 		};
+		$disable_repair = static function ( Client $client ): void {
+			$client->disablePostDeletionCleanup();
+		};
 		add_filter( 'wpConnections/storage/installOnInit', $install_filter, 999, 2 );
+		if ( ! $repair_enabled ) {
+			add_action( 'wpConnections/client/inited', $disable_repair );
+		}
 		try {
 			$client = $this->remember_client( new Client( $name ) );
 		} finally {
+			if ( ! $repair_enabled ) {
+				remove_action( 'wpConnections/client/inited', $disable_repair );
+			}
 			remove_filter( 'wpConnections/storage/installOnInit', $install_filter, 999 );
 		}
 
@@ -867,6 +874,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		$record = get_option( $new_options[0] );
 		self::assertIsArray( $record );
 		RestRouteRegistry::instance()->deactivateClient( $client );
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 
 		return [ $new_options[0], $record, $client ];
 	}

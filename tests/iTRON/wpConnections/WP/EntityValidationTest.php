@@ -130,6 +130,9 @@ class EntityValidationTest extends WPConnectionsTestCase
 
 	public function tear_down()
 	{
+		foreach ( $this->additional_clients as $client ) {
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
+		}
 		if ( class_exists( RestRouteRegistry::class ) ) {
 			foreach ( $this->additional_clients as $client ) {
 				RestRouteRegistry::instance()->deactivateClient( $client );

@@ -316,7 +316,7 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 			}
 
 			foreach ( $this->clients as $client ) {
-				$client->disablePostDeletionCleanup();
+				\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient( $client );
 			}
 
 			remove_filter( 'wpConnections/factory/getRestApi/class', $this->rest_api_filter, 10 );
@@ -519,6 +519,9 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 
 		$first_delegate->deactivate();
 		$first_delegate->deactivate();
+		\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient(
+			$first_client
+		);
 
 		$replacement_client = $this->new_client( 'duplicate-route-owner' );
 		$replacement_delegate = $this->delegate_for_client( $replacement_client );
@@ -729,9 +732,13 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		$this->authenticate_for_managed_routes();
 		RestHookRecordingRestApi::$permission_interceptor = function () use (
 			$first_delegate,
+			$first_client,
 			&$replacement_client
 		): void {
 			$first_delegate->deactivate();
+			\iTRON\wpConnections\Internal\DeletedPostRepairRuntime::instance()->deactivateClient(
+				$first_client
+			);
 			$replacement_client = $this->new_client( 'permission-stage-owner' );
 		};
 

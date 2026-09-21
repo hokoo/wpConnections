@@ -4,6 +4,7 @@ namespace iTRON\wpConnections\Tests\iTRON\wpConnections\WP;
 
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\Helpers\Database;
+use iTRON\wpConnections\Internal\DeletedPostRepairRuntime;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\Query\Relation;
 use iTRON\wpConnections\WPStorage;
@@ -34,10 +35,12 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 	public function tear_down()
 	{
 		try {
+			DeletedPostRepairRuntime::instance()->deactivateClient( $this->client );
 			if ( class_exists( RestRouteRegistry::class ) ) {
 				RestRouteRegistry::instance()->deactivateClient( $this->client );
 			}
 			$this->drop_client_tables();
+			$this->drop_repair_ledger();
 		} finally {
 			parent::tear_down();
 		}
@@ -166,5 +169,21 @@ abstract class WPConnectionsTestCase extends \WP_UnitTestCase
 		}
 
 		$wpdb->tables = $this->wpdb_tables_before_client;
+	}
+
+	private function drop_repair_ledger(): void
+	{
+		global $wpdb;
+
+		delete_option( 'wpconnections_repair_schema_owner' );
+		wp_cache_delete( 'wpconnections_repair_schema_owner', 'options' );
+		$wpdb->query( "DROP TABLE IF EXISTS `{$wpdb->prefix}wpconnections_repair`" );
+		unset( $wpdb->wpconnections_repair );
+		$wpdb->tables = array_values(
+			array_filter(
+				$wpdb->tables,
+				static fn( string $table_key ): bool => 'wpconnections_repair' !== $table_key
+			)
+		);
 	}
 }
