@@ -69,13 +69,13 @@
 11. Batch 17 / DB-04-I1 завершён PR #99. Exact candidate `14abfd5` получил
     independent exact-candidate QA и security/SQL audit PASS без open P0/P1/P2
     findings и прошёл 19/19 protected checks; merge `c2f4b98` также прошёл
-    19/19 post-merge jobs. DB-04-I2 начат как Batch 18: policy/clock slice
-    завершён локально green `46d7f65`. DG-DELETE-06R4—R6 утверждены вариантом
-    A владельцем 2026-09-21; B18-02 завершён green `0c23a15`, B18-03 — green
-    `44d4bc8`, B18-04 — green `bccbca0`, B18-06 — green `d8e77b5`, B18-05 —
-    green `5729673`, B18-07 — green `c1eb7f2`; corrective QA commits
-    `bc08a31`/`e23cd38` закрыли найденные findings локально, и B18-Q находится
-    в `review`. Последующие I3/Q slices ждут записанные dependencies.
+    19/19 post-merge jobs.
+12. Batch 18 / DB-04-I2 завершён PR #102. DG-DELETE-06R4—R6 утверждены
+    вариантом A; B18-01—B18-07 и B18-Q completed, B18-08 deferred. Corrective
+    commits `bc08a31`/`e23cd38` закрыли findings первых аудитов; exact candidate
+    `4c18fde` получил три independent PASS без open P0—P3 и 19/19 protected
+    jobs. Merge `66f6fd3` прошёл 19/19 post-merge jobs. HOOK-03/DB-04-I3
+    разблокирован как Batch 19; DB-04-Q по-прежнему ждёт I3.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -99,11 +99,13 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged baseline — REST-03 PR #95 (`185bf32`): unit `19 / 96`,
-  integration `380 / 3204`, combined `399 / 3298`, statement coverage
-  `1830/1962 (93.27%)`; exact candidate `56d5e1c` и merge прошли по 19/19
-  checks, включая pinned MySQL 8.0.46 и MariaDB 10.11.16. True multisite
-  verification — `55 / 906`; PHPCS — `60 / 60`.
+- Текущий merged baseline — Batch 18 / DB-04-I2 PR #102 (`66f6fd3`). Exact
+  candidate `4c18fde` получил три independent PASS без open P0—P3 и прошёл
+  19/19 protected jobs; exact merge прошёл 19/19 post-merge jobs. Локально:
+  unit `117 / 443`, integration `458 / 4099`, true multisite `458 / 4115`,
+  pinned MySQL 8.0.46 и MariaDB 10.11.16 по `458 / 4099`, PHPCS `95/95`, RC
+  coverage `3599/3946 (91.21%)` без active exceptions. Repair runner остаётся
+  dormant до HOOK-03/DB-04-I3.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -208,10 +210,10 @@ map находятся в
   [delete result/failure contract](../delete-result-contract.md) отделяет
   logical connection counts от metadata rows, relation-scoped domain/REST
   deletion от legacy client-wide SPI и внутреннюю atomic boundary от
-  `deleted_post` recovery. DB-03B-A, DB-03B-B, DB-04-D и DB-04-I1 завершены;
-  DB-04-I2 проходит `review` как Batch 18: R4—R6 утверждены, B18-01—B18-07
-  завершены, B18-08 deferred, B18-Q выполняет independent/protected/merge
-  closeout, а I3/Q сохраняют записанные code dependencies. REST-03
+  `deleted_post` recovery. DB-03B-A, DB-03B-B, DB-04-D, DB-04-I1 и DB-04-I2
+  завершены; Batch 18 закрыт PR #102 и exact merge `66f6fd3` с полным 19/19
+  protected/post-merge evidence. HOOK-03/DB-04-I3 переведён в `todo`, а
+  DB-04-Q ждёт I3. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
@@ -223,9 +225,8 @@ map находятся в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
   DG-DELETE-06R1—DG-DELETE-06R3 утверждены вариантом A. DB-04-I1 завершена PR
   #99; durable internal ledger доступен, но ещё не подключён к callback или
-  scheduler. DB-04-I2 находится в `review` как Batch 18; B18-01—B18-07
-  завершены локально, B18-08 deferred, R4—R6 approved A, а B18-Q выполняет
-  обязательный closeout.
+  scheduler. DB-04-I2 завершён PR #102; его runner/operator primitives всё ещё
+  dormant до HOOK-03/DB-04-I3, который теперь готов к отдельному Batch 19.
 - Штатные regressions уже защищают missing-`to`, broken `both`, полную
   cardinality matrix и Query-meta materialization; REST update без `title`
   защищён completed Batch 11 / REST-02 regression coverage.

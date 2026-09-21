@@ -4,13 +4,16 @@ Status: `DB-04-D` and `DB-04-I1` completed; `DG-DELETE-06R1` through
 `DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14,
 and `DG-DELETE-06R4` through `DG-DELETE-06R6` were approved as A by the
 repository owner on 2026-09-21.
-`DB-04-I2` is in review as Batch 18. B18-01 through B18-07 are implemented;
+`DB-04-I2` is completed as Batch 18. B18-01 through B18-07 are delivered;
 B18-08 remains explicitly deferred. The first exact-candidate reviews found a
 cross-site first-registration defect plus lower-severity scheduler observation,
 schema-query amplification and plan-consistency findings. Regression commit
-`bc08a31` and corrective implementation `e23cd38` close those findings locally.
-B18-Q now owns independent closure review, protected CI, merge and post-merge
-evidence; no I3 hook activation is included.
+`bc08a31` and corrective implementation `e23cd38` closed those findings.
+Exact candidate `4c18fde9934a6d74f143faf0acc6dc97650a1a93` received three
+independent closure PASS results with no open P0—P3 findings and passed 19/19
+protected jobs. PR #102 merged as
+`66f6fd3413d316081f431ff7bcc5d8ae6beefc9c`; the exact merge passed all 19
+post-merge jobs. No I3 hook activation is included.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -49,9 +52,9 @@ This document converts that policy into three explicit choices:
 3. how work is woken, retried, observed, and manually recovered.
 
 All three original choices and all three Batch 18 refinements were explicitly
-approved. `DB-04-I1` is complete and all required `DB-04-I2` production slices
-are implemented; B18-Q is in review. Later I3/Q slices retain their recorded
-implementation dependencies, and I2 approval does not activate their hooks.
+approved. `DB-04-I1` and `DB-04-I2` are complete. HOOK-03 / DB-04-I3 is now
+ready for its separate 2.0 activation batch; I2 completion itself did not
+activate any hook.
 
 ## Current runtime and compatibility boundary
 
@@ -747,11 +750,10 @@ explicitly.
 
 ## Planned executable implementation slices
 
-The following slice order implements approved R1—R6. B18-01 through B18-07 are
-completed; exact-candidate verification B18-Q is in progress and later slices
-retain
-their recorded code dependencies. Changing an approved choice requires a new
-decision and revised plan before affected code starts.
+The following slice order implements approved R1—R6. B18-01 through B18-07 and
+B18-Q are completed; B18-08 remains deferred. HOOK-03 / DB-04-I3 is the next
+ready production slice. Changing an approved choice requires a new decision and
+revised plan before affected code starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
@@ -775,11 +777,11 @@ DoD:
 
 ### DB-04-I2 — retry engine, WP-Cron adapter, and operator service
 
-Status: `review`; I1 dependency is complete. Batch 18 has completed the
-clock/backoff/lease/retention policy, unified cleanup executor, dormant
-current-site Client registry, eligible ledger queries, the bounded worker, the
-public operator and the dormant scheduler gateway. Exact-candidate verification
-is in progress under the approved R4/R5/R6 contracts.
+Status: `completed` in PR #102; exact candidate `4c18fde` and merge `66f6fd3`
+passed independent review and 19/19 protected/post-merge jobs. Batch 18
+delivered the clock/backoff/lease/retention policy, unified cleanup executor,
+dormant current-site Client registry, eligible ledger queries, bounded worker,
+public operator and dormant scheduler gateway under approved R4/R5/R6.
 
 Batch 18 decomposition baseline:
 `40a36c3a2512234e0d61db564dfb1e833a8ec5d2`.
@@ -800,7 +802,9 @@ DoD:
 
 ### HOOK-03 / DB-04-I3 — manager-backed recovery delivery
 
-Status: `waiting_dependency` on I1/I2 and the planned 2.0 delivery boundary.
+Status: `todo`; I1/I2 are complete and the approved 2.0 delivery boundary is
+open. This slice remains unimplemented and inactive until its own reviewed
+merge.
 
 Scope: `wp-hooks-dispatcher` subscription, retained revocable handle,
 pre-arm/claim/cleanup/resolve coordinator, semantic enable/disable, and removal

@@ -211,7 +211,7 @@ this check in the consumer upgrade scan.
 | 2.0 discovery | HOOK-02 | Complete Client-owned hook inventory and migration map | HOOK-TRANS-01 | completed, PR #79 |
 | Manager supply | HOOK-01 | Publish `hokoo/wp-hooks-dispatcher` | DG-HOOK-01/B, DG-HOOK-SCOPE-01/A, HOOK-00 | completed, `v1.0.1` |
 | 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | completed, PR #82 |
-| 2.0 deletion | HOOK-03 / DB-04-I3 | Manager-backed recovery coordinator and `deleted_post` tests | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1 | waiting dependency |
+| 2.0 deletion | HOOK-03 / DB-04-I3 | Manager-backed recovery coordinator and `deleted_post` tests | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1 | todo; dependencies complete |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | completed, PR #83 / `33b659e` |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | waiting dependency |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
