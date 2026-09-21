@@ -63,8 +63,8 @@ checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получ
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
 slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 завершён green
-`0c23a15`, B18-03 — green `44d4bc8`, B18-04 — green `bccbca0`, B18-06
-выполняется, а последующие
+`0c23a15`, B18-03 — green `44d4bc8`, B18-04 — green `bccbca0`, B18-06 —
+green `d8e77b5`, B18-05 выполняется, а последующие
 production slices сохраняют записанные code dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
@@ -2166,7 +2166,7 @@ Delivery evidence:
 
 #### B18-05. Client-scoped public operator service
 
-Status: waiting_dependency
+Status: in_progress
 
 Goal: expose the approved get/list/retry capabilities without leaking internal
 ledger objects or cross-Client existence.
@@ -2199,7 +2199,7 @@ style choices.
 
 #### B18-06. Bounded site worker
 
-Status: in_progress
+Status: completed
 
 Goal: process eligible due repairs through the same executor without duplicate
 live cleanup.
@@ -2228,9 +2228,25 @@ Dependencies: DG-DELETE-06R4, B18-02, B18-03, B18-04.
 
 Notes/Risks: malformed retention candidates stop before destructive SQL.
 
+Delivery evidence:
+
+- red contracts `64b09c0` and deterministic-order correction `26fd928`
+  зафиксировали automatic/manual batch bounds, monotonic stop, final due read,
+  reconciliation, retention и conservative attempt exhaustion;
+- green `d8e77b5` добавил dormant bounded worker, narrow worker/executor seams,
+  internal results и conditional ninth-claim exhaustion without a schema or
+  production-hook change;
+- focused unit: 52/52 tests, 189 assertions; focused WordPress ledger/executor
+  integration: 42/42, 668;
+- full unit: 105/105 tests, 365 assertions; full WordPress integration: 446/446,
+  4008 assertions; полный source PHPCS прошёл;
+- final reconciliation вызывается и после нормального bounded run, и после
+  primary ledger uncertainty; reconciliation failure не маскирует primary
+  uncertainty. Реальная scheduler mutation остаётся B18-07.
+
 #### B18-07. Dormant WP-Cron gateway and reconciliation
 
-Status: waiting_dependency
+Status: todo
 
 Goal: use WP-Cron only as a replaceable site wake-up over ledger truth.
 

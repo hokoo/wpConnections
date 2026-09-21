@@ -747,8 +747,9 @@ explicitly.
 
 ## Planned executable implementation slices
 
-The following slice order implements approved R1—R6. B18-01 through B18-04 are
-completed and the bounded worker B18-06 is in progress; later slices retain
+The following slice order implements approved R1—R6. B18-01 through B18-04 and
+the bounded worker B18-06 are completed; the public operator B18-05 is in
+progress and later slices retain
 their recorded code dependencies. Changing an approved choice requires a new
 decision and revised plan before affected code starts.
 
@@ -776,9 +777,9 @@ DoD:
 
 Status: `in_progress`; I1 dependency is complete. Batch 18 has completed the
 clock/backoff/lease/retention policy, unified cleanup executor, dormant
-current-site Client registry and eligible ledger queries. The bounded worker is
-in progress; public and scheduler slices follow the approved R4/R5/R6
-contracts and the implementation dependencies below.
+current-site Client registry, eligible ledger queries and the bounded worker.
+The public operator is in progress; the scheduler slice follows the approved
+R4/R5/R6 contracts and the implementation dependencies below.
 
 Batch 18 decomposition baseline:
 `40a36c3a2512234e0d61db564dfb1e833a8ec5d2`.
