@@ -2689,8 +2689,19 @@ same fixed floor passes true multisite `474/474` with 4178 assertions and all
 synthetic quality-tool gates. Isolation seed `19019` passes unit reverse and
 random at `278/278` with 1018 assertions each, plus WordPress reverse and
 random at `948/948` with 8294 assertions and 12 expected skips each.
-Independent exact-candidate re-audit, protected checks and merge evidence
-remain pending.
+Independent exact-candidate re-audit passed without open P0—P3 or new DG. The
+first PR #104 protected run on `ce809b23` finished `17/20`: both external
+database jobs exposed WordPress test-base conversion of the production ledger
+DDL to a temporary table that MySQL 8.0.46 and MariaDB 10.11.16 do not expose
+through `information_schema`, while the coverage job exposed the corresponding
+real-table cleanup leak during repeat isolation. Test-only correction
+`0de3a8a` preserves every safe `<prefix>wpconnections_repair` identifier as a
+real table for both CREATE and DROP. On that correction, exact local external
+MySQL 8.0.46 and MariaDB 10.11.16 suites each pass `474/474` with 4147
+assertions and six expected skips; current single-site and true-multisite pass
+`474/474` with 4147/six skips and 4178 assertions respectively; seed `19019`
+again passes all four isolation phases at the counts above. Independent delta
+review, replacement protected checks and merge evidence remain pending.
 
 ## E1. Test foundation и regression harness
 
