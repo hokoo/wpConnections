@@ -62,8 +62,9 @@ DB-04-D завершена PR #97 после independent QA и 19/19 protected/p
 checks. DB-04-I1 завершена PR #99: exact candidate `14abfd5` получил два
 independent PASS и 19/19 protected checks, merge `c2f4b98` — 19/19 post-merge
 checks. DB-04-I2 находится в `in_progress` как Batch 18: первый policy/clock
-slice завершён локально, а executor/public/scheduler slices ждут
-DG-DELETE-06R4—R6; последующие production slices сохраняют зависимости.
+slice завершён локально; DG-DELETE-06R4—R6 approved A, B18-02 выполняется,
+B18-03 готов, а последующие production slices сохраняют записанные code
+dependencies.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -750,9 +751,9 @@ REL-02, DOC-01 и REL-03 должны предоставить conformance и mi
 | [DG-DELETE-06R1](../deleted-post-repair-contract.md#dg-delete-06r1) | approved A | repository owner | 2026-09-14 | 2.0 manager-backed Client coordinator; exact 1.x callback identity remains unchanged |
 | [DG-DELETE-06R2](../deleted-post-repair-contract.md#dg-delete-06r2) | approved A | repository owner | 2026-09-14 | One library-owned site-local InnoDB repair ledger |
 | [DG-DELETE-06R3](../deleted-post-repair-contract.md#dg-delete-06r3) | approved A | repository owner | 2026-09-14 | WP-Cron wake-up, durable ledger truth, bounded retries and Client-scoped operator paths |
-| [DG-DELETE-06R4](../deleted-post-repair-contract.md#dg-delete-06r4) | pending; recommendation A | — | — | Stable public operator representation without exposing internal ledger/schema objects |
-| [DG-DELETE-06R5](../deleted-post-repair-contract.md#dg-delete-06r5) | pending; recommendation A | — | — | Registered/enabled automatic eligibility and best-effort single logical WP-Cron wake-up |
-| [DG-DELETE-06R6](../deleted-post-repair-contract.md#dg-delete-06r6) | pending; recommendation A | — | — | Conservative nine-claim unattended ceiling with explicit manual recovery after exhaustion |
+| [DG-DELETE-06R4](../deleted-post-repair-contract.md#dg-delete-06r4) | approved A | repository owner | 2026-09-21 | Stable public operator representation without exposing internal ledger/schema objects |
+| [DG-DELETE-06R5](../deleted-post-repair-contract.md#dg-delete-06r5) | approved A | repository owner | 2026-09-21 | Registered/enabled automatic eligibility and best-effort single logical WP-Cron wake-up |
+| [DG-DELETE-06R6](../deleted-post-repair-contract.md#dg-delete-06r6) | approved A | repository owner | 2026-09-21 | Conservative nine-claim unattended ceiling with explicit manual recovery after exhaustion |
 | [`DG-NAME-01`](../client-naming-contract.md#dg-name-01) | approved A | repository owner | 2026-09-11 | Compatibility normalization plus safe canonical identity |
 | [`DG-NAME-02`](../client-naming-contract.md#dg-name-02) | approved A | repository owner | 2026-09-11 | Two-phase `ClientRegisterFail` code 4 boundary |
 | [`DG-NAME-03`](../client-naming-contract.md#dg-name-03) | approved A | repository owner | 2026-09-11 | Legacy postfix retained with atomic site-local ownership claim |
@@ -1118,7 +1119,7 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6 pending | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 in progress as Batch 18 |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D and DB-04-I1 completed; DB-04-I2 in progress as Batch 18 |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
@@ -1134,8 +1135,9 @@ Entry criteria:
   bodies и central registry.
 - DP-4, DP-5, DP-6 и DP-9 утверждены в перечисленных вариантах. В DP-5
   технический механизм DG-DELETE-06/A зафиксирован утверждёнными
-  DG-DELETE-06R1/R2/R3/A; DB-04-D и I1 завершены, I2 начата, а affected slices
-  ждут pending R4/R5/R6. DP-7 и DP-8 впоследствии явно утверждены решениями
+  DG-DELETE-06R1/R2/R3/A; R4/R5/R6/A утверждены 2026-09-21; DB-04-D и I1
+  завершены, I2 начата, а affected slices следуют code dependencies. DP-7 и
+  DP-8 впоследствии явно утверждены решениями
   DG-API20-01—09; их downstream tasks сохраняют записанные dependencies.
 - TEST-02F red evidence остаётся вне `master` до paired green CORE-07 PR.
 
@@ -1948,7 +1950,7 @@ Goal: завершить DB-04-I2 как безопасный, но ещё не 
 
 #### B18-D. Refine the remaining I2 decisions
 
-Status: review
+Status: completed
 
 Goal: не превратить детали реализации scheduler/operator path в случайный
 public или compatibility contract.
@@ -1960,8 +1962,8 @@ Out of Scope: production code и неявное принятие рекомен�
 
 DoR: DG-DELETE-06R1—R3 approved; DB-04-I1 completed.
 
-DoD: все три gate имеют полный decision body; зависимые срезы остаются
-`needs_design`, независимые можно исполнять.
+DoD: все три gate имеют полный decision body и owner approval; зависимые срезы
+получают статус из фактической readiness, а не из самого факта approval.
 
 Acceptance Criteria:
 
@@ -1974,6 +1976,10 @@ Dependencies: DB-04-D, DB-04-I1.
 Notes/Risks: R6 существует отдельно, потому что manual/crashed claims нельзя
 однозначно отнести к восьмишаговому automatic budget по текущей schema.
 
+Delivery evidence: repository owner approved recommendation A for
+DG-DELETE-06R4, DG-DELETE-06R5 and DG-DELETE-06R6 on 2026-09-21; canonical
+decision bodies and the central registry record that approval.
+
 #### B18-01. Retry policy and testable clocks
 
 Status: completed
@@ -1984,14 +1990,14 @@ Goal: выделить чистые UTC/backoff/lease/retention primitives, не
 Scope: UTC clock abstraction; десятиминутная lease; утверждённая таблица
 восьми delay; 30-day resolved retention boundary.
 
-Out of Scope: mapping manual/crashed attempts onto the automatic budget until
-DG-DELETE-06R6 is approved; storage cleanup, registry, WP-Cron и public
-operator API.
+Out of Scope: mapping manual/crashed attempts onto the automatic budget, which
+belongs to B18-02 under approved DG-DELETE-06R6; storage cleanup, registry,
+WP-Cron и public operator API.
 
 DoR: DG-DELETE-06R3 approved; DB-04-I1 completed.
 
 DoD: policy не читает системное время напрямую; все boundary values
-детерминированы; exhaustion/manual semantics не выбирается до R6.
+детерминированы; exhaustion/manual semantics остаётся в B18-02.
 
 Acceptance Criteria:
 
@@ -2024,7 +2030,7 @@ Delivery evidence:
 
 #### B18-02. Unified cleanup executor
 
-Status: needs_design
+Status: in_progress
 
 Goal: один внутренний cleanup/finalization path для automatic и manual callers.
 
@@ -2058,7 +2064,7 @@ retries; a later idempotent zero result resolves the uncertainty.
 
 #### B18-03. Current-site Client runtime registry
 
-Status: needs_design
+Status: todo
 
 Goal: resolve only a freshly initialized Client in its exact site context and
 separate automatic eligibility from explicit manual access.
@@ -2094,7 +2100,7 @@ I2 may only provide dormant primitives.
 
 #### B18-04. Eligible due and next-wakeup ledger queries
 
-Status: needs_design
+Status: waiting_dependency
 
 Goal: prevent missing/disabled Clients from starving runnable work or creating
 an immediate cron loop.
@@ -2125,7 +2131,7 @@ schema revision necessary; new DDL is outside I2 without a schema gate.
 
 #### B18-05. Client-scoped public operator service
 
-Status: needs_design
+Status: waiting_dependency
 
 Goal: expose the approved get/list/retry capabilities without leaking internal
 ledger objects or cross-Client existence.
@@ -2158,7 +2164,7 @@ style choices.
 
 #### B18-06. Bounded site worker
 
-Status: needs_design
+Status: waiting_dependency
 
 Goal: process eligible due repairs through the same executor without duplicate
 live cleanup.
@@ -2189,7 +2195,7 @@ Notes/Risks: malformed retention candidates stop before destructive SQL.
 
 #### B18-07. Dormant WP-Cron gateway and reconciliation
 
-Status: needs_design
+Status: waiting_dependency
 
 Goal: use WP-Cron only as a replaceable site wake-up over ledger truth.
 
@@ -4266,8 +4272,8 @@ Notes/Risks:
   2026-09-14. Approved path сохраняет exact 1.x callback identity, вводит
   coordinator только в 2.0, использует site-local InnoDB ledger и WP-Cron
   только как wake-up.
-- DG-DELETE-06R4—DG-DELETE-06R6 остаются pending refinements Batch 18; их
-  рекомендации не являются authorization до owner approval.
+- DG-DELETE-06R4—DG-DELETE-06R6 утверждены вариантом A владельцем
+  2026-09-21; execution сохраняет task-level dependencies Batch 18.
 
 ### DB-04-I. Реализовать WordPress `deleted_post` cleanup и repair
 
@@ -4363,9 +4369,10 @@ Client runtime registry и PHP operator service. Optional WP-CLI bridge deferred
 DoR:
 
 - DG-DELETE-06R3 утверждён.
+- DG-DELETE-06R4—R6 утверждены вариантом A.
 - DB-04-I1 завершена.
-- Gate-independent B18-01 executable; affected slices wait for
-  DG-DELETE-06R4—R6.
+- B18-01 completed; B18-02 in progress, B18-03 todo, остальные affected slices
+  ждут только записанные code dependencies.
 
 DoD/AC:
 

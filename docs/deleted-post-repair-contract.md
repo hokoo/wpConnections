@@ -1,12 +1,14 @@
 # Deleted-post cleanup repair contract
 
 Status: `DB-04-D` and `DB-04-I1` completed; `DG-DELETE-06R1` through
-`DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14.
+`DG-DELETE-06R3` were approved as A by the repository owner on 2026-09-14,
+and `DG-DELETE-06R4` through `DG-DELETE-06R6` were approved as A by the
+repository owner on 2026-09-21.
 `DB-04-I2` is in progress as Batch 18. Its clock/backoff/lease/retention
-primitives are completed locally in `46d7f65`. The public facade waits for `DG-DELETE-06R4`, automatic
-registry/query/cron work waits for `DG-DELETE-06R5`, and exhaustion/executor
-work waits for `DG-DELETE-06R6`. The remaining production slices are
-authorized only in their recorded dependency order and against this contract.
+primitives are completed locally in `46d7f65`. The public facade,
+automatic registry/query/cron work and exhaustion/executor work are now
+authorized by R4/R5/R6 respectively. The remaining production slices may run
+only in their recorded dependency order and against this contract.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -44,10 +46,10 @@ This document converts that policy into three explicit choices:
 2. which store is authoritative for unresolved work;
 3. how work is woken, retried, observed, and manually recovered.
 
-All three original choices were explicitly approved. `DB-04-I1` is complete
-and the gate-independent timing core of `DB-04-I2` is completed; three
-implementation details discovered while decomposing Batch 18 remain explicit
-pending gates. Later slices retain their recorded implementation dependencies.
+All three original choices and all three Batch 18 refinements were explicitly
+approved. `DB-04-I1` is complete and the timing core of `DB-04-I2` is
+completed. Later slices retain their recorded implementation dependencies;
+approval does not imply that their prerequisite code is complete.
 
 ## Current runtime and compatibility boundary
 
@@ -462,7 +464,7 @@ table names or database details.
 <a id="dg-delete-06r4"></a>
 ## DG-DELETE-06R4 — public PHP operator representation
 
-**Status:** pending owner decision. Recommendation: A.
+**Status:** approved A by repository owner on 2026-09-21.
 
 **Problem:** R3 approved the operator capabilities but deliberately left exact
 class and method shapes to I2. The internal ledger and its records mirror
@@ -583,14 +585,15 @@ Under A, the exact public surface proposed for approval is:
 **Compatibility, rollback, and affected tasks:** A is additive but stable once
 released; DTO fields and method outcomes then require normal compatibility
 discipline. Rolling back the facade does not delete ledger state. B18-05,
-B18-06's shared batch-limit policy, and the public portion of B18-Q wait for
-this gate; the optional CLI is excluded from Batch 18. B18-01—B18-04 and the
-single-record internal executor do not depend on public names.
+B18-06's shared batch-limit policy, and the public portion of B18-Q are governed
+by this approved contract; the optional CLI is excluded from Batch 18.
+B18-01—B18-04 and the single-record internal executor do not depend on public
+names.
 
 <a id="dg-delete-06r5"></a>
 ## DG-DELETE-06R5 — automatic eligibility and single wake-up semantics
 
-**Status:** pending owner decision. Recommendation: A.
+**Status:** approved A by repository owner on 2026-09-21.
 
 **Problem:** the ledger is shared by all Clients on one site, but a future
 request can execute a repair only for Clients freshly initialized in that site
@@ -657,13 +660,13 @@ be activated by I3, and failure rollback releases any reservation.
 `[$storage, 'deleteByObjectID']` at priority 10 with one argument, including its
 direct `remove_action()` escape hatch. Rolling back scheduling unschedules only
 the known future event and retains every ledger row/manual path. B18-03,
-B18-04, B18-06, B18-07 and their automatic QA wait for this gate. I3 alone owns
-production activation and lifecycle wiring.
+B18-04, B18-06, B18-07 and their automatic QA are governed by this approved
+contract. I3 alone owns production activation and lifecycle wiring.
 
 <a id="dg-delete-06r6"></a>
 ## DG-DELETE-06R6 — automatic retry budget accounting
 
-**Status:** pending owner decision. Recommendation: A.
+**Status:** approved A by repository owner on 2026-09-21.
 
 **Problem:** R3 bounds unattended work to an initial synchronous attempt plus
 up to eight automatic retries. The I1 ledger counts every acquired lease in
@@ -717,8 +720,8 @@ overwrite a replacement owner.
 **Compatibility, rollback, and affected tasks:** A requires no I1 schema
 migration. Changing it later to provenance-aware C would require an explicit
 schema/version migration and revised attempt reporting. B18-02, B18-06 and
-their exhaustion/crash QA wait for this gate; clock, lease duration, the eight
-delay values and retention cutoff do not.
+their exhaustion/crash QA are governed by this approved contract; clock, lease
+duration, the eight delay values and retention cutoff do not depend on it.
 
 Rolling A back stops automatic claims but leaves all rows and counters valid
 under I1; no counter is decremented and no unresolved row is deleted. A later
@@ -742,10 +745,10 @@ explicitly.
 
 ## Planned executable implementation slices
 
-The following slice order implements approved R1—R3 plus the recommended R4—R6
-options. The gate-independent first Batch 18 slice is completed; every
-remaining affected slice waits for R4—R6. Changing an approved choice requires
-a new decision and revised plan before affected code starts.
+The following slice order implements approved R1—R6. The first Batch 18 slice
+is completed; B18-02 and B18-03 are decision-ready, while later slices retain
+their recorded code dependencies. Changing an approved choice requires a new
+decision and revised plan before affected code starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
@@ -771,7 +774,8 @@ DoD:
 
 Status: `in_progress`; I1 dependency is complete. Batch 18 starts with the
 completed gate-independent clock/backoff/lease/retention policy. Executor,
-public and scheduler slices retain the R4/R5/R6 dependencies above.
+public and scheduler slices follow the approved R4/R5/R6 contracts and the
+implementation dependencies below.
 
 Batch 18 decomposition baseline:
 `40a36c3a2512234e0d61db564dfb1e833a8ec5d2`.
