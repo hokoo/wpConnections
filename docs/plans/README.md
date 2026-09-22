@@ -6,10 +6,13 @@
 Batch 21 qualification delivered through PR #108 on 2026-09-22. B21-01—B21-10
 завершены: local candidate `062b7fe`, protected head `1e8a4c9` и exact merge
 `a341f9b` зелёные. Команды и точные результаты сохранены в
-[Batch 21 checkpoint](batch21-checkpoint.md). B21-Q и Batch 21 / DB-04-Q
-остаются в `review` до fresh closure QA синхронизированного closeout и его
-committed/merged delivery. REST-04 — следующий ready batch по существующему
-контракту.
+[Batch 21 checkpoint](batch21-checkpoint.md). Closeout PR #109 влит как
+`ba0b546`, прошёл 20/20 post-merge contexts и получил fresh final QA
+`pass_with_notes`; B21-Q, Batch 21, DB-04-I и DB-04-Q completed. REST-04
+находится в `review`: focused `RestPermissionsTest` покрывает восемь callback
+keys / 12 dispatch variants и проходит 40 tests / 286 assertions; fixture
+PHPCS green, production source не изменён. Конфигурация зафиксирована в
+[`rest-permissions-contract.md`](../rest-permissions-contract.md).
 
 ## Порядок исполнения
 
@@ -121,9 +124,11 @@ committed/merged delivery. REST-04 — следующий ready batch по су�
     и pinned MySQL 8.0.46 / MariaDB 10.11.16. PR #108 head `1e8a4c9` прошёл
     20/20 protected checks; exact merge `a341f9b` прошёл 20/20 post-merge
     checks. B21-10 завершён. Pre-merge exact-candidate QA не нашёл open P0—P3
-    или нового decision gate и подтвердил technical readiness. B21-Q и
-    DB-04-Q остаются в `review` до fresh synchronized-closeout QA и closeout
-    delivery. Batch 21 не добавляет public API и не выпускает tag.
+    или нового decision gate и подтвердил technical readiness. Closeout PR
+    #109 / exact merge `ba0b546` также прошёл 20/20 post-merge contexts; fresh
+    final QA вернул `pass_with_notes` без P0—P3, decision gate или exception.
+    B21-Q, Batch 21, DB-04-I и DB-04-Q завершены. Batch 21 не добавляет public
+    API и не выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -148,12 +153,13 @@ map находятся в
 ## Текущий baseline
 
 - Текущий merged functional baseline — Batch 21 / DB-04-Q PR #108, merge
-  `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a`. Local candidate `062b7fe`
-  прошёл полный qualification matrix; protected head `1e8a4c9` и exact merge
-  прошли по 20/20 checks. Terminal Client lifecycle, manager-backed recovery и
-  real-flow/vendor/operational qualification доставлены. Fresh closeout QA и
-  closeout docs delivery остаются review bookkeeping; следующий ready batch —
-  REST-04 по существующему контракту.
+  `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a`, и завершивший его closeout PR
+  #109, merge `ba0b5463654f9c5a6b0b9596e82cb6e652b019ca`. Local candidate
+  `062b7fe`, protected head `1e8a4c9`, оба merge boundary и финальные 20/20
+  contexts зелёные; fresh final QA вернул `pass_with_notes`. Terminal Client
+  lifecycle, manager-backed recovery и real-flow/vendor/operational
+  qualification завершены. REST-04 находится в `review` по существующему
+  контракту.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -262,8 +268,9 @@ map находятся в
   завершены; Batch 18 закрыт PR #102 и exact merge `66f6fd3` с полным 19/19
   protected/post-merge evidence. HOOK-03/DB-04-I3 завершён Batch 19 / PR #104
   с exact merge `7cfe684` и полным 20/20 protected/post-merge evidence;
-  LIFE-HOOK-01 завершён Batch 20 / PR #106; DB-04-Q delivered qualification
-  through Batch 21 / PR #108 and remains in closeout review. REST-03
+  LIFE-HOOK-01 завершён Batch 20 / PR #106; DB-04-I / DB-04-Q и B21-Q
+  завершены через Batch 21 / PR #108 и closeout PR #109 (`ba0b546`) с fresh
+  final QA `pass_with_notes`. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire

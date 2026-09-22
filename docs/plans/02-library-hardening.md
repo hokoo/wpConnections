@@ -70,9 +70,10 @@ HOOK-03/DB-04-I3 завершён как Batch 19. Exact candidate
 open P0—P3 или новых decision gates и прошёл 20/20 protected checks; PR #104
 влит как `7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`, exact merge прошёл 20/20
 post-merge checks. LIFE-HOOK-01 завершён в Batch 20 / PR #106. Batch 21 /
-DB-04-Q delivered its qualification through PR #108 and remains in `review`
-only for fresh closure QA plus synchronized closeout delivery. REST-04 is the
-next ready batch under its existing contract below.
+DB-04-I / DB-04-Q и B21-Q завершены: qualification PR #108 и closeout PR #109
+влиты, exact closeout merge `ba0b546` прошёл 20/20 post-merge checks, а fresh
+final QA вернул `pass_with_notes` без P0—P3, decision gate или exception.
+REST-04 выполняется по существующему контракту ниже.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -1127,8 +1128,8 @@ Decision packets:
 | DP-2 Domain mutation | DG-UPDATE-01/02/02R, DG-SPI-01/02, DG-ENT-01—06 | approved all A, 2026-09-11 | CORE-04; подготавливает TEST-02D/DB-02/REST-02 |
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
-| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D and DB-04-I1—DB-04-I3 completed; DB-04-Q ready |
-| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04/05 ready |
+| DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D, DB-04-I and DB-04-Q completed |
+| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04 in review; REST-05 ready |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
 | DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
 | DP-9 Factory compatibility | DG-SPI-05 | approved A for v1, C next-major target, 2026-09-14 | REL-02/release documentation contract fixed |
@@ -2976,7 +2977,7 @@ tag or release.
 
 ### Batch 21. Qualify deleted-post recovery through the real WordPress flow
 
-Status: review
+Status: completed
 
 Goal: закрыть DB-04-Q не новым runtime contract, а end-to-end
 доказательством уже утверждённого DG-DELETE-06/A: настоящий
@@ -3036,9 +3037,10 @@ changes schema or weakens the fail-closed/consumer-responsibility boundary.
 Execution model: B21-01 froze the missing observable contract before any
 production correction; B21-01—B21-10 are complete. Exact local candidate
 `062b7fe`, protected PR #108 head `1e8a4c9` and merge `a341f9b` are green.
-B21-Q remains in `review` pending fresh closure QA of the synchronized
-closeout and its committed/merged delivery. The
-default review groups
+Closeout PR #109 merged as `ba0b546`, passed 20/20 post-merge contexts and
+received fresh final QA `pass_with_notes` without P0—P3, decision gate or
+exception; B21-Q, Batch 21, DB-04-I and DB-04-Q are completed. The default
+review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
 B21-10/Q (qualification/closeout). B21-03 and B21-06 may proceed independently
@@ -3533,8 +3535,9 @@ passed all 20 post-merge contexts. No requirement was waived.
 The historical QA `fail` was limited to documentary and then-open external
 delivery criteria; it found no P0—P3 technical or operational issue and no new
 decision gate. Fresh pre-merge exact-candidate QA confirmed all pre-merge
-requirements and technical readiness. B21-Q and Batch 21 / DB-04-Q remain in
-`review` pending fresh synchronized-closeout QA and closeout delivery.
+requirements and technical readiness. At that historical boundary B21-Q and
+Batch 21 / DB-04-Q remained in `review`; closeout PR #109 and fresh final QA
+subsequently accepted them as completed on exact merge `ba0b546`.
 
 Goal: produce one exact-candidate evidence set for all DB-04-Q behavior and
 repository quality gates.
@@ -3578,7 +3581,7 @@ database jobs must execute the ledger/claim/concurrency and real-flow suite.
 
 #### B21-Q. Exact-candidate review and DB-04 closeout
 
-Status: review
+Status: completed
 
 Goal: close DB-04 only after independent review, protected delivery and exact
 post-merge reproduction of the approved qualification.
@@ -3617,11 +3620,11 @@ Acceptance Criteria:
 
 Dependencies: B21-01—B21-10.
 
-Notes/Risks: DB-04-Q completion is delivery evidence, not a 2.0 release. HOOK-04
-becomes ready only after this task and its other REL dependencies complete.
-The Batch 21 candidate is already merged and green; this task must not become
-`completed` until fresh closure QA accepts the synchronized status/evidence
-documents and their required committed/merged delivery is recorded.
+Notes/Risks: DB-04-Q completion is delivery evidence, not a 2.0 release.
+Closeout PR #109 merged as exact `ba0b546`, all 20 post-merge contexts passed,
+and fresh final QA returned `pass_with_notes` without P0—P3, hidden decision,
+active exception or waiver. HOOK-04, REL-02 and REL-03 remain release
+dependencies.
 
 ## E1. Test foundation и regression harness
 
@@ -5612,7 +5615,7 @@ Notes/Risks:
 
 ### DB-04-I. Реализовать WordPress `deleted_post` cleanup и repair
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -5740,7 +5743,7 @@ DoD/AC:
 
 #### DB-04-Q. Real-flow, vendor and operational closure
 
-Status: review
+Status: completed
 
 Scope: real `wp_delete_post()`, failure/crash/concurrency, true multisite,
 pinned vendors, operator/uninstall docs, independent QA and protected-delivery
@@ -5761,11 +5764,12 @@ DoD/AC:
 
 Execution: Batch 21 / B21-01—B21-Q is the canonical executable decomposition.
 B21-01—B21-10 are completed through protected PR #108 and exact merge
-`a341f9b`; B21-Q remains in review for fresh synchronized-closeout QA and
-closeout delivery. It qualifies the existing contract without adding a new
-public surface or destructive uninstall behavior. REST-04 is the next ready
-batch under its existing contract; HOOK-04, REL-02 and REL-03 remain release
-dependencies.
+`a341f9b`; closeout PR #109 merged as `ba0b546`, passed 20/20 post-merge
+contexts and received fresh final QA `pass_with_notes`. B21-Q, Batch 21,
+DB-04-I and DB-04-Q are completed. The batch qualifies the existing contract
+without adding a new public surface or destructive uninstall behavior.
+REST-04 is in review under its existing contract; HOOK-04, REL-02 and REL-03
+remain release dependencies.
 
 ### DB-05. Сделать составные storage operations атомарными
 
@@ -6485,7 +6489,7 @@ Notes/Risks:
 
 ### REST-04. Защитить differentiated permissions
 
-Status: todo
+Status: review
 
 Priority: P0
 
@@ -6532,6 +6536,14 @@ Notes/Risks:
 
 - Capability key выводится из callback metadata; это нужно проверить для каждого
   зарегистрированного route variant.
+- `RestPermissionsTest` покрывает все восемь callback keys и 12 method variants
+  через `WP_REST_Server::dispatch()`, включая native 401/403, unknown fallback,
+  persistent-state/handler non-invocation и cross-Client isolation. Focused
+  current-runtime matrix: 40 tests / 286 assertions; fixture PHPCS green.
+- Публичная конфигурация и fail-closed boundary зафиксированы в
+  [`docs/rest-permissions-contract.md`](../rest-permissions-contract.md).
+  Full unit/integration/multisite/isolation/coverage gates и delivery closeout
+  остаются проверкой Batch 22; production source не изменён.
 
 ### REST-05. Покрыть REST meta semantics
 
