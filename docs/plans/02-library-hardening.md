@@ -3519,6 +3519,12 @@ downgrade was executed. B21-10 is unblocked for local qualification.
 
 Status: in_progress
 
+Execution paused by the repository owner on 2026-09-22, after the active
+isolation command completed. Exact candidate `062b7fe` passed full unit,
+integration, true-multisite and reverse/random isolation (seed `20260922`).
+Remaining checks and incomplete independent QA are preserved in
+[the resume checkpoint](batch21-checkpoint.md). No requirement was waived.
+
 Goal: produce one exact-candidate evidence set for all DB-04-Q behavior and
 repository quality gates.
 

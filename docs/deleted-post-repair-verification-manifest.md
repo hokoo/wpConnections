@@ -4,6 +4,9 @@ Status: active DB-04-Q manifest. B21-01—B21-09 are complete; B21-10 is the
 next selected task. The final exact qualification candidate and
 protected CI results remain owned by B21-10/B21-Q.
 
+Execution paused by owner request on 2026-09-22 after the current isolation
+command completed. Resume from [the checkpoint](plans/batch21-checkpoint.md).
+
 ## Evidence identity
 
 - Batch 21 base: `f7e94af0e9b039da90260162db44ea30635fc3ec`
@@ -30,7 +33,8 @@ protected CI results remain owned by B21-10/B21-Q.
   `DeletedPostRepairExecutorTest`.
 - Production delta through B21-09: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
-- Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
+- Frozen local qualification candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`.
+- Final complete qualification/protected candidate: pending B21-10.
 - Final merge and post-merge identity: pending B21-Q.
 
 An `existing` row below is retained evidence only for the observation named in
@@ -263,6 +267,32 @@ was needed. The test models runtime reconstruction; it does not execute a
 version downgrade, OS restart or an unknown consumer plugin's uninstaller.
 Those limits and the consumer's preservation responsibility are explicit in the
 operations runbook. Normal fixture cleanup remains separate from the rehearsal.
+
+## B21-10 partial exact-candidate evidence at pause
+
+Candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`. Commands ran from
+the repository root with PHP 8.1.34, WordPress 7.1-src (requested 7.1.0),
+Ramsey 1.3.0 and embedded MariaDB 11.8.6. All listed Make commands exited 0.
+
+| Command / phase | Result |
+| --- | --- |
+| `make tests.phpunit` | PASS — 141 tests, 518 assertions |
+| `make tests.integration` | PASS — 516 tests, 4733 assertions, 10 multisite-only skips |
+| `make tests.multisite` | PASS — 516 tests, 4831 assertions, no skip |
+| `make tests.isolation ISOLATION_SEED=20260922`: unit reverse/random, repeat 2 | PASS — each phase 282 tests, 1036 assertions |
+| Same isolation command: integration reverse/random, repeat 2 | PASS — each phase 1032 tests, 9466 assertions, 20 skips |
+
+Logs: `/tmp/wpconnections-b21-uQxgT6/`; exact filenames and resume commands are
+in the checkpoint. Full isolation took 261.56 seconds. Repeated WordPress
+`fonts.php:218` null-`post_type` warnings were observed and remain for QA
+attribution; exit 0 is not a warning waiver. After verification only the user's
+untracked `.codex/` and `AGENTS.md` remained, unchanged.
+
+The user paused execution before full source PHPCS, fixed-floor coverage,
+fixed-floor multisite and either pinned-vendor run began. Independent QA was
+also interrupted and has no accepted PASS; its `fail` records incomplete
+evidence/review/delivery. No implementation defect was substantiated in its
+reviewed portion. The remaining matrix rows below intentionally remain open.
 
 ## Traceability matrix
 
