@@ -3,10 +3,10 @@
 The repository owner resumed execution on 2026-09-22 and authorized the
 protected delivery recorded below. B21-01—B21-10 are `completed`: the local
 candidate, protected PR head, exact merge and post-merge checks are all green.
-B21-Q and Batch 21 / DB-04-Q are `review` pending fresh independent closure QA
-of the synchronized closeout documentation and its required committed/merged
-delivery. This checkpoint records qualification evidence; it does not
-pre-empt that final acceptance.
+B21-Q, Batch 21, DB-04-I and DB-04-Q are `completed`: fresh final QA accepted
+exact closeout merge `ba0b546` with `pass_with_notes` after all 20 post-merge
+checks succeeded. The final gate record below supersedes the historical review
+states. REST-04 is the next ready task.
 
 ## Candidate and boundary
 
@@ -82,7 +82,7 @@ working directories, durations, cleanup and the successful explicit Compose
 recipe behind the saved PHPCS confirmation. The manifest maps every R1—R6 and
 `HOOK-CASCADE-01` named test to the relevant passing local lanes.
 
-## Independent QA history and remaining review
+## Independent QA history
 
 The first independent final gate returned `fail`. At that time its failure was
 limited to the missing durable evidence/status record and missing external
@@ -104,9 +104,9 @@ Before merge, fresh independent exact-candidate QA confirmed all pre-merge
 requirements, found no P0—P3 finding or new decision gate, and found the
 candidate technically ready. The earlier overall `fail`, limited to missing
 merge/post-merge evidence and synchronized closeout documentation, is
-superseded by the successful delivery below. Fresh independent closure QA of
-this synchronized closeout remains pending, so B21-Q and DB-04-Q remain in
-`review` rather than `completed`.
+superseded by the successful delivery below. At that point closure QA was
+still pending and B21-Q / DB-04-Q remained in `review`; the final acceptance
+record below completes that gate.
 
 One P4 warning-attribution note remains non-blocking: retained migration tests
 call `deleted_post` with `null`, after which WordPress core
@@ -145,3 +145,22 @@ runs
 No acceptance criterion was waived. HOOK-04, REL-02 and REL-03 remain release
 dependencies, and Batch 21 creates no tag or release. REST-04 is the next ready
 batch under its existing task contract.
+
+## Final acceptance — 2026-09-22
+
+Closeout PR [#109](https://github.com/hokoo/wpConnections/pull/109), head
+`585bb7617f61f246bd204dc5990d21fe1b1b7e29`, merged as
+`ba0b5463654f9c5a6b0b9596e82cb6e652b019ca`. Both revisions passed all 20
+required contexts. Final merge runs:
+[unit](https://github.com/hokoo/wpConnections/actions/runs/35713519924),
+[integration/multisite](https://github.com/hokoo/wpConnections/actions/runs/35713519815),
+[database](https://github.com/hokoo/wpConnections/actions/runs/35713519783),
+[coverage](https://github.com/hokoo/wpConnections/actions/runs/35713519823),
+[styles](https://github.com/hokoo/wpConnections/actions/runs/35713519797).
+
+Fresh independent epic QA returned `pass_with_notes`, verified all AC/DoD,
+and accepted the completed transition for B21-Q / Batch 21 / DB-04-I / DB-04-Q.
+No P0—P3 finding, hidden decision, active exception or risk waiver remains.
+P4 notes cover retained null-fixture warnings and tooling deprecations; the
+documented consumer/exactly-once and release exclusions remain unchanged.
+This root-authored bookkeeping records the actual gate; REST-04 may proceed.
