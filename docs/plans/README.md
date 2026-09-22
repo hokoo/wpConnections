@@ -95,11 +95,12 @@
     constructor rollback, REST/repair reentrancy guards, token/ABA ownership
     protection, retention release и multisite isolation поставлены. Batch 20
     не создавал tag/release.
-15. DB-04-Q разложен на Batch 21: real `wp_delete_post()` cascade,
+15. DB-04-Q разложен и начат как Batch 21: real `wp_delete_post()` cascade,
     recovery/crash windows, true-multisite и custom-adapter qualification,
     operator/rollback/uninstall runbook, pinned vendors и exact delivery
-    evidence. Новых decision gates на входе нет; Batch 21 не
-    добавляет public API и не выпускает tag.
+    evidence. B21-01 — единственная entry-ready задача; новых decision
+    gates на входе нет. Batch 21 не добавляет public API и не выпускает
+    tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

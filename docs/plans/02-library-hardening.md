@@ -2975,7 +2975,7 @@ tag or release.
 
 ### Batch 21. Qualify deleted-post recovery through the real WordPress flow
 
-Status: todo
+Status: in_progress
 
 Goal: закрыть DB-04-Q не новым runtime contract, а end-to-end
 доказательством уже утверждённого DG-DELETE-06/A: настоящий
@@ -3044,7 +3044,7 @@ persistence choice pauses only the affected group at a new DG.
 
 #### B21-01. Freeze the real `wp_delete_post()` qualification contract
 
-Status: todo
+Status: in_progress
 
 Goal: create one isolated test contour and traceability map for every remaining
 DB-04-Q observation before changing production code.
@@ -5640,7 +5640,7 @@ DoD/AC:
 
 #### DB-04-Q. Real-flow, vendor and operational closure
 
-Status: todo
+Status: in_progress
 
 Scope: real `wp_delete_post()`, failure/crash/concurrency, true multisite,
 pinned vendors, operator/uninstall docs, independent QA and protected-delivery
