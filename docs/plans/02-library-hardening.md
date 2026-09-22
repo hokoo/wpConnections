@@ -69,9 +69,10 @@ HOOK-03/DB-04-I3 завершён как Batch 19. Exact candidate
 `ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` получил три independent PASS без
 open P0—P3 или новых decision gates и прошёл 20/20 protected checks; PR #104
 влит как `7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`, exact merge прошёл 20/20
-post-merge checks. LIFE-HOOK-01 завершён в Batch 20 / PR #106;
-DB-04-Q разложен на исполняемый Batch 21 и следует после
-документационного closeout.
+post-merge checks. LIFE-HOOK-01 завершён в Batch 20 / PR #106. Batch 21 /
+DB-04-Q delivered its qualification through PR #108 and remains in `review`
+only for fresh closure QA plus synchronized closeout delivery. REST-04 is the
+next ready batch under its existing contract below.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -2975,7 +2976,7 @@ tag or release.
 
 ### Batch 21. Qualify deleted-post recovery through the real WordPress flow
 
-Status: in_progress
+Status: review
 
 Goal: закрыть DB-04-Q не новым runtime contract, а end-to-end
 доказательством уже утверждённого DG-DELETE-06/A: настоящий
@@ -3033,9 +3034,10 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01—B21-09 are complete. B21-10 completed its local
-technical matrix and is in `review` pending protected delivery; B21-Q remains
-`waiting_dependency` until its explicit DoR is true. The
+production correction; B21-01—B21-10 are complete. Exact local candidate
+`062b7fe`, protected PR #108 head `1e8a4c9` and merge `a341f9b` are green.
+B21-Q remains in `review` pending fresh closure QA of the synchronized
+closeout and its committed/merged delivery. The
 default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
@@ -3513,25 +3515,26 @@ source audit and rollback/uninstall runbook. Operational plus retained ledger
 purge tests pass `6 / 154`; true-multisite operational tests pass `3 / 84`,
 and seeded random repeat passes `6 / 168` (seed `20260922`). Focused PHPCS
 passes. No source behavior changed; no consumer uninstaller or actual package
-downgrade was executed. B21-10 is unblocked for local qualification.
+downgrade was executed. This evidence unblocked B21-10, which subsequently
+completed protected delivery.
 
 #### B21-10. Prove the vendor and infrastructure matrix
 
-Status: review
+Status: completed
 
 The repository owner resumed execution on 2026-09-22. The historical pause is
-preserved in [the resumed checkpoint](batch21-checkpoint.md), but is no longer
-an instruction to stop. Exact source/test candidate `062b7fe` passed the full
-local unit, integration, true-multisite, reverse/random isolation (seed
-`20260922`), PHPCS, fixed-floor coverage/multisite and pinned MySQL 8.0.46 /
-MariaDB 10.11.16 matrix. Protected PR evidence remains missing, so the task is
-not complete and no requirement is waived.
+preserved in [the delivered checkpoint](batch21-checkpoint.md). Exact
+source/test candidate `062b7fe` passed the full local unit, integration,
+true-multisite, reverse/random isolation (seed `20260922`), PHPCS, fixed-floor
+coverage/multisite and pinned MySQL 8.0.46 / MariaDB 10.11.16 matrix. PR #108
+head `1e8a4c9` then passed all 20 protected contexts, and exact merge `a341f9b`
+passed all 20 post-merge contexts. No requirement was waived.
 
-Independent QA returned `fail` for the previously missing durable evidence and
-the still-open external protection/CI/merge/post-merge criteria. It found no
-P0—P3 technical or operational issue and no new decision gate. The evidence
-remediation does not count as fresh QA or epic acceptance. B21-Q remains
-`waiting_dependency`; Batch 21 / DB-04-Q remains `in_progress`.
+The historical QA `fail` was limited to documentary and then-open external
+delivery criteria; it found no P0—P3 technical or operational issue and no new
+decision gate. Fresh pre-merge exact-candidate QA confirmed all pre-merge
+requirements and technical readiness. B21-Q and Batch 21 / DB-04-Q remain in
+`review` pending fresh synchronized-closeout QA and closeout delivery.
 
 Goal: produce one exact-candidate evidence set for all DB-04-Q behavior and
 repository quality gates.
@@ -3575,7 +3578,7 @@ database jobs must execute the ledger/claim/concurrency and real-flow suite.
 
 #### B21-Q. Exact-candidate review and DB-04 closeout
 
-Status: waiting_dependency
+Status: review
 
 Goal: close DB-04 only after independent review, protected delivery and exact
 post-merge reproduction of the approved qualification.
@@ -3606,8 +3609,9 @@ Acceptance Criteria:
 - protected PR head and exact merge each pass the complete required matrix;
 - independent reviewers verify the completed traceability manifest against the
   exact candidate rather than accepting summary counts alone;
-- DB-04-Q becomes `completed` only after merge and post-merge evidence is
-  recorded in the roadmap, repair contract, quality map and runbook;
+- DB-04-Q becomes `completed` only after merge/post-merge evidence, fresh
+  closure QA and committed/merged synchronized closeout status are recorded in
+  the roadmap, repair contract, quality map and runbook;
 - HOOK-04, REL-02 and REL-03 remain explicit release dependencies; Batch 21
   creates no tag or release.
 
@@ -3615,6 +3619,9 @@ Dependencies: B21-01—B21-10.
 
 Notes/Risks: DB-04-Q completion is delivery evidence, not a 2.0 release. HOOK-04
 becomes ready only after this task and its other REL dependencies complete.
+The Batch 21 candidate is already merged and green; this task must not become
+`completed` until fresh closure QA accepts the synchronized status/evidence
+documents and their required committed/merged delivery is recorded.
 
 ## E1. Test foundation и regression harness
 
@@ -5605,7 +5612,7 @@ Notes/Risks:
 
 ### DB-04-I. Реализовать WordPress `deleted_post` cleanup и repair
 
-Status: in_progress
+Status: review
 
 Priority: P0
 
@@ -5733,7 +5740,7 @@ DoD/AC:
 
 #### DB-04-Q. Real-flow, vendor and operational closure
 
-Status: in_progress
+Status: review
 
 Scope: real `wp_delete_post()`, failure/crash/concurrency, true multisite,
 pinned vendors, operator/uninstall docs, independent QA and protected-delivery
@@ -5753,8 +5760,12 @@ DoD/AC:
 - Exact candidate, protected merge и post-merge evidence записаны.
 
 Execution: Batch 21 / B21-01—B21-Q is the canonical executable decomposition.
-It qualifies the existing contract without adding a new public surface or
-destructive uninstall behavior.
+B21-01—B21-10 are completed through protected PR #108 and exact merge
+`a341f9b`; B21-Q remains in review for fresh synchronized-closeout QA and
+closeout delivery. It qualifies the existing contract without adding a new
+public surface or destructive uninstall behavior. REST-04 is the next ready
+batch under its existing contract; HOOK-04, REL-02 and REL-03 remain release
+dependencies.
 
 ### DB-05. Сделать составные storage operations атомарными
 

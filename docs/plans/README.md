@@ -3,12 +3,13 @@
 Этот каталог фиксирует исполняемый план, подготовленный после аудита репозитория,
 тестов, GitHub issues и текущей CI-ветки 2026-09-09.
 
-Владелец возобновил работу 2026-09-22. B21-01—B21-09 завершены; B21-10
-переведён в `review`: exact candidate `062b7fe` прошёл полный локальный
-technical matrix, но protected delivery отсутствует. История паузы, команды и
-точные результаты сохранены в
-[Batch 21 checkpoint](batch21-checkpoint.md). B21-Q остаётся
-`waiting_dependency`, а Batch 21 / DB-04-Q — `in_progress`.
+Batch 21 qualification delivered through PR #108 on 2026-09-22. B21-01—B21-10
+завершены: local candidate `062b7fe`, protected head `1e8a4c9` и exact merge
+`a341f9b` зелёные. Команды и точные результаты сохранены в
+[Batch 21 checkpoint](batch21-checkpoint.md). B21-Q и Batch 21 / DB-04-Q
+остаются в `review` до fresh closure QA синхронизированного closeout и его
+committed/merged delivery. REST-04 — следующий ready batch по существующему
+контракту.
 
 ## Порядок исполнения
 
@@ -117,11 +118,12 @@ technical matrix, но protected delivery отсутствует. История
     runbook; operational/retention `6 / 154`, multisite `3 / 84`, repeat `6 / 168`.
     Exact candidate `062b7fe` прошёл полный локальный B21-10 matrix: current
     unit/integration/multisite/isolation, PHPCS, fixed-floor coverage/multisite
-    и pinned MySQL 8.0.46 / MariaDB 10.11.16. B21-10 остаётся в `review` до
-    protected PR; independent QA gate остаётся `fail` из-за documentary и
-    external-delivery gaps, при этом P0—P3 technical findings не обнаружены.
-    Новых product decision gates нет. Batch 21 не добавляет public API и не
-    выпускает tag.
+    и pinned MySQL 8.0.46 / MariaDB 10.11.16. PR #108 head `1e8a4c9` прошёл
+    20/20 protected checks; exact merge `a341f9b` прошёл 20/20 post-merge
+    checks. B21-10 завершён. Pre-merge exact-candidate QA не нашёл open P0—P3
+    или нового decision gate и подтвердил technical readiness. B21-Q и
+    DB-04-Q остаются в `review` до fresh synchronized-closeout QA и closeout
+    delivery. Batch 21 не добавляет public API и не выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -145,16 +147,13 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий functional baseline — Batch 20 / LIFE-HOOK-01 PR #106, merge
-  `a3491c018b96b54dc03e55a850153ddc0e6db413`. Exact candidate
-  `05284155d803eb02c5c89e2052928f9d60807734` получил три independent PASS без
-  open P0—P3 или новых decision gates; candidate и exact merge прошли по 20/20
-  protected/post-merge jobs. Локально: unit `141 / 518`, integration
-  `488 / 4271` с восемью expected skips, true multisite `488 / 4314`, pinned
-  MySQL 8.0.46 и MariaDB 10.11.16 по `488 / 4271` с восемью expected skips,
-  PHPCS `100/100`, fixed-floor coverage `3825/4172 (91.68%)`. Terminal Client
-  lifecycle и manager-backed recovery активны. Следующий исполняемый
-  batch — Batch 21 / DB-04-Q real-flow/vendor/operational qualification.
+- Текущий merged functional baseline — Batch 21 / DB-04-Q PR #108, merge
+  `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a`. Local candidate `062b7fe`
+  прошёл полный qualification matrix; protected head `1e8a4c9` и exact merge
+  прошли по 20/20 checks. Terminal Client lifecycle, manager-backed recovery и
+  real-flow/vendor/operational qualification доставлены. Fresh closeout QA и
+  closeout docs delivery остаются review bookkeeping; следующий ready batch —
+  REST-04 по существующему контракту.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -263,8 +262,8 @@ map находятся в
   завершены; Batch 18 закрыт PR #102 и exact merge `66f6fd3` с полным 19/19
   protected/post-merge evidence. HOOK-03/DB-04-I3 завершён Batch 19 / PR #104
   с exact merge `7cfe684` и полным 20/20 protected/post-merge evidence;
-  LIFE-HOOK-01 завершён Batch 20 / PR #106, а DB-04-Q поставлен
-  следующим Batch 21. REST-03
+  LIFE-HOOK-01 завершён Batch 20 / PR #106; DB-04-Q delivered qualification
+  through Batch 21 / PR #108 and remains in closeout review. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire

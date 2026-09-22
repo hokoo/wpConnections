@@ -14,8 +14,10 @@ independent closure PASS results with no open P0—P3 findings and passed 19/19
 protected jobs. PR #102 merged as
 `66f6fd3413d316081f431ff7bcc5d8ae6beefc9c`; the exact merge passed all 19
 post-merge jobs. DB-04-I3 subsequently completed in Batch 19 / PR #104, and
-the terminal Client lifecycle completed in Batch 20 / PR #106. DB-04-Q is now
-the executable Batch 21 qualification.
+the terminal Client lifecycle completed in Batch 20 / PR #106. Batch 21 /
+DB-04-Q delivered its qualification in PR #108: exact head `1e8a4c9` and merge
+`a341f9b` each passed 20/20 checks. DB-04-Q remains in `review` for fresh
+synchronized-closeout QA and closeout documentation delivery.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -55,8 +57,9 @@ This document converts that policy into three explicit choices:
 
 All three original choices and all three Batch 18 refinements were explicitly
 approved. `DB-04-I1`—`DB-04-I3` and LIFE-HOOK-01 are complete. Their component
-and lifecycle evidence does not by itself mark DB-04-Q or the 2.0 release
-complete; Batch 21 supplies the missing real-flow and operational proof.
+and lifecycle evidence did not by itself mark DB-04-Q or the 2.0 release
+complete; Batch 21 supplied the missing real-flow and operational proof. The
+fresh closeout review still does not authorize a 2.0 release.
 
 ## Current runtime and compatibility boundary
 
@@ -757,9 +760,9 @@ explicitly.
 
 The following slice order implements approved R1—R6. B18-01 through B18-07 and
 B18-Q are completed; B18-08 remains deferred. HOOK-03 / DB-04-I3 and
-LIFE-HOOK-01 are complete. DB-04-Q is decomposed as Batch 21. Changing an
-approved choice requires a new decision and revised plan before affected code
-starts.
+LIFE-HOOK-01 are complete. DB-04-Q was delivered as Batch 21 / PR #108 and
+remains in closeout review. Changing an approved choice requires a new decision
+and revised plan before affected code starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
@@ -829,9 +832,11 @@ DoD:
 
 ### DB-04-Q — real-flow, vendor, and operational closure
 
-Status: `in_progress` as Batch 21; B21-01—B21-09 are complete and B21-10 is
-the next selected task. I1—I3, LIFE-HOOK-01 and all approved gates are
-complete. No open decision gate exists at entry.
+Status: `review` as Batch 21; B21-01—B21-10 are complete. Exact local candidate
+`062b7fe`, protected PR #108 head `1e8a4c9` and merge `a341f9b` are green.
+B21-Q remains pending fresh synchronized-closeout QA and closeout documentation
+delivery. I1—I3, LIFE-HOOK-01 and all approved gates are complete; no open
+P0—P3 finding, decision gate or active critical exception remains.
 
 Scope: end-to-end `wp_delete_post()` behavior, failure/crash/concurrency matrix,
 true multisite lane, pinned vendors, docs, runbook, and independent QA.
@@ -900,7 +905,7 @@ evidence.
 | Adapter conformance | `DeletedPostRepairHookMigrationTest` real custom-atomic success/pre-commit/commit-uncertainty/missing-client/non-atomic scenarios plus `DeletedPostRepairLedgerTest::test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml` | B21-07 completed at `89dbbe7`; real deletion, seeded connection/meta state, no-match convergence and fail-closed adapter outcomes are exact in the active manifest |
 | Operator/degraded cron | scheduler and service component tests plus `DeletedPostRepairOperationalTest` | B21-08 completed at `65c53e8`; per-site inventory/retry/disabled-cron evidence and canonical operations runbook are in the active manifest |
 | Rollback/uninstall | `DeletedPostRepairOperationalTest::test_unresolved_work_survives_client_disposal_and_runtime_reconstruction`, retained ledger purge tests and source audit | B21-09 completed at `85dfa8d`; library persistence boundary verified, unknown consumer uninstall remains HOOK-04 responsibility |
-| Vendor/infrastructure | existing true-multisite and pinned MySQL/MariaDB workflows | completed manifest on one exact candidate, all required lanes and critical-scenario mapping → B21-10/Q |
+| Vendor/infrastructure | existing true-multisite and pinned MySQL/MariaDB workflows | B21-10 completed: local candidate `062b7fe`, protected PR head `1e8a4c9` and merge `a341f9b` are green; B21-Q closeout review remains |
 
 ## Required verification matrix
 

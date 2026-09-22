@@ -1,11 +1,12 @@
-# Batch 21: resumed qualification checkpoint — 2026-09-22
+# Batch 21: delivered qualification checkpoint — 2026-09-22
 
-The repository owner resumed execution on 2026-09-22. The earlier safe pause
-remains part of the history, but it is no longer an instruction to stop work.
-B21-01—B21-09 are `completed`; B21-10 is `review` because its exact-candidate
-local technical matrix is complete while protected delivery is still missing.
-B21-Q remains `waiting_dependency`, and Batch 21 / DB-04-Q remains
-`in_progress`. This checkpoint is qualification evidence, not epic acceptance.
+The repository owner resumed execution on 2026-09-22 and authorized the
+protected delivery recorded below. B21-01—B21-10 are `completed`: the local
+candidate, protected PR head, exact merge and post-merge checks are all green.
+B21-Q and Batch 21 / DB-04-Q are `review` pending fresh independent closure QA
+of the synchronized closeout documentation and its required committed/merged
+delivery. This checkpoint records qualification evidence; it does not
+pre-empt that final acceptance.
 
 ## Candidate and boundary
 
@@ -14,6 +15,11 @@ Branch: `batch21-deleted-post-qualification`.
 - Batch base: `f7e94af0e9b039da90260162db44ea30635fc3ec`.
 - Frozen source/test candidate:
   `062b7fefb3e4cec6261b3a9b101958f47219f2b1`.
+- Protected PR #108 head:
+  `1e8a4c9dce91aa805fb2f26733d81c47044ec1f2`.
+- Exact protected merge:
+  `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a` at
+  `2026-09-22T09:33:19Z`.
 - Historical pause-only documentation commit: `a45d68219fdc75d9695a5de5d7a1d45f889e8f6f`.
 
 All technical results below belong to the tracked content of `062b7fe`. They
@@ -76,23 +82,31 @@ working directories, durations, cleanup and the successful explicit Compose
 recipe behind the saved PHPCS confirmation. The manifest maps every R1—R6 and
 `HOOK-CASCADE-01` named test to the relevant passing local lanes.
 
-## Independent QA result
+## Independent QA history and remaining review
 
-The independent final gate is `fail`. Its failure is limited to the missing
-durable evidence/status record being repaired here and the still-missing
-external protected CI, protection, merge and post-merge criteria. Review of the
-changed source/test mapping and operations runbook found no P0—P3 technical or
-operational finding and no new decision gate. This remediation closes the
-documentary gap only; it is not a fresh QA run and does not turn the epic gate
-into PASS.
+The first independent final gate returned `fail`. At that time its failure was
+limited to the missing durable evidence/status record and missing external
+protected CI, protection, merge and post-merge criteria. Review of the changed
+source/test mapping and operations runbook found no P0—P3 technical or
+operational finding and no new decision gate. That remediation closed the
+documentary gap only; it was not a fresh QA run or epic acceptance.
 
 Fresh independent QA then reviewed documentation commit
 `a03d59818eee2abe6b1da25d24511001627241fd` and confirmed that the durable
 evidence gap is closed: exact-candidate attribution, saved results, named
 R1–R6/`HOOK-CASCADE-01` mappings and task statuses are accurate. Its overall
-gate remains `fail` solely for the external delivery criteria below. No local
-technical rerun or repair is indicated. This later root-authored checkpoint
-records that gate only; it does not change the reviewed implementation.
+gate remained `fail` at that point solely for the external delivery criteria.
+No local technical rerun or repair was indicated. This later root-authored
+checkpoint records that historical gate; it does not change the reviewed
+implementation.
+
+Before merge, fresh independent exact-candidate QA confirmed all pre-merge
+requirements, found no P0—P3 finding or new decision gate, and found the
+candidate technically ready. The earlier overall `fail`, limited to missing
+merge/post-merge evidence and synchronized closeout documentation, is
+superseded by the successful delivery below. Fresh independent closure QA of
+this synchronized closeout remains pending, so B21-Q and DB-04-Q remain in
+`review` rather than `completed`.
 
 One P4 warning-attribution note remains non-blocking: retained migration tests
 call `deleted_post` with `null`, after which WordPress core
@@ -100,20 +114,34 @@ call `deleted_post` with `null`, after which WordPress core
 and the candidate 24, so Batch 21 did not add the pattern; all new real flows
 supply a `WP_Post`. No risk waiver was requested, recommended or accepted.
 
-## External delivery remains open
+## Protected delivery completed
 
-Read-only preflight on 2026-09-22 found no PR for the branch. `master` remained
-protected and exactly at Batch 21 base
-`f7e94af0e9b039da90260162db44ea30635fc3ec`, so there was no remote base drift.
-Protection had 19 strict required contexts; the existing dedicated multisite
-job was absent, and no additional branch rules supplied it. No push, PR,
-protection mutation, merge, release or other remote write was performed.
+Historical preflight on 2026-09-22 found no PR, `master` at Batch 21 base
+`f7e94af0e9b039da90260162db44ea30635fc3ec`, and 19 strict required contexts
+without the existing dedicated multisite job. That preflight was subsequently
+resolved under the repository owner's continuing delivery authority.
 
-On 2026-09-22 the repository owner authorized push, PR creation, adding the
-dedicated multisite protection context, and merge after successful CI and
-candidate review, with continuing authority for these delivery actions in this
-project. Repeated permission requests for these actions are unnecessary.
-Execution continues through all 20 protected checks, independent candidate QA,
-merge, and all 20 post-merge results on the exact merge SHA. No acceptance
-criterion was waived. HOOK-04, REL-02 and REL-03 remain release dependencies,
-and Batch 21 creates no tag or release.
+PR [#108](https://github.com/hokoo/wpConnections/pull/108) used exact head
+`1e8a4c9dce91aa805fb2f26733d81c47044ec1f2` and passed all 20 required
+contexts across runs
+[unit](https://github.com/hokoo/wpConnections/actions/runs/35710174099),
+[integration/multisite](https://github.com/hokoo/wpConnections/actions/runs/35710174082),
+[database](https://github.com/hokoo/wpConnections/actions/runs/35710174039),
+[coverage](https://github.com/hokoo/wpConnections/actions/runs/35710174129) and
+[styles](https://github.com/hokoo/wpConnections/actions/runs/35710174076).
+Branch protection required those 20 contexts with `strict: true`, GitHub
+Actions app id `15368`, admin enforcement enabled, and force pushes and
+deletions disabled.
+
+PR #108 merged at `2026-09-22T09:33:19Z` as exact merge
+`a341f9b89427e64c66dd4ab03d8d3f664e18fd2a`. All 20 post-merge contexts
+completed successfully, with no failed, skipped, cancelled or stale result, in
+runs
+[unit](https://github.com/hokoo/wpConnections/actions/runs/35711052082),
+[integration/multisite](https://github.com/hokoo/wpConnections/actions/runs/35711052219),
+[database](https://github.com/hokoo/wpConnections/actions/runs/35711052099),
+[coverage](https://github.com/hokoo/wpConnections/actions/runs/35711052256) and
+[styles](https://github.com/hokoo/wpConnections/actions/runs/35711052168).
+No acceptance criterion was waived. HOOK-04, REL-02 and REL-03 remain release
+dependencies, and Batch 21 creates no tag or release. REST-04 is the next ready
+batch under its existing task contract.

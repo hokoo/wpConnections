@@ -1,8 +1,10 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01—B21-09 are complete; B21-10 is in
-`review` after completing the exact-candidate local technical matrix. Protected
-CI and delivery remain owned by B21-10/B21-Q. B21-Q is `waiting_dependency`.
+Status: delivered DB-04-Q qualification manifest. B21-01—B21-10 are complete;
+the local candidate, protected PR head, exact merge and post-merge checks are
+green. B21-Q and DB-04-Q remain in `review` pending fresh independent closure
+QA of the synchronized closeout documentation and its committed/merged
+delivery.
 
 The owner resumed execution on 2026-09-22. The historical pause and the exact
 resumed evidence are preserved in [the checkpoint](plans/batch21-checkpoint.md).
@@ -35,8 +37,11 @@ resumed evidence are preserved in [the checkpoint](plans/batch21-checkpoint.md).
   characterization because the approved behavior was already correct.
 - Frozen local qualification candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`.
 - Complete local technical candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`.
-- Final protected PR candidate: pending B21-10 external delivery.
-- Final merge and post-merge identity: pending B21-Q.
+- Protected PR #108 head:
+  `1e8a4c9dce91aa805fb2f26733d81c47044ec1f2`.
+- Exact protected merge:
+  `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a` at
+  `2026-09-22T09:33:19Z`.
 
 An `existing` row below is retained evidence only for the observation named in
 that row. A `planned` row is not accepted evidence; it names the task and test
@@ -304,6 +309,13 @@ and does not establish epic acceptance. The retained WordPress
 `fonts.php:218` null-`post_type` and PHPCS ruleset deprecation warnings remain
 non-blocking P4 attribution notes; no waiver was requested or accepted.
 
+That historical gate was followed by exact-candidate QA which confirmed all
+pre-merge requirements, found no P0—P3 finding or new decision gate, and found
+the candidate technically ready. PR #108 and its exact merge now satisfy the
+external delivery criteria below. Fresh independent closure QA of this
+synchronized closeout is still pending; B21-Q and DB-04-Q therefore remain in
+`review`.
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -366,17 +378,18 @@ non-blocking P4 attribution notes; no waiver was requested or accepted.
 | Per-site list, single retry, due batch, exhaustion and stored-event reconciliation are executable | `DeletedPostRepairOperationalTest::test_due_batch_and_direct_runner_expose_exhaustion_for_manual_attention`, `test_disabled_cron_keeps_real_failure_inspectable_and_manually_retryable`; retained `DeletedPostRepairServiceTest` and scheduler/reconciler tests; `docs/deleted-post-repair-operations.md` | WP integration and runbook | verified in B21-08 (`65c53e8`); requalified by exact `062b7fe` full local lanes |
 | Unresolved work survives Client disposal/runtime reconstruction | `DeletedPostRepairOperationalTest::test_unresolved_work_survives_client_disposal_and_runtime_reconstruction` | single-site and true-multisite WP | verified in B21-09 (`85dfa8d`) |
 | Rollback/consumer uninstall preserves repair table, ownership option and unresolved rows | named preservation test; retained ledger `test_purge_*` tests; operations rehearsal and source audit in `docs/deleted-post-repair-operations.md` | WP integration and source audit | verified library boundary in B21-09 (`85dfa8d`); unknown consumer uninstall remains HOOK-04 responsibility |
-| Complete real-flow and ledger/claim/concurrency suite passes MySQL 8.0.46 and MariaDB 10.11.16 | exact digest-pinned commands and logs in the checkpoint | local pinned-vendor qualification; protected CI separately required | PASS locally on `062b7fe`; protected PR results missing — B21-10 |
-| Dedicated `WP_MULTISITE=1` run executes without relevant skips | current `make tests.multisite` and fixed-floor `test:multisite` command above | local dedicated multisite; protected CI separately required | PASS locally on `062b7fe`, both 516/4831 with no skip; required protected context missing — B21-10 |
-| Full regression, PHPCS, fixed-floor coverage and reverse/random isolation agree on one SHA | exact commands and logs above | local exact-candidate matrix; protected CI separately required | PASS locally on `062b7fe`; all 20 protected PR contexts missing — B21-10 |
-| Independent correctness, security/data-integrity and operational reviews validate this completed manifest | independent QA gate record | independent review | FAIL for documentary and external-delivery gaps; no P0—P3 technical finding; fresh final QA required — B21-Q |
+| Complete real-flow and ledger/claim/concurrency suite passes MySQL 8.0.46 and MariaDB 10.11.16 | exact digest-pinned commands and logs in the checkpoint | local and protected pinned-vendor qualification | PASS locally on `062b7fe`, protected PR head `1e8a4c9` and merge `a341f9b` — B21-10 completed |
+| Dedicated `WP_MULTISITE=1` run executes without relevant skips | current `make tests.multisite` and fixed-floor `test:multisite` command above | local dedicated multisite and protected CI | PASS locally on `062b7fe`, both 516/4831 with no skip; dedicated protected context passed on PR head and merge — B21-10 completed |
+| Full regression, PHPCS, fixed-floor coverage and reverse/random isolation agree on one SHA | exact commands and logs above | local exact-candidate matrix and protected delivery | PASS locally on `062b7fe`; all 20 protected contexts passed on PR head `1e8a4c9` and merge `a341f9b` — B21-10 completed |
+| Independent correctness, security/data-integrity and operational reviews validate this completed manifest | independent QA gate record | independent review | pre-merge exact-candidate QA found no P0—P3 or decision gate and found the candidate technically ready; fresh synchronized-closeout QA pending — B21-Q review |
 
 ## Explicit R1–R6 contract mapping
 
 Every row below was requalified by the named full local lanes on frozen
 candidate `062b7fe`; the earlier task evidence above remains attributed to its
-original revision. Protected CI must reproduce these successes and remains
-separate from this local result.
+original revision. Protected CI reproduced the required matrix on PR head
+`1e8a4c9` and exact merge `a341f9b`; those results remain separate from the
+local result.
 
 | Approved gate / quality ID | Exact retained/new tests | Relevant passing local lanes on `062b7fe` |
 | --- | --- | --- |
@@ -388,24 +401,32 @@ separate from this local result.
 | R6: claim budget | `DeletedPostRepairLedgerTest::test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth`, `test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state`; operational direct-runner exhaustion scenario above | current and fixed-floor true multisite; MySQL 8.0.46 and MariaDB 10.11.16 integration |
 | `HOOK-CASCADE-01`: real delete cascade and isolation | `DeletedPostRecoveryRealFlowTest::test_permanent_delete_fixture_observes_data_hooks_and_repair_state`, `test_permanent_delete_cascades_all_endpoint_shapes_and_preserves_unrelated_rows`, `test_permanent_delete_isolates_multiple_clients_and_their_success_hooks`, `test_permanent_attachment_delete_uses_the_same_cascade_contract` | current/fixed-floor integration and true multisite; both pinned vendors; reverse/random isolation seed `20260922` |
 
-## B21-10 delivery preflight
+## B21-10 protected delivery
 
-Read-only GitHub inspection on 2026-09-22 found no PR for
-`batch21-deleted-post-qualification`. `gh api
-repos/hokoo/wpConnections/branches/master/protection/required_status_checks`
-reported strict checks with 19 contexts; the dedicated multisite job was absent.
-`gh api repos/hokoo/wpConnections/rules/branches/master` returned no additional
-rules. Protected `master` remained exactly at Batch 21 base `f7e94af`, so no
-remote base drift was present. The workflow already defines 20 jobs and the
-Batch 19/20 contract requires the multisite lane. The CI runbook includes that
-existing job. No push, PR, protection mutation, merge, release or other remote
-write was performed.
+Historical read-only preflight on 2026-09-22 found no PR, protected `master`
+at Batch 21 base `f7e94af`, and 19 strict contexts without the already-defined
+dedicated multisite job. Under the repository owner's continuing delivery
+authority, that missing context was added and the full protected delivery was
+completed without a waiver.
 
-The repository owner must authorize the remaining remote actions: push/open
-the PR, add the dedicated multisite required context, obtain all 20 protected
-results, run fresh independent final QA on that exact head, merge, and record
-all 20 post-merge results on the exact merge SHA. No waiver is active.
-Protected delivery remains separate from the successful local qualification.
+PR [#108](https://github.com/hokoo/wpConnections/pull/108) had exact head
+`1e8a4c9dce91aa805fb2f26733d81c47044ec1f2`. Each of the following 20 unique
+required contexts completed successfully from GitHub Actions app id `15368`;
+none failed, skipped, cancelled or became stale. The same 20 contexts completed
+successfully on exact merge `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a`.
+
+| Required contexts | PR run | Post-merge run |
+| --- | --- | --- |
+| `php-cs` | [35710174076](https://github.com/hokoo/wpConnections/actions/runs/35710174076) | [35711052168](https://github.com/hokoo/wpConnections/actions/runs/35711052168) |
+| `Coverage PHP 8.1.34 / WordPress 6.7.7` | [35710174129](https://github.com/hokoo/wpConnections/actions/runs/35710174129) | [35711052256](https://github.com/hokoo/wpConnections/actions/runs/35711052256) |
+| `MySQL 8.0.46`; `MariaDB 10.11.16` | [35710174039](https://github.com/hokoo/wpConnections/actions/runs/35710174039) | [35711052099](https://github.com/hokoo/wpConnections/actions/runs/35711052099) |
+| `WP Integration PHP 8.1.34 / WP 6.7.7 / Ramsey 1.3.0`; `WP Integration PHP 8.2.33 / WP 7.1.0 / Ramsey 1.3.0`; `WP Integration PHP 8.3.33 / WP 7.1.0 / Ramsey 2.1.1`; `WP Integration PHP 8.4.25 / WP 6.7.7 / Ramsey 2.1.1`; `WP Integration PHP 8.5.10 / WP 7.1.0 / Ramsey 2.1.1`; `WP Multisite PHP 8.1.34 / WP 6.7.7 / Ramsey 1.3.0` | [35710174082](https://github.com/hokoo/wpConnections/actions/runs/35710174082) | [35711052219](https://github.com/hokoo/wpConnections/actions/runs/35711052219) |
+| Unit Tests PHP `8.1.34`, `8.2.33`, `8.3.33`, `8.4.25`, and `8.5.10`, each with Ramsey `1.3.0` and `2.1.1` | [35710174099](https://github.com/hokoo/wpConnections/actions/runs/35710174099) | [35711052082](https://github.com/hokoo/wpConnections/actions/runs/35711052082) |
+
+Branch protection records all 20 contexts with `strict: true` and app id
+`15368`; admin enforcement is enabled, while force pushes and deletions are
+disabled. PR #108 merged at `2026-09-22T09:33:19Z`. Fresh closure QA and the
+synchronized closeout documentation delivery remain B21-Q review work.
 
 ## Qualification rules
 
@@ -419,5 +440,6 @@ Protected delivery remains separate from the successful local qualification.
   the runner directly.
 - A multisite skip, a single-vendor pass or aggregate coverage cannot replace
   the named acceptance evidence.
-- This manifest closes only with the exact B21-10 candidate and B21-Q merge
-  evidence. It does not authorize a 2.0 tag or release.
+- This qualification closes only after fresh B21-Q review accepts this
+  synchronized closeout and its committed/merged delivery. It does not
+  authorize a 2.0 tag or release.

@@ -164,7 +164,10 @@ Batch 21's exact `HOOK-CASCADE-01` named evidence is
 `test_permanent_attachment_delete_uses_the_same_cascade_contract`. The
 [verification manifest](deleted-post-repair-verification-manifest.md) maps
 these tests to the passing `062b7fe` local integration, true-multisite, pinned
-vendor and isolation lanes; protected delivery remains open.
+vendor and isolation lanes. PR #108 head `1e8a4c9` and exact merge `a341f9b`
+each passed all 20 protected/post-merge contexts, including the dedicated
+multisite context. Fresh synchronized-closeout QA and closeout documentation
+delivery remain B21-Q / DB-04-Q review work.
 
 ## Pull-request checklist contract
 
