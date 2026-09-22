@@ -351,6 +351,22 @@ Since you have initialized new client, its REST API endpoints are available.
 
 `http://cf7tgdev.loc/wp-json/wp-connections/v1/client/my-app-wpc-client/`
 
+### REST relation selectors
+
+Filter a relation's connection list with positive endpoint IDs:
+
+```text
+GET /wp-json/wp-connections/v1/client/my-app-wpc-client/relation/post-to-page?from=4
+GET /wp-json/wp-connections/v1/client/my-app-wpc-client/relation/post-to-page?to=10
+GET /wp-json/wp-connections/v1/client/my-app-wpc-client/relation/post-to-page?both=4
+```
+
+Different selectors are combined with AND; `both` matches either endpoint.
+Invalid, array, overflow, or repeated values return HTTP 400. With no selector,
+the existing v1 response shape and unbounded result behavior are unchanged.
+See the [REST relation selector contract](docs/rest-relation-selectors.md) for
+validation, ownership, and current limitations.
+
 ## Local Development
 
 ### Prerequisites

@@ -63,9 +63,17 @@ class ClientRestApi
 
     public function getRelation(WP_REST_Request $request)
     {
+        $query = new Query\Connection();
+        $queryParameters = $request->get_query_params();
+        foreach ([ 'from', 'to', 'both' ] as $selector) {
+            if (array_key_exists($selector, $queryParameters)) {
+                $query->set($selector, (int) $queryParameters[ $selector ]);
+            }
+        }
+
         try {
             $response = [];
-            foreach ($this->getClient()->getRelation($this->getRouteSelector($request, 'relation'))->findConnections()->getIterator() as $connectionItem) {
+            foreach ($this->getClient()->getRelation($this->getRouteSelector($request, 'relation'))->findConnections($query)->getIterator() as $connectionItem) {
                 /** @var Connection $connectionItem */
                 $response [] = $this->getRestConnectionItem($connectionItem);
             }

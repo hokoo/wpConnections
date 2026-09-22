@@ -579,6 +579,78 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		$this->assert_dispatches_to_delegate( $server, $delegate, $this->request_matrix( $delegate )[0] );
 	}
 
+    public function test_client_created_during_rest_initialization_normalizes_repeated_query_selector(): void
+    {
+        global $wp;
+
+        $client_name = 'during-rest-init-owner';
+        $route = '/' . RestHookRecordingRestApi::NAMESPACE . '/' .
+            RestHookRecordingRestApi::BASE . '/' . $client_name . '/relation/example-relation';
+        $server = new WP_REST_Server();
+        $original_rest_server = $GLOBALS['wp_rest_server'] ?? null;
+        $GLOBALS['wp_rest_server'] = $server;
+        $original_wp = $wp;
+        $original_get = $_GET;
+        $original_method = $_SERVER['REQUEST_METHOD'] ?? null;
+        $original_query = $_SERVER['QUERY_STRING'] ?? null;
+        $created_client = null;
+        $create_during_init = function () use ($client_name, &$created_client): void {
+            $created_client = $this->new_client($client_name);
+        };
+
+        parse_str('from=11&from=22', $_GET);
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['QUERY_STRING'] = 'from=11&from=22';
+        $wp = new \WP();
+        $wp->query_vars['rest_route'] = $route;
+        add_action('rest_api_init', $create_during_init, 20, 1);
+
+        try {
+            do_action('rest_api_init', $server);
+            self::assertInstanceOf(Client::class, $created_client);
+            self::assertSame(['11', '22'], $_GET['from']);
+
+            $request = new WP_REST_Request('GET', $route);
+            $request->set_query_params(wp_unslash($_GET));
+            RestHookRecordingRestApi::$trace = [];
+            $response = $server->dispatch($request);
+            $this->assert_native_rest_error('rest_invalid_param', 400, $response);
+            self::assertSame([], RestHookRecordingRestApi::$trace);
+        } finally {
+            remove_action('rest_api_init', $create_during_init, 20);
+            if (null === $original_rest_server) {
+                unset($GLOBALS['wp_rest_server']);
+            } else {
+                $GLOBALS['wp_rest_server'] = $original_rest_server;
+            }
+            $wp = $original_wp;
+            $_GET = $original_get;
+            $this->restore_server_value('REQUEST_METHOD', $original_method);
+            $this->restore_server_value('QUERY_STRING', $original_query);
+        }
+    }
+
+    public function test_parse_request_subscription_is_revoked_and_failed_activation_does_not_leak(): void
+    {
+        $before = $this->parse_request_priority_nine_callback_count();
+        $client = $this->new_client('query-ingress-owner');
+        self::assertSame($before + 1, $this->parse_request_priority_nine_callback_count());
+
+        $client->dispose();
+        self::assertSame($before, $this->parse_request_priority_nine_callback_count());
+
+        $this->rest_api_class = RestHookInvalidNamespaceRestApi::class;
+        $this->capture_client_registration_failure(
+            static function (): void {
+                new Client('failed-query-ingress-owner');
+            }
+        );
+        $failed_delegate = end(RestHookRecordingRestApi::$instances);
+        self::assertInstanceOf(RestHookRecordingRestApi::class, $failed_delegate);
+        $this->clients[] = $failed_delegate->getClient();
+        self::assertSame($before, $this->parse_request_priority_nine_callback_count());
+    }
+
 	public function test_no_owner_preserves_native_validation_precedence_and_route_discovery(): void
 	{
 		$client = $this->new_client( 'unavailable-route-owner' );
@@ -1175,7 +1247,7 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 	{
 		return [
 			'getTheClient' => [],
-			'getRelation' => [ 'relation' ],
+            'getRelation' => ['relation', 'from', 'to', 'both'],
 			'createConnection' => [ 'from', 'to', 'order', 'meta' ],
 			'getConnection' => [ 'relation', 'connectionID' ],
 			'updateConnection' => [ 'relation', 'connectionID', 'from', 'to', 'title', 'order' ],
@@ -1256,6 +1328,28 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		self::assertSame( $expected_code, $data['code'] ?? null );
 		self::assertSame( $expected_status, $data['data']['status'] ?? null );
 	}
+
+    private function parse_request_priority_nine_callback_count(): int
+    {
+        global $wp_filter;
+
+        $hook = $wp_filter['parse_request'] ?? null;
+        if (! $hook instanceof \WP_Hook) {
+            return 0;
+        }
+
+        return count($hook->callbacks[9] ?? []);
+    }
+
+    private function restore_server_value(string $key, $value): void
+    {
+        if (null === $value) {
+            unset($_SERVER[ $key ]);
+            return;
+        }
+
+        $_SERVER[ $key ] = $value;
+    }
 
 	private function capture_client_registration_failure( callable $operation ): ClientRegisterFail
 	{

@@ -67,6 +67,16 @@ docs-only final head `7e1addc` and all 17 protected checks passed without risk
 acceptance. PR #83 merged as `33b659e`; all 17 post-merge checks passed on that
 exact `master` commit. REST-HOOK-01 and Batch 10 are completed.
 
+REST-06 adds one action-only refinement to that managed lifecycle. A
+context-owned `parse_request` subscription at priority 9 observes the raw query
+before WordPress's priority-10 `rest_api_loaded` callback constructs
+`WP_REST_Request`. It converts repeated relation selector keys into the array
+that native integer validation rejects. The same idempotent normalization runs
+when a Client is first activated during `rest_api_init`, before
+`serve_request()` constructs the request. It is limited to the exact GET
+relation route of a live current-context owner; direct dispatch, unrelated
+routes, methods, clients and sites do not consult ambient raw query state.
+
 ## LOG-HOOK-01 implementation update
 
 The construction graph, registration matrix and runtime probes below preserve
@@ -166,7 +176,7 @@ keep those objects reachable. There is no general Client disposal path.
 | Owner / source | Hook and callback | Registration metadata | Retention and removal | Context finding | 2.0 action |
 | --- | --- | --- | --- | --- | --- |
 | `Client`, [`Client.php`](../src/Client.php#L63) | `deleted_post` → `[$storage, 'deleteByObjectID']` | priority 10; 1 accepted argument; auto-enabled in construction | `Client` retains storage. Exact direct removal and semantic `disablePostDeletionCleanup()` both work in 1.x; enable/disable are idempotent. | Site-sensitive. The default storage has the temporary 1.x prefix guard, but custom storage receives stale delivery. | HOOK-03: manager-required at the 2.0 boundary; preserve semantic API, intentionally break direct callback identity. |
-| `ClientRestApi`, [`ClientRestApi.php`](../src/ClientRestApi.php#L31) | `rest_api_init` → `[$restApi, 'registerRestRoutes']` | priority 10; default 1 accepted argument | Client does not retain the REST object; the hook does. No remove or semantic lifecycle API exists. | Site-sensitive registration plus a second global registry. Two site-bound same-name clients both execute and both place object handlers into one REST server. | REST-HOOK-01 after DG-HOOK-REST-01—DG-HOOK-REST-05; not folded silently into HOOK-03. |
+| `RestRouteRegistry`, [`RestRouteRegistry.php`](../src/Internal/RestRouteRegistry.php) | `rest_api_init` publishes managed routes; `parse_request` preserves repeated REST-06 selector keys before the REST request is built | priorities 10 and 9; 1 accepted argument each | One context-gated pair is retained while that site context has owners. Both handles are revoked after its last owner; partial acquisition rolls back. | Site-sensitive. The query action changes only repeated `from`/`to`/`both` values on an exact live-owner GET relation route, preserving native schema validation before the context-neutral boundary. | REST-HOOK-01 owns route publication; REST-06 adds the narrow query-ingress action without a public hook or filter. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/findConnections/dbQuery` → one shared closure | priority 10; 2 accepted arguments | The local closure identity is discarded; the hook retains closure → Settings → logger. No unregister path exists. | Cross-client and cross-site fanout. Arguments are SQL string and result only, so the origin Client cannot be selected from the event. | LOG-HOOK-01 after DG-HOOK-LOG-01 and DG-SPI-06; recommendation is one origin-routed singleton observer, not manager wrapping. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/removeConnectionMeta/after` → the same closure | priority 10; 5 accepted arguments | Same lost identity and no unregister path. | First argument identifies Client, but the callback ignores it; every logger receives the event. | LOG-HOOK-01; route one record to the originating Client while keeping the public hook emission. |
 | `Settings`, [`Settings.php`](../src/Settings.php#L18) | `wpConnections/storage/deletedSpecificConnections` → the same closure | priority 10; 3 accepted arguments | Same lost identity and no unregister path. | First argument identifies Client, but the callback ignores it; every logger receives the event. | LOG-HOOK-01; route one record to the originating Client while keeping the public hook emission. |
