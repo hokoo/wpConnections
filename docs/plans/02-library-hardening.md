@@ -3062,7 +3062,13 @@ DoR:
 - Batch 20 and DB-04-I1—I3 are completed.
 - The four existing real-flow fragments above are kept as reusable evidence.
 
-DoD/AC:
+DoD:
+
+- isolated real-flow fixture and complete initial manifest are committed;
+- focused single-site plus reverse/random isolation runs are recorded;
+- any observed defect has a red result attached before a later production fix.
+
+Acceptance Criteria:
 
 - the test calls `wp_delete_post()` rather than substituting
   `do_action('deleted_post', ...)` or calling the executor directly;
@@ -3100,7 +3106,13 @@ DoR:
 - B21-01 is completed and its fixture/isolation probes are green.
 - The traceability map identifies which existing success tests are retained.
 
-DoD/AC:
+DoD:
+
+- named data-matrix tests and physical-row assertions are green;
+- the manifest data-cascade rows contain exact test/lane evidence;
+- every required production correction, if any, has paired red/green evidence.
+
+Acceptance Criteria:
 
 - every matching connection and its metadata is removed exactly once while
   unrelated and other-Client rows remain;
@@ -3120,8 +3132,9 @@ Assertions must inspect physical metadata rows as well as hydrated results.
 Status: waiting_dependency
 
 Goal: prove every failure before a confirmed cleanup commit either performs
-zero cleanup DML or rolls the complete connection/meta mutation back while
-preserving attributable durable work.
+zero cleanup DML, restores the complete connection/meta mutation after a
+confirmed rollback, or remains attributable durable uncertainty with the
+shared storage session fail-closed.
 
 Scope: cross-layer fault injection for selector/meta/connection DML,
 transaction start/commit/rollback, the storage attempt hook, ledger arm and
@@ -3136,16 +3149,25 @@ DoR:
 - Existing DB-05 fault seams can target each listed failure without changing a
   public interface.
 
-DoD/AC:
+DoD:
 
-- a pre-commit cleanup failure restores connection/meta data and leaves one
-  redacted retryable record;
+- named real-flow fault matrix is committed and green;
+- each manifest failure row records data, hook and ledger outcome;
+- no test-only fault seam becomes public production API.
+
+Acceptance Criteria:
+
+- a pre-commit cleanup failure with confirmed rollback restores connection/meta
+  data and leaves one redacted retryable record;
 - arm/readiness failure is distinct from wake-up scheduling failure: unsafe
   pre-DML state propagates with zero cleanup writes, while scheduler failure
   cannot erase the ledger record;
 - storage attempt-hook `Throwable`, transaction start/commit/rollback failure
   and selector-read uncertainty have named assertions for data and ledger
   outcome; no committed-success hook is emitted after rollback.
+- rollback-confirmation failure retains durable repair state, emits no false
+  committed-success hook and leaves the shared storage session fail-closed; the
+  test does not falsely assert that original rows were restored.
 
 Dependencies: B21-01; completed DB-05 atomic infrastructure.
 
@@ -3173,10 +3195,22 @@ DoR:
 - An internal-only seam can leave the approved durable state at each crash
   boundary without exposing a public crash-control API.
 
-DoD/AC:
+DoD:
 
-- death after arm or during cleanup leaves an expirable `running` claim that is
-  reclaimable within the nine-claim ceiling;
+- all three simulated crash boundaries and commit-uncertainty paths have named
+  green tests;
+- their exact durable states and retry transitions are recorded in the
+  manifest;
+- any crash seam remains internal/test-only.
+
+Acceptance Criteria:
+
+- death after durable arm but before claim leaves `armed`, immediately
+  claimable within the nine-claim ceiling;
+- death during cleanup leaves `running` until lease expiry; reclaim remains
+  bounded by the same nine-claim ceiling;
+- death after cleanup commit but before resolve leaves `running` with cleanup
+  possibly already durable; expiry and idempotent no-match retry resolve it;
 - post-commit hook failure and commit-before-resolve ambiguity retain one
   record; idempotent no-match retry resolves it without duplicate data writes;
 - duplicate hook delivery produces one logical identity and never two live
@@ -3209,7 +3243,13 @@ DoR:
 - B21-01 traceability names the existing ledger, policy and worker evidence and
   identifies only missing cross-layer assertions.
 
-DoD/AC:
+DoD:
+
+- retained component evidence and the minimal real-flow bridge are green;
+- every concurrency/time manifest row names its test, lane and result;
+- no weaker end-to-end smoke test replaces the two-connection authority.
+
+Acceptance Criteria:
 
 - `DeletedPostRepairLedgerTest::
   test_two_database_contenders_cannot_both_acquire_one_live_lease()` remains
@@ -3245,7 +3285,13 @@ DoR:
 - B21-01 and B21-02 are completed.
 - Dedicated `WP_MULTISITE=1` execution is available.
 
-DoD/AC:
+DoD:
+
+- focused true-multisite suite is green without relevant skips;
+- manifest context rows name single-/multisite evidence and outcomes;
+- no automatic routing/reconstruction behavior is introduced.
+
+Acceptance Criteria:
 
 - deletion on one site cannot call or mutate the other site's Client/rows;
 - a fresh per-site Client restores delivery after an explicit context switch;
@@ -3279,7 +3325,13 @@ DoR:
 - Atomic and non-atomic custom fixtures are available without changing public
   interfaces.
 
-DoD/AC:
+DoD:
+
+- default, custom atomic and non-atomic focused fixtures are green;
+- all adapter manifest rows contain exact evidence;
+- production SPI remains unchanged unless a new owner-approved gate is opened.
+
+Acceptance Criteria:
 
 - custom atomic success/failure/no-match follows the same durable state
   outcomes as default storage;
@@ -3315,7 +3367,14 @@ DoR:
 - B21-03—B21-07 are completed and all documented outcomes are stable.
 - `Client::getDeletedPostRepairService()` remains the approved operator API.
 
-DoD/AC:
+DoD:
+
+- `docs/deleted-post-repair-operations.md` and its executable service scenarios
+  are committed and mutually consistent;
+- operator/degraded-cron manifest rows contain exact evidence;
+- public surface remains the existing PHP service only.
+
+Acceptance Criteria:
 
 - with `DISABLE_WP_CRON`, durable work remains listable and manually retryable
   through `Client::getDeletedPostRepairService()`;
@@ -3350,7 +3409,14 @@ DoR:
 - B21-08 is completed and the runbook inventory/retry procedure is usable.
 - At least one unresolved record is available in the operational fixture.
 
-DoD/AC:
+DoD:
+
+- repeatable rehearsal evidence, preservation test and source audit are
+  committed in the named operations artifact;
+- rollback/uninstall manifest rows are complete;
+- no executable destructive uninstall/purge path is added.
+
+Acceptance Criteria:
 
 - the rehearsal records per-site inventory before change, stops new delivery,
   preserves table/option/unresolved row, reconstructs a current-site Client and
@@ -3389,7 +3455,14 @@ DoR:
   critical-scenario exception.
 - The runbook and traceability table identify every exact command/lane.
 
-DoD/AC:
+DoD:
+
+- one exact candidate has complete focused/full, isolation, coverage, PHPCS,
+  true-multisite and both pinned-vendor evidence;
+- the manifest contains exact SHA, command, lane and result for every row;
+- every protected context is present and successful.
+
+Acceptance Criteria:
 
 - MySQL 8.0.46 and MariaDB 10.11.16 run the complete ledger/claim/concurrency
   and new real-flow qualification without vendor-only SQL;
@@ -3426,7 +3499,15 @@ DoR:
 - No unresolved P0—P3 finding, hidden decision gate or active critical
   exception remains.
 
-DoD/AC:
+DoD:
+
+- exact candidate receives independent correctness, security/data-integrity
+  and operational PASS without unresolved P0—P3 or decision gate;
+- protected PR head and exact merge are green and post-merge evidence is
+  recorded;
+- roadmap/contract/runbook statuses are updated together.
+
+Acceptance Criteria:
 
 - exact candidate has no unresolved P0—P3 finding or hidden decision gate;
 - protected PR head and exact merge each pass the complete required matrix;
