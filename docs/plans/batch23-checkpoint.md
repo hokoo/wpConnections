@@ -28,7 +28,18 @@ Contract: REST-05 in [the hardening plan](02-library-hardening.md).
   cases. Final focused current matrix: 36 / 176; test PHPCS and diff checks pass.
   Logs: `/tmp/b23-rest-meta-focused-current.log` and `/tmp/b23-rest-meta-phpcs.log`.
   Root accepted the final diff; the expanded floor matrix awaits full coverage.
-- Logs are under `/tmp/wpconnections-rest05-*.log`. Full unit, integration,
-  multisite, isolation seed `20260922`, coverage and PHPCS remain pending, followed
-  by protected PR/merge verification. Independent Epic QA follows REST-06 at E4.
+- Candidate `dc66d13`: unit passed 141 / 518. Full integration stopped at
+  592 / 5056 with eight lifecycle inventory failures and ten expected skips:
+  those tests still expected DELETE arguments without `meta`. A fresh worker
+  changed only the shared exact expected argument list. Root accepted that
+  one-line repair; focused lifecycle passed 21 / 814 with one multisite-only
+  skip. The multisite case remains for the broad gate.
+- Focused PHPCS on the existing lifecycle module exits 2: both the repaired
+  file and frozen HEAD report the same pre-existing 1801 errors across 1063
+  lines. No new violation or ruleset change; the standard project lint gate
+  remains required. Evidence: `/tmp/wpconnections-b23-local/`.
+- Full integration after repair, multisite, isolation seed `20260922`, coverage
+  and project PHPCS remain pending, followed by protected PR/merge verification.
+  Unit evidence above remains valid because the repair changes only an
+  integration-test expectation. Independent Epic QA follows REST-06 at E4.
 - Next task after acceptance: REST-06 selectors. No release/tag or waiver.
