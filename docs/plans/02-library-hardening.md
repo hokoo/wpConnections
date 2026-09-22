@@ -2992,6 +2992,15 @@ Entry criteria:
   scheduler and lifecycle units; Batch 21 adds cross-layer proof and does not
   duplicate those suites without a specific missing observation.
 
+Existing real-flow baseline: `AtomicMutationTest::
+test_deleted_post_callback_uses_atomic_delete_boundary()` already calls
+`wp_delete_post(..., true)` and proves one default-storage connection-delete
+DML failure rolls back connection/meta rows and leaves one `retry_wait` record.
+It does not prove the successful cascade, endpoint/relation matrix,
+multi-Client isolation, attachment/trash behavior, other failure/crash windows
+or operator recovery. B21-01 extends from that exact baseline rather than
+claiming that no real-flow test exists.
+
 Compatibility boundary:
 
 - No new public API, schema version, REST/admin surface, WP-CLI command,
