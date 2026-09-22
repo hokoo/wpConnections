@@ -41,6 +41,7 @@ final class DeletedPostRepairClientActivation
 
     public function enable(): void
     {
+        $this->client->assertIntegrationLifecycleActive();
         if (! $this->active) {
             return;
         }
@@ -50,6 +51,7 @@ final class DeletedPostRepairClientActivation
         }
 
         ($this->prepare)();
+        $this->client->assertIntegrationLifecycleActive();
         $subscription = $this->dispatcher->subscribe(
             self::HOOK,
             [ $this->coordinator, 'handle' ],
@@ -58,7 +60,9 @@ final class DeletedPostRepairClientActivation
         );
 
         try {
+            $this->client->assertIntegrationLifecycleActive();
             $this->registration->enableAutomatic();
+            $this->client->assertIntegrationLifecycleActive();
         } catch (Throwable $failure) {
             $subscription->unsubscribe();
             throw $failure;

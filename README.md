@@ -306,6 +306,36 @@ routes registered by a custom subclass remain the implementer's lifecycle and
 multisite responsibility. These are intentional 2.0 compatibility boundaries;
 review custom REST subclasses before upgrading.
 
+### Client integration disposal
+
+Retire every Client explicitly when its application/site-context lifetime ends:
+
+```php
+$client->dispose();
+```
+
+`dispose()` is idempotent. It first makes the Client terminal for integration
+activation, then revokes its deleted-post repair subscription/registry owner and
+its REST mapping in reverse acquisition order. The same teardown runs when
+Client initialization fails, so a partially constructed Client cannot remain
+reachable through library-owned hooks or routes. Context-neutral shared
+dispatcher, route-boundary and debug-observer objects may remain registered;
+they no longer retain or resolve that Client.
+
+Disposal does not delete stored connections and does not invalidate direct
+domain or storage references already held by the consumer. It only ends the
+library-owned WordPress integration lifecycle. Repeated `dispose()`,
+`disablePostDeletionCleanup()` and internal REST deactivation are harmless.
+Attempts to call `enablePostDeletionCleanup()` or reactivate/rebind the managed
+REST delegate afterwards fail with `ClientRegisterFail`, code `4`, and the
+stable message `Client integrations have been disposed and cannot be
+reactivated.`
+
+Do not rely on PHP destruction or a call to `switch_to_blog()` for teardown.
+The consumer owns one Client per site context and must call `dispose()` on each
+Client it intentionally retires. Hooks or routes added independently by a
+custom `ClientRestApi` subclass remain the subclass implementer's responsibility.
+
 ## Deprecations
 
 `Connection::load()` is a deprecated legacy no-op and will be removed in

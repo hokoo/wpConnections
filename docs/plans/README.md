@@ -85,6 +85,17 @@
     B19-01—B19-06 и B19-Q completed; DB-04-Q и LIFE-HOOK-01 разблокированы.
     Следующим выбран LIFE-HOOK-01, чтобы последующий DB-04-Q квалифицировал уже
     финальный Client lifecycle. Tag/release намеренно остаётся вне Batch 19.
+14. Документационный closeout Batch 19 завершён PR #105: merge
+    `b0f011752e67931a90668ca8951a31d0a190afb7` прошёл 20/20 post-merge jobs.
+    Batch 20 / LIFE-HOOK-01 начат от этого exact baseline. B20-01—B20-06
+    completed локально: поставлены public terminal `Client::dispose()`,
+    constructor rollback, REST/repair reentrancy guards, retention/multisite
+    regressions и migration contract. Corrected production head `a022c8e`
+    дополнительно закрывает token/ABA rollback defect, найденный финальным
+    lifecycle review, и прошёл full single-/true-multisite, coverage,
+    isolation, обе pinned DB lanes, PHPCS и synthetic quality tools. Нового
+    decision gate не требуется; B20-Q ожидает exact re-audits, protected merge
+    и post-merge evidence.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -108,8 +119,10 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged baseline — Batch 19 / HOOK-03/DB-04-I3 PR #104
-  (`7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`). Exact candidate
+- Текущий functional baseline — Batch 19 / HOOK-03/DB-04-I3 PR #104
+  (`7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`); его roadmap closeout PR #105
+  влит как `b0f011752e67931a90668ca8951a31d0a190afb7` и прошёл 20/20 post-merge
+  jobs. Exact Batch 19 candidate
   `ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` получил три independent PASS без
   open P0—P3 или новых decision gates; candidate и exact merge прошли по 20/20
   protected/post-merge jobs. Локально: unit `139 / 509`, integration

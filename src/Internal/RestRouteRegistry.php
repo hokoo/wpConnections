@@ -77,6 +77,8 @@ final class RestRouteRegistry
      */
     public function activate(ClientRestApi $delegate): RestRouteRegistration
     {
+        $client = $delegate->getClient();
+        $client->assertIntegrationLifecycleActive();
         $delegateId = spl_object_id($delegate);
         if (isset($this->delegateRegistrations[ $delegateId ])) {
             return $this->delegateRegistrations[ $delegateId ];
@@ -84,7 +86,7 @@ final class RestRouteRegistry
 
         $context = $this->contexts->current();
         $contextKey = $this->contextKey($context);
-        $ownerKey = $this->ownerKey($context, $delegate->getClient()->getName());
+        $ownerKey = $this->ownerKey($context, $client->getName());
 
         if (isset($this->owners[ $ownerKey ]) || isset($this->ownerReservations[ $ownerKey ])) {
             throw new ClientRegisterFail(
@@ -99,6 +101,7 @@ final class RestRouteRegistry
 
         try {
             $delegate->init();
+            $client->assertIntegrationLifecycleActive();
             if (! $this->pendingAcknowledgements[ $delegateId ]) {
                 throw new ClientRegisterFail(
                     'A custom REST API must call parent::init() to activate managed routes.'
@@ -130,6 +133,7 @@ final class RestRouteRegistry
             if (did_action('rest_api_init') > 0 && $wp_rest_server instanceof WP_REST_Server) {
                 $this->registerAllRoutes($wp_rest_server);
             }
+            $client->assertIntegrationLifecycleActive();
 
             return $registration;
         } catch (Throwable $exception) {
@@ -168,6 +172,8 @@ final class RestRouteRegistry
      */
     public function rebind(ClientRestApi $delegate): void
     {
+        $client = $delegate->getClient();
+        $client->assertIntegrationLifecycleActive();
         $delegateId = spl_object_id($delegate);
         if (! isset($this->delegateRegistrations[ $delegateId ])) {
             return;
@@ -177,6 +183,7 @@ final class RestRouteRegistry
         if ($wp_rest_server instanceof WP_REST_Server) {
             $this->registerAllRoutes($wp_rest_server);
         }
+        $client->assertIntegrationLifecycleActive();
     }
 
     public function deactivateDelegate(ClientRestApi $delegate): void

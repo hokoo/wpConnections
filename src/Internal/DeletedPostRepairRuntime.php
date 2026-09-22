@@ -59,6 +59,7 @@ final class DeletedPostRepairRuntime
         Client $client,
         bool $automaticEnabled
     ): DeletedPostRepairClientActivation {
+        $client->assertIntegrationLifecycleActive();
         $clientId = spl_object_id($client);
         $existing = $this->activations[ $clientId ] ?? null;
         if (null !== $existing && $existing->owns($client)) {
@@ -77,6 +78,7 @@ final class DeletedPostRepairRuntime
             $context->databasePrefix()
         );
         $site = $this->site($context);
+        $client->assertIntegrationLifecycleActive();
         $registration = $this->registry->register($client, false);
         $activation = new DeletedPostRepairClientActivation(
             $client,
@@ -99,6 +101,7 @@ final class DeletedPostRepairRuntime
             } else {
                 $site['reconciler']->reconcile();
             }
+            $client->assertIntegrationLifecycleActive();
             $this->activations[ $clientId ] = $activation;
 
             return $activation;
@@ -109,7 +112,7 @@ final class DeletedPostRepairRuntime
     }
 
     /**
-     * @internal Temporary teardown seam until LIFE-HOOK-01 adds Client::dispose().
+     * @internal Client::dispose() uses this teardown seam for its repair integration.
      */
     public function deactivateClient(Client $client): void
     {

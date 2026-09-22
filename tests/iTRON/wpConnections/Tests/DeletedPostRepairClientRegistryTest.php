@@ -294,6 +294,76 @@ final class DeletedPostRepairClientRegistryTest extends TestCase
         self::assertNull($registry->resolveAutomatically('manual-fallback'));
     }
 
+    public function test_failed_reenable_after_revocation_does_not_recreate_a_ghost_owner(): void
+    {
+        $registration = null;
+        $registry = new DeletedPostRepairClientRegistry(
+            $this->contexts,
+            static function () use (&$registration): void {
+                $registration->revoke();
+                throw new RuntimeException('re-enable signal failed after revocation');
+            }
+        );
+        $registration = $registry->register($this->client('revoked-reenable'), false);
+
+        try {
+            $registration->enableAutomatic();
+            self::fail('Failed re-enable after revocation must propagate.');
+        } catch (RuntimeException $failure) {
+            self::assertSame('re-enable signal failed after revocation', $failure->getMessage());
+        }
+
+        self::assertFalse($registration->isActive());
+        $replacement = $this->client('revoked-reenable');
+        $replacementRegistration = $registry->register($replacement, false);
+        self::assertTrue($replacementRegistration->isActive());
+        self::assertSame($replacement, $registry->resolve('revoked-reenable'));
+    }
+
+    public function test_failed_reenable_cannot_disable_a_reentrant_replacement_owner(): void
+    {
+        $registry = null;
+        $registration = null;
+        $replacementRegistration = null;
+        $replacing = false;
+        $replacement = $this->client('replacement-during-reenable');
+        $registry = new DeletedPostRepairClientRegistry(
+            $this->contexts,
+            static function () use (
+                &$registry,
+                &$registration,
+                &$replacementRegistration,
+                &$replacing,
+                $replacement
+            ): void {
+                if ($replacing) {
+                    return;
+                }
+
+                $replacing = true;
+                $registration->revoke();
+                $replacementRegistration = $registry->register($replacement);
+                throw new RuntimeException('re-enable signal failed after replacement');
+            }
+        );
+        $registration = $registry->register(
+            $this->client('replacement-during-reenable'),
+            false
+        );
+
+        try {
+            $registration->enableAutomatic();
+            self::fail('Failed re-enable after replacement must propagate.');
+        } catch (RuntimeException $failure) {
+            self::assertSame('re-enable signal failed after replacement', $failure->getMessage());
+        }
+
+        self::assertFalse($registration->isActive());
+        self::assertTrue($replacementRegistration->isActive());
+        self::assertTrue($replacementRegistration->isAutomaticEnabled());
+        self::assertSame($replacement, $registry->resolveAutomatically('replacement-during-reenable'));
+    }
+
     /**
      * @dataProvider invalid_context_provider
      */

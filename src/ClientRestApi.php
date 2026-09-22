@@ -29,6 +29,7 @@ class ClientRestApi
 
     public function init()
     {
+        $this->getClient()->assertIntegrationLifecycleActive();
         $registry = RestRouteRegistry::instance();
         if ($registry->acknowledgeActivation($this)) {
             return;
@@ -40,7 +41,7 @@ class ClientRestApi
     /**
      * Revokes this delegate's internal route mapping.
      *
-     * @internal LIFE-HOOK-01 will compose this into Client::dispose().
+     * @internal Client::dispose() composes this into the owned-integration teardown.
      */
     public function deactivate(): void
     {
@@ -312,6 +313,7 @@ class ClientRestApi
      */
     public function registerRestRoutes()
     {
+        $this->getClient()->assertIntegrationLifecycleActive();
         RestRouteRegistry::instance()->rebind($this);
     }
 }
