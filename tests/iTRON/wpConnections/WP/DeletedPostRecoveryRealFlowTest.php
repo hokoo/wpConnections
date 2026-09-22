@@ -6,6 +6,7 @@ use iTRON\wpConnections\Client;
 use iTRON\wpConnections\Connection;
 use iTRON\wpConnections\Helpers\Database;
 use iTRON\wpConnections\Internal\DeletedPostRepairStatus;
+use iTRON\wpConnections\Internal\WordPressDeletedPostRepairScheduler;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
 use iTRON\wpConnections\Query\Meta;
 use iTRON\wpConnections\Query\Relation as RelationQuery;
@@ -20,15 +21,14 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
     private const ATTACHMENT_RELATION = 'real-flow-attachment';
     private const REPAIR_TABLE_BASENAME = 'wpconnections_repair';
 
-    /** @var Client[] */
+    /** @var array<int, array{client: Client, site_id: int}> */
     private array $additionalClients = [];
 
     public function tear_down()
     {
         try {
-            foreach ($this->additionalClients as $client) {
-                $client->dispose();
-                $this->drop_client_artifacts($client);
+            foreach (array_reverse($this->additionalClients) as $entry) {
+                $this->cleanup_additional_client($entry);
             }
         } finally {
             parent::tear_down();
@@ -423,6 +423,203 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
         self::assertSame(0, $this->meta_count());
     }
 
+    public function test_real_multisite_delete_routes_same_name_and_post_id_to_active_client(): void
+    {
+        if (! is_multisite()) {
+            self::markTestSkipped('Requires the true WordPress multisite lane.');
+        }
+
+        $shared_post_id = 700001;
+        $shared_page_id = 700002;
+        $site_a = get_current_blog_id();
+        $this->create_post_with_id($shared_page_id, 'page', 'Site A shared page');
+        $this->create_post_with_id($shared_post_id, 'post', 'Site A shared post');
+        $site_a_connection = $this->create_connection(
+            $this->client,
+            RELATION_0_NAME,
+            $shared_page_id,
+            $shared_post_id,
+            'site-a-shared-id'
+        );
+        $site_b = self::factory()->blog->create();
+        $attempts = [];
+        $committed = [];
+        $attempt_hook = static function (Client $client, $post_id) use (&$attempts): void {
+            $attempts[] = [ get_current_blog_id(), spl_object_id($client), $post_id ];
+        };
+        $committed_hook = static function (Client $client, array $connection_ids) use (&$committed): void {
+            $committed[] = [ get_current_blog_id(), spl_object_id($client), $connection_ids ];
+        };
+        add_action('wpConnections/storage/deleteByObjectID', $attempt_hook, 10, 2);
+        add_action('wpConnections/storage/deletedByObjectID', $committed_hook, 10, 2);
+
+        try {
+            switch_to_blog($site_b);
+            try {
+                $this->create_post_with_id($shared_page_id, 'page', 'Site B shared page');
+                $this->create_post_with_id($shared_post_id, 'post', 'Site B shared post');
+                $site_b_client = $this->new_additional_client(CLIENT_NAME);
+                $this->register_relation($site_b_client, RELATION_0_NAME, 'page', 'post');
+                $site_b_connection = $this->create_connection(
+                    $site_b_client,
+                    RELATION_0_NAME,
+                    $shared_page_id,
+                    $shared_post_id,
+                    'site-b-shared-id'
+                );
+
+                self::assertInstanceOf(\WP_Post::class, wp_delete_post($shared_post_id, true));
+                self::assertSame(0, $this->connection_count($site_b_client));
+                self::assertSame(0, $this->meta_count($site_b_client));
+                self::assertSame(
+                    [],
+                    $site_b_client->getDeletedPostRepairService()->listRepairs()->getItems()
+                );
+                self::assertSame(
+                    [ [ $site_b, spl_object_id($site_b_client), $shared_post_id ] ],
+                    $attempts
+                );
+                self::assertSame(
+                    [ [ $site_b, spl_object_id($site_b_client), [ $site_b_connection->id ] ] ],
+                    $committed
+                );
+            } finally {
+                restore_current_blog();
+            }
+
+            self::assertSame($site_a, get_current_blog_id());
+            self::assertInstanceOf(\WP_Post::class, get_post($shared_post_id));
+            self::assertSame(1, $this->connection_count());
+            self::assertSame(1, $this->meta_count());
+            self::assertTrue(
+                $this->client->getRelation(RELATION_0_NAME)->hasConnectionID($site_a_connection->id)
+            );
+
+            self::assertInstanceOf(\WP_Post::class, wp_delete_post($shared_post_id, true));
+            self::assertSame(0, $this->connection_count());
+            self::assertSame(0, $this->meta_count());
+            self::assertSame(
+                [
+                    [ $site_b, spl_object_id($site_b_client), $shared_post_id ],
+                    [ $site_a, spl_object_id($this->client), $shared_post_id ],
+                ],
+                $attempts
+            );
+            self::assertSame(
+                [
+                    [ $site_b, spl_object_id($site_b_client), [ $site_b_connection->id ] ],
+                    [ $site_a, spl_object_id($this->client), [ $site_a_connection->id ] ],
+                ],
+                $committed
+            );
+            self::assertSame(
+                [],
+                $this->client->getDeletedPostRepairService()->listRepairs()->getItems()
+            );
+        } finally {
+            remove_action('wpConnections/storage/deleteByObjectID', $attempt_hook, 10);
+            remove_action('wpConnections/storage/deletedByObjectID', $committed_hook, 10);
+        }
+    }
+
+    public function test_real_multisite_failure_ledgers_are_independent_for_same_name_and_post_id(): void
+    {
+        if (! is_multisite()) {
+            self::markTestSkipped('Requires the true WordPress multisite lane.');
+        }
+
+        $shared_post_id = 710001;
+        $shared_page_id = 710002;
+        $this->create_post_with_id($shared_page_id, 'page', 'Site A failure page');
+        $this->create_post_with_id($shared_post_id, 'post', 'Site A failure post');
+        $this->create_connection(
+            $this->client,
+            RELATION_0_NAME,
+            $shared_page_id,
+            $shared_post_id,
+            'site-a-failure'
+        );
+        $failure = static function (): void {
+            throw new \RuntimeException('sensitive multisite cleanup failure');
+        };
+        add_action('wpConnections/storage/deleteByObjectID', $failure);
+
+        try {
+            self::assertInstanceOf(\WP_Post::class, wp_delete_post($shared_post_id, true));
+            $site_a_repairs = $this->client->getDeletedPostRepairService()->listRepairs(
+                DeletedPostRepairStatus::RETRY_WAIT
+            )->getItems();
+            self::assertCount(1, $site_a_repairs);
+            self::assertSame(1, $this->connection_count());
+            self::assertSame(1, $this->meta_count());
+
+            $site_b = self::factory()->blog->create();
+            switch_to_blog($site_b);
+            try {
+                $this->create_post_with_id($shared_page_id, 'page', 'Site B failure page');
+                $this->create_post_with_id($shared_post_id, 'post', 'Site B failure post');
+                $site_b_client = $this->new_additional_client(CLIENT_NAME);
+                $this->register_relation($site_b_client, RELATION_0_NAME, 'page', 'post');
+                $this->create_connection(
+                    $site_b_client,
+                    RELATION_0_NAME,
+                    $shared_page_id,
+                    $shared_post_id,
+                    'site-b-failure'
+                );
+
+                self::assertInstanceOf(\WP_Post::class, wp_delete_post($shared_post_id, true));
+                $site_b_repairs = $site_b_client->getDeletedPostRepairService()->listRepairs(
+                    DeletedPostRepairStatus::RETRY_WAIT
+                )->getItems();
+                self::assertCount(1, $site_b_repairs);
+                self::assertNotSame(
+                    $site_a_repairs[0]->getRepairKey(),
+                    $site_b_repairs[0]->getRepairKey()
+                );
+                self::assertSame($shared_post_id, $site_b_repairs[0]->getPostId());
+                self::assertSame(1, $this->connection_count($site_b_client));
+                self::assertSame(1, $this->meta_count($site_b_client));
+            } finally {
+                restore_current_blog();
+            }
+        } finally {
+            remove_action('wpConnections/storage/deleteByObjectID', $failure);
+        }
+
+        self::assertSame($shared_post_id, $site_a_repairs[0]->getPostId());
+        $site_a_after = $this->client->getDeletedPostRepairService()->getRepair(
+            $site_a_repairs[0]->getRepairKey()
+        );
+        self::assertNotNull($site_a_after);
+        self::assertSame(DeletedPostRepairStatus::RETRY_WAIT, $site_a_after->getStatus());
+        self::assertSame(1, $this->connection_count());
+        self::assertSame(1, $this->meta_count());
+
+        $site_a_result = $this->client->getDeletedPostRepairService()->retryRepair(
+            $site_a_repairs[0]->getRepairKey()
+        );
+        self::assertSame('resolved', $site_a_result->getOutcome());
+        self::assertSame(0, $this->connection_count());
+        self::assertSame(0, $this->meta_count());
+
+        switch_to_blog($site_b);
+        try {
+            $site_b_repairs = $site_b_client->getDeletedPostRepairService()->listRepairs(
+                DeletedPostRepairStatus::RETRY_WAIT
+            )->getItems();
+            self::assertCount(1, $site_b_repairs);
+            $site_b_result = $site_b_client->getDeletedPostRepairService()->retryRepair(
+                $site_b_repairs[0]->getRepairKey()
+            );
+            self::assertSame('resolved', $site_b_result->getOutcome());
+            self::assertSame(0, $this->connection_count($site_b_client));
+            self::assertSame(0, $this->meta_count($site_b_client));
+        } finally {
+            restore_current_blog();
+        }
+    }
+
     private function create_connection(
         Client $client,
         string $relation,
@@ -454,7 +651,10 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
     private function new_additional_client(string $name): Client
     {
         $client = new Client($name);
-        $this->additionalClients[] = $client;
+        $this->additionalClients[] = [
+            'client' => $client,
+            'site_id' => get_current_blog_id(),
+        ];
 
         return $client;
     }
@@ -519,5 +719,60 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
                 )
             )
         );
+    }
+
+    private function create_post_with_id(int $post_id, string $post_type, string $title): void
+    {
+        $created = wp_insert_post(
+            [
+                'import_id' => $post_id,
+                'post_type' => $post_type,
+                'post_status' => 'publish',
+                'post_title' => $title,
+            ],
+            true
+        );
+        self::assertNotWPError($created);
+        self::assertSame($post_id, $created);
+    }
+
+    private function drop_repair_artifacts(): void
+    {
+        global $wpdb;
+
+        wp_clear_scheduled_hook(WordPressDeletedPostRepairScheduler::EVENT_HOOK);
+        delete_option('wpconnections_repair_schema_owner');
+        wp_cache_delete('wpconnections_repair_schema_owner', 'options');
+        $table = $wpdb->prefix . self::REPAIR_TABLE_BASENAME;
+        $wpdb->query("DROP TEMPORARY TABLE IF EXISTS `{$table}`");
+        $wpdb->query("DROP TABLE IF EXISTS `{$table}`");
+        unset($wpdb->{self::REPAIR_TABLE_BASENAME});
+        $wpdb->tables = array_values(
+            array_filter(
+                $wpdb->tables,
+                static fn (string $table_key): bool => self::REPAIR_TABLE_BASENAME !== $table_key
+            )
+        );
+    }
+
+    /**
+     * @param array{client: Client, site_id: int} $entry
+     */
+    private function cleanup_additional_client(array $entry): void
+    {
+        $switched = get_current_blog_id() !== $entry['site_id'];
+        if ($switched) {
+            switch_to_blog($entry['site_id']);
+        }
+
+        try {
+            $entry['client']->dispose();
+            $this->drop_client_artifacts($entry['client']);
+            $this->drop_repair_artifacts();
+        } finally {
+            if ($switched) {
+                restore_current_blog();
+            }
+        }
     }
 }
