@@ -235,6 +235,10 @@ uncertainty fails closed and may propagate because safe recovery could not be
 established. WP-Cron remains best-effort; operators can inspect and retry work
 through `Client::getDeletedPostRepairService()`.
 
+For per-site inventory, bounded manual retries, degraded cron operation and
+rollback/uninstall preservation, follow the
+[deleted-post repair operations runbook](docs/deleted-post-repair-operations.md).
+
 Do not drop the repair ledger or its ownership option during a rollback while
 unresolved records exist. See the
 [deleted-post 2.0 upgrade guide](docs/deleted-post-cleanup-upgrade.md) and the

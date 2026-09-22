@@ -180,6 +180,58 @@ final class DeletedPostRepairExecutorTest extends WPConnectionsTestCase
 		self::assertEquals( $retry_at, $resolved->getResolvedAt() );
 	}
 
+	public function test_simulated_death_during_cleanup_keeps_lease_until_expiry_then_reclaims(): void
+	{
+		$this->create_connection_with_meta();
+		$identity = $this->identity( $this->post_ids[0] );
+		$this->arm( $identity );
+
+		$running = $this->record( $identity );
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $running->getStatus() );
+		self::assertSame( 1, $running->getAttemptCount() );
+		self::assertSame( 0, $running->getFailureCount() );
+		self::assertSame( 1, $this->connection_count() );
+		self::assertSame( 1, $this->meta_count() );
+
+		// Simulate process death after claim at the cleanup boundary by deliberately
+		// not invoking the executor. The durable observation is the live lease.
+		$before_expiry = $this->utc( '2026-09-21 10:09:00' );
+		$live_claim = $this->ledger->tryClaimDue(
+			$identity->getKey(),
+			$this->client->getStorage(),
+			$before_expiry,
+			$this->policy->leaseExpiresAt( $before_expiry )
+		);
+		self::assertSame( 'already_running', $live_claim->getOutcome() );
+		self::assertNull( $live_claim->getLease() );
+		self::assertSame( 1, $this->record( $identity )->getAttemptCount() );
+
+		$after_expiry = $this->utc( '2026-09-21 10:11:00' );
+		$this->clock->set_now( $after_expiry );
+		$reclaim = $this->ledger->tryClaimDue(
+			$identity->getKey(),
+			$this->client->getStorage(),
+			$after_expiry,
+			$this->policy->leaseExpiresAt( $after_expiry )
+		);
+		$lease = $reclaim->getLease();
+		self::assertSame( 'acquired', $reclaim->getOutcome() );
+		self::assertInstanceOf( DeletedPostRepairLease::class, $lease );
+		self::assertSame( 2, $this->record( $identity )->getAttemptCount() );
+
+		$result = $this->executor()->execute(
+			$this->client,
+			$lease,
+			DeletedPostRepairExecutor::MODE_AUTOMATIC
+		);
+
+		self::assertSame( 'resolved', $result->getOutcome() );
+		self::assertTrue( $result->wasCleanupAttempted() );
+		self::assertSame( 0, $this->connection_count() );
+		self::assertSame( 0, $this->meta_count() );
+		self::assertNull( $this->ledger->findForClient( $this->client->getName(), $identity->getKey() ) );
+	}
+
 	private function executor(): DeletedPostRepairExecutor
 	{
 		return new DeletedPostRepairExecutor( $this->ledger, $this->policy );

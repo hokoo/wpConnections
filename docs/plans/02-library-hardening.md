@@ -2975,7 +2975,7 @@ tag or release.
 
 ### Batch 21. Qualify deleted-post recovery through the real WordPress flow
 
-Status: todo
+Status: in_progress
 
 Goal: закрыть DB-04-Q не новым runtime contract, а end-to-end
 доказательством уже утверждённого DG-DELETE-06/A: настоящий
@@ -3032,9 +3032,11 @@ only if real-flow evidence demands a new public command/option, changes the
 nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
-Execution model: B21-01 is the only entry-ready task and freezes the missing
-observable contract before any production correction. Every later task remains
-`waiting_dependency` until its explicit DoR is true. The default review groups
+Execution model: B21-01 froze the missing observable contract before any
+production correction; B21-01—B21-09 are complete. B21-10 completed its local
+technical matrix and is in `review` pending protected delivery; B21-Q remains
+`waiting_dependency` until its explicit DoR is true. The
+default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
 B21-10/Q (qualification/closeout). B21-03 and B21-06 may proceed independently
@@ -3044,7 +3046,7 @@ persistence choice pauses only the affected group at a new DG.
 
 #### B21-01. Freeze the real `wp_delete_post()` qualification contract
 
-Status: todo
+Status: completed
 
 Goal: create one isolated test contour and traceability map for every remaining
 DB-04-Q observation before changing production code.
@@ -3090,7 +3092,7 @@ green under reverse/random repeat before downstream work starts.
 
 #### B21-02. Prove the real data cascade and Client isolation
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove `HOOK-CASCADE-01` through permanent WordPress deletion for all
 endpoint shapes without duplicating the existing one-direction smoke tests.
@@ -3129,7 +3131,7 @@ Assertions must inspect physical metadata rows as well as hydrated results.
 
 #### B21-03. Qualify pre-commit, arm and wake-up failures end-to-end
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove every failure before a confirmed cleanup commit either performs
 zero cleanup DML, restores the complete connection/meta mutation after a
@@ -3177,7 +3179,7 @@ shared database session unsafe under the existing DB-05 contract.
 
 #### B21-04. Qualify post-commit and simulated crash reconciliation
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove durable convergence when cleanup may already have committed but the
 coordinator did not confirm or persist resolution.
@@ -3223,9 +3225,20 @@ Dependencies: B21-03.
 Notes/Risks: a custom adapter's unrelated side effects remain outside the
 guarantee and must be idempotent as already documented.
 
+Completion evidence: test-only commit
+`7587271fe87adbdf2a7a4a89fedb72f6cdff399c` adds real-hook arm-before-claim,
+post-commit-hook and commit-before-resolve/duplicate-delivery bridges plus a
+deterministic live-lease/expiry executor scenario. Focused single-site and true
+multisite runs pass `4/102` each with no relevant skip; reverse and seeded
+random repeat-2 pass `8/204` each. Full regression passes unit `141/518` and
+integration `505/4566` with eight pre-existing skips; PHPCS passes `100/100`.
+The initial duplicate-delivery discovery failure was corrected to use
+WordPress's real two-argument `deleted_post` signature and was not a production
+defect. No public seam, production change or new decision gate was required.
+
 #### B21-05. Close concurrency, backoff, exhaustion and retention evidence
 
-Status: waiting_dependency
+Status: completed
 
 Goal: connect the existing ledger/policy/worker proofs to the real-flow
 identity without rewriting already sufficient component tests.
@@ -3267,9 +3280,20 @@ Dependencies: B21-04.
 Notes/Risks: WordPress test bootstrap is single-process; the existing two-DB-
 connection contender test remains the concurrency authority.
 
+Completion evidence: test-only commit
+`e039db0a8d50bb280e21872993d636e27b033359` adds the single missing cross-layer
+bridge from real `wp_delete_post()` failure through due public batch retry to
+`resolved`, without duplicating component policy logic. Real-flow reverse and
+seeded-random repeat-2 pass `12/170`; true multisite passes `6/85` without a
+relevant skip. The exact delay/retention authority passes `10/29`. The
+contender/ceiling/manual authority passes `3/48` on both digest-pinned MySQL
+8.0.46 and MariaDB 10.11.16. Full regression passes unit `141/518` and
+integration `506/4591` with eight pre-existing skips; the changed fixture
+passes direct PHPCS. No production change or new decision gate was required.
+
 #### B21-06. Qualify true-multisite context routing
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove the real deletion flow stays site-safe when process-global hooks
 coexist with explicit WordPress context switching.
@@ -3305,9 +3329,26 @@ Dependencies: B21-01, B21-02; dedicated `WP_MULTISITE=1` lane.
 Notes/Risks: the consumer must construct a fresh Client per site. Tests must
 not make stale-Client silence look like automatic routing or reconstruction.
 
+Completion evidence: test commits `6a9726b` and
+`39189ffdb047b366ba88837bee57f86f9a77658f` add two real true-multisite
+scenarios with the same Client name and exact numeric page/post IDs on both
+blogs. The first proves that site B invokes and mutates only its fresh Client,
+then restoration to site A preserves its post/rows until site A's own real
+deletion. The second proves site-local `retry_wait` records, distinct repair
+keys and independent manual resolution after cleanup failure. The focused new
+lane passes `2/55`; the full fixture passes true multisite `8/140` without a
+skip; reverse and seed-`20260922` repeat-2 pass `16/280`. Single-site fixture
+compatibility passes `8/85` with two expected multisite-only skips. Full
+regression passes unit `141/518` and integration `508/4591` with ten expected
+skips; direct fixture PHPCS passes. A first repeat run exposed test teardown
+touching a temporary blog after WordPress had removed its tables; `39189ff`
+keeps subscription disposal unconditional while guarding site-local DB
+cleanup. This was a fixture-lifecycle defect, not a production routing defect.
+No production change or new decision gate was required.
+
 #### B21-07. Qualify custom-adapter recovery conformance
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove custom storage participates only when it declares the approved
 atomic capability and matches the durable adapter identity.
@@ -3348,9 +3389,33 @@ Notes/Risks: an anonymous or replaced adapter can change its fingerprint across
 requests; qualification must preserve rather than silently rewrite the stored
 identity.
 
+Completion evidence: test-only commit
+`89dbbe78075dd978d224ee0b997a706512ca8a98` extends the existing custom
+storage fixture with seeded connection/meta state and real `wp_delete_post()`
+coverage. Custom atomic success removes both states and leaves no repair;
+pre-commit failure restores both and resolves on manual retry; modeled
+commit-confirmation uncertainty retains the committed deletion and resolves on
+an idempotent zero-match retry. A due repair with no fresh Client receives no
+cron-driven storage call and remains visible until same-class reconstruction.
+A replacement storage class reaches fail-closed fingerprint mismatch and
+`needs_attention` before any replacement-adapter cleanup call. The non-atomic
+fixture receives zero cleanup calls and records redacted attention.
+
+Focused real-flow coverage passes `6/62`; reverse and seed-`20260922`
+repeat-2 pass `12/124`; the full hook-migration fixture passes single-site
+`27/121` with five expected multisite-only skips and true multisite `27/139`
+without skips. The retained fingerprint authority passes `1/21`. Full
+regression passes unit `141/518` and integration `513/4649` with ten expected
+skips; source PHPCS passes `100/100` and the changed fixture has valid syntax.
+Direct PHPCS of that old test file still reports only its three pre-existing
+structural findings (multiple test doubles in one file and old teardown
+nesting); no changed-line violation was added. Adapter call logs deliberately
+remain at-least-once, so unrelated side effects are not claimed exactly once.
+No production change or new decision gate was required.
+
 #### B21-08. Close degraded-cron and operator-service evidence
 
-Status: waiting_dependency
+Status: completed
 
 Goal: make every non-automatic recovery state actionable with the already
 public PHP service when WP-Cron is disabled, late or unavailable.
@@ -3389,9 +3454,16 @@ Dependencies: B21-03—B21-07.
 Notes/Risks: diagnostics are deliberately redacted; the runbook must not advise
 operators to read or mutate raw serialized failure data.
 
+Delivery evidence: `65c53e8` commits the canonical operations runbook and two
+real-flow operational tests. Focused single-site and true-multisite runs each
+pass `2 tests / 49 assertions`; reverse and seeded-random repeat runs each
+pass `4 / 98` (seed `20260922`). Focused PHPCS and syntax checks pass. Exact
+commands and the test-only scheduler assertion correction are in the manifest.
+No production or public-contract change was required; B21-09 is unblocked.
+
 #### B21-09. Rehearse rollback and consumer-owned uninstall preservation
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove and document that code rollback or consumer-plugin uninstall does
 not silently destroy unresolved recovery state.
@@ -3436,9 +3508,30 @@ Notes/Risks: tests cannot execute an unknown consumer plugin's uninstaller.
 The executable guarantee is persistence across library lifecycle teardown; the
 consumer-owned uninstall obligation is a release checklist item for HOOK-04.
 
+Delivery evidence: `85dfa8d` commits the real-flow preservation rehearsal,
+source audit and rollback/uninstall runbook. Operational plus retained ledger
+purge tests pass `6 / 154`; true-multisite operational tests pass `3 / 84`,
+and seeded random repeat passes `6 / 168` (seed `20260922`). Focused PHPCS
+passes. No source behavior changed; no consumer uninstaller or actual package
+downgrade was executed. B21-10 is unblocked for local qualification.
+
 #### B21-10. Prove the vendor and infrastructure matrix
 
-Status: waiting_dependency
+Status: review
+
+The repository owner resumed execution on 2026-09-22. The historical pause is
+preserved in [the resumed checkpoint](batch21-checkpoint.md), but is no longer
+an instruction to stop. Exact source/test candidate `062b7fe` passed the full
+local unit, integration, true-multisite, reverse/random isolation (seed
+`20260922`), PHPCS, fixed-floor coverage/multisite and pinned MySQL 8.0.46 /
+MariaDB 10.11.16 matrix. Protected PR evidence remains missing, so the task is
+not complete and no requirement is waived.
+
+Independent QA returned `fail` for the previously missing durable evidence and
+the still-open external protection/CI/merge/post-merge criteria. It found no
+P0—P3 technical or operational issue and no new decision gate. The evidence
+remediation does not count as fresh QA or epic acceptance. B21-Q remains
+`waiting_dependency`; Batch 21 / DB-04-Q remains `in_progress`.
 
 Goal: produce one exact-candidate evidence set for all DB-04-Q behavior and
 repository quality gates.
@@ -5640,7 +5733,7 @@ DoD/AC:
 
 #### DB-04-Q. Real-flow, vendor and operational closure
 
-Status: todo
+Status: in_progress
 
 Scope: real `wp_delete_post()`, failure/crash/concurrency, true multisite,
 pinned vendors, operator/uninstall docs, independent QA and protected-delivery

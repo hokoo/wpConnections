@@ -3,6 +3,13 @@
 Этот каталог фиксирует исполняемый план, подготовленный после аудита репозитория,
 тестов, GitHub issues и текущей CI-ветки 2026-09-09.
 
+Владелец возобновил работу 2026-09-22. B21-01—B21-09 завершены; B21-10
+переведён в `review`: exact candidate `062b7fe` прошёл полный локальный
+technical matrix, но protected delivery отсутствует. История паузы, команды и
+точные результаты сохранены в
+[Batch 21 checkpoint](batch21-checkpoint.md). B21-Q остаётся
+`waiting_dependency`, а Batch 21 / DB-04-Q — `in_progress`.
+
 ## Порядок исполнения
 
 1. Инфраструктурный план завершён: [PR #48](https://github.com/hokoo/wpConnections/pull/48)
@@ -95,11 +102,26 @@
     constructor rollback, REST/repair reentrancy guards, token/ABA ownership
     protection, retention release и multisite isolation поставлены. Batch 20
     не создавал tag/release.
-15. DB-04-Q разложен на Batch 21: real `wp_delete_post()` cascade,
+15. DB-04-Q разложен и начат как Batch 21: real `wp_delete_post()` cascade,
     recovery/crash windows, true-multisite и custom-adapter qualification,
     operator/rollback/uninstall runbook, pinned vendors и exact delivery
-    evidence. Новых decision gates на входе нет; Batch 21 не
-    добавляет public API и не выпускает tag.
+    evidence. B21-01—B21-07 завершены: fixture `0a15b4d`, data matrix
+    `ac6361f`, pre-commit/arm/wake-up matrix `01daf04`, post-commit/crash
+    matrix `7587271`, due-retry bridge `e039db0` и true-multisite
+    same-name/same-ID matrix `6a9726b` + repeat-safe teardown `39189ff`
+    зафиксированы в verification manifest. Custom-adapter real-flow matrix
+    `89dbbe7` также завершена. B21-08 завершён в `65c53e8`: degraded-cron
+    tests и operator runbook; focused single-site/multisite `2 / 49`,
+    reverse/random repeat `4 / 98`, seed `20260922`. B21-09 завершён в
+    `85dfa8d`: preservation rehearsal, retention evidence и rollback/uninstall
+    runbook; operational/retention `6 / 154`, multisite `3 / 84`, repeat `6 / 168`.
+    Exact candidate `062b7fe` прошёл полный локальный B21-10 matrix: current
+    unit/integration/multisite/isolation, PHPCS, fixed-floor coverage/multisite
+    и pinned MySQL 8.0.46 / MariaDB 10.11.16. B21-10 остаётся в `review` до
+    protected PR; independent QA gate остаётся `fail` из-за documentary и
+    external-delivery gaps, при этом P0—P3 technical findings не обнаружены.
+    Новых product decision gates нет. Batch 21 не добавляет public API и не
+    выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

@@ -157,6 +157,15 @@ the library never performs a destructive compensating `DROP`.
 | `FACTORY-EXT-01` | Valid custom storage, REST API, and logger implementations supplied through the public factory filters are selected and invoked through their supported extension contracts. | SPI-01 / REL-02 |
 | `FACTORY-INVALID-01` | Missing or incompatible factory replacements fail with the stable exception contract and do not leave a partially registered client. | REL-02 |
 
+Batch 21's exact `HOOK-CASCADE-01` named evidence is
+`DeletedPostRecoveryRealFlowTest::test_permanent_delete_fixture_observes_data_hooks_and_repair_state`,
+`test_permanent_delete_cascades_all_endpoint_shapes_and_preserves_unrelated_rows`,
+`test_permanent_delete_isolates_multiple_clients_and_their_success_hooks` and
+`test_permanent_attachment_delete_uses_the_same_cascade_contract`. The
+[verification manifest](deleted-post-repair-verification-manifest.md) maps
+these tests to the passing `062b7fe` local integration, true-multisite, pinned
+vendor and isolation lanes; protected delivery remains open.
+
 ## Pull-request checklist contract
 
 Authors use the critical-component trigger map before review. A pull request

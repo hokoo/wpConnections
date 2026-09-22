@@ -94,6 +94,11 @@ The `WP Integration Tests` workflow runs five pairwise jobs:
 | `8.4.25` | `6.7.7` | `2.1.1` |
 | `8.5.10` | `7.1.0` | `2.1.1` |
 
+The same workflow also runs the dedicated true-multisite job
+`WP Multisite PHP 8.1.34 / WP 6.7.7 / Ramsey 1.3.0`, using
+`test:multisite`. Multisite-only skips in a single-site lane do not substitute
+for this job.
+
 WordPress `6.7.7` is the compatibility-floor pin, not a statement that its
 upstream branch is still maintained. WordPress `7.1.0` is the stable pin for
 this matrix. Production WordPress versions should follow current upstream
@@ -239,13 +244,14 @@ Before merge, the pull request should show all of these green:
 
 - 10 `Unit Tests / Unit Tests PHP … / Ramsey …` jobs;
 - 5 `WP Integration Tests / WP Integration PHP … / WP … / Ramsey …` jobs;
+- `WP Integration Tests / WP Multisite PHP 8.1.34 / WP 6.7.7 / Ramsey 1.3.0`;
 - `Database Compatibility / MySQL 8.0.46`;
 - `Database Compatibility / MariaDB 10.11.16`;
 - `Coverage / Coverage PHP 8.1.34 / WordPress 6.7.7`;
 - `PHP Code Styles / php-cs`.
 
 Repository files cannot configure GitHub branch protection by themselves. The
-`master` branch is expected to use strict required status checks for all 19 jobs
+`master` branch is expected to use strict required status checks for all 20 jobs
 listed above, with administrator enforcement and force-push/deletion disabled.
 The merge owner must verify both the protection settings and the visible checks,
 including that none are missing, skipped, cancelled, or stale for the pull
