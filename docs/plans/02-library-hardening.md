@@ -3032,9 +3032,10 @@ only if real-flow evidence demands a new public command/option, changes the
 nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
-Execution model: B21-01 is the only entry-ready task and freezes the missing
-observable contract before any production correction. Every later task remains
-`waiting_dependency` until its explicit DoR is true. The default review groups
+Execution model: B21-01 froze the missing observable contract before any
+production correction and is complete. B21-02 is the next selected task.
+Every later task remains `waiting_dependency` until its explicit DoR is true.
+The default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
 B21-10/Q (qualification/closeout). B21-03 and B21-06 may proceed independently
@@ -3044,7 +3045,7 @@ persistence choice pauses only the affected group at a new DG.
 
 #### B21-01. Freeze the real `wp_delete_post()` qualification contract
 
-Status: in_progress
+Status: completed
 
 Goal: create one isolated test contour and traceability map for every remaining
 DB-04-Q observation before changing production code.
@@ -3090,7 +3091,7 @@ green under reverse/random repeat before downstream work starts.
 
 #### B21-02. Prove the real data cascade and Client isolation
 
-Status: waiting_dependency
+Status: todo
 
 Goal: prove `HOOK-CASCADE-01` through permanent WordPress deletion for all
 endpoint shapes without duplicating the existing one-direction smoke tests.

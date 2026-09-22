@@ -98,9 +98,9 @@
 15. DB-04-Q разложен и начат как Batch 21: real `wp_delete_post()` cascade,
     recovery/crash windows, true-multisite и custom-adapter qualification,
     operator/rollback/uninstall runbook, pinned vendors и exact delivery
-    evidence. B21-01 — единственная entry-ready задача; новых decision
-    gates на входе нет. Batch 21 не добавляет public API и не выпускает
-    tag.
+    evidence. B21-01 завершён: fixture commit `0a15b4d` и активный verification
+    manifest фиксируют исходную трассировку; B21-02 выбран следующим. Новых
+    decision gates нет. Batch 21 не добавляет public API и не выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

@@ -829,9 +829,9 @@ DoD:
 
 ### DB-04-Q — real-flow, vendor, and operational closure
 
-Status: `in_progress` as Batch 21; B21-01 is the only entry-ready active task.
-I1—I3, LIFE-HOOK-01 and all approved gates are complete. No open decision gate
-exists at entry.
+Status: `in_progress` as Batch 21; B21-01 is complete and B21-02 is the next
+selected task. I1—I3, LIFE-HOOK-01 and all approved gates are complete. No
+open decision gate exists at entry.
 
 Scope: end-to-end `wp_delete_post()` behavior, failure/crash/concurrency matrix,
 true multisite lane, pinned vendors, docs, runbook, and independent QA.
@@ -883,9 +883,12 @@ automatic site switching or release tag.
 
 ## DB-04-Q verification manifest baseline
 
-B21-01 turns this baseline into an exact-SHA manifest. Every row must end with
-named test, lane, command and result; a retained test is evidence only for the
-observation it actually makes.
+B21-01 turned this baseline into the active
+[`deleted-post-repair-verification-manifest.md`](deleted-post-repair-verification-manifest.md).
+Every row must end with named test, lane, command and result; a retained test
+is evidence only for the observation it actually makes. The baseline below is
+kept as a compact contract index; the active manifest owns exact status and
+evidence.
 
 | Contract area | Retained named evidence | Missing observation / owner |
 | --- | --- | --- |
