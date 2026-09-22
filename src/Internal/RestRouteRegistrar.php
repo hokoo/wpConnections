@@ -2,6 +2,7 @@
 
 namespace iTRON\wpConnections\Internal;
 
+use iTRON\wpConnections\Exceptions\ConnectionWrongData;
 use WP_REST_Server;
 
 /**
@@ -51,6 +52,15 @@ final class RestRouteRegistrar
                             'type'        => 'string',
                             'required'    => true,
                         ],
+                        'from' => self::positiveSelectorArgument(
+                            __('Positive FROM endpoint ID.')
+                        ),
+                        'to' => self::positiveSelectorArgument(
+                            __('Positive TO endpoint ID.')
+                        ),
+                        'both' => self::positiveSelectorArgument(
+                            __('Positive endpoint ID matching either side.')
+                        ),
                     ],
                 ],
                 [
@@ -212,6 +222,34 @@ final class RestRouteRegistrar
         }
 
         return $routeArguments;
+    }
+
+    private static function positiveSelectorArgument(string $description): array
+    {
+        return [
+            'description'       => $description,
+            'type'              => 'integer',
+            'minimum'           => 1,
+            'required'          => false,
+            'validate_callback' => static function (
+                $value,
+                \WP_REST_Request $request,
+                string $parameter
+            ): bool {
+                $queryParameters = $request->get_query_params();
+                $candidate = array_key_exists($parameter, $queryParameters)
+                    ? $queryParameters[ $parameter ]
+                    : $value;
+
+                try {
+                    ConnectionIdNormalizer::one($candidate);
+                } catch (ConnectionWrongData $exception) {
+                    return false;
+                }
+
+                return true;
+            },
+        ];
     }
 
     private static function connectionUpdateHandler(

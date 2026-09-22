@@ -75,7 +75,7 @@ DB-04-I / DB-04-Q и B21-Q завершены: qualification PR #108 и closeout
 final QA вернул `pass_with_notes` без P0—P3, decision gate или exception.
 REST-04 выполняется по существующему контракту ниже.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
-вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
+вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `review`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
@@ -5769,7 +5769,8 @@ contexts and received fresh final QA `pass_with_notes`. B21-Q, Batch 21,
 DB-04-I and DB-04-Q are completed. The batch qualifies the existing contract
 without adding a new public surface or destructive uninstall behavior.
 REST-04 later completed through Batch 22 / PR #110 and exact merge `5f4c544`;
-REST-05 is in review. HOOK-04, REL-02 and REL-03 remain release dependencies.
+REST-05 completed through PR #111 and exact merge `2b4a1cd`; REST-06 is in
+review. HOOK-04, REL-02 and REL-03 remain release dependencies.
 
 ### DB-05. Сделать составные storage operations атомарными
 
@@ -6552,7 +6553,7 @@ Notes/Risks:
 
 ### REST-05. Покрыть REST meta semantics
 
-Status: review
+Status: completed
 
 Priority: P1
 
@@ -6623,8 +6624,8 @@ Notes/Risks:
   единственное последующее executable изменение — однострочное lifecycle
   integration expectation. Точная provenance записана в
   [Batch 23 checkpoint](batch23-checkpoint.md); `make tests.coverage.rc` не
-  запускался. REST-05 остаётся в `review` до protected PR, merge и post-merge
-  gates; следующая задача — REST-06.
+  запускался. PR #111 head `b141347` и exact merge `2b4a1cd` прошли все 20/20
+  protected/post-merge contexts; REST-05 завершён, следующая задача — REST-06.
 - DELETE argument declaration сохраняет подтверждённые на реальных runtime
   row-list, associative-map, omitted/empty/top-level-null и legacy scalar
   handling. Canonical behavior и image provenance записаны в
@@ -6632,7 +6633,7 @@ Notes/Risks:
 
 ### REST-06. Реализовать filters relation list из issue #21
 
-Status: todo
+Status: review
 
 Priority: P1
 
@@ -6686,6 +6687,13 @@ Notes/Risks:
   contract принадлежит API-04; отдельный pre-expansion task не создаётся.
 - Любое будущее расширение pagination вне approved API-04 scope требует нового
   contract/task, а не неявного расширения REST-06.
+- Реализация и public handoff записаны в
+  [`rest-relation-selectors.md`](../rest-relation-selectors.md). Focused current
+  full-dispatch и lifecycle candidate проходит 50 tests / 404 assertions с
+  одним expected single-site skip; расширенный relevant selector/lifecycle/
+  storage/permission ladder проходит 159 tests / 1639 assertions с двумя
+  expected environment skips. Protected delivery и закрытие issue #21 остаются
+  до перевода REST-06 в `completed`; E4 ждёт fresh Epic QA.
 
 ## E5. Незавершённый API, related entities и документация
 

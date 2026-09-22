@@ -12,15 +12,12 @@ Batch 21 qualification delivered through PR #108 on 2026-09-22. B21-01—B21-10
 завершён через PR #110: exact head `c91388e` и merge `5f4c544` прошли 20/20
 protected/post-merge contexts, fresh final QA вернул `pass_with_notes` без
 open P0—P3. Authoritative evidence находится в
-[Batch 22 checkpoint](batch22-checkpoint.md). REST-05 находится в `review`:
-расширенный focused current full-dispatch class проходит 36 tests / 176
-assertions; path authority отдельно покрыта для body и query во всех четырёх
-metadata methods. Floor 29 / 120 относится к более раннему source candidate;
-расширенный suite прошёл внутри полного unfiltered floor coverage gate. Current
-integration, multisite, isolation seed `20260922`, coverage/PR policy и project
-PHPCS также прошли; точные команды и результаты находятся в
-[Batch 23 checkpoint](batch23-checkpoint.md). REST-05 остаётся в `review` до
-protected PR, merge и post-merge gates; следующая задача — REST-06.
+[Batch 22 checkpoint](batch22-checkpoint.md). REST-05 завершён через PR #111:
+exact head `b141347` и merge `2b4a1cd` прошли 20/20 protected/post-merge
+contexts; точные local и delivery результаты находятся в
+[Batch 23 checkpoint](batch23-checkpoint.md). REST-06 находится в `review`;
+selector contract и текущий focused evidence записаны в
+[`rest-relation-selectors.md`](../rest-relation-selectors.md).
 
 ## Порядок исполнения
 
@@ -166,7 +163,8 @@ map находятся в
   contexts; fresh final QA вернул `pass_with_notes` без open P0—P3. Batch 21 /
   DB-04-Q ранее завершён PR #108 и closeout PR #109. Terminal Client
   lifecycle, manager-backed recovery, real-flow/vendor/operational
-  qualification и REST permissions завершены. REST-05 находится в `review`.
+  qualification и REST permissions завершены. REST-05 завершён PR #111;
+  REST-06 находится в `review`.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -251,7 +249,7 @@ map находятся в
   Выявленные при декомпозиции Batch 18 DG-DELETE-06R4—DG-DELETE-06R6
   утверждены вариантом A владельцем 2026-09-21.
   DG-API20-01—DG-API20-09 также утверждены владельцем 2026-09-14 в вариантах
-  B/B/A/B/B/A/B/B/B; REST-06 теперь `todo`, API-03 ждёт REST-06, а API-04 и
+  B/B/A/B/B/A/B/B/B; REST-06 теперь `review`, API-03 ждёт REST-06, а API-04 и
   DOC-01 сохраняют последующие dependencies. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
@@ -283,7 +281,7 @@ map находятся в
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
   contract находится в
   [`rest-connection-contract.md`](../rest-connection-contract.md). REST-04
-  позднее завершён Batch 22 / PR #110; REST-05 теперь находится в `review`, а
+  позднее завершён Batch 22 / PR #110; REST-05 завершён PR #111, а
   его metadata contract записан в
   [`rest-meta-contract.md`](../rest-meta-contract.md).
 - DB-04-D завершена PR #97: current call graph, crash windows, pre-armed

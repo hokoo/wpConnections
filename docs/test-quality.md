@@ -177,6 +177,20 @@ mutated while the foreign relation and real second client remain unchanged.
 The public contract and pinned-runtime argument characterization is documented
 in [`rest-meta-contract.md`](rest-meta-contract.md).
 
+REST-06's named `REST-FILTER-01` evidence is `RestRelationSelectorsTest`, with
+the route-inventory and ingress-lifecycle cases in `ClientRestApiLifecycleTest`.
+The full-dispatch matrix covers each scalar selector, AND across selectors, OR
+inside `both`, exact pairs, self/incident edges, empty results, unfiltered v1
+wire compatibility and relation/client/path isolation. Invalid empty, zero,
+negative, fractional, non-decimal, non-finite, overflow, null, array and
+repeated raw values return native HTTP 400 before selector storage SQL. The raw
+duplicate matrix exercises WordPress's real `serve_request()` request
+construction, while direct dispatch proves it does not read ambient raw query
+state. A valid same-named body value cannot mask an invalid query selector;
+the handler consumes selectors only from the query bag. The public behavior
+and initialization boundary are documented in
+[`rest-relation-selectors.md`](rest-relation-selectors.md).
+
 ### WordPress hooks and extension factories
 
 | ID | Minimum observable expectation | Delivery task |

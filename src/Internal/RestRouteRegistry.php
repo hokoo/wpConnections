@@ -26,7 +26,11 @@ final class RestRouteRegistry
     private SiteContextProvider $contexts;
 
     /**
-     * @var array<string, array{subscription: ActionSubscription, owners: array<string, bool>}>
+     * @var array<string, array{
+     *     route_subscription: ActionSubscription,
+     *     query_subscription: ActionSubscription,
+     *     owners: array<string, bool>
+     * }>
      */
     private array $contextSubscriptions = [];
 
@@ -134,6 +138,13 @@ final class RestRouteRegistry
                 $this->registerAllRoutes($wp_rest_server);
             }
             $client->assertIntegrationLifecycleActive();
+
+            if (doing_action('rest_api_init')) {
+                $this->normalizeRepeatedRelationSelectors(
+                    $contextKey,
+                    $GLOBALS['wp'] ?? null
+                );
+            }
 
             return $registration;
         } catch (Throwable $exception) {
@@ -255,7 +266,7 @@ final class RestRouteRegistry
             return false;
         }
 
-        $subscription = $this->dispatcher->subscribe(
+        $routeSubscription = $this->dispatcher->subscribe(
             'rest_api_init',
             function ($server): void {
                 if ($server instanceof WP_REST_Server) {
@@ -265,10 +276,24 @@ final class RestRouteRegistry
             10,
             1
         );
+        try {
+            $querySubscription = $this->dispatcher->subscribe(
+                'parse_request',
+                function ($wp) use ($contextKey): void {
+                    $this->normalizeRepeatedRelationSelectors($contextKey, $wp);
+                },
+                9,
+                1
+            );
+        } catch (Throwable $exception) {
+            $routeSubscription->unsubscribe();
+            throw $exception;
+        }
 
         $this->contextSubscriptions[ $contextKey ] = [
-            'subscription' => $subscription,
-            'owners'       => [],
+            'route_subscription' => $routeSubscription,
+            'query_subscription' => $querySubscription,
+            'owners'             => [],
         ];
 
         return true;
@@ -281,8 +306,115 @@ final class RestRouteRegistry
             return;
         }
 
-        $contextSubscription['subscription']->unsubscribe();
+        $contextSubscription['query_subscription']->unsubscribe();
+        $contextSubscription['route_subscription']->unsubscribe();
         unset($this->contextSubscriptions[ $contextKey ]);
+    }
+
+    /**
+     * Restores repeated selector values that PHP collapsed before WordPress
+     * builds its REST request, allowing native route validation to reject them.
+     *
+     * @param mixed $wp
+     */
+    private function normalizeRepeatedRelationSelectors(string $contextKey, $wp): void
+    {
+        if (
+            'GET' !== strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? ''))
+            || ! is_object($wp)
+            || ! isset($wp->query_vars['rest_route'])
+            || ! is_string($wp->query_vars['rest_route'])
+        ) {
+            return;
+        }
+
+        $route = untrailingslashit($wp->query_vars['rest_route']);
+        if (! $this->isOwnedRelationRoute($contextKey, $route)) {
+            return;
+        }
+
+        $rawQuery = $_SERVER['QUERY_STRING'] ?? '';
+        if (! is_string($rawQuery) || '' === $rawQuery) {
+            return;
+        }
+
+        $values = [
+            'from' => [],
+            'to'   => [],
+            'both' => [],
+        ];
+        foreach ($this->splitRawQuery($rawQuery) as $component) {
+            $parameters = $this->parseRawQueryComponent($component);
+            foreach (array_keys($values) as $selector) {
+                if (array_key_exists($selector, $parameters)) {
+                    $values[ $selector ][] = $parameters[ $selector ];
+                }
+            }
+        }
+
+        foreach ($values as $selector => $selectorValues) {
+            if (1 < count($selectorValues)) {
+                $_GET[ $selector ] = $selectorValues;
+            }
+        }
+    }
+
+    /**
+     * Uses PHP's query-key rules while containing warnings from malformed or
+     * over-nested external keys to this inspection pass.
+     *
+     * @return array<string, mixed>
+     */
+    private function parseRawQueryComponent(string $component): array
+    {
+        $parameters = [];
+        set_error_handler(
+            static function (): bool {
+                return true;
+            },
+            E_WARNING
+        );
+
+        try {
+            parse_str($component, $parameters);
+        } finally {
+            restore_error_handler();
+        }
+
+        return $parameters;
+    }
+
+    private function isOwnedRelationRoute(string $contextKey, string $route): bool
+    {
+        foreach ($this->owners as $owner) {
+            if ($contextKey !== $owner['context']) {
+                continue;
+            }
+
+            $identity = $owner['identity'];
+            $pattern = '/' . $identity->getNamespace() . $identity->getRelationRoute();
+            if (1 === preg_match('@^' . str_replace('@', '\\@', $pattern) . '$@i', $route)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function splitRawQuery(string $rawQuery): array
+    {
+        $separators = (string) ini_get('arg_separator.input');
+        if ('' === $separators) {
+            $separators = '&';
+        }
+
+        return preg_split(
+            '/[' . preg_quote($separators, '/') . ']/',
+            $rawQuery
+        ) ?: [];
     }
 
     private function registerAllRoutes(WP_REST_Server $server): void

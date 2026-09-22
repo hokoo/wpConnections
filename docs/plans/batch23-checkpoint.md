@@ -1,7 +1,7 @@
 # Batch 23 — REST-05 metadata
 
-Status: review; implementation, focused repairs and local gates accepted by root;
-protected PR and merge verification remain pending.
+Status: completed; implementation, repairs, local gates and protected delivery
+accepted by root on 2026-09-22. E4 Epic QA remains after REST-06.
 
 Base: accepted REST-04 merge `5f4c544` and acceptance record `4d2e9e7`.
 Contract: REST-05 in [the hardening plan](02-library-hardening.md).
@@ -52,6 +52,23 @@ Contract: REST-05 in [the hardening plan](02-library-hardening.md).
 - Current gates used PHP 8.1.34 / WP 7.1-src / Ramsey 1.3.0; coverage used
   WP 6.7.7. Final logs: `/tmp/wpconnections-b23-local-final/`. Verification
   left the working tree unchanged. Unit evidence above remains valid because
-  the repair changes only an integration-test expectation. Protected PR and
-  merge gates remain pending; independent Epic QA follows REST-06 at E4.
+  the repair changes only an integration-test expectation.
+- [PR #111](https://github.com/hokoo/wpConnections/pull/111) head
+  `b141347b632ae1eb08d4eab0370a7aff815416fa` passed all 20 required contexts.
+  Merge `2b4a1cd553bb1813a21e6615c76237a2fb38f6e8` at 12:33:59 UTC passed
+  the same 20 contexts. Root independently matched exact names, SHA and
+  completed/success state at both boundaries; none were missing, duplicated,
+  skipped, cancelled or stale. Strict protection and admin enforcement remain
+  enabled; force pushes and deletion remain disabled.
+- Exact-merge runs: [unit](https://github.com/hokoo/wpConnections/actions/runs/35727956920),
+  [integration/multisite](https://github.com/hokoo/wpConnections/actions/runs/35727956896),
+  [coverage](https://github.com/hokoo/wpConnections/actions/runs/35727956931),
+  [PHPCS](https://github.com/hokoo/wpConnections/actions/runs/35727956857),
+  [databases](https://github.com/hokoo/wpConnections/actions/runs/35727956734).
+  Detailed snapshots: `/tmp/wpconnections-b23-pr111-ci/` and
+  `/tmp/wpconnections-b23-postmerge-ci/`.
+- No root-authored implementation exception, waiver or unresolved task finding.
+  Existing lifecycle test formatting debt and previously observed WordPress
+  warnings/PHPCS deprecation remain notes. Independent Epic QA follows REST-06
+  at E4; this task completion does not claim epic or release acceptance.
 - Next task after acceptance: REST-06 selectors. No release/tag or waiver.
