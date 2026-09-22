@@ -109,9 +109,11 @@ Protection had 19 strict required contexts; the existing dedicated multisite
 job was absent, and no additional branch rules supplied it. No push, PR,
 protection mutation, merge, release or other remote write was performed.
 
-The next action requires repository-owner authority: push the reviewed docs
-and candidate, open the PR, add the dedicated multisite context to protection,
-obtain all 20 protected CI results, run fresh independent final QA against that
-exact PR head, then merge and record all 20 post-merge results on the exact
-merge SHA. No criterion has been waived. HOOK-04, REL-02 and REL-03 remain
-release dependencies, and Batch 21 creates no tag or release.
+On 2026-09-22 the repository owner authorized push, PR creation, adding the
+dedicated multisite protection context, and merge after successful CI and
+candidate review, with continuing authority for these delivery actions in this
+project. Repeated permission requests for these actions are unnecessary.
+Execution continues through all 20 protected checks, independent candidate QA,
+merge, and all 20 post-merge results on the exact merge SHA. No acceptance
+criterion was waived. HOOK-04, REL-02 and REL-03 remain release dependencies,
+and Batch 21 creates no tag or release.
