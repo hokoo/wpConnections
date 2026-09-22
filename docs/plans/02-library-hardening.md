@@ -3033,7 +3033,7 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01—B21-07 are complete. B21-08 is the next selected
+production correction; B21-01—B21-09 are complete. B21-10 is the next selected
 task. Every
 later task remains `waiting_dependency` until its explicit DoR is true. The
 default review groups
@@ -3415,7 +3415,7 @@ No production change or new decision gate was required.
 
 #### B21-08. Close degraded-cron and operator-service evidence
 
-Status: todo
+Status: completed
 
 Goal: make every non-automatic recovery state actionable with the already
 public PHP service when WP-Cron is disabled, late or unavailable.
@@ -3454,9 +3454,16 @@ Dependencies: B21-03—B21-07.
 Notes/Risks: diagnostics are deliberately redacted; the runbook must not advise
 operators to read or mutate raw serialized failure data.
 
+Delivery evidence: `65c53e8` commits the canonical operations runbook and two
+real-flow operational tests. Focused single-site and true-multisite runs each
+pass `2 tests / 49 assertions`; reverse and seeded-random repeat runs each
+pass `4 / 98` (seed `20260922`). Focused PHPCS and syntax checks pass. Exact
+commands and the test-only scheduler assertion correction are in the manifest.
+No production or public-contract change was required; B21-09 is unblocked.
+
 #### B21-09. Rehearse rollback and consumer-owned uninstall preservation
 
-Status: waiting_dependency
+Status: completed
 
 Goal: prove and document that code rollback or consumer-plugin uninstall does
 not silently destroy unresolved recovery state.
@@ -3501,9 +3508,16 @@ Notes/Risks: tests cannot execute an unknown consumer plugin's uninstaller.
 The executable guarantee is persistence across library lifecycle teardown; the
 consumer-owned uninstall obligation is a release checklist item for HOOK-04.
 
+Delivery evidence: `85dfa8d` commits the real-flow preservation rehearsal,
+source audit and rollback/uninstall runbook. Operational plus retained ledger
+purge tests pass `6 / 154`; true-multisite operational tests pass `3 / 84`,
+and seeded random repeat passes `6 / 168` (seed `20260922`). Focused PHPCS
+passes. No source behavior changed; no consumer uninstaller or actual package
+downgrade was executed. B21-10 is unblocked for local qualification.
+
 #### B21-10. Prove the vendor and infrastructure matrix
 
-Status: waiting_dependency
+Status: in_progress
 
 Goal: produce one exact-candidate evidence set for all DB-04-Q behavior and
 repository quality gates.

@@ -1,6 +1,6 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01—B21-07 are complete; B21-08 is the
+Status: active DB-04-Q manifest. B21-01—B21-09 are complete; B21-10 is the
 next selected task. The final exact qualification candidate and
 protected CI results remain owned by B21-10/B21-Q.
 
@@ -23,10 +23,12 @@ protected CI results remain owned by B21-10/B21-Q.
   `39189ffdb047b366ba88837bee57f86f9a77658f` (repeat-safe fixture teardown).
 - Custom-adapter real-flow matrix commit:
   `89dbbe78075dd978d224ee0b997a706512ca8a98`.
+- Operator/degraded-cron tests and canonical runbook: `65c53e8`.
+- Lifecycle preservation rehearsal and rollback/uninstall runbook: `85dfa8d`.
 - Primary fixtures: `DeletedPostRecoveryRealFlowTest` and
   `AtomicMutationTest`, with deterministic lease-boundary evidence in
   `DeletedPostRepairExecutorTest`.
-- Production delta through B21-07: none. The observed paths were committed as
+- Production delta through B21-09: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
 - Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
 - Final merge and post-merge identity: pending B21-Q.
@@ -209,6 +211,59 @@ exceeds the configured nesting limit. No new-line style error was introduced;
 canonical source PHPCS remains green. No production change or new decision
 gate was required.
 
+## B21-08 operator and degraded-cron evidence
+
+The following commands tested the content committed in `65c53e8` on PHP
+8.1.34, WordPress 7.1-src, Ramsey 1.3.0 and MariaDB 11.8.6. Docker commands
+run from `local-dev/`.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Focused single-site | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRepairOperationalTest` | PASS — 2 tests, 49 assertions |
+| Focused true multisite | same command with `test:multisite` | PASS — 2 tests, 49 assertions, no skip |
+| Reverse isolation | focused single-site command plus `--order-by=reverse --repeat=2` | PASS — 4 tests, 98 assertions |
+| Seeded random isolation | focused single-site command plus `--order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 4 tests, 98 assertions; seed `20260922` |
+| Fixture coding standard | `docker compose -p wpconnections run --rm phpunit vendor/bin/phpcs tests/iTRON/wpConnections/WP/DeletedPostRepairOperationalTest.php --standard=phpcs.xml` | PASS — existing ruleset deprecation only |
+| Syntax | `php -l tests/iTRON/wpConnections/WP/DeletedPostRepairOperationalTest.php` | PASS |
+
+Both scenarios use the bootstrap's real `DISABLE_WP_CRON=true`. The first
+follows real deletion failure through list/get/single retry; the second checks
+due-batch selection, direct registered-runner exhaustion and explicit manual
+recovery from `needs_attention`. The stored event is inspected directly; no
+HTTP cron loopback is claimed. Component scheduler/reconciler tests retain
+authority over detailed scheduling deadlines.
+
+The first discovery run failed an overly strict event-timestamp equality:
+WordPress duplicate-event suppression can leave the previously stored lease-safety
+event when an earlier retry wake-up cannot be scheduled. The final test checks
+the stable hook/empty-argument/valid-timestamp contract; durable work remains
+manually recoverable. This was a test assertion correction, not a production
+fix. The runbook uses the existing public service only.
+
+## B21-09 preservation evidence
+
+The following commands tested the content committed in `85dfa8d`, in the same
+PHP 8.1.34 / WordPress 7.1-src / Ramsey 1.3.0 / MariaDB 11.8.6 environment.
+Docker commands run from `local-dev/`.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Operational and retained purge protection | `docker compose -p wpconnections run --rm phpunit test:integration --filter 'DeletedPostRepairOperationalTest\|test_purge_'` | PASS — 6 tests, 154 assertions |
+| Operational true multisite | `docker compose -p wpconnections run --rm phpunit test:multisite --filter DeletedPostRepairOperationalTest` | PASS — 3 tests, 84 assertions, no skip |
+| True-multisite random repeat | previous command plus `--order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 6 tests, 168 assertions; seed `20260922` |
+| Fixture coding standard | `docker compose -p wpconnections run --rm phpunit vendor/bin/phpcs tests/iTRON/wpConnections/WP/DeletedPostRepairOperationalTest.php --standard=phpcs.xml` | PASS — existing ruleset deprecation only |
+| Source audit | `rg -n 'uninstall\|register_uninstall_hook\|DROP TABLE\|TRUNCATE\|delete_option\|wpconnections_repair_schema_owner' src composer.json`, followed by lifecycle/ledger/helper source inspection | No automatic repair uninstall or table/owner deletion; generic legacy `Database::install_table(delete_first)` is not used by the repair ledger |
+
+The named preservation test inventories real failed cleanup, disables delivery,
+disposes the Client, reconstructs the process-local runtime and a fresh Client,
+and checks the persisted unresolved row and owner value remain unchanged. Its
+manual forward retry resolves the original repair without cleaning unrelated
+data for a post deleted while delivery was disabled. No production correction
+was needed. The test models runtime reconstruction; it does not execute a
+version downgrade, OS restart or an unknown consumer plugin's uninstaller.
+Those limits and the consumer's preservation responsibility are explicit in the
+operations runbook. Normal fixture cleanup remains separate from the rehearsal.
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -267,14 +322,40 @@ gate was required.
 
 | Required observation | Exact evidence or target | Lane | State / owner |
 | --- | --- | --- | --- |
-| Disabled WP-Cron is observable without disabling the storage API | `DeletedPostRepairSchedulerTest::test_dispatch_availability_reports_disabled_wp_cron_without_affecting_storage_api` | WP integration | existing component evidence — B21-08 |
-| Per-site list, single retry, due batch, exhaustion and stored-event reconciliation are executable | `DeletedPostRepairServiceTest` service scenarios plus `docs/deleted-post-repair-operations.md` | WP integration and runbook | planned — B21-08 |
-| Unresolved work survives Client disposal/runtime reconstruction | `DeletedPostRepairOperationalTest::test_unresolved_work_survives_client_disposal_and_runtime_reconstruction` | WP integration | planned — B21-09 |
-| Rollback/consumer uninstall preserves repair table, ownership option and unresolved rows | operations rehearsal plus source audit in `docs/deleted-post-repair-operations.md` | WP integration and source audit | planned — B21-09 |
+| Disabled WP-Cron is observable without disabling the storage API | `DeletedPostRepairSchedulerTest::test_dispatch_availability_reports_disabled_wp_cron_without_affecting_storage_api` plus `DeletedPostRepairOperationalTest::test_disabled_cron_keeps_real_failure_inspectable_and_manually_retryable` | single-site and true-multisite WP | verified in B21-08 (`65c53e8`); retained component rerun — B21-10 |
+| Per-site list, single retry, due batch, exhaustion and stored-event reconciliation are executable | `DeletedPostRepairOperationalTest::test_due_batch_and_direct_runner_expose_exhaustion_for_manual_attention`, `test_disabled_cron_keeps_real_failure_inspectable_and_manually_retryable`; retained `DeletedPostRepairServiceTest` and scheduler/reconciler tests; `docs/deleted-post-repair-operations.md` | WP integration and runbook | verified in B21-08 (`65c53e8`); full retained rerun — B21-10 |
+| Unresolved work survives Client disposal/runtime reconstruction | `DeletedPostRepairOperationalTest::test_unresolved_work_survives_client_disposal_and_runtime_reconstruction` | single-site and true-multisite WP | verified in B21-09 (`85dfa8d`) |
+| Rollback/consumer uninstall preserves repair table, ownership option and unresolved rows | named preservation test; retained ledger `test_purge_*` tests; operations rehearsal and source audit in `docs/deleted-post-repair-operations.md` | WP integration and source audit | verified library boundary in B21-09 (`85dfa8d`); unknown consumer uninstall remains HOOK-04 responsibility |
 | Complete real-flow and ledger/claim/concurrency suite passes MySQL 8.0.46 and MariaDB 10.11.16 | exact-candidate CI jobs and commands | pinned vendor CI | planned — B21-10 |
 | Dedicated `WP_MULTISITE=1` run executes without relevant skips | exact-candidate multisite job | protected CI | planned — B21-10 |
 | Full regression, PHPCS, fixed-floor coverage and reverse/random isolation agree on one SHA | exact-candidate protected matrix | protected CI | planned — B21-10 |
 | Independent correctness, security/data-integrity and operational reviews validate this completed manifest | exact-candidate review records | independent review | planned — B21-Q |
+
+## Explicit R1–R6 contract mapping
+
+Every row below is requalified by B21-10's full suites on the frozen candidate;
+the earlier task evidence above remains attributed to its original revision.
+
+| Approved gate | Exact retained/new tests | Required lane |
+| --- | --- | --- |
+| R1: manager ownership/version boundary | `DeletedPostRepairHookMigrationTest::test_direct_storage_callback_removal_no_longer_disables_cleanup`, `test_semantic_disable_and_enable_control_manager_delivery_idempotently`, `test_manager_subscription_uses_priority_ten_and_one_accepted_argument` | single-site and true-multisite integration |
+| R2: durable owned ledger | `DeletedPostRepairSchemaTest::test_clean_install_uses_the_exact_owned_nonautoloaded_innodb_schema`, `test_unowned_existing_table_fails_closed_without_claim_alter_or_drop`; `AtomicMutationTest::test_deleted_post_real_flow_rollback_uncertainty_stays_durable_and_fail_closed`; operational preservation test above | both pinned vendors and true multisite |
+| R3: wake-up/retry/operator lifecycle | `DeletedPostRepairOperationalTest`'s three named scenarios above; `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease`; `DeletedPostRepairPolicyTest::test_retry_delay_table`; retained purge tests | unit, both pinned vendors and true multisite |
+| R4: safe Client-scoped service | `DeletedPostRepairServiceTest::test_getter_is_lazy_and_get_is_client_scoped_with_safe_projection`, `test_list_is_status_filtered_keyset_paginated_and_does_not_expose_foreign_rows`, `test_retry_outcomes_are_distinct_and_cleanup_failures_are_redacted`, `test_due_batch_is_bounded_uses_manual_mode_and_reports_exact_more_state`, `test_invalid_input_and_stale_context_fail_before_ledger_sql` | full integration and true multisite |
+| R5: eligibility/single wake-up | `DeletedPostRepairReconcilerTest::test_reconciliation_uses_enabled_clients_and_earliest_cleanup_deadline`, `test_existing_earlier_event_is_kept_and_earlier_replacement_is_scheduled_before_old_removal`; `DeletedPostRepairSchedulerTest::test_native_adapter_persists_only_the_stable_empty_argument_site_event`; `DeletedPostRepairHookMigrationTest::test_same_name_multisite_cron_runs_only_the_active_site_worker` | unit, integration and true multisite |
+| R6: claim budget | `DeletedPostRepairLedgerTest::test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth`, `test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state`; operational direct-runner exhaustion scenario above | both pinned vendors and true multisite |
+
+## B21-10 delivery preflight
+
+Read-only GitHub inspection on 2026-09-22 found no PR for
+`batch21-deleted-post-qualification`. `gh api
+repos/hokoo/wpConnections/branches/master/protection/required_status_checks`
+reported strict checks with 19 contexts; the dedicated multisite job was absent.
+`gh api repos/hokoo/wpConnections/rules/branches/master` returned no additional
+rules. The workflow already defines 20 jobs and the Batch 19/20 contract
+requires the multisite lane. The CI runbook now includes that existing job.
+No remote setting was changed. Protected CI, publication and any protection
+reconciliation remain a delivery gate, separate from the local qualification.
 
 ## Qualification rules
 

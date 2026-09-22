@@ -103,8 +103,13 @@
     matrix `7587271`, due-retry bridge `e039db0` и true-multisite
     same-name/same-ID matrix `6a9726b` + repeat-safe teardown `39189ff`
     зафиксированы в verification manifest. Custom-adapter real-flow matrix
-    `89dbbe7` также завершена. B21-08 выбран следующим. Новых decision gates
-    нет. Batch 21 не добавляет public API и не выпускает tag.
+    `89dbbe7` также завершена. B21-08 завершён в `65c53e8`: degraded-cron
+    tests и operator runbook; focused single-site/multisite `2 / 49`,
+    reverse/random repeat `4 / 98`, seed `20260922`. B21-09 завершён в
+    `85dfa8d`: preservation rehearsal, retention evidence и rollback/uninstall
+    runbook; operational/retention `6 / 154`, multisite `3 / 84`, repeat `6 / 168`.
+    B21-10 выбран следующим. Новых product decision gates нет. Batch 21 не
+    добавляет public API и не выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
