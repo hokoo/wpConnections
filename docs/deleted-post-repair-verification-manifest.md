@@ -1,8 +1,8 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01—B21-04 are complete; B21-05 is the
-next selected task, while B21-06 and B21-07 are also dependency-ready for their
-shared later review group. The final exact qualification candidate and
+Status: active DB-04-Q manifest. B21-01—B21-05 are complete; B21-06 is the
+next selected task, while B21-07 is also dependency-ready for the same review
+group. The final exact qualification candidate and
 protected CI results remain owned by B21-10/B21-Q.
 
 ## Evidence identity
@@ -17,10 +17,12 @@ protected CI results remain owned by B21-10/B21-Q.
   `01daf040cccc183b713f4f31d7dccbbdae155aea`.
 - Post-commit/crash-window matrix commit:
   `7587271fe87adbdf2a7a4a89fedb72f6cdff399c`.
+- Real-flow due-retry bridge commit:
+  `e039db0a8d50bb280e21872993d636e27b033359`.
 - Primary fixtures: `DeletedPostRecoveryRealFlowTest` and
   `AtomicMutationTest`, with deterministic lease-boundary evidence in
   `DeletedPostRepairExecutorTest`.
-- Production delta through B21-04: none. The observed paths were committed as
+- Production delta through B21-05: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
 - Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
 - Final merge and post-merge identity: pending B21-Q.
@@ -111,6 +113,30 @@ passes both arguments and keeps storage-hook counters attached through retry.
 This was a test-fixture defect, not red production behavior and not a new
 decision gate.
 
+## B21-05 concurrency, time and due-retry evidence
+
+The following commands were run on exact commit `e039db0`. The real-flow
+bridge adds only the missing cross-layer observation; the named ledger,
+policy and worker tests remain the authority for their narrower invariants.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Real-flow reverse isolation | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRecoveryRealFlowTest --order-by=reverse --repeat=2` | PASS — 12 tests, 170 assertions |
+| Real-flow seeded random isolation | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRecoveryRealFlowTest --order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 12 tests, 170 assertions; seed `20260922` |
+| Real-flow true multisite | `docker compose -p wpconnections run --rm phpunit test:multisite --filter DeletedPostRecoveryRealFlowTest` | PASS — 6 tests, 85 assertions, no skip |
+| Policy and retention authority | `docker compose -p wpconnections run --rm phpunit test:phpunit --filter 'test_(retry_delay_table\|retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound)'` | PASS — 10 tests/data sets, 29 assertions |
+| Pinned MySQL authority | fixed-floor test image with external `mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b`, `test:integration --filter 'test_(two_database_contenders_cannot_both_acquire_one_live_lease\|automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth\|manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state)'` | PASS — runtime 8.0.46; 3 tests, 48 assertions |
+| Pinned MariaDB authority | fixed-floor test image with external `mariadb:10.11.16@sha256:4045aba619003d93b5dc834e89e6815ba078d2cb3ff0a26f316ab5d7eab35093`, same focused filter | PASS — runtime 10.11.16-MariaDB; 3 tests, 48 assertions |
+| Full unit and WP integration | `docker compose -p wpconnections run --rm phpunit test:all` | PASS — unit 141 tests / 518 assertions; integration 506 tests / 4591 assertions / 8 pre-existing skips |
+| Fixture coding standard | `docker compose -p wpconnections run --rm phpunit vendor/bin/phpcs tests/iTRON/wpConnections/WP/DeletedPostRecoveryRealFlowTest.php --standard=phpcs.xml` | PASS — 1 file; the pre-existing PHPCS ruleset deprecation remains non-blocking |
+
+`DeletedPostRecoveryRealFlowTest::
+test_real_delete_failure_reaches_due_batch_retry_and_resolution` follows one
+identity from a real `wp_delete_post()` cleanup failure (`retry_wait`, claim 1,
+connection/meta intact), through a due public batch retry, to committed cleanup
+and retained `resolved` evidence (claim 2, one failure). No production change
+or new decision gate was required.
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -146,12 +172,12 @@ decision gate.
 
 | Required observation | Exact evidence or target | Lane | State / owner |
 | --- | --- | --- | --- |
-| Two database contenders cannot both acquire one live lease | `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease` | pinned MySQL and MariaDB WP integration | existing; vendor rerun — B21-05/B21-10 |
-| Expired lease reclaim and automatic nine-claim ceiling | `DeletedPostRepairLedgerTest::test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth` | WP integration | existing — B21-05 |
-| Manual recovery bypasses the automatic ceiling but not future/attention state | `DeletedPostRepairLedgerTest::test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state` | WP integration | existing — B21-05 |
-| Every retry delay is exact | `DeletedPostRepairPolicyTest::test_retry_delay_table` | unit | existing — B21-05 |
-| Strict resolved retention and shared batch bound | `DeletedPostRepairWorkerTest::test_retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound` | unit | existing — B21-05 |
-| One real-flow identity is followed from failure through due retry to resolution | `DeletedPostRecoveryRealFlowTest` failure-to-resolution bridge | single-site WP integration | planned — B21-05 |
+| Two database contenders cannot both acquire one live lease | `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease` | pinned MySQL 8.0.46 and MariaDB 10.11.16 WP integration | verified in B21-05 (`e039db0`); full-vendor rerun — B21-10 |
+| Expired lease reclaim and automatic nine-claim ceiling | `DeletedPostRepairLedgerTest::test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth` | local and both pinned-vendor WP integration | verified in B21-05 (`e039db0`) |
+| Manual recovery bypasses the automatic ceiling but not future/attention state | `DeletedPostRepairLedgerTest::test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state` | local and both pinned-vendor WP integration | verified in B21-05 (`e039db0`) |
+| Every retry delay is exact | `DeletedPostRepairPolicyTest::test_retry_delay_table` | unit | verified in B21-05 (`e039db0`) |
+| Strict resolved retention and shared batch bound | `DeletedPostRepairWorkerTest::test_retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound` | unit | verified in B21-05 (`e039db0`) |
+| One real-flow identity is followed from failure through due retry to resolution | `DeletedPostRecoveryRealFlowTest::test_real_delete_failure_reaches_due_batch_retry_and_resolution` | single-site WP; true multisite WP | verified in B21-05 (`e039db0`) |
 
 ### Context and adapters
 

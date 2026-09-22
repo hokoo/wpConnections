@@ -3033,9 +3033,9 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01—B21-04 are complete. B21-05 is the next selected
-task, while B21-06 and B21-07 are also dependency-ready for their shared later
-review group. Every later task remains `waiting_dependency` until its explicit DoR is true. The
+production correction; B21-01—B21-05 are complete. B21-06 is the next selected
+task, while B21-07 is also dependency-ready for the same review group. Every
+later task remains `waiting_dependency` until its explicit DoR is true. The
 default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
@@ -3238,7 +3238,7 @@ defect. No public seam, production change or new decision gate was required.
 
 #### B21-05. Close concurrency, backoff, exhaustion and retention evidence
 
-Status: todo
+Status: completed
 
 Goal: connect the existing ledger/policy/worker proofs to the real-flow
 identity without rewriting already sufficient component tests.
@@ -3279,6 +3279,17 @@ Dependencies: B21-04.
 
 Notes/Risks: WordPress test bootstrap is single-process; the existing two-DB-
 connection contender test remains the concurrency authority.
+
+Completion evidence: test-only commit
+`e039db0a8d50bb280e21872993d636e27b033359` adds the single missing cross-layer
+bridge from real `wp_delete_post()` failure through due public batch retry to
+`resolved`, without duplicating component policy logic. Real-flow reverse and
+seeded-random repeat-2 pass `12/170`; true multisite passes `6/85` without a
+relevant skip. The exact delay/retention authority passes `10/29`. The
+contender/ceiling/manual authority passes `3/48` on both digest-pinned MySQL
+8.0.46 and MariaDB 10.11.16. Full regression passes unit `141/518` and
+integration `506/4591` with eight pre-existing skips; the changed fixture
+passes direct PHPCS. No production change or new decision gate was required.
 
 #### B21-06. Qualify true-multisite context routing
 
