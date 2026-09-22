@@ -848,11 +848,15 @@ DoD:
 
 Executable decomposition:
 
-The current suite is not empty: `AtomicMutationTest::
-test_deleted_post_callback_uses_atomic_delete_boundary()` already uses real
-`wp_delete_post(..., true)` for one default-storage connection-delete failure
-and proves rollback plus a `retry_wait` record. It is retained as baseline, not
-counted as the complete cascade/recovery matrix below.
+The current suite is not empty. Real `wp_delete_post(..., true)` coverage
+already proves semantic disable/enable plus one successful outgoing cleanup
+with no repair, one legacy outgoing row plus metadata cleanup, one
+true-multisite active-site cleanup without site-A mutation, and one
+default-storage connection-delete failure with rollback plus a `retry_wait`
+record. Those tests are retained as baseline, not counted as the complete
+incoming/outgoing/self, multi-relation/multi-Client, attachment/trash,
+failure/crash and operator matrix below. The named inventory is recorded in
+the Batch 21 entry criteria.
 
 1. B21-01 freezes a real `wp_delete_post()` fixture and records red evidence
    before any production correction.

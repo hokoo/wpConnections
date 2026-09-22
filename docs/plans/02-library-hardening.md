@@ -2992,14 +2992,26 @@ Entry criteria:
   scheduler and lifecycle units; Batch 21 adds cross-layer proof and does not
   duplicate those suites without a specific missing observation.
 
-Existing real-flow baseline: `AtomicMutationTest::
-test_deleted_post_callback_uses_atomic_delete_boundary()` already calls
-`wp_delete_post(..., true)` and proves one default-storage connection-delete
-DML failure rolls back connection/meta rows and leaves one `retry_wait` record.
-It does not prove the successful cascade, endpoint/relation matrix,
-multi-Client isolation, attachment/trash behavior, other failure/crash windows
-or operator recovery. B21-01 extends from that exact baseline rather than
-claiming that no real-flow test exists.
+Existing real-flow baseline is useful but fragmented:
+
+- `ClientIsolationTest::
+  test_semantic_post_deletion_lifecycle_controls_real_cleanup_once()` proves
+  semantic disable/enable and one successful outgoing cleanup with no repair;
+- `EntityValidationTest::
+  test_deleted_post_cascade_cleans_legacy_row_without_endpoint_resolution()`
+  proves one legacy outgoing row plus metadata cleanup;
+- `ClientIsolationTest::
+  test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix()`
+  proves one true-multisite active-site cleanup without mutating site A;
+- `AtomicMutationTest::
+  test_deleted_post_callback_uses_atomic_delete_boundary()` proves one
+  connection-delete DML failure rolls back connection/meta rows and leaves one
+  `retry_wait` record.
+
+These tests do not compose the complete incoming/outgoing/self,
+multi-relation/multi-Client, attachment/trash, failure/crash and operator
+matrix. B21-01 extends this exact baseline rather than claiming that no
+real-flow test exists.
 
 Compatibility boundary:
 
