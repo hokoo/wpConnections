@@ -18,6 +18,7 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
 {
     private const POST_GRAPH_RELATION = 'real-flow-post-graph';
     private const ATTACHMENT_RELATION = 'real-flow-attachment';
+    private const REPAIR_TABLE_BASENAME = 'wpconnections_repair';
 
     /** @var Client[] */
     private array $additionalClients = [];
@@ -344,6 +345,84 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
         );
     }
 
+    public function test_real_delete_failure_reaches_due_batch_retry_and_resolution(): void
+    {
+        $connection = $this->create_connection(
+            $this->client,
+            RELATION_0_NAME,
+            $this->page_ids[0],
+            $this->post_ids[0],
+            'due-retry'
+        );
+        $initial_attempts = 0;
+        $retry_attempts = 0;
+        $committed = [];
+        $first_attempt_failure = static function (Client $client) use (&$initial_attempts): void {
+            unset($client);
+            $initial_attempts++;
+            throw new \RuntimeException('sensitive first-attempt failure');
+        };
+        $retry_attempt_hook = static function (Client $client) use (&$retry_attempts): void {
+            unset($client);
+            $retry_attempts++;
+        };
+        $committed_hook = static function (Client $client, array $connection_ids) use (&$committed): void {
+            unset($client);
+            $committed[] = $connection_ids;
+        };
+        add_action('wpConnections/storage/deleteByObjectID', $first_attempt_failure);
+        add_action('wpConnections/storage/deletedByObjectID', $committed_hook, 10, 2);
+
+        try {
+            $deleted = wp_delete_post($this->post_ids[0], true);
+        } finally {
+            remove_action('wpConnections/storage/deleteByObjectID', $first_attempt_failure);
+            remove_action('wpConnections/storage/deletedByObjectID', $committed_hook, 10);
+        }
+
+        self::assertInstanceOf(\WP_Post::class, $deleted);
+        self::assertNull(get_post($this->post_ids[0]));
+        self::assertSame(1, $initial_attempts);
+        self::assertSame([], $committed);
+        self::assertSame(1, $this->connection_count());
+        self::assertSame(1, $this->meta_count());
+
+        $repairs = $this->client->getDeletedPostRepairService()->listRepairs(
+            DeletedPostRepairStatus::RETRY_WAIT
+        )->getItems();
+        self::assertCount(1, $repairs);
+        $repair = $repairs[0];
+        self::assertSame(1, $repair->getAttemptCount());
+        self::assertSame(1, $repair->getFailureCount());
+        self::assertSame('cleanup', $repair->getFailureCategory());
+        $this->make_repair_due($repair->getRepairKey());
+
+        add_action('wpConnections/storage/deleteByObjectID', $retry_attempt_hook);
+        add_action('wpConnections/storage/deletedByObjectID', $committed_hook, 10, 2);
+        try {
+            $batch = $this->client->getDeletedPostRepairService()->retryDueRepairs(1, 10);
+        } finally {
+            remove_action('wpConnections/storage/deleteByObjectID', $retry_attempt_hook);
+            remove_action('wpConnections/storage/deletedByObjectID', $committed_hook, 10);
+        }
+
+        self::assertSame('complete', $batch->getStopReason());
+        self::assertFalse($batch->hasMoreDue());
+        self::assertCount(1, $batch->getResults());
+        $result = $batch->getResults()[0];
+        self::assertSame($repair->getRepairKey(), $result->getRepairKey());
+        self::assertSame('resolved', $result->getOutcome());
+        self::assertTrue($result->wasCleanupAttempted());
+        self::assertNotNull($result->getRepair());
+        self::assertSame(DeletedPostRepairStatus::RESOLVED, $result->getRepair()->getStatus());
+        self::assertSame(2, $result->getRepair()->getAttemptCount());
+        self::assertSame(1, $result->getRepair()->getFailureCount());
+        self::assertSame(1, $retry_attempts);
+        self::assertSame([ [ $connection->id ] ], $committed);
+        self::assertSame(0, $this->connection_count());
+        self::assertSame(0, $this->meta_count());
+    }
+
     private function create_connection(
         Client $client,
         string $relation,
@@ -421,6 +500,23 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
             array_filter(
                 $wpdb->tables,
                 static fn (string $table_key): bool => ! in_array($table_key, $table_keys, true)
+            )
+        );
+    }
+
+    private function make_repair_due(string $repair_key): void
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . self::REPAIR_TABLE_BASENAME;
+        self::assertSame(
+            1,
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE `{$table}` SET `next_attempt_at` = UTC_TIMESTAMP(), " .
+                    '`updated_at` = UTC_TIMESTAMP() WHERE `repair_key` = %s',
+                    $repair_key
+                )
             )
         );
     }
