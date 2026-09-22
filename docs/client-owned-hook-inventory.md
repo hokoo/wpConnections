@@ -91,6 +91,30 @@ QA PASS and passed all 17 protected checks. Fixed-floor combined coverage is
 switching, custom Storage, origin-less emission, priority ordering and
 `WP_DEBUG` on/off paths are covered by committed regression tests.
 
+## LIFE-HOOK-01 implementation update
+
+Batch 20 composes the revocable REST mapping and manager-backed deleted-post
+activation into public `Client::dispose(): void`. Disposal marks the Client
+terminal before it revokes repair and REST ownership in reverse acquisition
+order. Constructor failure calls the same teardown. The process-global debug
+observer remains because it retains no Client; route boundaries and per-site
+repair infrastructure may likewise remain only when their registries no longer
+retain or resolve the retired Client.
+
+Repeated disposal, semantic cleanup disable and REST deactivation are harmless.
+Cleanup enable and REST activation/rebind after disposal fail with
+`ClientRegisterFail` code `4` and stable message `Client integrations have been
+disposed and cannot be reactivated.` Direct domain/storage references retain
+their earlier behavior: disposal does not delete persisted data or introduce a
+blanket use-after-dispose guard.
+
+Committed regressions cover same-identity replacement, native no-owner REST
+dispatch, neighboring Client preservation, same-name true-multisite isolation,
+strong-reference release and disposal reentrancy during custom REST init, route
+owner publication, repair readiness and cleanup re-enable. Exact-candidate and
+merge evidence remain B20-Q work; HOOK-04 still owns the release-wide consumer
+scan and changelog warning.
+
 ## Audit method and completeness boundary
 
 The inventory used four complementary passes:
@@ -272,7 +296,7 @@ release snapshot and keep the direct-`remove_action()` warning prominent.
 | `deleted_post` delivery | HOOK-03 / DB-04-I3 | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1/A; DB-04-Q follows | 2.0 changes callback identity; semantic enable/disable remains the migration API and exposes its handle to final Client lifecycle |
 | REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, REST-01, DG-HOOK-REST-01—DG-HOOK-REST-05, DG-RESTERR-03; REL-02 hand-off | Preserve v1 request URLs/methods and factory-selected handler delegates; define duplicate ownership, late initialization, unavailable dispatch/route-index visibility and a revocable Client mapping before final lifecycle integration |
 | Automatic debug routing | LOG-HOOK-01 | DG-HOOK-LOG-01, DG-SPI-06; REL-02 hand-off | Preserve event names, existing argument order and priority-10 logging; add a trailing origin Client to the query event and document the custom Storage obligation instead of retaining duplicate/wrong-client logging |
-| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | Final 2.0 lifecycle surface; failed/disposed Client must be unreachable from hooks and routes |
+| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | Batch 20 candidate implements the final 2.0 lifecycle surface; B20-Q verifies that failed/disposed Client is unreachable from hooks and routes |
 | Direct callback migration documentation | HOOK-04 | All applicable integration tasks, REL-02/REL-03 | Red-flag direct `remove_action()` break and repeat known-consumer scan |
 | Public extension emissions | REL-02 | Existing SPI/release gates | No manager ownership; document/test names, arguments and timing |
 
@@ -624,7 +648,10 @@ approved every gate produced by HOOK-02 on 2026-09-11. REST-HOOK-01
 implementation discovery added DG-HOOK-REST-05; the repository owner approved
 recommendation A on 2026-09-12. The separate HOOK-01 task later
 published `hokoo/wp-hooks-dispatcher` `v1.0.1`; LOG-HOOK-01 subsequently
-completed as the second Batch 9 task in PR #82.
+completed as the second Batch 9 task in PR #82. REST-HOOK-01 completed in PR
+#83 and HOOK-03/DB-04-I3 completed in PR #104. Batch 20 now implements the
+approved LIFE-HOOK-01 boundary; its exact qualification remains downstream in
+B20-Q.
 
 ## Independent QA evidence
 

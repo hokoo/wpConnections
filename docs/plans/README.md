@@ -87,10 +87,11 @@
     финальный Client lifecycle. Tag/release намеренно остаётся вне Batch 19.
 14. Документационный closeout Batch 19 завершён PR #105: merge
     `b0f011752e67931a90668ca8951a31d0a190afb7` прошёл 20/20 post-merge jobs.
-    Batch 20 / LIFE-HOOK-01 начат от этого exact baseline. B20-01 фиксирует
-    disposal/rollback/terminal-state regressions; B20-02—B20-06 поставляют
-    единый Client lifecycle и migration contract; B20-Q выполняет exact
-    qualification. Новых decision gates на входе нет.
+    Batch 20 / LIFE-HOOK-01 начат от этого exact baseline. B20-01—B20-06
+    completed локально: поставлены public terminal `Client::dispose()`,
+    constructor rollback, REST/repair reentrancy guards, retention/multisite
+    regressions и migration contract. B20-Q выполняет exact qualification;
+    новых decision gates нет.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

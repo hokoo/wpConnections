@@ -2796,7 +2796,7 @@ migration docs, B20-Q — exact candidate, independent reviews и merge evidence
 
 #### B20-01. Freeze disposal, rollback and terminal-state regressions
 
-Status: in_progress
+Status: completed
 
 Scope: integration tests для public surface и всех наблюдаемых ownership
 границ до изменения production code.
@@ -2820,9 +2820,12 @@ DoD/AC:
 
 Dependencies: DG-HOOK-LIFE-01/A; completed REST-HOOK-01 и HOOK-03.
 
+Evidence: commit `c7ff795` first produced six expected undefined-method errors
+and no assertions on the focused PHP 8.1.34 / WordPress 6.7.7 red run.
+
 #### B20-02. Add terminal Client lifecycle and reverse-order ownership teardown
 
-Status: waiting_dependency
+Status: completed
 
 Scope: public `dispose()`, explicit disposed state, nullable retained handles и
 единый reverse-order teardown repair → REST.
@@ -2842,7 +2845,7 @@ Dependencies: B20-01.
 
 #### B20-03. Close deleted-post activation after disposal
 
-Status: waiting_dependency
+Status: completed
 
 Scope: semantic enable guard и pre/post activation assertions вокруг repair
 runtime, включая disposal из initialization hook или ledger/dispatcher seam.
@@ -2861,7 +2864,7 @@ Dependencies: B20-02; completed HOOK-03/DB-04-I3.
 
 #### B20-04. Close REST activation and rebind after disposal
 
-Status: waiting_dependency
+Status: completed
 
 Scope: lifecycle assertions до и после custom delegate initialization, owner
 publication и late-server rebind.
@@ -2879,9 +2882,14 @@ DoD/AC:
 
 Dependencies: B20-02; completed REST-HOOK-01.
 
+Evidence: production commit `b6bf341` makes the original six focused tests
+green at `6/6` with 93 assertions; the then-current full single-site suite
+passed `482/482` with 4245 assertions and six expected skips, and PHPCS passed
+`100/100` source files.
+
 #### B20-05. Prove lifecycle isolation, retention release and compatibility
 
-Status: waiting_dependency
+Status: completed
 
 Scope: focused full-dispatch, actual multisite, replacement, failure injection,
 strong-reference и test-order regressions для общей production boundary.
@@ -2899,9 +2907,13 @@ DoD/AC:
 
 Dependencies: B20-03, B20-04.
 
+Evidence: commit `914c0aa` adds route-publication and repair-reenable
+reentrancy, neighboring Client replacement and same-name multisite isolation.
+The focused true-multisite matrix passes `11/11` with 121 assertions.
+
 #### B20-06. Publish lifecycle and migration contract
 
-Status: waiting_dependency
+Status: completed
 
 Scope: README, hook transition/inventory docs и roadmap hand-off для consumers
 и следующего DB-04-Q.
@@ -2921,7 +2933,7 @@ Dependencies: B20-05.
 
 #### B20-Q. Exact-candidate verification and lifecycle closeout
 
-Status: waiting_dependency
+Status: in_progress
 
 Scope: full unit/integration, reverse/random isolation, true multisite, pinned
 MySQL/MariaDB, PHPCS, fixed-floor coverage, independent exact-candidate and
@@ -2937,6 +2949,14 @@ DoD/AC:
 - Batch 20 не создаёт release/tag и не объявляет HOOK-04 завершённым.
 
 Dependencies: B20-01—B20-06.
+
+Progress evidence: public README and hook lifecycle/inventory contracts now
+define explicit per-site disposal, terminal reactivation failures, retained
+direct-domain behavior, shared-infrastructure boundaries and rollback. Current
+local verification passes unit `139/509`, full single-site `487/4261` with
+eight expected skips, full true multisite `487/4304`, focused true-multisite
+lifecycle `11/121`, and PHPCS `100/100`. Coverage, isolation, pinned external
+databases and independent reviews remain pending.
 
 ## E1. Test foundation и regression harness
 
