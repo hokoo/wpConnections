@@ -760,13 +760,23 @@ final class DeletedPostRecoveryRealFlowTest extends WPConnectionsTestCase
      */
     private function cleanup_additional_client(array $entry): void
     {
+        global $wpdb;
+
+        $entry['client']->dispose();
+        $options_table = $wpdb->get_blog_prefix($entry['site_id']) . 'options';
+        $options_table_exists = $wpdb->get_var(
+            $wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($options_table))
+        );
+        if ($options_table !== $options_table_exists) {
+            return;
+        }
+
         $switched = get_current_blog_id() !== $entry['site_id'];
         if ($switched) {
             switch_to_blog($entry['site_id']);
         }
 
         try {
-            $entry['client']->dispose();
             $this->drop_client_artifacts($entry['client']);
             $this->drop_repair_artifacts();
         } finally {
