@@ -8,7 +8,7 @@ service returned by `Client::getDeletedPostRepairService()`.
 
 This procedure does not add a WP-CLI command, REST route, admin screen, network
 scanner, cron setting, or destructive purge operation. Those surfaces remain
-deferred. Rollback and uninstall preservation are covered separately.
+deferred. Rollback and uninstall preservation are covered below.
 
 ## Before running repairs
 
@@ -238,3 +238,78 @@ internal ledger classes.
 The library currently provides no WP-CLI bridge, admin UI, or REST repair
 endpoint. Adding one requires a separate command/authentication/output
 contract; none is implied by this runbook.
+
+## Rollback and consumer-owned uninstall
+
+Before changing application code, inventory every affected site and canonical
+Client using the safe service projections above. Record unresolved keys and
+states in access-controlled operator records. Record the expected Client name
+and adapter configuration from application configuration, not raw ledger data.
+
+1. Disable new automatic cleanup with `disablePostDeletionCleanup()` on each
+   live affected Client. This also removes it from automatic retry selection.
+   Stop concurrent application/cron delivery through the consumer's maintenance
+   procedure; disabling an object in one request does not disable other processes.
+2. Dispose retired Clients with `dispose()`. Preserve the site-local
+   `<site-prefix>wpconnections_repair` table, its
+   `wpconnections_repair_schema_owner` option, and all unresolved records.
+   Preserve the connection and metadata tables needed for forward recovery too.
+3. Change application code and dependencies together. Keep a compatible 2.0
+   maintenance runtime available if the rollback target cannot read the ledger.
+   This library provides no ledger downgrade migration or automatic backfill for
+   posts deleted while cleanup was disabled.
+4. In the intended site context, bootstrap a fresh Client with the same name,
+   factory filters and Storage implementation. During maintenance, disable
+   cleanup in that Client's `inited` callback before automatic activation.
+   Re-inventory through its service and compare the unresolved keys with the
+   inventory taken before the change.
+5. Correct the original failure and perform reviewed single or due-batch retries.
+   Confirm the safe resulting state; keep unresolved work visible if recovery
+   cannot complete. Re-enable automatic cleanup only when the application is
+   ready. Never drop/truncate the ledger, remove its ownership option, or mark
+   unresolved rows resolved to make the inventory empty.
+
+This Composer library registers no destructive automatic uninstall hook. A
+consumer plugin's uninstaller must preserve unresolved recovery state and the
+ownership option, and retain the data/runtime needed to finish recovery. Its
+uninstaller must be reviewed separately before release (HOOK-04); repository
+tests cannot certify an unknown consumer's uninstall behavior. No destructive
+purge command is supplied or authorized by this procedure.
+
+Normal retention removes only validated `resolved` records with real failure
+history, strictly more than 30 days after resolution. It never age-purges
+`armed`, `running`, `retry_wait` or `needs_attention`. Malformed candidates are
+preserved or cause a fail-closed error before deletion. Retention is not an
+uninstall policy.
+
+### Repeatable preservation rehearsal and source audit
+
+`DeletedPostRepairOperationalTest::test_unresolved_work_survives_client_disposal_and_runtime_reconstruction`
+creates real connections and metadata, fails cleanup through `wp_delete_post()`,
+and inventories the resulting `retry_wait` identity. It disables delivery,
+deletes another post without adding a repair identity, disposes the Client,
+directly invokes the runner with no live owner, and reconstructs process-local
+repair state with a fresh current-site Client. Reads from the database confirm
+that the whole unresolved row and ownership option are unchanged throughout.
+A manual retry resolves the original identity and preserves the unrelated data.
+The test runs in both single-site and true-multisite bootstraps. It models
+runtime reconstruction, not an actual package-version downgrade or OS restart.
+
+Retained evidence for retention is `DeletedPostRepairLedgerTest::`
+`test_purge_removes_only_resolved_records_older_than_cutoff_and_honors_limit`,
+`test_purge_does_not_delete_a_malformed_resolved_row_without_failure_history`,
+and `test_purge_fails_closed_before_deleting_a_malformed_resolved_record`, plus
+`DeletedPostRepairWorkerTest::test_retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound`.
+Exact commands, revisions and results are recorded in the
+[verification manifest](deleted-post-repair-verification-manifest.md).
+
+The source audit covers `composer.json`, `src/Client.php`,
+`src/Internal/DeletedPostRepairRuntime.php`,
+`src/Internal/DeletedPostRepairClientActivation.php`, and
+`src/Internal/DeletedPostRepairLedger.php`. Teardown revokes subscriptions and
+registrations; ledger initialization validates existing schema/ownership;
+`purgeResolvedBefore()` validates candidates before deleting exact resolved
+keys. There is no repair-table/ownership deletion or uninstall registration.
+The generic `Helpers/Database::install_table()` legacy `delete_first` branch
+is not called by the repair ledger. Fixture table/option removal belongs only
+to test teardown and is not an example for consumer uninstall code.

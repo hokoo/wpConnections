@@ -4,6 +4,7 @@ namespace iTRON\wpConnections\Tests\iTRON\wpConnections\WP;
 
 use iTRON\wpConnections\Client;
 use iTRON\wpConnections\Connection;
+use iTRON\wpConnections\Internal\DeletedPostRepairRuntime;
 use iTRON\wpConnections\Internal\DeletedPostRepairStatus;
 use iTRON\wpConnections\Internal\WordPressDeletedPostRepairScheduler;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
@@ -16,6 +17,7 @@ use RuntimeException;
 final class DeletedPostRepairOperationalTest extends WPConnectionsTestCase
 {
     private const REPAIR_TABLE_BASENAME = 'wpconnections_repair';
+    private const OWNERSHIP_OPTION = 'wpconnections_repair_schema_owner';
 
     public function set_up()
     {
@@ -146,6 +148,95 @@ final class DeletedPostRepairOperationalTest extends WPConnectionsTestCase
 
         self::assertSame(0, $this->connection_count());
         self::assertSame(0, $this->meta_count());
+    }
+
+    public function test_unresolved_work_survives_client_disposal_and_runtime_reconstruction(): void
+    {
+        $this->create_connection(0, 'preserved-repair');
+        $this->create_connection(1, 'disabled-delivery');
+        $this->delete_with_cleanup_failure(0, 'preservation rehearsal failure');
+        $service = $this->client->getDeletedPostRepairService();
+        $inventory = $service->listRepairs(DeletedPostRepairStatus::RETRY_WAIT);
+        self::assertCount(1, $inventory->getItems());
+        $key = $inventory->getItems()[0]->getRepairKey();
+        $row_before = $this->repair_row($key);
+        $owner_before = $this->repair_owner();
+        self::assertSame(2, $this->connection_count());
+        self::assertSame(2, $this->meta_count());
+
+        $this->client->disablePostDeletionCleanup();
+        self::assertInstanceOf(\WP_Post::class, wp_delete_post($this->post_ids[1], true));
+        self::assertCount(1, $service->listRepairs()->getItems());
+        $this->client->dispose();
+        do_action(WordPressDeletedPostRepairScheduler::EVENT_HOOK);
+        self::assertSame($row_before, $this->repair_row($key));
+        self::assertSame($owner_before, $this->repair_owner());
+        self::assertSame(2, $this->connection_count());
+        self::assertSame(2, $this->meta_count());
+
+        // Model the process-local runtime boundary; do not reset any persistent state.
+        DeletedPostRepairRuntime::instance()->resetForTests();
+        self::assertSame($row_before, $this->repair_row($key));
+        self::assertSame($owner_before, $this->repair_owner());
+        $disable = static function (Client $client): void {
+            $client->disablePostDeletionCleanup();
+        };
+        $init_hook = 'wpConnections/client/' . $this->client->getName() . '/inited';
+        add_action($init_hook, $disable);
+        try {
+            $this->client = new Client(CLIENT_NAME);
+        } finally {
+            remove_action($init_hook, $disable);
+        }
+
+        $fresh_service = $this->client->getDeletedPostRepairService();
+        self::assertNotSame($service, $fresh_service);
+        self::assertSame($row_before, $this->repair_row($key));
+        self::assertSame($owner_before, $this->repair_owner());
+        $preserved = $fresh_service->getRepair($key);
+        self::assertNotNull($preserved);
+        self::assertSame(DeletedPostRepairStatus::RETRY_WAIT, $preserved->getStatus());
+        self::assertSame($key, $preserved->getRepairKey());
+        self::assertSame('[diagnostic details redacted]', $preserved->getFailureSummary());
+
+        $result = $fresh_service->retryRepair($key);
+        self::assertSame('resolved', $result->getOutcome());
+        self::assertTrue($result->wasCleanupAttempted());
+        self::assertSame(DeletedPostRepairStatus::RESOLVED, $this->repair_row($key)['status']);
+        self::assertSame($owner_before, $this->repair_owner());
+        // The post deleted while delivery was disabled remains outside this repair identity.
+        self::assertSame(1, $this->connection_count());
+        self::assertSame(1, $this->meta_count());
+    }
+
+    private function repair_row(string $key): array
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . self::REPAIR_TABLE_BASENAME;
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM `{$table}` WHERE `repair_key` = %s", $key),
+            ARRAY_A
+        );
+        self::assertIsArray($row);
+
+        return $row;
+    }
+
+    private function repair_owner(): string
+    {
+        global $wpdb;
+
+        // Read the database rather than an option-cache copy left by the old Client.
+        $owner = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT `option_value` FROM `{$wpdb->options}` WHERE `option_name` = %s",
+                self::OWNERSHIP_OPTION
+            )
+        );
+        self::assertIsString($owner);
+
+        return $owner;
     }
 
     private function create_connection(int $post_index, string $label): Connection

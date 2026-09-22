@@ -102,6 +102,8 @@ to exist and does not reconstruct the old direct callback identity.
 5. Keep a forward-recovery path capable of reading the ledger, or complete
    operator-reviewed retries before retiring the 2.0 runtime.
 
-The DB-04-Q rollback rehearsal is Batch 21 work. The final 2.0 release
+The [operations runbook](deleted-post-repair-operations.md) provides the
+per-site inventory/retry procedure and Batch 21 preservation rehearsal.
+The final 2.0 release
 procedure and known-consumer repository scan remain gated by HOOK-04 after
 that qualification.
