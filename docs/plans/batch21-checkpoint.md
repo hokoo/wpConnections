@@ -86,6 +86,14 @@ operational finding and no new decision gate. This remediation closes the
 documentary gap only; it is not a fresh QA run and does not turn the epic gate
 into PASS.
 
+Fresh independent QA then reviewed documentation commit
+`a03d59818eee2abe6b1da25d24511001627241fd` and confirmed that the durable
+evidence gap is closed: exact-candidate attribution, saved results, named
+R1–R6/`HOOK-CASCADE-01` mappings and task statuses are accurate. Its overall
+gate remains `fail` solely for the external delivery criteria below. No local
+technical rerun or repair is indicated. This later root-authored checkpoint
+records that gate only; it does not change the reviewed implementation.
+
 One P4 warning-attribution note remains non-blocking: retained migration tests
 call `deleted_post` with `null`, after which WordPress core
 `_wp_after_delete_font_family` reads `post_type`. The base has 25 such calls
