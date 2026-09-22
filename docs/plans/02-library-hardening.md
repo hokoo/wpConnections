@@ -2743,6 +2743,201 @@ without open P0—P3 findings or new decision gates. Replacement PR #104 passed
 that exact merge SHA. HOOK-03/DB-04-I3 and B19-Q are completed. DB-04-Q and
 LIFE-HOOK-01 are ready; Batch 19 intentionally created no tag or release.
 
+### Batch 20. Complete the Client-owned integration lifecycle
+
+Status: in_progress
+
+Goal: завершить LIFE-HOOK-01 одним reviewable lifecycle vertical — добавить
+явный terminal `Client::dispose(): void`, собрать уже поставленные REST и
+deleted-post ownership handles, обеспечить обратный rollback при неуспешной
+инициализации и доказать, что shared WordPress infrastructure больше не может
+достичь failed/disposed Client.
+
+Entry criteria:
+
+- Batch 19 / HOOK-03/DB-04-I3 completed; PR #104 exact candidate и merge
+  прошли по 20/20 checks.
+- Документационный closeout PR #105 влит как
+  `b0f011752e67931a90668ca8951a31d0a190afb7` и прошёл 20/20 post-merge jobs.
+- REST-HOOK-01, LOG-HOOK-01, HOOK-02 и HOOK-03 completed; REST mapping и
+  deleted-post activation уже имеют revocable internal boundaries, а logging
+  является context-neutral singleton без retained Client.
+- DG-HOOK-LIFE-01/A утверждён; открытых decision gates на входе нет.
+
+Compatibility boundary:
+
+- `dispose()` — additive public 2.0 lifecycle API; он terminal только для
+  library-owned WordPress integrations. Уже выданные direct domain/storage
+  references сохраняют прежнее поведение и не получают blanket disposed guard.
+- После disposal повторный `dispose()`, cleanup disable и REST deactivate
+  harmless. Любая попытка повторного cleanup enable, REST activation или REST
+  rebind бросает `ClientRegisterFail`, code `4`, с единым stable reason:
+  `Client integrations have been disposed and cannot be reactivated.`
+- Context-neutral shared dispatcher, route boundaries и debug observer могут
+  жить дольше Client, но не могут хранить или разрешать failed/disposed Client.
+- Consumer по-прежнему создаёт и явно выводит из эксплуатации отдельный Client
+  для каждого site context; библиотека не реагирует на `switch_to_blog()`
+  созданием, клонированием или автоматическим disposal Client.
+
+Decision state: Batch 20 исполняет уже утверждённый DG-HOOK-LIFE-01/A. Harmless
+disable/deactivate после disposal следует их существующей идемпотентной
+семантике и не является reactivation. Точный stable reason фиксируется как
+проверяемая детализация утверждённого error contract. Новый gate требуется
+только если реализация затронет direct domain use-after-dispose, destructor/GC
+как lifecycle guarantee, persistent data, public REST wire shape или automatic
+site switching.
+
+Execution model: B20-01 сначала фиксирует полный красный observable contract.
+B20-02—B20-04 поставляют одну production boundary с общей точкой отката;
+B20-05 закрывает adversarial/multisite/retention regressions, B20-06 — public
+migration docs, B20-Q — exact candidate, independent reviews и merge evidence.
+Задачи объединяются в один PR, потому что частичная поставка public `dispose()`
+без terminal guards либо rollback сама создала бы недопустимый lifecycle state.
+
+#### B20-01. Freeze disposal, rollback and terminal-state regressions
+
+Status: in_progress
+
+Scope: integration tests для public surface и всех наблюдаемых ownership
+границ до изменения production code.
+
+DoR: Batch 20 entry criteria выполнены.
+
+DoD/AC:
+
+- active Client после `dispose()` больше не получает `deleted_post` и REST
+  delivery; повторный disposal harmless;
+- освобождённая same-site REST identity немедленно допускает replacement
+  Client с тем же canonical name;
+- cleanup enable и REST init/rebind после disposal дают точный stable
+  `ClientRegisterFail` code/message, а cleanup disable/REST deactivate остаются
+  harmless;
+- failure или reentrant disposal на каждой уже приобретённой integration
+  boundary не оставляет mapping, subscription или registry owner;
+- direct domain reference после disposal не получает нового общего запрета;
+- после удаления consumer references и сборки циклов `WeakReference` не видит
+  Client, то есть hook/runtime registries не удерживают его strongly.
+
+Dependencies: DG-HOOK-LIFE-01/A; completed REST-HOOK-01 и HOOK-03.
+
+#### B20-02. Add terminal Client lifecycle and reverse-order ownership teardown
+
+Status: waiting_dependency
+
+Scope: public `dispose()`, explicit disposed state, nullable retained handles и
+единый reverse-order teardown repair → REST.
+
+DoR: B20-01 red contract подтверждён.
+
+DoD/AC:
+
+- `dispose(): void` становится terminal до первого unsubscribe, чтобы
+  reentrant callback не мог восстановить ownership;
+- normal disposal и constructor rollback используют один idempotent teardown;
+- acquired handles отзываются в обратном порядке; partially acquired handle
+  очищается своим owner до выхода с исключением;
+- direct relation/storage API не проверяет disposed state.
+
+Dependencies: B20-01.
+
+#### B20-03. Close deleted-post activation after disposal
+
+Status: waiting_dependency
+
+Scope: semantic enable guard и pre/post activation assertions вокруг repair
+runtime, включая disposal из initialization hook или ledger/dispatcher seam.
+
+DoR: B20-02 terminal state доступен.
+
+DoD/AC:
+
+- disposed Client нельзя повторно зарегистрировать в repair registry или
+  `deleted_post` dispatcher;
+- reentrant disposal до публикации activation handle приводит к полному
+  rollback локальной subscription/registration;
+- disable/revoke остаются повторяемыми и не создают site runtime заново.
+
+Dependencies: B20-02; completed HOOK-03/DB-04-I3.
+
+#### B20-04. Close REST activation and rebind after disposal
+
+Status: waiting_dependency
+
+Scope: lifecycle assertions до и после custom delegate initialization, owner
+publication и late-server rebind.
+
+DoR: B20-02 terminal state доступен.
+
+DoD/AC:
+
+- disposed Client не может заново занять REST identity через `init()` или
+  `registerRestRoutes()`;
+- disposal внутри custom `init()` или route-registration reentrancy не оставляет
+  owner/reservation/context subscription;
+- retained context-neutral route boundary отвечает прежним native no-owner 404
+  и не вызывает stale permission/handler code.
+
+Dependencies: B20-02; completed REST-HOOK-01.
+
+#### B20-05. Prove lifecycle isolation, retention release and compatibility
+
+Status: waiting_dependency
+
+Scope: focused full-dispatch, actual multisite, replacement, failure injection,
+strong-reference и test-order regressions для общей production boundary.
+
+DoR: B20-03 и B20-04 зелёные.
+
+DoD/AC:
+
+- same-name Clients разных site contexts dispose/replace независимо;
+- one-Client failure/disposal не отзывает shared infrastructure или соседнего
+  Client;
+- reverse/random isolation не зависит от singleton/runtime residue;
+- existing REST schema, deleted-post recovery и logging behavior неизменны для
+  live Client.
+
+Dependencies: B20-03, B20-04.
+
+#### B20-06. Publish lifecycle and migration contract
+
+Status: waiting_dependency
+
+Scope: README, hook transition/inventory docs и roadmap hand-off для consumers
+и следующего DB-04-Q.
+
+DoR: production behavior и regressions B20-02—B20-05 зелёные.
+
+DoD/AC:
+
+- пример показывает explicit per-site Client disposal и terminal boundary;
+- guide отдельно предупреждает, что destructor и `switch_to_blog()` не
+  управляют lifecycle, а custom subclass hooks/routes остаются ответственностью
+  implementer;
+- status map переводит LIFE-HOOK-01 в completed и DB-04-Q оставляет следующим
+  qualification batch только после B20-Q.
+
+Dependencies: B20-05.
+
+#### B20-Q. Exact-candidate verification and lifecycle closeout
+
+Status: waiting_dependency
+
+Scope: full unit/integration, reverse/random isolation, true multisite, pinned
+MySQL/MariaDB, PHPCS, fixed-floor coverage, independent exact-candidate and
+security/lifecycle reviews, protected merge и exact post-merge evidence.
+
+DoR: B20-01—B20-06 completed; нет unresolved P0—P3 или decision gate.
+
+DoD/AC:
+
+- exact SHA получает independent correctness и security/retention PASS;
+- все protected checks зелёные, merge SHA и post-merge matrix записаны;
+- LIFE-HOOK-01 становится `completed`, DB-04-Q остаётся следующим `todo`;
+- Batch 20 не создаёт release/tag и не объявляет HOOK-04 завершённым.
+
+Dependencies: B20-01—B20-06.
+
 ## E1. Test foundation и regression harness
 
 Outcome: integration-тесты изолированы, воспроизводимы и способны надёжно
@@ -6805,7 +7000,7 @@ Notes/Risks:
 
 ### LIFE-HOOK-01. Ввести полный lifecycle Client-owned subscriptions
 
-Status: todo
+Status: in_progress
 
 Priority: P0 для 2.0
 
