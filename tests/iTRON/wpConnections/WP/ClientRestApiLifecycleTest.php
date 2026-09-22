@@ -852,6 +852,41 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		);
 	}
 
+	public function test_disposal_during_late_server_rebind_fails_stably_and_releases_owner(): void
+	{
+		$client = $this->new_client( 'dispose-during-late-rebind' );
+		$delegate = $this->delegate_for_client( $client );
+		$server = new RestHookDisposingServer();
+		$GLOBALS['wp_rest_server'] = $server;
+		$server->before_first_registration = static function () use ( $client ): void {
+			$client->dispose();
+		};
+
+		$failure = $this->capture_client_registration_failure(
+			static function () use ( $delegate ): void {
+				$delegate->registerRestRoutes();
+			}
+		);
+		self::assertSame( 4, $failure->getCode() );
+		self::assertSame(
+			'Client integrations have been disposed and cannot be reactivated.',
+			$failure->getMessage()
+		);
+
+		$this->authenticate_for_managed_routes();
+		$response = $this->dispatch_case( $server, $this->request_matrix( $delegate )[0] );
+		$this->assert_native_rest_error( 'rest_no_route', 404, $response );
+		self::assertSame( [], RestHookRecordingRestApi::$trace );
+
+		$replacement = $this->new_client( 'dispose-during-late-rebind' );
+		$replacement_delegate = $this->delegate_for_client( $replacement );
+		$this->assert_dispatches_to_delegate(
+			$server,
+			$replacement_delegate,
+			$this->request_matrix( $replacement_delegate )[0]
+		);
+	}
+
 	public function test_handler_revalidates_owner_after_permission_stage_replacement(): void
 	{
 		$first_client = $this->new_client( 'permission-stage-owner' );

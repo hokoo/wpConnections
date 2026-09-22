@@ -2926,8 +2926,8 @@ DoD/AC:
 - guide отдельно предупреждает, что destructor и `switch_to_blog()` не
   управляют lifecycle, а custom subclass hooks/routes остаются ответственностью
   implementer;
-- status map переводит LIFE-HOOK-01 в completed и DB-04-Q оставляет следующим
-  qualification batch только после B20-Q.
+- status map сохраняет LIFE-HOOK-01 в `in_progress` до B20-Q и указывает
+  DB-04-Q следующим qualification batch после успешного closeout.
 
 Dependencies: B20-05.
 

@@ -172,7 +172,8 @@ final class RestRouteRegistry
      */
     public function rebind(ClientRestApi $delegate): void
     {
-        $delegate->getClient()->assertIntegrationLifecycleActive();
+        $client = $delegate->getClient();
+        $client->assertIntegrationLifecycleActive();
         $delegateId = spl_object_id($delegate);
         if (! isset($this->delegateRegistrations[ $delegateId ])) {
             return;
@@ -182,6 +183,7 @@ final class RestRouteRegistry
         if ($wp_rest_server instanceof WP_REST_Server) {
             $this->registerAllRoutes($wp_rest_server);
         }
+        $client->assertIntegrationLifecycleActive();
     }
 
     public function deactivateDelegate(ClientRestApi $delegate): void

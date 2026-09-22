@@ -112,7 +112,7 @@ final class DeletedPostRepairRuntime
     }
 
     /**
-     * @internal Temporary teardown seam until LIFE-HOOK-01 adds Client::dispose().
+     * @internal Client::dispose() uses this teardown seam for its repair integration.
      */
     public function deactivateClient(Client $client): void
     {

@@ -41,7 +41,7 @@ class ClientRestApi
     /**
      * Revokes this delegate's internal route mapping.
      *
-     * @internal LIFE-HOOK-01 will compose this into Client::dispose().
+     * @internal Client::dispose() composes this into the owned-integration teardown.
      */
     public function deactivate(): void
     {
