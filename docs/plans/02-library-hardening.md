@@ -2996,7 +2996,8 @@ Existing real-flow baseline is useful but fragmented:
 
 - `ClientIsolationTest::
   test_semantic_post_deletion_lifecycle_controls_real_cleanup_once()` proves
-  semantic disable/enable and one successful outgoing cleanup with no repair;
+  semantic disable/enable and one successful incoming/to-end cleanup with no
+  repair;
 - `EntityValidationTest::
   test_deleted_post_cascade_cleans_legacy_row_without_endpoint_resolution()`
   proves one legacy outgoing row plus metadata cleanup;
@@ -3031,21 +3032,35 @@ only if real-flow evidence demands a new public command/option, changes the
 nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
-Execution model: B21-01 freezes the missing observable contract before any
-production correction. B21-02—B21-05 close only gaps found across the real
-WordPress, recovery, context and operator contours. B21-06 proves the exact
-vendor/CI matrix; B21-Q performs independent review and protected delivery.
-One implementation PR is preferred because all slices qualify one recovery
-promise and share one rollback point; a newly discovered material contract
-choice pauses the affected slice at a new DG.
+Execution model: B21-01 is the only entry-ready task and freezes the missing
+observable contract before any production correction. Every later task remains
+`waiting_dependency` until its explicit DoR is true. The default review groups
+are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
+(concurrency/context/adapters), B21-08/09 (operations/rollback), then
+B21-10/Q (qualification/closeout). B21-03 and B21-06 may proceed independently
+after their shared fixture/data prerequisites. Each group records red-first
+evidence for a newly found defect and one rollback point. A material public or
+persistence choice pauses only the affected group at a new DG.
 
 #### B21-01. Freeze the real `wp_delete_post()` qualification contract
 
 Status: todo
 
-Scope: add a dedicated end-to-end test fixture that creates real WordPress
-posts/attachments and real wpConnections rows, invokes `wp_delete_post()` and
-observes post state, connection/meta state, hook count and repair state.
+Goal: create one isolated test contour and traceability map for every remaining
+DB-04-Q observation before changing production code.
+
+Scope: add `DeletedPostRecoveryRealFlowTest` with helpers that create real
+WordPress posts/attachments and wpConnections rows, invoke `wp_delete_post()`
+and observe post, connection/meta, hook and repair state. Map every required
+verification row to an existing named test or a B21 owner/target test.
+
+Out of Scope: fixing a discovered runtime defect; completing the full data,
+failure or multisite matrix in this task.
+
+DoR:
+
+- Batch 20 and DB-04-I1—I3 are completed.
+- The four existing real-flow fragments above are kept as reusable evidence.
 
 DoD/AC:
 
@@ -3056,16 +3071,34 @@ DoD/AC:
   already-correct path is committed as characterization without artificial
   production change;
 - test teardown preserves suite isolation without dropping another site's or
-  Client's state.
+  Client's state;
+- the verification manifest maps every required contract item to an existing
+  exact test and lane or to one missing observation with B21 owner and planned
+  test target; no item can disappear behind aggregate coverage.
 
 Dependencies: completed Batch 20 and DB-04-I1—I3.
 
+Notes/Risks: production atomic scopes may commit the transaction normally used
+by `WP_UnitTestCase`; the fixture must prove its own durable cleanup and remain
+green under reverse/random repeat before downstream work starts.
+
 #### B21-02. Prove the real data cascade and Client isolation
 
-Status: todo
+Status: waiting_dependency
+
+Goal: prove `HOOK-CASCADE-01` through permanent WordPress deletion for all
+endpoint shapes without duplicating the existing one-direction smoke tests.
 
 Scope: incoming, outgoing, self, multi-relation and metadata cascades through
 permanent post/attachment deletion, including multiple live Clients.
+
+Out of Scope: injected storage/ledger/scheduler failures, crash simulation,
+custom adapters and multisite context routing.
+
+DoR:
+
+- B21-01 is completed and its fixture/isolation probes are green.
+- The traceability map identifies which existing success tests are retained.
 
 DoD/AC:
 
@@ -3078,55 +3111,209 @@ DoD/AC:
 
 Dependencies: B21-01.
 
-#### B21-03. Qualify recovery, commit and crash windows end-to-end
+Notes/Risks: relation direction is stated relative to the deleted entity:
+`to`-end deletion is incoming cleanup and `from`-end deletion is outgoing.
+Assertions must inspect physical metadata rows as well as hydrated results.
 
-Status: todo
+#### B21-03. Qualify pre-commit, arm and wake-up failures end-to-end
+
+Status: waiting_dependency
+
+Goal: prove every failure before a confirmed cleanup commit either performs
+zero cleanup DML or rolls the complete connection/meta mutation back while
+preserving attributable durable work.
 
 Scope: cross-layer fault injection for selector/meta/connection DML,
-transaction start/commit/rollback, attempt/success observers, ledger arm and
-scheduler reconciliation; simulated process boundaries after arm and after
-cleanup commit before resolve.
+transaction start/commit/rollback, the storage attempt hook, ledger arm and
+scheduler reconciliation through the real deletion flow.
+
+Out of Scope: post-commit success-hook failure, simulated process death,
+duplicate delivery, lease races/backoff and multisite/custom adapters.
+
+DoR:
+
+- B21-01 is completed and the real-flow fixture is stable.
+- Existing DB-05 fault seams can target each listed failure without changing a
+  public interface.
 
 DoD/AC:
 
 - a pre-commit cleanup failure restores connection/meta data and leaves one
   redacted retryable record;
-- a post-commit observer failure or commit-before-resolve ambiguity keeps a
-  durable record whose idempotent no-match retry resolves uncertainty;
 - arm/readiness failure is distinct from wake-up scheduling failure: unsafe
   pre-DML state propagates with zero cleanup writes, while scheduler failure
   cannot erase the ledger record;
-- duplicate delivery and expired crashed claims obey the approved one-identity,
-  lease and nine-claim rules without claiming exactly-once callbacks.
+- storage attempt-hook `Throwable`, transaction start/commit/rollback failure
+  and selector-read uncertainty have named assertions for data and ledger
+  outcome; no committed-success hook is emitted after rollback.
 
-Dependencies: B21-01, B21-02; completed DB-05 atomic infrastructure.
+Dependencies: B21-01; completed DB-05 atomic infrastructure.
 
-#### B21-04. Qualify multisite contexts and adapter boundaries
+Notes/Risks: fault injection must match semantic SQL stages, not accidentally
+pass because a query string changed. A rollback-confirmation failure leaves the
+shared database session unsafe under the existing DB-05 contract.
 
-Status: todo
+#### B21-04. Qualify post-commit and simulated crash reconciliation
 
-Scope: real-flow current/inactive/restored site execution, same Client name and
-post ID on two true-multisite blogs, and custom adapter capability outcomes.
+Status: waiting_dependency
+
+Goal: prove durable convergence when cleanup may already have committed but the
+coordinator did not confirm or persist resolution.
+
+Scope: post-commit success-hook `Throwable`, repeated no-match cleanup,
+duplicate `deleted_post` delivery, and simulated process boundaries after arm,
+during cleanup and after cleanup commit before resolve.
+
+Out of Scope: OS-level kill guarantees, exactly-once consumer side effects,
+two-connection races, backoff/exhaustion and site/adapter variants.
+
+DoR:
+
+- B21-03 is completed and each pre-commit outcome is attributable.
+- An internal-only seam can leave the approved durable state at each crash
+  boundary without exposing a public crash-control API.
+
+DoD/AC:
+
+- death after arm or during cleanup leaves an expirable `running` claim that is
+  reclaimable within the nine-claim ceiling;
+- post-commit hook failure and commit-before-resolve ambiguity retain one
+  record; idempotent no-match retry resolves it without duplicate data writes;
+- duplicate hook delivery produces one logical identity and never two live
+  cleanup claims;
+- the test report calls these simulated durable boundaries and does not claim
+  an actual process-kill/effect exactly-once guarantee.
+
+Dependencies: B21-03.
+
+Notes/Risks: a custom adapter's unrelated side effects remain outside the
+guarantee and must be idempotent as already documented.
+
+#### B21-05. Close concurrency, backoff, exhaustion and retention evidence
+
+Status: waiting_dependency
+
+Goal: connect the existing ledger/policy/worker proofs to the real-flow
+identity without rewriting already sufficient component tests.
+
+Scope: duplicate identity, two database contenders, lease expiry/reclaim, all
+eight retry delays, nine-claim exhaustion, manual recovery and strict resolved
+retention.
+
+Out of Scope: distributed locking beyond the database conditional update,
+public retry-policy configuration and site/custom-adapter routing.
+
+DoR:
+
+- B21-04 is completed.
+- B21-01 traceability names the existing ledger, policy and worker evidence and
+  identifies only missing cross-layer assertions.
+
+DoD/AC:
+
+- `DeletedPostRepairLedgerTest::
+  test_two_database_contenders_cannot_both_acquire_one_live_lease()` remains
+  green on both pinned vendors;
+- policy `test_retry_delay_table`, claim-ceiling/manual-claim tests and worker
+  retention test jointly cover every delay, exhaustion, manual recovery and
+  retention boundary;
+- one real-flow identity is followed from first failure through due retry to
+  resolution, without replacing the component matrix with a weaker smoke test;
+- the traceability table records exact named evidence for every concurrency and
+  time requirement.
+
+Dependencies: B21-04.
+
+Notes/Risks: WordPress test bootstrap is single-process; the existing two-DB-
+connection contender test remains the concurrency authority.
+
+#### B21-06. Qualify true-multisite context routing
+
+Status: waiting_dependency
+
+Goal: prove the real deletion flow stays site-safe when process-global hooks
+coexist with explicit WordPress context switching.
+
+Scope: current/inactive/restored site execution, same Client name and post ID
+on two true-multisite blogs.
+
+Out of Scope: automatic Client construction/site switching, network-wide
+scanning, custom-adapter conformance and operator documentation.
+
+DoR:
+
+- B21-01 and B21-02 are completed.
+- Dedicated `WP_MULTISITE=1` execution is available.
 
 DoD/AC:
 
 - deletion on one site cannot call or mutate the other site's Client/rows;
 - a fresh per-site Client restores delivery after an explicit context switch;
-- default and custom atomic adapters cover success, rollback/no-match and
-  retry; non-atomic adapters fail capability validation with zero cleanup
+- active, inactive and restored site contexts are distinguished through real
+  `wp_delete_post()`, not only direct `do_action()` dispatch;
+- same-name/same-ID rows on both sites and their repair ledgers remain
+  independent.
+
+Dependencies: B21-01, B21-02; dedicated `WP_MULTISITE=1` lane.
+
+Notes/Risks: the consumer must construct a fresh Client per site. Tests must
+not make stale-Client silence look like automatic routing or reconstruction.
+
+#### B21-07. Qualify custom-adapter recovery conformance
+
+Status: waiting_dependency
+
+Goal: prove custom storage participates only when it declares the approved
+atomic capability and matches the durable adapter identity.
+
+Scope: default storage and custom atomic adapter success, pre-commit failure,
+committed no-match retry, missing fresh Client, adapter-fingerprint mismatch,
+and custom non-atomic capability rejection.
+
+Out of Scope: a new adapter SPI, exactly-once adapter side effects, multisite
+routing and operator UI/CLI.
+
+DoR:
+
+- B21-03 and B21-04 are completed.
+- Atomic and non-atomic custom fixtures are available without changing public
+  interfaces.
+
+DoD/AC:
+
+- custom atomic success/failure/no-match follows the same durable state
+  outcomes as default storage;
+- non-atomic adapter validation fails before cleanup and performs zero adapter
   writes;
 - missing fresh Client and adapter-fingerprint mismatch remain visible and
-  make no connection/meta mutation.
+  make no connection/meta mutation;
+- unrelated custom side effects are explicitly excluded from exactly-once
+  claims and the adapter fixture is idempotent.
 
-Dependencies: B21-02, B21-03; dedicated `WP_MULTISITE=1` lane.
+Dependencies: B21-03, B21-04.
 
-#### B21-05. Close operator, degraded-cron and rollback/uninstall evidence
+Notes/Risks: an anonymous or replaced adapter can change its fingerprint across
+requests; qualification must preserve rather than silently rewrite the stored
+identity.
 
-Status: todo
+#### B21-08. Close degraded-cron and operator-service evidence
 
-Scope: executable operator-service scenarios plus README/runbook/upgrade
-guidance for disabled/late cron, inspection, manual retry, exhaustion,
-retention, rollback and consumer-owned uninstall.
+Status: waiting_dependency
+
+Goal: make every non-automatic recovery state actionable with the already
+public PHP service when WP-Cron is disabled, late or unavailable.
+
+Scope: executable service scenarios plus the new canonical runbook
+`docs/deleted-post-repair-operations.md` for per-site inventory, inspection,
+manual single/batch retry, exhaustion, redacted diagnostics and cron health.
+
+Out of Scope: WP-CLI, REST/admin UI, network scanning, public cron settings and
+rollback/uninstall rehearsal.
+
+DoR:
+
+- B21-03—B21-07 are completed and all documented outcomes are stable.
+- `Client::getDeletedPostRepairService()` remains the approved operator API.
 
 DoD/AC:
 
@@ -3134,22 +3321,73 @@ DoD/AC:
   through `Client::getDeletedPostRepairService()`;
 - documentation gives per-site inventory/retry order and explains redacted
   diagnostics, missing Client/adapter mismatch and `needs_attention`;
-- rollback rehearsal preserves unresolved rows, the repair table and
-  `wpconnections_repair_schema_owner` and retains a forward recovery path;
-- the library documents that it has no destructive automatic uninstall;
-  resolved retention may purge only validated old resolved rows, never
-  unresolved work;
-- optional WP-CLI, admin/REST UI and a destructive purge command remain
-  explicitly deferred.
+- stored event reconciliation is inspected directly and the runner is invoked
+  directly; no test pretends WordPress's CLI bootstrap performed HTTP loopback;
+- optional WP-CLI and admin/REST UI remain explicitly deferred.
 
-Dependencies: B21-03, B21-04.
+Dependencies: B21-03—B21-07.
 
-#### B21-06. Prove the vendor and infrastructure matrix
+Notes/Risks: diagnostics are deliberately redacted; the runbook must not advise
+operators to read or mutate raw serialized failure data.
 
-Status: todo
+#### B21-09. Rehearse rollback and consumer-owned uninstall preservation
+
+Status: waiting_dependency
+
+Goal: prove and document that code rollback or consumer-plugin uninstall does
+not silently destroy unresolved recovery state.
+
+Scope: the rollback/uninstall section and evidence record in
+`docs/deleted-post-repair-operations.md`, plus executable preservation tests for
+Client disposal/runtime reconstruction, unresolved rows, repair table and
+`wpconnections_repair_schema_owner`.
+
+Out of Scope: an automatic library uninstall hook, unresolved-row purge,
+version downgrade migration and a destructive operator command.
+
+DoR:
+
+- B21-08 is completed and the runbook inventory/retry procedure is usable.
+- At least one unresolved record is available in the operational fixture.
+
+DoD/AC:
+
+- the rehearsal records per-site inventory before change, stops new delivery,
+  preserves table/option/unresolved row, reconstructs a current-site Client and
+  completes or retains forward recovery;
+- `DeletedPostRepairOperationalTest::
+  test_unresolved_work_survives_client_disposal_and_runtime_reconstruction()`
+  (or an equivalently named final test recorded in the traceability table)
+  proves the persistence boundary;
+- the runbook states that this Composer library registers no destructive
+  automatic uninstall; a consumer uninstaller must preserve unresolved state;
+- resolved retention removes only validated old resolved rows; unresolved and
+  malformed candidates remain protected.
+
+Dependencies: B21-08.
+
+Notes/Risks: tests cannot execute an unknown consumer plugin's uninstaller.
+The executable guarantee is persistence across library lifecycle teardown; the
+consumer-owned uninstall obligation is a release checklist item for HOOK-04.
+
+#### B21-10. Prove the vendor and infrastructure matrix
+
+Status: waiting_dependency
+
+Goal: produce one exact-candidate evidence set for all DB-04-Q behavior and
+repository quality gates.
 
 Scope: focused DB-04-Q suite plus full regression, isolation, coverage, PHPCS,
 true multisite and pinned MySQL/MariaDB execution on one exact candidate.
+
+Out of Scope: changing pinned versions, branch-protection policy or releasing a
+tag to make a failing lane non-blocking.
+
+DoR:
+
+- B21-01—B21-09 are completed with no unresolved P0—P3 finding or active
+  critical-scenario exception.
+- The runbook and traceability table identify every exact command/lane.
 
 DoD/AC:
 
@@ -3161,26 +3399,48 @@ DoD/AC:
   inspect stored event reconciliation and invoke the runner directly;
 - `HOOK-CASCADE-01` is mapped to named tests and no active critical-scenario
   exception remains.
+- the completed traceability manifest records every retained/new named test,
+  lane, exact SHA, command and result; no R1–R6 row is left implicit.
 
-Dependencies: B21-01—B21-05.
+Dependencies: B21-01—B21-09.
+
+Notes/Risks: a skipped multisite test is not acceptance evidence. Both pinned
+database jobs must execute the ledger/claim/concurrency and real-flow suite.
 
 #### B21-Q. Exact-candidate review and DB-04 closeout
 
-Status: todo
+Status: waiting_dependency
+
+Goal: close DB-04 only after independent review, protected delivery and exact
+post-merge reproduction of the approved qualification.
 
 Scope: independent correctness, security/data-integrity and operational review,
 protected checks, exact merge and post-merge evidence.
+
+Out of Scope: 2.0 release/tag, HOOK-04 consumer migration, REL-02/REL-03 closure
+and accepting a hidden decision on behalf of the repository owner.
+
+DoR:
+
+- B21-01—B21-10 are completed on one exact candidate.
+- No unresolved P0—P3 finding, hidden decision gate or active critical
+  exception remains.
 
 DoD/AC:
 
 - exact candidate has no unresolved P0—P3 finding or hidden decision gate;
 - protected PR head and exact merge each pass the complete required matrix;
+- independent reviewers verify the completed traceability manifest against the
+  exact candidate rather than accepting summary counts alone;
 - DB-04-Q becomes `completed` only after merge and post-merge evidence is
   recorded in the roadmap, repair contract, quality map and runbook;
 - HOOK-04, REL-02 and REL-03 remain explicit release dependencies; Batch 21
   creates no tag or release.
 
-Dependencies: B21-01—B21-06.
+Dependencies: B21-01—B21-10.
+
+Notes/Risks: DB-04-Q completion is delivery evidence, not a 2.0 release. HOOK-04
+becomes ready only after this task and its other REL dependencies complete.
 
 ## E1. Test foundation и regression harness
 
@@ -5302,11 +5562,14 @@ DoD/AC:
 Status: todo
 
 Scope: real `wp_delete_post()`, failure/crash/concurrency, true multisite,
-pinned vendors, operator/uninstall docs, independent QA и release evidence.
+pinned vendors, operator/uninstall docs, independent QA and protected-delivery
+qualification evidence.
 
 DoR:
 
 - DB-04-I1—DB-04-I3 завершены.
+- LIFE-HOOK-01 завершён.
+- DG-DELETE-06/A и DG-DELETE-06R1—R6/A утверждены.
 
 DoD/AC:
 
@@ -7619,7 +7882,7 @@ Out of Scope:
 
 DoR:
 
-- HOOK-03, REST-HOOK-01, LOG-HOOK-01 и LIFE-HOOK-01 completed.
+- DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01 и LIFE-HOOK-01 completed.
 - REL-02 hook/factory compatibility evidence доступен.
 - REL-03 release process активен.
 
@@ -7639,7 +7902,8 @@ AC:
 
 Dependencies:
 
-- HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03.
+- DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02,
+  REL-03.
 
 Notes/Risks:
 

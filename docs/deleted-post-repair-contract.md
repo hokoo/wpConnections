@@ -835,7 +835,7 @@ complete. No open decision gate exists at entry.
 Scope: end-to-end `wp_delete_post()` behavior, failure/crash/concurrency matrix,
 true multisite lane, pinned vendors, docs, runbook, and independent QA.
 
-Out of scope: new public contracts beyond the approved R1-R3 surface and
+Out of scope: new public contracts beyond the approved R1–R6 surface and
 exactly-once callback claims.
 
 DoD:
@@ -849,7 +849,7 @@ DoD:
 Executable decomposition:
 
 The current suite is not empty. Real `wp_delete_post(..., true)` coverage
-already proves semantic disable/enable plus one successful outgoing cleanup
+already proves semantic disable/enable plus one successful incoming/to-end cleanup
 with no repair, one legacy outgoing row plus metadata cleanup, one
 true-multisite active-site cleanup without site-A mutation, and one
 default-storage connection-delete failure with rollback plus a `retry_wait`
@@ -858,15 +858,19 @@ incoming/outgoing/self, multi-relation/multi-Client, attachment/trash,
 failure/crash and operator matrix below. The named inventory is recorded in
 the Batch 21 entry criteria.
 
-1. B21-01 freezes a real `wp_delete_post()` fixture and records red evidence
-   before any production correction.
-2. B21-02 proves incoming/outgoing/self, multi-relation, metadata, multi-Client,
-   attachment and trash/permanent-delete behavior.
-3. B21-03 qualifies pre/post-commit, arm/scheduler and simulated crash windows.
-4. B21-04 qualifies true-multisite context and custom-adapter boundaries.
-5. B21-05 closes degraded-cron, operator, retention and rollback/uninstall
-   evidence without adding destructive automation.
-6. B21-06 and B21-Q run the exact vendor/CI matrix, independent reviews,
+1. B21-01 freezes the real-flow fixture and complete verification manifest.
+2. B21-02 proves the incoming/outgoing/self, relation, metadata, Client,
+   attachment and trash/permanent-delete matrix.
+3. B21-03 qualifies pre-commit, arm/readiness and scheduler failures.
+4. B21-04 qualifies post-commit uncertainty and all three simulated crash
+   windows: after arm, during cleanup and after commit before resolve.
+5. B21-05 closes concurrency, lease, delay, exhaustion, manual and retention
+   evidence without duplicating sufficient component tests.
+6. B21-06 and B21-07 separately qualify true-multisite routing and custom
+   adapter conformance.
+7. B21-08 and B21-09 deliver the named operator runbook and rollback/uninstall
+   preservation rehearsal without destructive automation.
+8. B21-10 and B21-Q run the exact vendor/CI matrix, independent reviews,
    protected merge and post-merge verification.
 
 The canonical task-level DoR, DoD and dependencies are in
@@ -874,47 +878,65 @@ The canonical task-level DoR, DoD and dependencies are in
 adds no public API, WP-CLI/admin/REST operator surface, schema migration,
 automatic site switching or release tag.
 
+## DB-04-Q verification manifest baseline
+
+B21-01 turns this baseline into an exact-SHA manifest. Every row must end with
+named test, lane, command and result; a retained test is evidence only for the
+observation it actually makes.
+
+| Contract area | Retained named evidence | Missing observation / owner |
+| --- | --- | --- |
+| Real success cascade | `ClientIsolationTest::test_semantic_post_deletion_lifecycle_controls_real_cleanup_once`, `EntityValidationTest::test_deleted_post_cascade_cleans_legacy_row_without_endpoint_resolution` (single-site WP); the former is incoming/to-end, the latter outgoing/from-end with metadata | self, multi-relation, multi-Client, attachment/trash and complete isolation matrix → B21-02 / `DeletedPostRecoveryRealFlowTest` |
+| Pre-commit recovery | `AtomicMutationTest::test_deleted_post_callback_uses_atomic_delete_boundary` (single-site WP) plus DB-05 atomic fault tests | selector/meta/connection, transaction, attempt-hook, ledger-arm and scheduler outcomes through real deletion → B21-03 |
+| Commit/crash uncertainty | `DeletedPostRepairExecutorTest::test_post_commit_hook_failure_retries_committed_cleanup_and_zero_resolves_uncertainty` (WP executor) | real hook plus simulated death after arm, during cleanup and after commit before resolve → B21-04 |
+| Concurrency and time | `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease`, `test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth`, `test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state`; policy `test_retry_delay_table`; worker `test_retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound` | bind the same real-flow identity from initial failure through retry/resolution and record every retained lane → B21-05 |
+| Multisite context | `ClientIsolationTest::test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix` (true multisite, one active-site incoming cleanup) plus direct-hook migration tests | real active/inactive/restored same-name/same-ID matrix → B21-06 |
+| Adapter conformance | hook-migration non-atomic zero-write and persisted custom-failure tests; ledger adapter-fingerprint mismatch test | custom atomic success/failure/no-match and missing-client/fingerprint outcomes through real deletion → B21-07 |
+| Operator/degraded cron | scheduler `test_dispatch_availability_reports_disabled_wp_cron_without_affecting_storage_api`; service list/retry/batch tests | executable disabled/late-cron procedure and named `docs/deleted-post-repair-operations.md` → B21-08 |
+| Rollback/uninstall | current upgrade guide preserves ledger table/ownership option | repeatable preservation rehearsal, operational evidence and no-destructive-automation source audit → B21-09 |
+| Vendor/infrastructure | existing true-multisite and pinned MySQL/MariaDB workflows | completed manifest on one exact candidate, all required lanes and critical-scenario mapping → B21-10/Q |
+
 ## Required verification matrix
 
 ### Real deletion and data effect
 
-- Incoming, outgoing, self-connection, multiple relation, and metadata cases.
-- Multiple Clients delete only their own rows.
-- Permanent post and attachment deletion; trash-only flow does not run the
+- [B21-02] Incoming, outgoing, self-connection, multiple relation, and metadata cases.
+- [B21-02] Multiple Clients delete only their own rows.
+- [B21-02] Permanent post and attachment deletion; trash-only flow does not run the
   permanent-delete cascade.
-- Successful first attempt leaves no repair record.
+- [B21-02] Successful first attempt leaves no repair record.
 
 ### Failure and commit windows
 
-- Selector read, metadata delete, connection delete, transaction start, commit,
+- [B21-03] Selector read, metadata delete, connection delete, transaction start, commit,
   and rollback failures.
-- Storage attempt hook and post-commit success-hook `Throwable`.
-- Death after arm, during cleanup, and after cleanup commit before resolve.
-- Ledger-arm and scheduling failure are distinct.
-- Repeated cleanup no-match resolves commit-before-status uncertainty.
+- [B21-03/B21-04] Storage attempt hook and post-commit success-hook `Throwable`.
+- [B21-04] Simulated death after arm, during cleanup, and after cleanup commit before resolve.
+- [B21-03] Ledger-arm and scheduling failure are distinct.
+- [B21-04] Repeated cleanup no-match resolves commit-before-status uncertainty.
 
 ### Concurrency and time
 
-- Duplicate `deleted_post` delivery deduplicates one logical identity.
-- Two workers race for one record; only one live lease succeeds.
-- Expired lease reclaim, all backoff steps, exhaustion, manual recovery, and
+- [B21-04/B21-05] Duplicate `deleted_post` delivery deduplicates one logical identity.
+- [B21-05] Two workers race for one record; only one live lease succeeds.
+- [B21-05] Expired lease reclaim, all backoff steps, exhaustion, manual recovery, and
   resolved retention through a fake clock.
 
 ### Context and adapters
 
-- Same Client name and numeric post ID on two real multisite blogs.
-- Active, inactive, and restored site context.
-- Missing fresh Client and adapter-fingerprint mismatch.
-- Default storage; custom atomic adapter success/failure/no-match; custom
+- [B21-06] Same Client name and numeric post ID on two real multisite blogs.
+- [B21-06] Active, inactive, and restored site context.
+- [B21-07] Missing fresh Client and adapter-fingerprint mismatch.
+- [B21-07] Default storage; custom atomic adapter success/failure/no-match; custom
   non-atomic adapter capability failure with zero writes.
 
 ### Vendor and infrastructure
 
-- Full ledger/claim/concurrency suite on pinned MySQL 8.0.46 and MariaDB
+- [B21-10] Full ledger/claim/concurrency suite on pinned MySQL 8.0.46 and MariaDB
   10.11.16 without vendor-only SQL.
-- Dedicated `WP_MULTISITE=1` CI lane. A test that skips when `!is_multisite()`
+- [B21-10] Dedicated `WP_MULTISITE=1` CI lane. A test that skips when `!is_multisite()`
   is not evidence for the multisite acceptance criteria.
-- WordPress's CLI test bootstrap disables cron loopback, so tests assert stored
+- [B21-08/B21-10] WordPress's CLI test bootstrap disables cron loopback, so tests assert stored
   event reconciliation and invoke the runner directly instead of pretending an
   HTTP loopback occurred.
 
