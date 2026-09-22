@@ -13,7 +13,9 @@ Exact candidate `4c18fde9934a6d74f143faf0acc6dc97650a1a93` received three
 independent closure PASS results with no open P0—P3 findings and passed 19/19
 protected jobs. PR #102 merged as
 `66f6fd3413d316081f431ff7bcc5d8ae6beefc9c`; the exact merge passed all 19
-post-merge jobs. No I3 hook activation is included.
+post-merge jobs. DB-04-I3 subsequently completed in Batch 19 / PR #104, and
+the terminal Client lifecycle completed in Batch 20 / PR #106. DB-04-Q is now
+the executable Batch 21 qualification.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -52,13 +54,13 @@ This document converts that policy into three explicit choices:
 3. how work is woken, retried, observed, and manually recovered.
 
 All three original choices and all three Batch 18 refinements were explicitly
-approved. `DB-04-I1` and `DB-04-I2` are complete. HOOK-03 / DB-04-I3 is being
-activated in the separate Batch 19 candidate; this does not mark DB-04-Q or the
-2.0 release complete.
+approved. `DB-04-I1`—`DB-04-I3` and LIFE-HOOK-01 are complete. Their component
+and lifecycle evidence does not by itself mark DB-04-Q or the 2.0 release
+complete; Batch 21 supplies the missing real-flow and operational proof.
 
 ## Current runtime and compatibility boundary
 
-The Batch 19 implementation candidate replaces the historical 1.x direct
+The Batch 19 implementation replaces the historical 1.x direct
 Storage callback with this 2.0 path:
 
 ```text
@@ -202,15 +204,16 @@ does not ship in the remaining 1.x line.
 DB-04-I1 ledger/schema
   -> DB-04-I2 retry/operator core
   -> HOOK-03 / DB-04-I3 manager-backed coordinator
-  -> DB-04-Q real-flow closure
   -> LIFE-HOOK-01
+  -> DB-04-Q real-flow closure
   -> HOOK-04 / 2.0 upgrade guide
 ```
 
 HOOK-03 must no longer wait for the whole DB-04 umbrella. It waits for the
 repair core and this approved gate; DB-04 closes only after HOOK-03 provides the
-real callback boundary. Selecting B or C requires a revised slice/dependency
-map before production starts.
+real callback boundary. LIFE-HOOK-01 was later deliberately completed before
+DB-04-Q so the qualification exercises the final Client lifecycle. Selecting B
+or C requires a revised slice/dependency map before production starts.
 
 The 2.0 upgrade guide must retain the existing red flag: consumers must replace
 direct storage-callback `remove_action()` calls with
@@ -753,9 +756,10 @@ explicitly.
 ## Planned executable implementation slices
 
 The following slice order implements approved R1—R6. B18-01 through B18-07 and
-B18-Q are completed; B18-08 remains deferred. HOOK-03 / DB-04-I3 is the next
-ready production slice. Changing an approved choice requires a new decision and
-revised plan before affected code starts.
+B18-Q are completed; B18-08 remains deferred. HOOK-03 / DB-04-I3 and
+LIFE-HOOK-01 are complete. DB-04-Q is decomposed as Batch 21. Changing an
+approved choice requires a new decision and revised plan before affected code
+starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
@@ -804,9 +808,10 @@ DoD:
 
 ### HOOK-03 / DB-04-I3 — manager-backed recovery delivery
 
-Status: `in_progress` in Batch 19; B19-01—B19-06 are implemented on the
-candidate branch, while exact-candidate QA and protected merge evidence remain
-before HOOK-03/DB-04-I3 can close.
+Status: `completed` in Batch 19 / PR #104; exact candidate
+`ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` received three independent PASS
+results, PR head passed 20/20 protected checks, and exact merge
+`7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01` passed 20/20 post-merge jobs.
 
 Scope: `wp-hooks-dispatcher` subscription, retained revocable handle,
 pre-arm/claim/cleanup/resolve coordinator, semantic enable/disable, and removal
@@ -824,12 +829,13 @@ DoD:
 
 ### DB-04-Q — real-flow, vendor, and operational closure
 
-Status: `waiting_dependency` on I1-I3 and all approved gates.
+Status: `todo` as Batch 21; I1—I3, LIFE-HOOK-01 and all approved gates are
+complete. No open decision gate exists at entry.
 
 Scope: end-to-end `wp_delete_post()` behavior, failure/crash/concurrency matrix,
 true multisite lane, pinned vendors, docs, runbook, and independent QA.
 
-Out of scope: new public contracts beyond the approved R1-R3 surface and
+Out of scope: new public contracts beyond the approved R1–R6 surface and
 exactly-once callback claims.
 
 DoD:
@@ -840,47 +846,101 @@ DoD:
 - DB-04 closes only after exact candidate, protected checks, merge, and
   post-merge evidence.
 
+Executable decomposition:
+
+The current suite is not empty. Real `wp_delete_post(..., true)` coverage
+already proves semantic disable/enable plus one successful incoming/to-end cleanup
+with no repair, one legacy outgoing row plus metadata cleanup, one
+true-multisite active-site cleanup without site-A mutation, and one
+default-storage connection-delete failure with rollback plus a `retry_wait`
+record. Those tests are retained as baseline, not counted as the complete
+incoming/outgoing/self, multi-relation/multi-Client, attachment/trash,
+failure/crash and operator matrix below. The named inventory is recorded in
+the Batch 21 entry criteria.
+
+1. B21-01 freezes the real-flow fixture and complete verification manifest.
+2. B21-02 proves the incoming/outgoing/self, relation, metadata, Client,
+   attachment and trash/permanent-delete matrix.
+3. B21-03 qualifies pre-commit, arm/readiness and scheduler failures.
+4. B21-04 qualifies post-commit uncertainty and all three simulated crash
+   windows: after durable arm before claim (`armed`), during cleanup
+   (`running` until lease expiry), and after commit before resolve (`running`
+   with cleanup possibly already durable).
+5. B21-05 closes concurrency, lease, delay, exhaustion, manual and retention
+   evidence without duplicating sufficient component tests.
+6. B21-06 and B21-07 separately qualify true-multisite routing and custom
+   adapter conformance.
+7. B21-08 and B21-09 deliver the named operator runbook and rollback/uninstall
+   preservation rehearsal without destructive automation.
+8. B21-10 and B21-Q run the exact vendor/CI matrix, independent reviews,
+   protected merge and post-merge verification.
+
+The canonical task-level DoR, DoD and dependencies are in
+[`docs/plans/02-library-hardening.md`](plans/02-library-hardening.md). Batch 21
+adds no public API, WP-CLI/admin/REST operator surface, schema migration,
+automatic site switching or release tag.
+
+## DB-04-Q verification manifest baseline
+
+B21-01 turns this baseline into an exact-SHA manifest. Every row must end with
+named test, lane, command and result; a retained test is evidence only for the
+observation it actually makes.
+
+| Contract area | Retained named evidence | Missing observation / owner |
+| --- | --- | --- |
+| Real success cascade | `ClientIsolationTest::test_semantic_post_deletion_lifecycle_controls_real_cleanup_once`, `EntityValidationTest::test_deleted_post_cascade_cleans_legacy_row_without_endpoint_resolution` (single-site WP); the former is incoming/to-end, the latter outgoing/from-end with metadata | self, multi-relation, multi-Client, attachment/trash and complete isolation matrix → B21-02 / `DeletedPostRecoveryRealFlowTest` |
+| Pre-commit recovery | `AtomicMutationTest::test_deleted_post_callback_uses_atomic_delete_boundary` (single-site WP) plus DB-05 atomic fault tests | selector/meta/connection, transaction, attempt-hook, ledger-arm, scheduler and rollback-uncertainty outcomes through real deletion → B21-03 |
+| Commit/crash uncertainty | `DeletedPostRepairExecutorTest::test_post_commit_hook_failure_retries_committed_cleanup_and_zero_resolves_uncertainty` (WP executor) | real hook plus simulated death after durable arm before claim, during cleanup and after commit before resolve → B21-04 |
+| Concurrency and time | `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease`, `test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth`, `test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state`; policy `test_retry_delay_table`; worker `test_retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound` | bind the same real-flow identity from initial failure through retry/resolution and record every retained lane → B21-05 |
+| Multisite context | `ClientIsolationTest::test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix` (true multisite, one active-site incoming cleanup) plus direct-hook migration tests | real active/inactive/restored same-name/same-ID matrix → B21-06 |
+| Adapter conformance | hook-migration non-atomic zero-write and persisted custom-failure tests; ledger adapter-fingerprint mismatch test | custom atomic success/failure/no-match and missing-client/fingerprint outcomes through real deletion → B21-07 |
+| Operator/degraded cron | scheduler `test_dispatch_availability_reports_disabled_wp_cron_without_affecting_storage_api`; service list/retry/batch tests | executable disabled/late-cron procedure and named `docs/deleted-post-repair-operations.md` → B21-08 |
+| Rollback/uninstall | current upgrade guide preserves ledger table/ownership option | repeatable preservation rehearsal, operational evidence and no-destructive-automation source audit → B21-09 |
+| Vendor/infrastructure | existing true-multisite and pinned MySQL/MariaDB workflows | completed manifest on one exact candidate, all required lanes and critical-scenario mapping → B21-10/Q |
+
 ## Required verification matrix
 
 ### Real deletion and data effect
 
-- Incoming, outgoing, self-connection, multiple relation, and metadata cases.
-- Multiple Clients delete only their own rows.
-- Permanent post and attachment deletion; trash-only flow does not run the
+- [B21-02] Incoming, outgoing, self-connection, multiple relation, and metadata cases.
+- [B21-02] Multiple Clients delete only their own rows.
+- [B21-02] Permanent post and attachment deletion; trash-only flow does not run the
   permanent-delete cascade.
-- Successful first attempt leaves no repair record.
+- [B21-02] Successful first attempt leaves no repair record.
 
 ### Failure and commit windows
 
-- Selector read, metadata delete, connection delete, transaction start, commit,
+- [B21-03] Selector read, metadata delete, connection delete, transaction start, commit,
   and rollback failures.
-- Storage attempt hook and post-commit success-hook `Throwable`.
-- Death after arm, during cleanup, and after cleanup commit before resolve.
-- Ledger-arm and scheduling failure are distinct.
-- Repeated cleanup no-match resolves commit-before-status uncertainty.
+- [B21-03/B21-04] Storage attempt hook and post-commit success-hook `Throwable`.
+- [B21-04] Simulated death after durable arm before claim (`armed`), during
+  cleanup (`running` until lease expiry), and after cleanup commit before
+  resolve (`running` with cleanup possibly already durable).
+- [B21-03] Ledger-arm and scheduling failure are distinct.
+- [B21-04] Repeated cleanup no-match resolves commit-before-status uncertainty.
 
 ### Concurrency and time
 
-- Duplicate `deleted_post` delivery deduplicates one logical identity.
-- Two workers race for one record; only one live lease succeeds.
-- Expired lease reclaim, all backoff steps, exhaustion, manual recovery, and
+- [B21-04/B21-05] Duplicate `deleted_post` delivery deduplicates one logical identity.
+- [B21-05] Two workers race for one record; only one live lease succeeds.
+- [B21-05] Expired lease reclaim, all backoff steps, exhaustion, manual recovery, and
   resolved retention through a fake clock.
 
 ### Context and adapters
 
-- Same Client name and numeric post ID on two real multisite blogs.
-- Active, inactive, and restored site context.
-- Missing fresh Client and adapter-fingerprint mismatch.
-- Default storage; custom atomic adapter success/failure/no-match; custom
+- [B21-06] Same Client name and numeric post ID on two real multisite blogs.
+- [B21-06] Active, inactive, and restored site context.
+- [B21-07] Missing fresh Client and adapter-fingerprint mismatch.
+- [B21-07] Default storage; custom atomic adapter success/failure/no-match; custom
   non-atomic adapter capability failure with zero writes.
 
 ### Vendor and infrastructure
 
-- Full ledger/claim/concurrency suite on pinned MySQL 8.0.46 and MariaDB
+- [B21-10] Full ledger/claim/concurrency suite on pinned MySQL 8.0.46 and MariaDB
   10.11.16 without vendor-only SQL.
-- Dedicated `WP_MULTISITE=1` CI lane. A test that skips when `!is_multisite()`
+- [B21-10] Dedicated `WP_MULTISITE=1` CI lane. A test that skips when `!is_multisite()`
   is not evidence for the multisite acceptance criteria.
-- WordPress's CLI test bootstrap disables cron loopback, so tests assert stored
+- [B21-08/B21-10] WordPress's CLI test bootstrap disables cron loopback, so tests assert stored
   event reconciliation and invoke the runner directly instead of pretending an
   HTTP loopback occurred.
 

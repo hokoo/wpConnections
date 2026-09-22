@@ -114,9 +114,13 @@ strong-reference release and disposal reentrancy during custom REST init, route
 owner publication, late-server rebind, repair readiness and cleanup re-enable.
 The repair re-enable rollback is token-checked as well: if reconciliation
 reentrantly revokes the original owner and then fails, catch neither recreates
-a ghost owner nor mutates a same-name replacement. Final exact re-audits,
-protected merge and post-merge evidence remain B20-Q work; HOOK-04 still owns
-the release-wide consumer scan and changelog warning.
+a ghost owner nor mutates a same-name replacement. Exact candidate
+`05284155d803eb02c5c89e2052928f9d60807734` received three independent PASS
+results without open P0—P3 findings or a new gate. PR #106 passed 20/20
+protected checks and merged as
+`a3491c018b96b54dc03e55a850153ddc0e6db413`; all 20 post-merge jobs passed.
+LIFE-HOOK-01 is complete; HOOK-04 still owns the release-wide consumer scan and
+changelog warning.
 
 ## Audit method and completeness boundary
 
@@ -299,7 +303,7 @@ release snapshot and keep the direct-`remove_action()` warning prominent.
 | `deleted_post` delivery | HOOK-03 / DB-04-I3 | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1/A; DB-04-Q follows | 2.0 changes callback identity; semantic enable/disable remains the migration API and exposes its handle to final Client lifecycle |
 | REST hook and route lifecycle | REST-HOOK-01 | HOOK-01, REST-01, DG-HOOK-REST-01—DG-HOOK-REST-05, DG-RESTERR-03; REL-02 hand-off | Preserve v1 request URLs/methods and factory-selected handler delegates; define duplicate ownership, late initialization, unavailable dispatch/route-index visibility and a revocable Client mapping before final lifecycle integration |
 | Automatic debug routing | LOG-HOOK-01 | DG-HOOK-LOG-01, DG-SPI-06; REL-02 hand-off | Preserve event names, existing argument order and priority-10 logging; add a trailing origin Client to the query event and document the custom Storage obligation instead of retaining duplicate/wrong-client logging |
-| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | Batch 20 candidate implements the final 2.0 lifecycle surface; B20-Q verifies that failed/disposed Client is unreachable from hooks and routes |
+| Subscription retention, disposal and rollback | LIFE-HOOK-01 | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | Completed in Batch 20 / PR #106; failed/disposed Client is unreachable from library-owned hooks and routes |
 | Direct callback migration documentation | HOOK-04 | All applicable integration tasks, REL-02/REL-03 | Red-flag direct `remove_action()` break and repeat known-consumer scan |
 | Public extension emissions | REL-02 | Existing SPI/release gates | No manager ownership; document/test names, arguments and timing |
 
@@ -652,9 +656,8 @@ implementation discovery added DG-HOOK-REST-05; the repository owner approved
 recommendation A on 2026-09-12. The separate HOOK-01 task later
 published `hokoo/wp-hooks-dispatcher` `v1.0.1`; LOG-HOOK-01 subsequently
 completed as the second Batch 9 task in PR #82. REST-HOOK-01 completed in PR
-#83 and HOOK-03/DB-04-I3 completed in PR #104. Batch 20 now implements the
-approved LIFE-HOOK-01 boundary; its exact qualification remains downstream in
-B20-Q.
+#83 and HOOK-03/DB-04-I3 completed in PR #104. Batch 20 / PR #106 implements
+and exactly qualifies the approved LIFE-HOOK-01 boundary.
 
 ## Independent QA evidence
 

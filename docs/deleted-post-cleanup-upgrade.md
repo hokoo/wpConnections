@@ -1,6 +1,7 @@
 # Deleted-post cleanup: 1.x to 2.0 upgrade
 
-Status: Batch 19 migration boundary; final release-wide consumer scan and 2.0
+Status: Batch 20 lifecycle boundary delivered; DB-04-Q operational
+qualification is Batch 21, while final release-wide consumer scan and 2.0
 release notes remain HOOK-04 work.
 
 ## Breaking change
@@ -101,5 +102,6 @@ to exist and does not reconstruct the old direct callback identity.
 5. Keep a forward-recovery path capable of reading the ledger, or complete
    operator-reviewed retries before retiring the 2.0 runtime.
 
-The final 2.0 release procedure, known-consumer repository scan and complete
-rollback rehearsal remain gated by HOOK-04/DB-04-Q.
+The DB-04-Q rollback rehearsal is Batch 21 work. The final 2.0 release
+procedure and known-consumer repository scan remain gated by HOOK-04 after
+that qualification.

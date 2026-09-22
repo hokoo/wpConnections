@@ -87,15 +87,19 @@
     финальный Client lifecycle. Tag/release намеренно остаётся вне Batch 19.
 14. Документационный closeout Batch 19 завершён PR #105: merge
     `b0f011752e67931a90668ca8951a31d0a190afb7` прошёл 20/20 post-merge jobs.
-    Batch 20 / LIFE-HOOK-01 начат от этого exact baseline. B20-01—B20-06
-    completed локально: поставлены public terminal `Client::dispose()`,
-    constructor rollback, REST/repair reentrancy guards, retention/multisite
-    regressions и migration contract. Corrected production head `a022c8e`
-    дополнительно закрывает token/ABA rollback defect, найденный финальным
-    lifecycle review, и прошёл full single-/true-multisite, coverage,
-    isolation, обе pinned DB lanes, PHPCS и synthetic quality tools. Нового
-    decision gate не требуется; B20-Q ожидает exact re-audits, protected merge
-    и post-merge evidence.
+    Batch 20 / LIFE-HOOK-01 завершён PR #106. Exact candidate
+    `05284155d803eb02c5c89e2052928f9d60807734` получил три independent PASS
+    без open P0—P3 или нового decision gate, а PR head прошёл 20/20
+    protected checks. Merge `a3491c018b96b54dc03e55a850153ddc0e6db413`
+    прошёл 20/20 post-merge jobs. Public terminal `Client::dispose()`,
+    constructor rollback, REST/repair reentrancy guards, token/ABA ownership
+    protection, retention release и multisite isolation поставлены. Batch 20
+    не создавал tag/release.
+15. DB-04-Q разложен на Batch 21: real `wp_delete_post()` cascade,
+    recovery/crash windows, true-multisite и custom-adapter qualification,
+    operator/rollback/uninstall runbook, pinned vendors и exact delivery
+    evidence. Новых decision gates на входе нет; Batch 21 не
+    добавляет public API и не выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
@@ -119,18 +123,16 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий functional baseline — Batch 19 / HOOK-03/DB-04-I3 PR #104
-  (`7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`); его roadmap closeout PR #105
-  влит как `b0f011752e67931a90668ca8951a31d0a190afb7` и прошёл 20/20 post-merge
-  jobs. Exact Batch 19 candidate
-  `ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` получил три independent PASS без
+- Текущий functional baseline — Batch 20 / LIFE-HOOK-01 PR #106, merge
+  `a3491c018b96b54dc03e55a850153ddc0e6db413`. Exact candidate
+  `05284155d803eb02c5c89e2052928f9d60807734` получил три independent PASS без
   open P0—P3 или новых decision gates; candidate и exact merge прошли по 20/20
-  protected/post-merge jobs. Локально: unit `139 / 509`, integration
-  `476 / 4152` с шестью expected skips, true multisite `476 / 4183`, pinned
-  MySQL 8.0.46 и MariaDB 10.11.16 по `476 / 4152` с шестью expected skips,
-  PHPCS `100/100`, fixed-floor coverage `3783/4136 (91.47%)`. Manager-backed
-  deleted-post recovery активирован. Следующим идёт LIFE-HOOK-01, затем
-  DB-04-Q выполняет финальную real-flow/vendor/operational qualification.
+  protected/post-merge jobs. Локально: unit `141 / 518`, integration
+  `488 / 4271` с восемью expected skips, true multisite `488 / 4314`, pinned
+  MySQL 8.0.46 и MariaDB 10.11.16 по `488 / 4271` с восемью expected skips,
+  PHPCS `100/100`, fixed-floor coverage `3825/4172 (91.68%)`. Terminal Client
+  lifecycle и manager-backed recovery активны. Следующий исполняемый
+  batch — Batch 21 / DB-04-Q real-flow/vendor/operational qualification.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -239,7 +241,8 @@ map находятся в
   завершены; Batch 18 закрыт PR #102 и exact merge `66f6fd3` с полным 19/19
   protected/post-merge evidence. HOOK-03/DB-04-I3 завершён Batch 19 / PR #104
   с exact merge `7cfe684` и полным 20/20 protected/post-merge evidence;
-  DB-04-Q и LIFE-HOOK-01 готовы. REST-03
+  LIFE-HOOK-01 завершён Batch 20 / PR #106, а DB-04-Q поставлен
+  следующим Batch 21. REST-03
   завершён PR #95:
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
