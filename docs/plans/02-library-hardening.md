@@ -3033,8 +3033,8 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01—B21-05 are complete. B21-06 is the next selected
-task, while B21-07 is also dependency-ready for the same review group. Every
+production correction; B21-01—B21-06 are complete. B21-07 is the next selected
+task. Every
 later task remains `waiting_dependency` until its explicit DoR is true. The
 default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
@@ -3293,7 +3293,7 @@ passes direct PHPCS. No production change or new decision gate was required.
 
 #### B21-06. Qualify true-multisite context routing
 
-Status: todo
+Status: completed
 
 Goal: prove the real deletion flow stays site-safe when process-global hooks
 coexist with explicit WordPress context switching.
@@ -3328,6 +3328,23 @@ Dependencies: B21-01, B21-02; dedicated `WP_MULTISITE=1` lane.
 
 Notes/Risks: the consumer must construct a fresh Client per site. Tests must
 not make stale-Client silence look like automatic routing or reconstruction.
+
+Completion evidence: test commits `6a9726b` and
+`39189ffdb047b366ba88837bee57f86f9a77658f` add two real true-multisite
+scenarios with the same Client name and exact numeric page/post IDs on both
+blogs. The first proves that site B invokes and mutates only its fresh Client,
+then restoration to site A preserves its post/rows until site A's own real
+deletion. The second proves site-local `retry_wait` records, distinct repair
+keys and independent manual resolution after cleanup failure. The focused new
+lane passes `2/55`; the full fixture passes true multisite `8/140` without a
+skip; reverse and seed-`20260922` repeat-2 pass `16/280`. Single-site fixture
+compatibility passes `8/85` with two expected multisite-only skips. Full
+regression passes unit `141/518` and integration `508/4591` with ten expected
+skips; direct fixture PHPCS passes. A first repeat run exposed test teardown
+touching a temporary blog after WordPress had removed its tables; `39189ff`
+keeps subscription disposal unconditional while guarding site-local DB
+cleanup. This was a fixture-lifecycle defect, not a production routing defect.
+No production change or new decision gate was required.
 
 #### B21-07. Qualify custom-adapter recovery conformance
 

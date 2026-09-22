@@ -1,8 +1,7 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01—B21-05 are complete; B21-06 is the
-next selected task, while B21-07 is also dependency-ready for the same review
-group. The final exact qualification candidate and
+Status: active DB-04-Q manifest. B21-01—B21-06 are complete; B21-07 is the
+next selected task. The final exact qualification candidate and
 protected CI results remain owned by B21-10/B21-Q.
 
 ## Evidence identity
@@ -19,10 +18,13 @@ protected CI results remain owned by B21-10/B21-Q.
   `7587271fe87adbdf2a7a4a89fedb72f6cdff399c`.
 - Real-flow due-retry bridge commit:
   `e039db0a8d50bb280e21872993d636e27b033359`.
+- True-multisite routing matrix commits:
+  `6a9726b` (same-name/same-ID behavior) and
+  `39189ffdb047b366ba88837bee57f86f9a77658f` (repeat-safe fixture teardown).
 - Primary fixtures: `DeletedPostRecoveryRealFlowTest` and
   `AtomicMutationTest`, with deterministic lease-boundary evidence in
   `DeletedPostRepairExecutorTest`.
-- Production delta through B21-05: none. The observed paths were committed as
+- Production delta through B21-06: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
 - Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
 - Final merge and post-merge identity: pending B21-Q.
@@ -137,6 +139,36 @@ connection/meta intact), through a due public batch retry, to committed cleanup
 and retained `resolved` evidence (claim 2, one failure). No production change
 or new decision gate was required.
 
+## B21-06 true-multisite context evidence
+
+The behavior matrix was introduced in `6a9726b`; the exact verified test
+candidate ends at `39189ffdb047b366ba88837bee57f86f9a77658f`. Both real blogs
+use the same Client name and exact numeric page/post IDs. The fixture creates a
+fresh Client in each active site context, as required by the approved consumer
+responsibility boundary; it does not reconstruct or reroute a stale Client.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Focused new true-multisite scenarios | `docker compose -p wpconnections run --rm phpunit test:multisite --filter 'test_real_multisite_(delete_routes_same_name_and_post_id_to_active_client\|failure_ledgers_are_independent_for_same_name_and_post_id)'` | PASS — 2 tests, 55 assertions, no skip |
+| Full real-flow true multisite | `docker compose -p wpconnections run --rm phpunit test:multisite --filter DeletedPostRecoveryRealFlowTest` | PASS — 8 tests, 140 assertions, no skip |
+| Reverse true-multisite isolation | full real-flow command plus `--order-by=reverse --repeat=2` | PASS — 16 tests, 280 assertions; repeat-safe teardown emits no database errors |
+| Seeded random true-multisite isolation | full real-flow command plus `--order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 16 tests, 280 assertions; seed `20260922` |
+| Single-site fixture compatibility | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRecoveryRealFlowTest` | PASS — 8 tests, 85 assertions, 2 expected multisite-only skips |
+| Full unit and WP integration | `docker compose -p wpconnections run --rm phpunit test:all` | PASS — unit 141 tests / 518 assertions; integration 508 tests / 4591 assertions / 10 expected skips |
+| Fixture coding standard | `docker compose -p wpconnections run --rm phpunit vendor/bin/phpcs tests/iTRON/wpConnections/WP/DeletedPostRecoveryRealFlowTest.php --standard=phpcs.xml` | PASS — 1 file; the pre-existing PHPCS ruleset deprecation remains non-blocking |
+
+The success scenario proves that deletion on site B invokes only site B's
+fresh Client, removes only site B's connection/meta rows and ledger state,
+then restoration to site A preserves its post and rows until site A receives
+its own real deletion. The failure scenario proves independent repair keys and
+`retry_wait`/resolution transitions for the two otherwise identical
+identities. The first reverse-repeat run exposed teardown attempts after
+WordPress had already removed a temporary blog; `39189ff` makes teardown
+release global subscriptions unconditionally and touch site-local tables only
+while that site database still exists. That was a fixture-lifecycle defect,
+not a production routing defect. No production change or new decision gate
+was required.
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -183,9 +215,9 @@ or new decision gate was required.
 
 | Required observation | Exact evidence or target | Lane | State / owner |
 | --- | --- | --- | --- |
-| Active-site cleanup does not mutate the previous site's default-storage rows | `ClientIsolationTest::test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix` | dedicated true multisite WP | existing baseline — B21-06 |
-| Same Client name and numeric post ID stay independent on two blogs through real deletion | `DeletedPostRecoveryRealFlowTest` same-name/same-ID method | dedicated true multisite WP | planned — B21-06 |
-| Active, inactive and restored contexts require a fresh per-site Client | `DeletedPostRecoveryRealFlowTest` context-routing methods | dedicated true multisite WP | planned — B21-06 |
+| Active-site cleanup does not mutate the previous site's default-storage rows | `ClientIsolationTest::test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix` plus `DeletedPostRecoveryRealFlowTest::test_real_multisite_delete_routes_same_name_and_post_id_to_active_client` | dedicated true multisite WP | verified in B21-06 (`6a9726b`, `39189ff`) |
+| Same Client name and numeric post ID stay independent on two blogs through real deletion | `DeletedPostRecoveryRealFlowTest::test_real_multisite_delete_routes_same_name_and_post_id_to_active_client` and `test_real_multisite_failure_ledgers_are_independent_for_same_name_and_post_id` | dedicated true multisite WP | verified in B21-06 (`6a9726b`, `39189ff`) |
+| Active, inactive and restored contexts require a fresh per-site Client | `DeletedPostRecoveryRealFlowTest::test_real_multisite_delete_routes_same_name_and_post_id_to_active_client` | dedicated true multisite WP | verified in B21-06 (`6a9726b`, `39189ff`) |
 | Non-atomic custom storage performs zero writes and exposes redacted attention | `DeletedPostRepairHookMigrationTest::test_non_atomic_storage_performs_zero_writes_and_exposes_redacted_attention` | WP integration | existing component evidence; real-flow bridge — B21-07 |
 | Adapter fingerprint mismatch fails closed before claim or connection DML | `DeletedPostRepairLedgerTest::test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml` | WP integration | existing component evidence; real-flow bridge — B21-07 |
 | Custom atomic success, failure and committed no-match retry follow default durable outcomes | `DeletedPostRecoveryRealFlowTest` custom-adapter methods | WP integration | planned — B21-07 |
