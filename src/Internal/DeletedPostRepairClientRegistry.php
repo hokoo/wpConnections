@@ -66,6 +66,7 @@ final class DeletedPostRepairClientRegistry
         Client $client,
         bool $automaticEnabled = true
     ): DeletedPostRepairClientRegistration {
+        $client->assertIntegrationLifecycleActive();
         $context = $this->currentContext();
         try {
             $this->assertClientContext($client, $context);
@@ -125,6 +126,7 @@ final class DeletedPostRepairClientRegistry
             if ($automaticEnabled) {
                 $this->signalReconciliation($context);
             }
+            $client->assertIntegrationLifecycleActive();
 
             return $registration;
         } catch (Throwable $failure) {

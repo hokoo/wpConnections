@@ -18,15 +18,18 @@ use Throwable;
 class Client
 {
     private const RELATION_CARDINALITIES = [ '1-1', '1-m', 'm-1', 'm-m' ];
+    private const DISPOSED_INTEGRATIONS_MESSAGE =
+        'Client integrations have been disposed and cannot be reactivated.';
     private string $name;
     private Abstracts\Storage $storage;
     private RelationCollection $relations;
     private LoggerInterface $logger;
     private ConnectionEntityValidator $entityValidator;
-    private RestRouteRegistration $restRegistration;
+    private ?RestRouteRegistration $restRegistration = null;
     private int $deletedPostRepairSiteId;
     private string $deletedPostRepairSitePrefix;
     private bool $postDeletionCleanupEnabled = true;
+    private bool $disposed = false;
     private ?DeletedPostRepairClientActivation $deletedPostRepairActivation = null;
     private ?DeletedPostRepairService $deletedPostRepairService = null;
     private array $atomicScopes = [];
@@ -193,6 +196,7 @@ class Client
      */
     public function enablePostDeletionCleanup(): void
     {
+        $this->assertIntegrationLifecycleActive();
         if (null !== $this->deletedPostRepairActivation) {
             $this->deletedPostRepairActivation->enable();
         }
@@ -208,6 +212,31 @@ class Client
             $this->deletedPostRepairActivation->disable();
         }
         $this->postDeletionCleanupEnabled = false;
+    }
+
+    /**
+     * Permanently releases every WordPress integration owned by this Client.
+     */
+    public function dispose(): void
+    {
+        if ($this->disposed) {
+            return;
+        }
+
+        $this->disposed = true;
+        $this->postDeletionCleanupEnabled = false;
+        $this->releaseOwnedIntegrations();
+    }
+
+    /**
+     * @internal Integration owners must guard every activation and rebind edge.
+     * @throws ClientRegisterFail
+     */
+    final public function assertIntegrationLifecycleActive(): void
+    {
+        if ($this->disposed) {
+            throw new ClientRegisterFail(self::DISPOSED_INTEGRATIONS_MESSAGE);
+        }
     }
 
     public function getRelations(): RelationCollection
@@ -390,14 +419,14 @@ class Client
      */
     private function init()
     {
-        $clientDefaultCapabilities = apply_filters("wpConnections/client/{$this->getName()}/clientDefaultCapabilities", '');
-        $this->capabilities = new Capabilities($clientDefaultCapabilities);
-        $this->storage = Factory::getStorage($this);
-        $this->logger = Factory::getLogger($this);
-        $restApi = Factory::getRestApi($this);
-        $this->restRegistration = RestRouteRegistry::instance()->activate($restApi);
-
         try {
+            $clientDefaultCapabilities = apply_filters("wpConnections/client/{$this->getName()}/clientDefaultCapabilities", '');
+            $this->capabilities = new Capabilities($clientDefaultCapabilities);
+            $this->storage = Factory::getStorage($this);
+            $this->logger = Factory::getLogger($this);
+            $restApi = Factory::getRestApi($this);
+            $this->restRegistration = RestRouteRegistry::instance()->activate($restApi);
+
             $settings = new Settings();
             $settings->setLogger($this->getLogger());
             $settings->init();
@@ -407,14 +436,27 @@ class Client
             do_action('wpConnections/client/inited', $this);
             do_action("wpConnections/client/{$this->getName()}/inited", $this);
 
+            $this->assertIntegrationLifecycleActive();
             $this->deletedPostRepairActivation = DeletedPostRepairRuntime::instance()->activate(
                 $this,
                 $this->postDeletionCleanupEnabled
             );
         } catch (Throwable $exception) {
-            DeletedPostRepairRuntime::instance()->deactivateClient($this);
-            $this->restRegistration->revoke();
+            $this->dispose();
             throw $exception;
+        }
+    }
+
+    private function releaseOwnedIntegrations(): void
+    {
+        if (null !== $this->deletedPostRepairActivation) {
+            DeletedPostRepairRuntime::instance()->deactivateClient($this);
+            $this->deletedPostRepairActivation = null;
+        }
+
+        if (null !== $this->restRegistration) {
+            $this->restRegistration->revoke();
+            $this->restRegistration = null;
         }
     }
 }

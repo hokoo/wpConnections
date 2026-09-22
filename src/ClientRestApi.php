@@ -29,6 +29,7 @@ class ClientRestApi
 
     public function init()
     {
+        $this->getClient()->assertIntegrationLifecycleActive();
         $registry = RestRouteRegistry::instance();
         if ($registry->acknowledgeActivation($this)) {
             return;
@@ -312,6 +313,7 @@ class ClientRestApi
      */
     public function registerRestRoutes()
     {
+        $this->getClient()->assertIntegrationLifecycleActive();
         RestRouteRegistry::instance()->rebind($this);
     }
 }
