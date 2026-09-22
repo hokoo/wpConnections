@@ -373,6 +373,40 @@ class Client
     }
 
     /**
+     * Attaches batch reads to a non-post type already owned by this client's
+     * mutation resolver. Register before the first connection mutation.
+     */
+    public function registerEntityBatchResolver(
+        string $entityType,
+        BatchEntityResolverInterface $resolver
+    ): self {
+        $this->entityValidator->registerBatchResolver($entityType, $resolver);
+
+        return $this;
+    }
+
+    /** @internal */
+    public function hasEntityResolver(string $entityType): bool
+    {
+        return $this->entityValidator->hasResolver($entityType);
+    }
+
+    /** @internal */
+    public function getEntityBatchResolver(string $entityType): ?BatchEntityResolverInterface
+    {
+        return $this->entityValidator->getBatchResolver($entityType);
+    }
+
+    /** @internal Current-site reads must not use a Client from another blog. */
+    public function isCurrentEntityResolutionContext(): bool
+    {
+        global $wpdb;
+
+        return $this->deletedPostRepairSiteId === (int) get_current_blog_id() &&
+            $this->deletedPostRepairSitePrefix === (string) $wpdb->prefix;
+    }
+
+    /**
      * @internal Domain mutation entrypoints are the only callers.
      */
     public function assertConnectionEndpoints(

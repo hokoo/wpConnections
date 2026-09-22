@@ -21,6 +21,8 @@ final class ConnectionEntityValidator
 {
     /** @var array<string, EntityResolverInterface> */
     private array $resolvers = [];
+    /** @var array<string, BatchEntityResolverInterface> */
+    private array $batchResolvers = [];
     private bool $locked = false;
 
     /**
@@ -69,6 +71,48 @@ final class ConnectionEntityValidator
         foreach (array_keys($validatedTypes) as $entityType) {
             $this->resolvers[ $entityType ] = $resolver;
         }
+    }
+
+    /**
+     * Adds read capability to an already owned non-post type. Its mutation
+     * resolver retains ownership and the original registration lifecycle.
+     */
+    public function registerBatchResolver(string $entityType, BatchEntityResolverInterface $resolver): void
+    {
+        if ($this->locked) {
+            throw new ClientRegisterFail(
+                'Entity resolvers must be registered before the first connection mutation.'
+            );
+        }
+
+        if (
+            post_type_exists($entityType) ||
+            ! isset($this->resolvers[ $entityType ]) ||
+            $this->resolvers[ $entityType ] instanceof BatchEntityResolverInterface ||
+            isset($this->batchResolvers[ $entityType ])
+        ) {
+            throw new ClientRegisterFail("Batch entity resolver type is not uniquely owned: {$entityType}.");
+        }
+
+        $this->batchResolvers[ $entityType ] = $resolver;
+    }
+
+    /** @internal */
+    public function hasResolver(string $entityType): bool
+    {
+        return isset($this->resolvers[ $entityType ]);
+    }
+
+    /** @internal */
+    public function getBatchResolver(string $entityType): ?BatchEntityResolverInterface
+    {
+        if (isset($this->batchResolvers[ $entityType ])) {
+            return $this->batchResolvers[ $entityType ];
+        }
+
+        $resolver = $this->resolvers[ $entityType ] ?? null;
+
+        return $resolver instanceof BatchEntityResolverInterface ? $resolver : null;
     }
 
     public function assertEndpoints(Relation $relation, AbstractConnection $connection): void

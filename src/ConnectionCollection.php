@@ -16,13 +16,34 @@ class ConnectionCollection extends Collection implements IArrayConvertable
         parent::__construct($collectionType, $this->fromArray($data, $collectionType));
     }
 
+    /** @return ConnectionResolutionResult[] One result per input connection. */
+    public function resolveEntities(EndpointTarget $target): array
+    {
+        return (new ConnectionBatchResolver())->resolve($this, $target);
+    }
+
     /**
-     * @TODO
+     * Post-only compatibility facade for one absolute physical endpoint role.
      *
-     * Returns WP_Post[] based on 'from' or 'to' direction type.
+     * @return \WP_Post[] Available posts in connection order, including duplicates.
      */
     public function getPosts(string $direction)
     {
+        if ('from' !== $direction && 'to' !== $direction) {
+            throw new \InvalidArgumentException('Direction must be from or to.');
+        }
+
+        $target = 'from' === $direction ? EndpointTarget::from() : EndpointTarget::to();
+        $posts = [];
+        foreach ($this->resolveEntities($target) as $result) {
+            $endpoint = $result->getEndpoints()[$direction];
+            $post = $endpoint->getEntity();
+            if ($post instanceof \WP_Post && $endpoint->getEntityType() === $post->post_type) {
+                $posts[] = $post;
+            }
+        }
+
+        return $posts;
     }
 
     private function fromArray(array $items, string $collectionType = ''): array

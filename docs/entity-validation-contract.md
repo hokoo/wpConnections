@@ -217,6 +217,13 @@ preparation adapter proposed by API-01. API-03 may compose the approved resolver
 with a richer adapter; CORE-04 must not silently freeze API-01's pending public
 surface.
 
+API-03 adds `BatchEntityResolverInterface` for PHP read resolution. A registered
+mutation resolver may implement it directly, or its owning Client may attach
+one companion for an already registered non-post type before the first mutation.
+This does not alter `EntityResolverInterface`, type ownership, or the mutation
+validation result/error mapping above. Batch reads do not call the narrower
+per-entity `resolve()` method as a fallback.
+
 ## Update post-state and rollout
 
 ### Effective update state
