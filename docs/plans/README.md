@@ -98,11 +98,11 @@
 15. DB-04-Q разложен и начат как Batch 21: real `wp_delete_post()` cascade,
     recovery/crash windows, true-multisite и custom-adapter qualification,
     operator/rollback/uninstall runbook, pinned vendors и exact delivery
-    evidence. B21-01/B21-02 завершены: fixture commit `0a15b4d`, data-matrix
-    commit `ac6361f` и активный verification manifest фиксируют трассировку.
-    B21-03 выбран следующим; B21-06 также dependency-ready для своей группы.
-    Новых decision gates нет. Batch 21 не добавляет public API и не выпускает
-    tag.
+    evidence. B21-01—B21-03 завершены: fixture `0a15b4d`, data matrix
+    `ac6361f`, pre-commit/arm/wake-up matrix `01daf04` и активный verification
+    manifest фиксируют трассировку. B21-04 выбран следующим; B21-06 также
+    dependency-ready для своей группы. Новых decision gates нет. Batch 21 не
+    добавляет public API и не выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

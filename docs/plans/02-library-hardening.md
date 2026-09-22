@@ -3033,7 +3033,7 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01/B21-02 are complete. B21-03 is the next selected
+production correction; B21-01—B21-03 are complete. B21-04 is the next selected
 task, while B21-06 is also dependency-ready for its later review group. Every
 later task remains `waiting_dependency` until its explicit DoR is true. The
 default review groups
@@ -3131,7 +3131,7 @@ Assertions must inspect physical metadata rows as well as hydrated results.
 
 #### B21-03. Qualify pre-commit, arm and wake-up failures end-to-end
 
-Status: todo
+Status: completed
 
 Goal: prove every failure before a confirmed cleanup commit either performs
 zero cleanup DML, restores the complete connection/meta mutation after a
@@ -3179,7 +3179,7 @@ shared database session unsafe under the existing DB-05 contract.
 
 #### B21-04. Qualify post-commit and simulated crash reconciliation
 
-Status: waiting_dependency
+Status: todo
 
 Goal: prove durable convergence when cleanup may already have committed but the
 coordinator did not confirm or persist resolution.

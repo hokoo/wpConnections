@@ -1,6 +1,6 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01 and B21-02 are complete; B21-03 is the
+Status: active DB-04-Q manifest. B21-01—B21-03 are complete; B21-04 is the
 next selected task, while B21-06 is also dependency-ready for its later review
 group. The final exact qualification candidate and protected CI results remain
 owned by B21-10/B21-Q.
@@ -13,8 +13,11 @@ owned by B21-10/B21-Q.
   `0a15b4d224358ac84dbb6aa117ba60b368001097`.
 - Real data-cascade matrix commit:
   `ac6361fde37121eed1c4a652efdd17fa91d47c0f`.
-- Fixture: `DeletedPostRecoveryRealFlowTest`.
-- Production delta in B21-01/B21-02: none. All five paths were committed as
+- Pre-commit/arm/wake-up matrix commit:
+  `01daf040cccc183b713f4f31d7dccbbdae155aea`.
+- Primary fixtures: `DeletedPostRecoveryRealFlowTest` and
+  `AtomicMutationTest`.
+- Production delta through B21-03: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
 - Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
 - Final merge and post-merge identity: pending B21-Q.
@@ -59,6 +62,29 @@ content before commit and is content-identical to `ac6361f`.
 | Full unit and WP integration | `docker compose -p wpconnections run --rm phpunit test:all` | PASS — unit 141 tests / 518 assertions; integration 493 tests / 4331 assertions / 8 pre-existing skips |
 | Fixture coding standard | `docker compose -p wpconnections run --rm phpunit vendor/bin/phpcs tests/iTRON/wpConnections/WP/DeletedPostRecoveryRealFlowTest.php --standard=phpcs.xml` | PASS — 1 file; the pre-existing PHPCS ruleset deprecation remains non-blocking |
 
+## B21-03 pre-commit, arm and wake-up evidence
+
+The following commands were run on exact commit `01daf04`. The isolation
+commands were run on the exact committed content before commit.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Focused new real-flow failures | `docker compose -p wpconnections run --rm phpunit test:integration --filter test_deleted_post_real_flow` | PASS — 8 tests/data sets, 133 assertions |
+| Full atomic-mutation contour | `docker compose -p wpconnections run --rm phpunit test:integration --filter AtomicMutationTest` | PASS — 84 tests/data sets, 832 assertions |
+| Focused true multisite WP | `docker compose -p wpconnections run --rm phpunit test:multisite --filter 'test_deleted_post_(callback_uses_atomic_delete_boundary|real_flow)'` | PASS — 9 tests/data sets, 142 assertions, no skip |
+| Reverse isolation | `docker compose -p wpconnections run --rm phpunit test:integration --filter 'test_deleted_post_(callback_uses_atomic_delete_boundary|real_flow)' --order-by=reverse --repeat=2` | PASS — 18 tests/data sets, 284 assertions |
+| Seeded random isolation | `docker compose -p wpconnections run --rm phpunit test:integration --filter 'test_deleted_post_(callback_uses_atomic_delete_boundary|real_flow)' --order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 18 tests/data sets, 284 assertions; seed `20260922` |
+| Full unit and WP integration | `docker compose -p wpconnections run --rm phpunit test:all` | PASS — unit 141 tests / 518 assertions; integration 501 tests / 4464 assertions / 8 pre-existing skips |
+| Project coding standard | `docker compose -p wpconnections run --rm phpunit cs:phpcs` | PASS — 100 source files; the pre-existing PHPCS ruleset deprecation remains non-blocking |
+
+The first discovery run was 7/8 because the test used same-request
+`get_post()` as proof of physical post state after a deliberately propagated
+ledger-arm exception. WordPress deletes the row before `deleted_post`, but its
+later `clean_post_cache()` is not reached when that hook throws, so the object
+cache can retain the old `WP_Post`. The corrected test asserts the posts table
+directly and cleans the fixture cache afterward. This was an observer defect,
+not red production behavior and not a new decision gate.
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -78,10 +104,12 @@ content before commit and is content-identical to `ac6361f`.
 
 | Required observation | Exact evidence or target | Lane | State / owner |
 | --- | --- | --- | --- |
-| Connection-delete DML failure rolls back connection/meta and leaves `retry_wait` | `AtomicMutationTest::test_deleted_post_callback_uses_atomic_delete_boundary` | single-site WP integration | existing baseline; real-flow matrix extension — B21-03 |
-| Selector read, metadata delete, connection delete and transaction-start failures through real deletion | `DeletedPostRecoveryRealFlowTest` semantic fault-matrix methods | single-site WP integration | planned — B21-03 |
-| Commit, rollback and rollback-confirmation uncertainty through real deletion | `DeletedPostRecoveryRealFlowTest` semantic transaction-fault methods | single-site WP integration | planned — B21-03 |
-| Storage attempt-hook `Throwable`, ledger-arm failure and scheduler failure have distinct data/ledger outcomes | `DeletedPostRecoveryRealFlowTest` readiness/wakeup fault methods | single-site WP integration | planned — B21-03 |
+| Connection-delete DML failure rolls back connection/meta and leaves `retry_wait` | `AtomicMutationTest::test_deleted_post_callback_uses_atomic_delete_boundary` | single-site WP; true multisite WP | retained and reverified in B21-03 (`01daf04`) |
+| Selector read, metadata delete, transaction-start and commit failures through real deletion | `AtomicMutationTest::test_deleted_post_real_flow_precommit_failure_is_retryable_after_confirmed_rollback` | single-site WP; true multisite WP | verified in B21-03 (`01daf04`) |
+| Storage attempt-hook `Throwable` performs no cleanup writes and leaves redacted `retry_wait` | `AtomicMutationTest::test_deleted_post_real_flow_attempt_hook_throwable_is_retryable_without_writes` | single-site WP; true multisite WP | verified in B21-03 (`01daf04`) |
+| Ledger-arm failure propagates before cleanup DML and creates no false repair row | `AtomicMutationTest::test_deleted_post_real_flow_arm_failure_propagates_before_cleanup_dml` | single-site WP; true multisite WP | verified in B21-03 (`01daf04`) |
+| Scheduler failure cannot erase cleanup failure or durable retry state | `AtomicMutationTest::test_deleted_post_real_flow_scheduler_failure_preserves_retryable_work` | single-site WP; true multisite WP | verified in B21-03 (`01daf04`) |
+| Rollback-confirmation failure retains a committed `running` identity and leaves the shared session fail-closed without asserting restoration | `AtomicMutationTest::test_deleted_post_real_flow_rollback_uncertainty_stays_durable_and_fail_closed` | single-site WP; true multisite WP; second DB observer | verified in B21-03 (`01daf04`) |
 | Post-commit success-hook failure is retryable and zero-result retry resolves uncertainty | `DeletedPostRepairExecutorTest::test_post_commit_hook_failure_retries_committed_cleanup_and_zero_resolves_uncertainty` | single-site WP integration | existing component evidence; real-hook bridge — B21-04 |
 | Death after durable arm before claim leaves immediately claimable `armed` state | `DeletedPostRecoveryRealFlowTest` simulated arm-boundary method | single-site WP integration | planned — B21-04 |
 | Death during cleanup leaves `running` until lease expiry | `DeletedPostRecoveryRealFlowTest` simulated cleanup-boundary method | single-site WP integration | planned — B21-04 |
