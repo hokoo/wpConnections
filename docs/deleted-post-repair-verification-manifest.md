@@ -1,11 +1,11 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01—B21-09 are complete; B21-10 is the
-next selected task. The final exact qualification candidate and
-protected CI results remain owned by B21-10/B21-Q.
+Status: active DB-04-Q manifest. B21-01—B21-09 are complete; B21-10 is in
+`review` after completing the exact-candidate local technical matrix. Protected
+CI and delivery remain owned by B21-10/B21-Q. B21-Q is `waiting_dependency`.
 
-Execution paused by owner request on 2026-09-22 after the current isolation
-command completed. Resume from [the checkpoint](plans/batch21-checkpoint.md).
+The owner resumed execution on 2026-09-22. The historical pause and the exact
+resumed evidence are preserved in [the checkpoint](plans/batch21-checkpoint.md).
 
 ## Evidence identity
 
@@ -34,7 +34,8 @@ command completed. Resume from [the checkpoint](plans/batch21-checkpoint.md).
 - Production delta through B21-09: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
 - Frozen local qualification candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`.
-- Final complete qualification/protected candidate: pending B21-10.
+- Complete local technical candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`.
+- Final protected PR candidate: pending B21-10 external delivery.
 - Final merge and post-merge identity: pending B21-Q.
 
 An `existing` row below is retained evidence only for the observation named in
@@ -268,31 +269,40 @@ version downgrade, OS restart or an unknown consumer plugin's uninstaller.
 Those limits and the consumer's preservation responsibility are explicit in the
 operations runbook. Normal fixture cleanup remains separate from the rehearsal.
 
-## B21-10 partial exact-candidate evidence at pause
+## B21-10 exact-candidate local evidence
 
-Candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`. Commands ran from
-the repository root with PHP 8.1.34, WordPress 7.1-src (requested 7.1.0),
-Ramsey 1.3.0 and embedded MariaDB 11.8.6. All listed Make commands exited 0.
+Candidate: `062b7fefb3e4cec6261b3a9b101958f47219f2b1`. The current lanes ran
+with PHP 8.1.34, WordPress 7.1-src (requested 7.1.0), Ramsey 1.3.0 and
+embedded MariaDB 11.8.6. The fixed-floor and vendor lanes ran from a clean
+`git archive` export with PHP 8.1.34, WordPress 6.7.7-src and Ramsey 1.3.0.
+Every listed command exited 0.
 
-| Command / phase | Result |
-| --- | --- |
-| `make tests.phpunit` | PASS — 141 tests, 518 assertions |
-| `make tests.integration` | PASS — 516 tests, 4733 assertions, 10 multisite-only skips |
-| `make tests.multisite` | PASS — 516 tests, 4831 assertions, no skip |
-| `make tests.isolation ISOLATION_SEED=20260922`: unit reverse/random, repeat 2 | PASS — each phase 282 tests, 1036 assertions |
-| Same isolation command: integration reverse/random, repeat 2 | PASS — each phase 1032 tests, 9466 assertions, 20 skips |
+| Command / phase | Result | Artifact |
+| --- | --- | --- |
+| `make tests.phpunit` | PASS — 141 tests, 518 assertions | `/tmp/wpconnections-b21-uQxgT6/01-tests.phpunit-escalated.log` |
+| `make tests.integration` | PASS — 516 tests, 4733 assertions, 10 multisite-only skips | `/tmp/wpconnections-b21-uQxgT6/02-tests.integration.log` |
+| `make tests.multisite` | PASS — 516 tests, 4831 assertions, no skip | `/tmp/wpconnections-b21-uQxgT6/03-tests.multisite.log` |
+| `make tests.isolation ISOLATION_SEED=20260922`: unit reverse/random, repeat 2 | PASS — each phase 282 tests, 1036 assertions | `/tmp/wpconnections-b21-uQxgT6/04-tests.isolation.log` |
+| Same isolation command: integration reverse/random, repeat 2 | PASS — each phase 1032 tests, 9466 assertions, 20 skips | same log; seed `20260922` |
+| `make lint.phpcs` | PASS — 100/100 files, no violations | `/tmp/wpconnections-b21-run/06-lint.phpcs-confirmation.log` |
+| `make tests.coverage` | PASS — 657 tests, 5249 assertions, 10 skips; 3833/4172 statements (91.87%) | `/tmp/wpconnections-b21-run/02-tests.coverage.log` |
+| `docker run --rm -v "$PWD:/srv/web" wpconnections-coverage:php8.1.34-wp6.7.7 test:multisite` | PASS — 516 tests, 4831 assertions, no skip | `/tmp/wpconnections-b21-run/03-tests.multisite-fixedfloor.log` |
+| Digest-pinned MySQL 8.0.46 full integration | PASS — 516 tests, 4733 assertions, 10 multisite-only skips | `/tmp/wpconnections-b21-run/04-mysql-8.0.46.log` |
+| Digest-pinned MariaDB 10.11.16 full integration | PASS — 516 tests, 4733 assertions, 10 multisite-only skips | `/tmp/wpconnections-b21-run/05-mariadb-10.11.16.log` |
 
-Logs: `/tmp/wpconnections-b21-uQxgT6/`; exact filenames and resume commands are
-in the checkpoint. Full isolation took 261.56 seconds. Repeated WordPress
-`fonts.php:218` null-`post_type` warnings were observed and remain for QA
-attribution; exit 0 is not a warning waiver. After verification only the user's
-untracked `.codex/` and `AGENTS.md` remained, unchanged.
+The checkpoint records exact commands, durations, static test-only environment
+values and artifact identity. The export has zero tracked-content mismatches
+against `062b7fe`, and its `composer.lock` is identical. These results belong
+to the source/test candidate and are not assigned to the later pause or
+evidence-only documentation revisions.
 
-The user paused execution before full source PHPCS, fixed-floor coverage,
-fixed-floor multisite and either pinned-vendor run began. Independent QA was
-also interrupted and has no accepted PASS; its `fail` records incomplete
-evidence/review/delivery. No implementation defect was substantiated in its
-reviewed portion. The remaining matrix rows below intentionally remain open.
+Independent QA returned `fail` solely because the durable evidence/status and
+external protected CI/protection/merge/post-merge criteria were incomplete.
+Its technical and operational review found no P0—P3 finding or new decision
+gate. This evidence remediation closes the documentary gap but is not fresh QA
+and does not establish epic acceptance. The retained WordPress
+`fonts.php:218` null-`post_type` and PHPCS ruleset deprecation warnings remain
+non-blocking P4 attribution notes; no waiver was requested or accepted.
 
 ## Traceability matrix
 
@@ -329,7 +339,7 @@ reviewed portion. The remaining matrix rows below intentionally remain open.
 
 | Required observation | Exact evidence or target | Lane | State / owner |
 | --- | --- | --- | --- |
-| Two database contenders cannot both acquire one live lease | `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease` | pinned MySQL 8.0.46 and MariaDB 10.11.16 WP integration | verified in B21-05 (`e039db0`); full-vendor rerun — B21-10 |
+| Two database contenders cannot both acquire one live lease | `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease` | pinned MySQL 8.0.46 and MariaDB 10.11.16 WP integration | verified in B21-05 (`e039db0`); exact `062b7fe` full-vendor runs PASS locally |
 | Expired lease reclaim and automatic nine-claim ceiling | `DeletedPostRepairLedgerTest::test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth` | local and both pinned-vendor WP integration | verified in B21-05 (`e039db0`) |
 | Manual recovery bypasses the automatic ceiling but not future/attention state | `DeletedPostRepairLedgerTest::test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state` | local and both pinned-vendor WP integration | verified in B21-05 (`e039db0`) |
 | Every retry delay is exact | `DeletedPostRepairPolicyTest::test_retry_delay_table` | unit | verified in B21-05 (`e039db0`) |
@@ -352,28 +362,31 @@ reviewed portion. The remaining matrix rows below intentionally remain open.
 
 | Required observation | Exact evidence or target | Lane | State / owner |
 | --- | --- | --- | --- |
-| Disabled WP-Cron is observable without disabling the storage API | `DeletedPostRepairSchedulerTest::test_dispatch_availability_reports_disabled_wp_cron_without_affecting_storage_api` plus `DeletedPostRepairOperationalTest::test_disabled_cron_keeps_real_failure_inspectable_and_manually_retryable` | single-site and true-multisite WP | verified in B21-08 (`65c53e8`); retained component rerun — B21-10 |
-| Per-site list, single retry, due batch, exhaustion and stored-event reconciliation are executable | `DeletedPostRepairOperationalTest::test_due_batch_and_direct_runner_expose_exhaustion_for_manual_attention`, `test_disabled_cron_keeps_real_failure_inspectable_and_manually_retryable`; retained `DeletedPostRepairServiceTest` and scheduler/reconciler tests; `docs/deleted-post-repair-operations.md` | WP integration and runbook | verified in B21-08 (`65c53e8`); full retained rerun — B21-10 |
+| Disabled WP-Cron is observable without disabling the storage API | `DeletedPostRepairSchedulerTest::test_dispatch_availability_reports_disabled_wp_cron_without_affecting_storage_api` plus `DeletedPostRepairOperationalTest::test_disabled_cron_keeps_real_failure_inspectable_and_manually_retryable` | single-site and true-multisite WP | verified in B21-08 (`65c53e8`); requalified by exact `062b7fe` integration and multisite lanes |
+| Per-site list, single retry, due batch, exhaustion and stored-event reconciliation are executable | `DeletedPostRepairOperationalTest::test_due_batch_and_direct_runner_expose_exhaustion_for_manual_attention`, `test_disabled_cron_keeps_real_failure_inspectable_and_manually_retryable`; retained `DeletedPostRepairServiceTest` and scheduler/reconciler tests; `docs/deleted-post-repair-operations.md` | WP integration and runbook | verified in B21-08 (`65c53e8`); requalified by exact `062b7fe` full local lanes |
 | Unresolved work survives Client disposal/runtime reconstruction | `DeletedPostRepairOperationalTest::test_unresolved_work_survives_client_disposal_and_runtime_reconstruction` | single-site and true-multisite WP | verified in B21-09 (`85dfa8d`) |
 | Rollback/consumer uninstall preserves repair table, ownership option and unresolved rows | named preservation test; retained ledger `test_purge_*` tests; operations rehearsal and source audit in `docs/deleted-post-repair-operations.md` | WP integration and source audit | verified library boundary in B21-09 (`85dfa8d`); unknown consumer uninstall remains HOOK-04 responsibility |
-| Complete real-flow and ledger/claim/concurrency suite passes MySQL 8.0.46 and MariaDB 10.11.16 | exact-candidate CI jobs and commands | pinned vendor CI | planned — B21-10 |
-| Dedicated `WP_MULTISITE=1` run executes without relevant skips | exact-candidate multisite job | protected CI | planned — B21-10 |
-| Full regression, PHPCS, fixed-floor coverage and reverse/random isolation agree on one SHA | exact-candidate protected matrix | protected CI | planned — B21-10 |
-| Independent correctness, security/data-integrity and operational reviews validate this completed manifest | exact-candidate review records | independent review | planned — B21-Q |
+| Complete real-flow and ledger/claim/concurrency suite passes MySQL 8.0.46 and MariaDB 10.11.16 | exact digest-pinned commands and logs in the checkpoint | local pinned-vendor qualification; protected CI separately required | PASS locally on `062b7fe`; protected PR results missing — B21-10 |
+| Dedicated `WP_MULTISITE=1` run executes without relevant skips | current `make tests.multisite` and fixed-floor `test:multisite` command above | local dedicated multisite; protected CI separately required | PASS locally on `062b7fe`, both 516/4831 with no skip; required protected context missing — B21-10 |
+| Full regression, PHPCS, fixed-floor coverage and reverse/random isolation agree on one SHA | exact commands and logs above | local exact-candidate matrix; protected CI separately required | PASS locally on `062b7fe`; all 20 protected PR contexts missing — B21-10 |
+| Independent correctness, security/data-integrity and operational reviews validate this completed manifest | independent QA gate record | independent review | FAIL for documentary and external-delivery gaps; no P0—P3 technical finding; fresh final QA required — B21-Q |
 
 ## Explicit R1–R6 contract mapping
 
-Every row below is requalified by B21-10's full suites on the frozen candidate;
-the earlier task evidence above remains attributed to its original revision.
+Every row below was requalified by the named full local lanes on frozen
+candidate `062b7fe`; the earlier task evidence above remains attributed to its
+original revision. Protected CI must reproduce these successes and remains
+separate from this local result.
 
-| Approved gate | Exact retained/new tests | Required lane |
+| Approved gate / quality ID | Exact retained/new tests | Relevant passing local lanes on `062b7fe` |
 | --- | --- | --- |
-| R1: manager ownership/version boundary | `DeletedPostRepairHookMigrationTest::test_direct_storage_callback_removal_no_longer_disables_cleanup`, `test_semantic_disable_and_enable_control_manager_delivery_idempotently`, `test_manager_subscription_uses_priority_ten_and_one_accepted_argument` | single-site and true-multisite integration |
-| R2: durable owned ledger | `DeletedPostRepairSchemaTest::test_clean_install_uses_the_exact_owned_nonautoloaded_innodb_schema`, `test_unowned_existing_table_fails_closed_without_claim_alter_or_drop`; `AtomicMutationTest::test_deleted_post_real_flow_rollback_uncertainty_stays_durable_and_fail_closed`; operational preservation test above | both pinned vendors and true multisite |
-| R3: wake-up/retry/operator lifecycle | `DeletedPostRepairOperationalTest`'s three named scenarios above; `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease`; `DeletedPostRepairPolicyTest::test_retry_delay_table`; retained purge tests | unit, both pinned vendors and true multisite |
-| R4: safe Client-scoped service | `DeletedPostRepairServiceTest::test_getter_is_lazy_and_get_is_client_scoped_with_safe_projection`, `test_list_is_status_filtered_keyset_paginated_and_does_not_expose_foreign_rows`, `test_retry_outcomes_are_distinct_and_cleanup_failures_are_redacted`, `test_due_batch_is_bounded_uses_manual_mode_and_reports_exact_more_state`, `test_invalid_input_and_stale_context_fail_before_ledger_sql` | full integration and true multisite |
-| R5: eligibility/single wake-up | `DeletedPostRepairReconcilerTest::test_reconciliation_uses_enabled_clients_and_earliest_cleanup_deadline`, `test_existing_earlier_event_is_kept_and_earlier_replacement_is_scheduled_before_old_removal`; `DeletedPostRepairSchedulerTest::test_native_adapter_persists_only_the_stable_empty_argument_site_event`; `DeletedPostRepairHookMigrationTest::test_same_name_multisite_cron_runs_only_the_active_site_worker` | unit, integration and true multisite |
-| R6: claim budget | `DeletedPostRepairLedgerTest::test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth`, `test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state`; operational direct-runner exhaustion scenario above | both pinned vendors and true multisite |
+| R1: manager ownership/version boundary | `DeletedPostRepairHookMigrationTest::test_direct_storage_callback_removal_no_longer_disables_cleanup`, `test_semantic_disable_and_enable_control_manager_delivery_idempotently`, `test_manager_subscription_uses_priority_ten_and_one_accepted_argument` | current integration 516/4733 and true multisite 516/4831; fixed-floor coverage and both pinned-vendor integration runs |
+| R2: durable owned ledger | `DeletedPostRepairSchemaTest::test_clean_install_uses_the_exact_owned_nonautoloaded_innodb_schema`, `test_unowned_existing_table_fails_closed_without_claim_alter_or_drop`; `AtomicMutationTest::test_deleted_post_real_flow_rollback_uncertainty_stays_durable_and_fail_closed`; operational preservation test above | current integration and true multisite; fixed-floor coverage and multisite; MySQL 8.0.46 and MariaDB 10.11.16 integration |
+| R3: wake-up/retry/operator lifecycle | `DeletedPostRepairOperationalTest`'s three named scenarios above; `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease`; `DeletedPostRepairPolicyTest::test_retry_delay_table`; retained purge tests | unit 141/518; current/fixed-floor integration and true multisite; both pinned-vendor integration runs |
+| R4: safe Client-scoped service | `DeletedPostRepairServiceTest::test_getter_is_lazy_and_get_is_client_scoped_with_safe_projection`, `test_list_is_status_filtered_keyset_paginated_and_does_not_expose_foreign_rows`, `test_retry_outcomes_are_distinct_and_cleanup_failures_are_redacted`, `test_due_batch_is_bounded_uses_manual_mode_and_reports_exact_more_state`, `test_invalid_input_and_stale_context_fail_before_ledger_sql` | current integration 516/4733 and true multisite 516/4831; fixed-floor coverage and multisite |
+| R5: eligibility/single wake-up | `DeletedPostRepairReconcilerTest::test_reconciliation_uses_enabled_clients_and_earliest_cleanup_deadline`, `test_existing_earlier_event_is_kept_and_earlier_replacement_is_scheduled_before_old_removal`; `DeletedPostRepairSchedulerTest::test_native_adapter_persists_only_the_stable_empty_argument_site_event`; `DeletedPostRepairHookMigrationTest::test_same_name_multisite_cron_runs_only_the_active_site_worker` | unit 141/518; current/fixed-floor integration and true multisite; reverse/random isolation seed `20260922` |
+| R6: claim budget | `DeletedPostRepairLedgerTest::test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth`, `test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state`; operational direct-runner exhaustion scenario above | current and fixed-floor true multisite; MySQL 8.0.46 and MariaDB 10.11.16 integration |
+| `HOOK-CASCADE-01`: real delete cascade and isolation | `DeletedPostRecoveryRealFlowTest::test_permanent_delete_fixture_observes_data_hooks_and_repair_state`, `test_permanent_delete_cascades_all_endpoint_shapes_and_preserves_unrelated_rows`, `test_permanent_delete_isolates_multiple_clients_and_their_success_hooks`, `test_permanent_attachment_delete_uses_the_same_cascade_contract` | current/fixed-floor integration and true multisite; both pinned vendors; reverse/random isolation seed `20260922` |
 
 ## B21-10 delivery preflight
 
@@ -382,10 +395,17 @@ Read-only GitHub inspection on 2026-09-22 found no PR for
 repos/hokoo/wpConnections/branches/master/protection/required_status_checks`
 reported strict checks with 19 contexts; the dedicated multisite job was absent.
 `gh api repos/hokoo/wpConnections/rules/branches/master` returned no additional
-rules. The workflow already defines 20 jobs and the Batch 19/20 contract
-requires the multisite lane. The CI runbook now includes that existing job.
-No remote setting was changed. Protected CI, publication and any protection
-reconciliation remain a delivery gate, separate from the local qualification.
+rules. Protected `master` remained exactly at Batch 21 base `f7e94af`, so no
+remote base drift was present. The workflow already defines 20 jobs and the
+Batch 19/20 contract requires the multisite lane. The CI runbook includes that
+existing job. No push, PR, protection mutation, merge, release or other remote
+write was performed.
+
+The repository owner must authorize the remaining remote actions: push/open
+the PR, add the dedicated multisite required context, obtain all 20 protected
+results, run fresh independent final QA on that exact head, merge, and record
+all 20 post-merge results on the exact merge SHA. No waiver is active.
+Protected delivery remains separate from the successful local qualification.
 
 ## Qualification rules
 

@@ -3033,9 +3033,9 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01—B21-09 are complete. B21-10 is the next selected
-task. Every
-later task remains `waiting_dependency` until its explicit DoR is true. The
+production correction; B21-01—B21-09 are complete. B21-10 completed its local
+technical matrix and is in `review` pending protected delivery; B21-Q remains
+`waiting_dependency` until its explicit DoR is true. The
 default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
@@ -3517,13 +3517,21 @@ downgrade was executed. B21-10 is unblocked for local qualification.
 
 #### B21-10. Prove the vendor and infrastructure matrix
 
-Status: in_progress
+Status: review
 
-Execution paused by the repository owner on 2026-09-22, after the active
-isolation command completed. Exact candidate `062b7fe` passed full unit,
-integration, true-multisite and reverse/random isolation (seed `20260922`).
-Remaining checks and incomplete independent QA are preserved in
-[the resume checkpoint](batch21-checkpoint.md). No requirement was waived.
+The repository owner resumed execution on 2026-09-22. The historical pause is
+preserved in [the resumed checkpoint](batch21-checkpoint.md), but is no longer
+an instruction to stop. Exact source/test candidate `062b7fe` passed the full
+local unit, integration, true-multisite, reverse/random isolation (seed
+`20260922`), PHPCS, fixed-floor coverage/multisite and pinned MySQL 8.0.46 /
+MariaDB 10.11.16 matrix. Protected PR evidence remains missing, so the task is
+not complete and no requirement is waived.
+
+Independent QA returned `fail` for the previously missing durable evidence and
+the still-open external protection/CI/merge/post-merge criteria. It found no
+P0—P3 technical or operational issue and no new decision gate. The evidence
+remediation does not count as fresh QA or epic acceptance. B21-Q remains
+`waiting_dependency`; Batch 21 / DB-04-Q remains `in_progress`.
 
 Goal: produce one exact-candidate evidence set for all DB-04-Q behavior and
 repository quality gates.

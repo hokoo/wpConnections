@@ -3,10 +3,12 @@
 Этот каталог фиксирует исполняемый план, подготовленный после аудита репозитория,
 тестов, GitHub issues и текущей CI-ветки 2026-09-09.
 
-Работа приостановлена по просьбе владельца 2026-09-22 после завершения текущего
-isolation-прогона. B21-01—B21-09 закоммичены; B21-10 проверен частично.
-Точка продолжения, команды и результаты сохранены в
-[Batch 21 checkpoint](batch21-checkpoint.md).
+Владелец возобновил работу 2026-09-22. B21-01—B21-09 завершены; B21-10
+переведён в `review`: exact candidate `062b7fe` прошёл полный локальный
+technical matrix, но protected delivery отсутствует. История паузы, команды и
+точные результаты сохранены в
+[Batch 21 checkpoint](batch21-checkpoint.md). B21-Q остаётся
+`waiting_dependency`, а Batch 21 / DB-04-Q — `in_progress`.
 
 ## Порядок исполнения
 
@@ -113,8 +115,13 @@ isolation-прогона. B21-01—B21-09 закоммичены; B21-10 про�
     reverse/random repeat `4 / 98`, seed `20260922`. B21-09 завершён в
     `85dfa8d`: preservation rehearsal, retention evidence и rollback/uninstall
     runbook; operational/retention `6 / 154`, multisite `3 / 84`, repeat `6 / 168`.
-    B21-10 выбран следующим. Новых product decision gates нет. Batch 21 не
-    добавляет public API и не выпускает tag.
+    Exact candidate `062b7fe` прошёл полный локальный B21-10 matrix: current
+    unit/integration/multisite/isolation, PHPCS, fixed-floor coverage/multisite
+    и pinned MySQL 8.0.46 / MariaDB 10.11.16. B21-10 остаётся в `review` до
+    protected PR; independent QA gate остаётся `fail` из-за documentary и
+    external-delivery gaps, при этом P0—P3 technical findings не обнаружены.
+    Новых product decision gates нет. Batch 21 не добавляет public API и не
+    выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
