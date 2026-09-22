@@ -286,6 +286,102 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         );
     }
 
+    public function test_dispose_is_terminal_for_cleanup_but_not_direct_domain_references(): void
+    {
+        $client = $this->newClient('disposed-cleanup');
+        $name = $client->getName();
+
+        $client->dispose();
+        $client->dispose();
+        $client->disablePostDeletionCleanup();
+        do_action('deleted_post', 515, null);
+        self::assertSame(
+            [],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $name ] ?? []
+        );
+
+        try {
+            $client->enablePostDeletionCleanup();
+            self::fail('A disposed Client must not reactivate deleted-post cleanup.');
+        } catch (\iTRON\wpConnections\Exceptions\ClientRegisterFail $failure) {
+            self::assertSame(4, $failure->getCode());
+            self::assertSame(
+                'Client integrations have been disposed and cannot be reactivated.',
+                $failure->getMessage()
+            );
+        }
+
+        self::assertSame(0, $client->getStorage()->deleteByObjectID(516));
+        self::assertSame(
+            [ 516 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $name ]
+        );
+    }
+
+    public function test_disposal_during_repair_readiness_rolls_back_every_owner(): void
+    {
+        $name = 'repair-hook-dispose-during-readiness-' . ++self::$clientSequence;
+        $constructingClient = null;
+        $disposed = false;
+        $capture = static function (Client $client) use ($name, &$constructingClient): void {
+            if ($name === $client->getName()) {
+                $constructingClient = $client;
+            }
+        };
+        $disposeDuringReadiness = function (string $query) use (&$constructingClient, &$disposed): string {
+            if (
+                ! $disposed &&
+                $constructingClient instanceof Client &&
+                false !== stripos($query, 'CREATE TABLE') &&
+                false !== strpos($query, self::TABLE_BASENAME)
+            ) {
+                $disposed = true;
+                $constructingClient->dispose();
+            }
+
+            return $query;
+        };
+
+        add_action('wpConnections/client/inited', $capture, 10, 1);
+        add_filter('query', $disposeDuringReadiness, 8, 1);
+        try {
+            try {
+                new Client($name);
+                self::fail('Disposal during repair readiness must abort Client initialization.');
+            } catch (\iTRON\wpConnections\Exceptions\ClientRegisterFail $failure) {
+                self::assertSame(4, $failure->getCode());
+                self::assertSame(
+                    'Client integrations have been disposed and cannot be reactivated.',
+                    $failure->getMessage()
+                );
+            }
+        } finally {
+            remove_filter('query', $disposeDuringReadiness, 8);
+            remove_action('wpConnections/client/inited', $capture, 10);
+            $constructingClient = null;
+        }
+
+        self::assertTrue($disposed);
+        $replacement = $this->newNamedClient($name);
+        do_action('deleted_post', 517, null);
+        self::assertSame(
+            [ 517 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $replacement->getName() ]
+        );
+    }
+
+    public function test_disposed_client_is_not_retained_by_library_registries(): void
+    {
+        $client = new Client('repair-hook-weak-reference-' . ++self::$clientSequence);
+        $reference = \WeakReference::create($client);
+
+        $client->dispose();
+        unset($client);
+        gc_collect_cycles();
+
+        self::assertNull($reference->get());
+    }
+
     public function test_schema_failure_does_not_leave_a_callable_site_cron_handler(): void
     {
         $ledger = new DeletedPostRepairLedger();

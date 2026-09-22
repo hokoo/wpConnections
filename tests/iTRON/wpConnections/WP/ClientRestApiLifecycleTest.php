@@ -256,6 +256,15 @@ class RestHookSlashIdentityRestApi extends RestHookRecordingRestApi
 	}
 }
 
+class RestHookDisposeDuringInitRestApi extends RestHookRecordingRestApi
+{
+	public function init()
+	{
+		parent::init();
+		$this->getClient()->dispose();
+	}
+}
+
 /**
  * REST-HOOK-01 context, route-registry and factory-delegate contract.
  */
@@ -720,6 +729,78 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 			$server,
 			$replacement_delegate,
 			$this->request_matrix( $replacement_delegate )[0]
+		);
+	}
+
+	public function test_dispose_revokes_route_mapping_and_allows_same_identity_replacement(): void
+	{
+		$client = $this->new_client( 'disposed-route-owner' );
+		$delegate = $this->delegate_for_client( $client );
+		$server = rest_get_server();
+
+		$client->dispose();
+		$client->dispose();
+
+		$this->authenticate_for_managed_routes();
+		RestHookRecordingRestApi::$trace = [];
+		$response = $this->dispatch_case( $server, $this->request_matrix( $delegate )[0] );
+		$this->assert_native_rest_error( 'rest_no_route', 404, $response );
+		self::assertSame( [], RestHookRecordingRestApi::$trace );
+
+		$replacement = $this->new_client( 'disposed-route-owner' );
+		$replacement_delegate = $this->delegate_for_client( $replacement );
+		$this->assert_dispatches_to_delegate(
+			$server,
+			$replacement_delegate,
+			$this->request_matrix( $replacement_delegate )[0]
+		);
+	}
+
+	public function test_disposed_client_rejects_rest_activation_and_rebind_stably(): void
+	{
+		$client = $this->new_client( 'terminal-route-owner' );
+		$delegate = $this->delegate_for_client( $client );
+		$client->dispose();
+
+		foreach ( [
+			static function () use ( $delegate ): void {
+				$delegate->init();
+			},
+			static function () use ( $delegate ): void {
+				$delegate->registerRestRoutes();
+			},
+		] as $reactivate ) {
+			$failure = $this->capture_client_registration_failure( $reactivate );
+			self::assertSame( 4, $failure->getCode() );
+			self::assertSame(
+				'Client integrations have been disposed and cannot be reactivated.',
+				$failure->getMessage()
+			);
+		}
+
+		$delegate->deactivate();
+		$delegate->deactivate();
+	}
+
+	public function test_disposal_during_custom_rest_init_rolls_back_identity_claim(): void
+	{
+		$this->rest_api_class = RestHookDisposeDuringInitRestApi::class;
+		$failure = $this->capture_client_registration_failure(
+			static function (): void {
+				new Client( 'dispose-during-rest-init' );
+			}
+		);
+		self::assertSame( 4, $failure->getCode() );
+		self::assertSame(
+			'Client integrations have been disposed and cannot be reactivated.',
+			$failure->getMessage()
+		);
+
+		$this->rest_api_class = RestHookRecordingRestApi::class;
+		$replacement = $this->new_client( 'dispose-during-rest-init' );
+		$this->assert_exact_route_contract(
+			rest_get_server(),
+			$this->delegate_for_client( $replacement )
 		);
 	}
 
