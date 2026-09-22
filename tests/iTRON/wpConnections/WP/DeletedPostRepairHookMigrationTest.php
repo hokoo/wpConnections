@@ -24,11 +24,14 @@ use iTRON\wpConnections\TransactionContext;
 use LogicException;
 use RuntimeException;
 
-final class DeletedPostRepairHookMigrationStorage extends Storage implements AtomicStorageInterface
+class DeletedPostRepairHookMigrationStorage extends Storage implements AtomicStorageInterface
 {
     public static array $deletedPostIdsByClient = [];
     public static array $deletedPostIdsByStorage = [];
     public static array $failingClients = [];
+    public static array $commitUncertainClients = [];
+    public static array $connectionRowsByClient = [];
+    public static array $metaRowsByClient = [];
 
     private string $clientName;
 
@@ -64,7 +67,16 @@ final class DeletedPostRepairHookMigrationStorage extends Storage implements Ato
             throw new RuntimeException('private custom storage failure');
         }
 
-        return 0;
+        $deleted = 0;
+        foreach ((array) $objectIDs as $objectID) {
+            if (isset(self::$connectionRowsByClient[ $this->clientName ][ $objectID ])) {
+                unset(self::$connectionRowsByClient[ $this->clientName ][ $objectID ]);
+                $deleted++;
+            }
+            unset(self::$metaRowsByClient[ $this->clientName ][ $objectID ]);
+        }
+
+        return $deleted;
     }
 
     public function deleteDirectedConnections(
@@ -91,7 +103,28 @@ final class DeletedPostRepairHookMigrationStorage extends Storage implements Ato
 
     public function runAtomically(callable $operation, TransactionContext $context)
     {
-        return $operation();
+        $connectionRows = self::$connectionRowsByClient;
+        $metaRows = self::$metaRowsByClient;
+
+        try {
+            $result = $operation();
+        } catch (\Throwable $failure) {
+            self::$connectionRowsByClient = $connectionRows;
+            self::$metaRowsByClient = $metaRows;
+            throw $failure;
+        }
+
+        if (isset(self::$commitUncertainClients[ $this->clientName ])) {
+            throw new RuntimeException('private custom storage commit confirmation failure');
+        }
+
+        return $result;
+    }
+
+    public static function seedRows(string $clientName, int $postID): void
+    {
+        self::$connectionRowsByClient[ $clientName ][ $postID ] = true;
+        self::$metaRowsByClient[ $clientName ][ $postID ] = true;
     }
 }
 
@@ -175,6 +208,9 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient = [];
         DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage = [];
         DeletedPostRepairHookMigrationStorage::$failingClients = [];
+        DeletedPostRepairHookMigrationStorage::$commitUncertainClients = [];
+        DeletedPostRepairHookMigrationStorage::$connectionRowsByClient = [];
+        DeletedPostRepairHookMigrationStorage::$metaRowsByClient = [];
         DeletedPostRepairHookNonAtomicStorage::$cleanupCalls = 0;
         add_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
     }
@@ -642,6 +678,203 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         );
     }
 
+    public function test_real_delete_custom_atomic_success_cleans_seeded_rows(): void
+    {
+        $client = $this->newClient('real-custom-success');
+        $clientName = $client->getName();
+        $postID = $this->createPublishedPost('Custom atomic success');
+        DeletedPostRepairHookMigrationStorage::seedRows($clientName, $postID);
+
+        $deleted = wp_delete_post($postID, true);
+
+        self::assertInstanceOf(\WP_Post::class, $deleted);
+        self::assertNull(get_post($postID));
+        self::assertSame(
+            [ $postID ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $clientName ]
+        );
+        $this->assertCustomRowsAbsent($clientName, $postID);
+        self::assertSame(
+            [],
+            $client->getDeletedPostRepairService()->listRepairs()->getItems()
+        );
+    }
+
+    public function test_real_delete_custom_atomic_precommit_failure_rolls_back_and_retries(): void
+    {
+        $client = $this->newClient('real-custom-precommit');
+        $clientName = $client->getName();
+        $postID = $this->createPublishedPost('Custom atomic precommit failure');
+        DeletedPostRepairHookMigrationStorage::seedRows($clientName, $postID);
+        DeletedPostRepairHookMigrationStorage::$failingClients[ $clientName ] = true;
+
+        try {
+            $deleted = wp_delete_post($postID, true);
+        } finally {
+            unset(DeletedPostRepairHookMigrationStorage::$failingClients[ $clientName ]);
+        }
+
+        self::assertInstanceOf(\WP_Post::class, $deleted);
+        self::assertNull(get_post($postID));
+        $this->assertCustomRowsPresent($clientName, $postID);
+        $repairs = $client->getDeletedPostRepairService()->listRepairs(
+            DeletedPostRepairStatus::RETRY_WAIT
+        )->getItems();
+        self::assertCount(1, $repairs);
+        self::assertSame(1, $repairs[0]->getAttemptCount());
+        self::assertSame(1, $repairs[0]->getFailureCount());
+
+        $result = $client->getDeletedPostRepairService()->retryRepair(
+            $repairs[0]->getRepairKey()
+        );
+
+        self::assertSame('resolved', $result->getOutcome());
+        self::assertTrue($result->wasCleanupAttempted());
+        self::assertNotNull($result->getRepair());
+        self::assertSame(DeletedPostRepairStatus::RESOLVED, $result->getRepair()->getStatus());
+        self::assertSame(
+            [ $postID, $postID ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $clientName ]
+        );
+        $this->assertCustomRowsAbsent($clientName, $postID);
+    }
+
+    public function test_real_delete_custom_atomic_commit_uncertainty_resolves_on_no_match(): void
+    {
+        $client = $this->newClient('real-custom-commit-uncertain');
+        $clientName = $client->getName();
+        $postID = $this->createPublishedPost('Custom atomic commit uncertainty');
+        DeletedPostRepairHookMigrationStorage::seedRows($clientName, $postID);
+        DeletedPostRepairHookMigrationStorage::$commitUncertainClients[ $clientName ] = true;
+
+        try {
+            $deleted = wp_delete_post($postID, true);
+        } finally {
+            unset(DeletedPostRepairHookMigrationStorage::$commitUncertainClients[ $clientName ]);
+        }
+
+        self::assertInstanceOf(\WP_Post::class, $deleted);
+        self::assertNull(get_post($postID));
+        $this->assertCustomRowsAbsent($clientName, $postID);
+        $repairs = $client->getDeletedPostRepairService()->listRepairs(
+            DeletedPostRepairStatus::RETRY_WAIT
+        )->getItems();
+        self::assertCount(1, $repairs);
+
+        $result = $client->getDeletedPostRepairService()->retryRepair(
+            $repairs[0]->getRepairKey()
+        );
+
+        self::assertSame('resolved', $result->getOutcome());
+        self::assertTrue($result->wasCleanupAttempted());
+        self::assertNotNull($result->getRepair());
+        self::assertSame(DeletedPostRepairStatus::RESOLVED, $result->getRepair()->getStatus());
+        self::assertSame(
+            [ $postID, $postID ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $clientName ]
+        );
+        $this->assertCustomRowsAbsent($clientName, $postID);
+    }
+
+    public function test_real_delete_waits_for_fresh_custom_client_before_retry(): void
+    {
+        $client = $this->newClient('real-custom-missing-client');
+        $clientName = $client->getName();
+        $postID = $this->createPublishedPost('Custom atomic missing Client');
+        DeletedPostRepairHookMigrationStorage::seedRows($clientName, $postID);
+        DeletedPostRepairHookMigrationStorage::$failingClients[ $clientName ] = true;
+
+        try {
+            self::assertInstanceOf(\WP_Post::class, wp_delete_post($postID, true));
+        } finally {
+            unset(DeletedPostRepairHookMigrationStorage::$failingClients[ $clientName ]);
+        }
+
+        $repairs = $client->getDeletedPostRepairService()->listRepairs(
+            DeletedPostRepairStatus::RETRY_WAIT
+        )->getItems();
+        self::assertCount(1, $repairs);
+        $repairKey = $repairs[0]->getRepairKey();
+        $this->makeClientRepairDue($client);
+        $client->dispose();
+
+        $this->dispatchScheduledCron();
+
+        self::assertSame(
+            [ $postID ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $clientName ]
+        );
+        $this->assertCustomRowsPresent($clientName, $postID);
+        $ledger = new DeletedPostRepairLedger();
+        $ledger->assertReady();
+        $persisted = $ledger->findForClient($clientName, $repairKey);
+        self::assertNotNull($persisted);
+        self::assertSame(DeletedPostRepairStatus::RETRY_WAIT, $persisted->getStatus());
+
+        $replacement = $this->newNamedClient($clientName);
+        $result = $replacement->getDeletedPostRepairService()->retryRepair($repairKey);
+
+        self::assertSame('resolved', $result->getOutcome());
+        self::assertTrue($result->wasCleanupAttempted());
+        $this->assertCustomRowsAbsent($clientName, $postID);
+    }
+
+    public function test_real_delete_adapter_fingerprint_mismatch_fails_closed(): void
+    {
+        $client = $this->newClient('real-custom-fingerprint');
+        $clientName = $client->getName();
+        $postID = $this->createPublishedPost('Custom adapter fingerprint mismatch');
+        DeletedPostRepairHookMigrationStorage::seedRows($clientName, $postID);
+        DeletedPostRepairHookMigrationStorage::$failingClients[ $clientName ] = true;
+
+        try {
+            self::assertInstanceOf(\WP_Post::class, wp_delete_post($postID, true));
+        } finally {
+            unset(DeletedPostRepairHookMigrationStorage::$failingClients[ $clientName ]);
+        }
+
+        $repairs = $client->getDeletedPostRepairService()->listRepairs(
+            DeletedPostRepairStatus::RETRY_WAIT
+        )->getItems();
+        self::assertCount(1, $repairs);
+        $repairKey = $repairs[0]->getRepairKey();
+        $client->dispose();
+
+        $replacementStorageClass = get_class(
+            new class ($client) extends DeletedPostRepairHookMigrationStorage {
+            }
+        );
+        remove_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
+        $replacementStorage = static function () use ($replacementStorageClass): string {
+            return $replacementStorageClass;
+        };
+        add_filter('wpConnections/factory/getStorage/class', $replacementStorage);
+        try {
+            $replacement = $this->newNamedClient($clientName);
+        } finally {
+            remove_filter('wpConnections/factory/getStorage/class', $replacementStorage);
+            add_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
+        }
+        $replacementStorageID = spl_object_id($replacement->getStorage());
+
+        $result = $replacement->getDeletedPostRepairService()->retryRepair($repairKey);
+
+        self::assertSame('retry_failed', $result->getOutcome());
+        self::assertFalse($result->wasCleanupAttempted());
+        self::assertNotNull($result->getRepair());
+        self::assertSame(
+            DeletedPostRepairStatus::NEEDS_ATTENTION,
+            $result->getRepair()->getStatus()
+        );
+        self::assertSame(
+            [],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[
+                $replacementStorageID
+            ] ?? []
+        );
+        $this->assertCustomRowsPresent($clientName, $postID);
+    }
+
     public function test_non_atomic_storage_performs_zero_writes_and_exposes_redacted_attention(): void
     {
         remove_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
@@ -656,13 +889,17 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
             add_filter('wpConnections/factory/getStorage/class', [ $this, 'storageClass' ]);
         }
 
-        do_action('deleted_post', 518, null);
+        $postID = $this->createPublishedPost('Non-atomic custom storage');
+        $deleted = wp_delete_post($postID, true);
 
+        self::assertInstanceOf(\WP_Post::class, $deleted);
+        self::assertNull(get_post($postID));
         self::assertSame(0, DeletedPostRepairHookNonAtomicStorage::$cleanupCalls);
         $repairs = $client->getDeletedPostRepairService()->listRepairs(
             DeletedPostRepairStatus::NEEDS_ATTENTION
         )->getItems();
         self::assertCount(1, $repairs);
+        self::assertSame($postID, $repairs[0]->getPostId());
         self::assertSame('adapter', $repairs[0]->getFailureCategory());
         self::assertSame('[diagnostic details redacted]', $repairs[0]->getFailureSummary());
     }
@@ -861,6 +1098,45 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         self::assertSame(
             [ 551, 551 ],
             DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteBStorageId ]
+        );
+    }
+
+    private function createPublishedPost(string $title): int
+    {
+        return self::factory()->post->create(
+            [
+                'post_title' => $title,
+                'post_status' => 'publish',
+                'post_type' => 'post',
+            ]
+        );
+    }
+
+    private function assertCustomRowsPresent(string $clientName, int $postID): void
+    {
+        self::assertTrue(
+            DeletedPostRepairHookMigrationStorage::$connectionRowsByClient[
+                $clientName
+            ][ $postID ] ?? false
+        );
+        self::assertTrue(
+            DeletedPostRepairHookMigrationStorage::$metaRowsByClient[
+                $clientName
+            ][ $postID ] ?? false
+        );
+    }
+
+    private function assertCustomRowsAbsent(string $clientName, int $postID): void
+    {
+        self::assertFalse(
+            DeletedPostRepairHookMigrationStorage::$connectionRowsByClient[
+                $clientName
+            ][ $postID ] ?? false
+        );
+        self::assertFalse(
+            DeletedPostRepairHookMigrationStorage::$metaRowsByClient[
+                $clientName
+            ][ $postID ] ?? false
         );
     }
 
