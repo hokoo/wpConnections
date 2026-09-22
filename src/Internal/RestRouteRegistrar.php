@@ -167,6 +167,11 @@ final class RestRouteRegistrar
                             'type'        => 'integer',
                             'required'    => true,
                         ],
+                        'meta' => [
+                            'description' => __('Metadata selectors as key/value rows or an associative key/value map; a null row value selects every value for its key, while omitted, empty, or top-level null input deletes all metadata.'),
+                            'required'    => false,
+                            'default'     => [],
+                        ],
                     ],
                 ],
             ]),

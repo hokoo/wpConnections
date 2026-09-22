@@ -5768,8 +5768,8 @@ B21-01—B21-10 are completed through protected PR #108 and exact merge
 contexts and received fresh final QA `pass_with_notes`. B21-Q, Batch 21,
 DB-04-I and DB-04-Q are completed. The batch qualifies the existing contract
 without adding a new public surface or destructive uninstall behavior.
-REST-04 is in review under its existing contract; HOOK-04, REL-02 and REL-03
-remain release dependencies.
+REST-04 later completed through Batch 22 / PR #110 and exact merge `5f4c544`;
+REST-05 is in review. HOOK-04, REL-02 and REL-03 remain release dependencies.
 
 ### DB-05. Сделать составные storage operations атомарными
 
@@ -6489,7 +6489,7 @@ Notes/Risks:
 
 ### REST-04. Защитить differentiated permissions
 
-Status: review
+Status: completed
 
 Priority: P0
 
@@ -6542,12 +6542,17 @@ Notes/Risks:
   current-runtime matrix: 40 tests / 286 assertions; fixture PHPCS green.
 - Публичная конфигурация и fail-closed boundary зафиксированы в
   [`docs/rest-permissions-contract.md`](../rest-permissions-contract.md).
-  Full unit/integration/multisite/isolation/coverage gates и delivery closeout
-  остаются проверкой Batch 22; production source не изменён.
+  Frozen candidate `a891748de684377996d798a76e7c085080e27c91` прошёл serial
+  unit/integration/multisite/isolation/coverage ladder; PR #110 head
+  `c91388ebb42b9c14c8b44757d6214b9ac775639f` и exact merge
+  `5f4c54444ae9331334a74c563ac200a19d1336d0` прошли 20/20 protected и
+  post-merge contexts. Fresh final QA вернул `pass_with_notes` без open P0—P3,
+  waiver или accepted exception. Полное evidence находится в
+  [`batch22-checkpoint.md`](batch22-checkpoint.md); production source не изменён.
 
 ### REST-05. Покрыть REST meta semantics
 
-Status: todo
+Status: review
 
 Priority: P1
 
@@ -6598,11 +6603,32 @@ Dependencies:
 
 Notes/Risks:
 
-- Текущий DELETE route не описывает `meta` в собственных args.
+- До REST-05 DELETE route не описывал `meta` в собственных args.
 - DG-RESTERR-02 применяется к REST-05 missing-connection и другим numeric domain
   errors. Классифицированный storage failure использует отдельный exact
   non-domain shape DG-RESTERR-04; WordPress-native pre-handler errors сохраняют
   DG-RESTERR-03 shape.
+- `RestMetaContractTest` добавляет full-dispatch matrix для всех четырёх
+  methods, exact wire/persisted-state assertions, duplicate/falsy values,
+  selector forms, ownership, validation, real lookup failures, malformed custom
+  hydration и atomic failures. Path-authority matrix отдельно покрывает body и
+  query conflicts для каждого method. Расширенный focused current lane проходит
+  36 tests / 176 assertions; результат floor 29 / 120 относится к более раннему
+  source candidate. Расширенный suite прошёл внутри полного unfiltered floor
+  coverage run: 733 / 5711 с 10 expected skips, statement coverage
+  `3851/4184 (92.04%)`, PR policy pass.
+  Current integration `592 / 5195` (10 expected skips), multisite `592 / 5293`,
+  isolation seed `20260922` во всех четырёх фазах и project PHPCS `100 / 100`
+  прошли на candidate `5d09cf6`. Unit `141 / 518` на `dc66d13` переиспользуется:
+  единственное последующее executable изменение — однострочное lifecycle
+  integration expectation. Точная provenance записана в
+  [Batch 23 checkpoint](batch23-checkpoint.md); `make tests.coverage.rc` не
+  запускался. REST-05 остаётся в `review` до protected PR, merge и post-merge
+  gates; следующая задача — REST-06.
+- DELETE argument declaration сохраняет подтверждённые на реальных runtime
+  row-list, associative-map, omitted/empty/top-level-null и legacy scalar
+  handling. Canonical behavior и image provenance записаны в
+  [`docs/rest-meta-contract.md`](../rest-meta-contract.md).
 
 ### REST-06. Реализовать filters relation list из issue #21
 

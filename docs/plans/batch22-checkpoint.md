@@ -1,7 +1,7 @@
 # Batch 22 — REST-04 permissions
 
-Status: review; implementation and local verification complete; independent QA
-and protected delivery pending.
+Status: completed; independent final QA returned `pass_with_notes` after protected
+delivery and exact post-merge verification.
 
 Base: accepted Batch 21 closeout merge `ba0b546` and acceptance record `3eac78a`.
 Contract: [REST-04](02-library-hardening.md#rest-04-защитить-differentiated-permissions).
@@ -27,8 +27,22 @@ Public guidance: [REST permissions](../rest-permissions-contract.md).
   Logs: `/tmp/wpconnections-b22-local/01-tests-phpunit.log` through
   `05-tests-coverage.log`; coverage summary: `build/coverage/coverage-summary.json`.
   Working tree remained unchanged. Existing WordPress `fonts.php` warnings persist.
-- Independent QA, protected PR with all 20 contexts, merge and post-merge evidence
-  remain pending. Standing project delivery authorization applies; no release/tag.
+- Independent candidate QA confirmed technical readiness at `c91388e`, with no
+  open P0–P3 after the checkpoint correction. [PR #110](https://github.com/hokoo/wpConnections/pull/110)
+  passed all 20 protected contexts at exact head
+  `c91388ebb42b9c14c8b44757d6214b9ac775639f`; strict protection and context names
+  were independently verified. Runs: unit `35718814944`, integration/multisite
+  `35718815050`, database `35718814975`, coverage `35718814979`, PHPCS `35718814954`.
+- PR #110 merged on 2026-09-22 as `5f4c54444ae9331334a74c563ac200a19d1336d0`.
+  All 20 post-merge contexts passed at that exact revision: unit `35719322894`,
+  integration/multisite `35719322903`, database `35719323011`, coverage
+  `35719322869`, PHPCS `35719322783`. Evidence: `/tmp/wpconnections-b22-pr110-ci/`
+  and `/tmp/wpconnections-b22-postmerge-ci/`. Independent final QA verified every
+  REST-04 AC/DoD and returned `pass_with_notes`, authorizing completion with no
+  open P0–P3, material decision, waiver or accepted exception. P4 notes are the
+  preexisting WordPress warnings and PHPCS deprecation only. Standing project
+  delivery authorization applies; no release/tag. Main-plan status propagation
+  accompanies the next implementation batch; this record is authoritative.
 - Next ready task after acceptance: REST-05 metadata dispatch semantics. Preserve
   existing supported selector forms and characterize exact runtime argument handling
   before choosing the DELETE schema; no new product decision is currently required.
