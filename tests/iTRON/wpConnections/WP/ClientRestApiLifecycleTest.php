@@ -265,6 +265,22 @@ class RestHookDisposeDuringInitRestApi extends RestHookRecordingRestApi
 	}
 }
 
+class RestHookDisposingServer extends WP_REST_Server
+{
+	public $before_first_registration;
+
+	public function register_route( $route_namespace, $route, $route_args, $override = false )
+	{
+		if ( is_callable( $this->before_first_registration ) ) {
+			$before_registration = $this->before_first_registration;
+			$this->before_first_registration = null;
+			$before_registration();
+		}
+
+		parent::register_route( $route_namespace, $route, $route_args, $override );
+	}
+}
+
 /**
  * REST-HOOK-01 context, route-registry and factory-delegate contract.
  */
@@ -804,6 +820,38 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 		);
 	}
 
+	public function test_disposal_during_route_publication_rolls_back_owner_and_subscription(): void
+	{
+		$server = new RestHookDisposingServer();
+		$GLOBALS['wp_rest_server'] = $server;
+		do_action( 'rest_api_init', $server );
+		$server->before_first_registration = function (): void {
+			$client = $this->factory_calls[0][1] ?? null;
+			self::assertInstanceOf( Client::class, $client );
+			$client->dispose();
+		};
+
+		$failure = $this->capture_client_registration_failure(
+			static function (): void {
+				new Client( 'dispose-during-route-publication' );
+			}
+		);
+		self::assertSame( 4, $failure->getCode() );
+		self::assertSame(
+			'Client integrations have been disposed and cannot be reactivated.',
+			$failure->getMessage()
+		);
+
+		$replacement = $this->new_client( 'dispose-during-route-publication' );
+		$replacement_delegate = $this->delegate_for_client( $replacement );
+		$this->authenticate_for_managed_routes();
+		$this->assert_dispatches_to_delegate(
+			$server,
+			$replacement_delegate,
+			$this->request_matrix( $replacement_delegate )[0]
+		);
+	}
+
 	public function test_handler_revalidates_owner_after_permission_stage_replacement(): void
 	{
 		$first_client = $this->new_client( 'permission-stage-owner' );
@@ -907,6 +955,57 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 				$first_prefix
 			);
 		}
+	}
+
+	public function test_multisite_disposal_and_replacement_are_context_local(): void
+	{
+		if ( ! is_multisite() ) {
+			self::markTestSkipped( 'Requires the true WordPress multisite lane.' );
+		}
+
+		global $wpdb;
+
+		RestHookRecordingRestApi::$enforce_native_permissions = false;
+		$first_client = $this->new_client( 'disposed-multisite-route-owner' );
+		$first_delegate = $this->delegate_for_client( $first_client );
+		$first_blog_id = get_current_blog_id();
+		$first_prefix = $wpdb->prefix;
+		$server = rest_get_server();
+		$second_blog_id = self::factory()->blog->create();
+
+		switch_to_blog( $second_blog_id );
+		try {
+			$second_client = $this->new_client( 'disposed-multisite-route-owner' );
+			$second_delegate = $this->delegate_for_client( $second_client );
+			$second_prefix = $wpdb->prefix;
+
+			$second_client->dispose();
+			$response = $this->dispatch_case(
+				$server,
+				$this->request_matrix( $second_delegate )[0]
+			);
+			$this->assert_native_rest_error( 'rest_no_route', 404, $response );
+
+			$replacement = $this->new_client( 'disposed-multisite-route-owner' );
+			$replacement_delegate = $this->delegate_for_client( $replacement );
+			$this->assert_dispatches_to_delegate(
+				$server,
+				$replacement_delegate,
+				$this->request_matrix( $replacement_delegate )[0],
+				$second_blog_id,
+				$second_prefix
+			);
+		} finally {
+			restore_current_blog();
+		}
+
+		$this->assert_dispatches_to_delegate(
+			$server,
+			$first_delegate,
+			$this->request_matrix( $first_delegate )[0],
+			$first_blog_id,
+			$first_prefix
+		);
 	}
 
 	private function new_client( string $name ): Client

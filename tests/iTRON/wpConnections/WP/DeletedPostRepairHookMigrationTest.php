@@ -370,6 +370,58 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         );
     }
 
+    public function test_disposal_during_reenable_cannot_restore_cleanup_subscription(): void
+    {
+        $client = $this->newClient('dispose-during-reenable');
+        $name = $client->getName();
+        $client->disablePostDeletionCleanup();
+        $disposed = false;
+        $disposeDuringReadiness = function (string $query) use ($client, &$disposed): string {
+            if (
+                ! $disposed &&
+                false !== stripos($query, 'information_schema') &&
+                false !== strpos($query, self::TABLE_BASENAME)
+            ) {
+                $disposed = true;
+                $client->dispose();
+            }
+
+            return $query;
+        };
+
+        add_filter('query', $disposeDuringReadiness, 8, 1);
+        try {
+            try {
+                $client->enablePostDeletionCleanup();
+                self::fail('Reentrant disposal must prevent cleanup reactivation.');
+            } catch (\iTRON\wpConnections\Exceptions\ClientRegisterFail $failure) {
+                self::assertSame(4, $failure->getCode());
+                self::assertSame(
+                    'Client integrations have been disposed and cannot be reactivated.',
+                    $failure->getMessage()
+                );
+            }
+        } finally {
+            remove_filter('query', $disposeDuringReadiness, 8);
+        }
+
+        self::assertTrue($disposed);
+        do_action('deleted_post', 518, null);
+        self::assertSame(
+            [],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $name ] ?? []
+        );
+
+        $replacement = $this->newNamedClient($name);
+        do_action('deleted_post', 519, null);
+        self::assertSame(
+            [ 519 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[
+                spl_object_id($replacement->getStorage())
+            ]
+        );
+    }
+
     public function test_disposed_client_is_not_retained_by_library_registries(): void
     {
         $client = new Client('repair-hook-weak-reference-' . ++self::$clientSequence);
@@ -636,6 +688,80 @@ class DeletedPostRepairHookMigrationTest extends \WP_UnitTestCase
         );
         self::assertCount(1, $repairs->getItems());
         self::assertSame(521, $repairs->getItems()[0]->getPostId());
+    }
+
+    public function test_disposing_one_client_preserves_neighbor_and_allows_replacement(): void
+    {
+        $disposed = $this->newClient('disposed-neighbor');
+        $neighbor = $this->newClient('live-neighbor');
+        $disposedName = $disposed->getName();
+        $neighborName = $neighbor->getName();
+
+        $disposed->dispose();
+        do_action('deleted_post', 522, null);
+
+        self::assertSame(
+            [],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $disposedName ] ?? []
+        );
+        self::assertSame(
+            [ 522 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $neighborName ]
+        );
+
+        $replacement = $this->newNamedClient($disposedName);
+        do_action('deleted_post', 523, null);
+        self::assertSame(
+            [ 523 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[
+                spl_object_id($replacement->getStorage())
+            ]
+        );
+        self::assertSame(
+            [ 522, 523 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByClient[ $neighborName ]
+        );
+    }
+
+    public function test_multisite_disposal_does_not_revoke_same_name_client_on_another_site(): void
+    {
+        if (! is_multisite()) {
+            self::markTestSkipped('Requires the true WordPress multisite lane.');
+        }
+
+        $name = 'repair-hook-disposed-multisite-' . ++self::$clientSequence;
+        $siteAClient = $this->newNamedClient($name);
+        $siteAStorageId = spl_object_id($siteAClient->getStorage());
+        $siteB = self::factory()->blog->create();
+
+        switch_to_blog($siteB);
+        try {
+            $siteBClient = $this->newNamedClient($name);
+            $siteBStorageId = spl_object_id($siteBClient->getStorage());
+            $siteBClient->dispose();
+            do_action('deleted_post', 524, null);
+            self::assertSame(
+                [],
+                DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteBStorageId ] ?? []
+            );
+
+            $replacement = $this->newNamedClient($name);
+            do_action('deleted_post', 525, null);
+            self::assertSame(
+                [ 525 ],
+                DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[
+                    spl_object_id($replacement->getStorage())
+                ]
+            );
+        } finally {
+            restore_current_blog();
+        }
+
+        do_action('deleted_post', 526, null);
+        self::assertSame(
+            [ 526 ],
+            DeletedPostRepairHookMigrationStorage::$deletedPostIdsByStorage[ $siteAStorageId ]
+        );
     }
 
     public function test_inactive_site_manager_subscription_never_calls_custom_storage(): void
