@@ -1,7 +1,7 @@
 # Batch 24 — REST-06 relation selectors
 
-Status: review; root accepted the stable implementation and focused repair
-evidence for full verification. Serial gates and protected delivery are pending.
+Status: review; root accepted the implementation and all six serial local gates.
+Protected delivery, issue #21 closure and E4 Epic QA remain pending.
 
 Execution boundary: on 2026-09-22 the owner requested completion of this batch
 and then a stop. Finish REST-06 delivery and the E4 boundary QA; do not start
@@ -68,3 +68,27 @@ DG-API20-01/B in [the related-entities contract](../api-01-related-entities-cont
   input-timing documentation. No implementation was authored by root and no
   criterion was waived. Full unit/integration/multisite/isolation/coverage/lint
   verification follows on a frozen revision.
+
+## Frozen local verification
+
+Candidate: `8dd5941b654710afcb469b510305c5fbb1d24ca6`.
+All commands exited 0; logs are in `/tmp/wpconnections-b24-local/`.
+Current integration used PHP 8.1.34, WordPress 7.1-src (requested 7.1.0),
+Ramsey Collection 1.3.0 and MariaDB 11.8.6. Coverage used the pinned WordPress
+6.7.7 floor with the same PHP, Ramsey and database versions.
+
+| Command | Actual result |
+| --- | --- |
+| `make tests.phpunit` | 141 tests / 518 assertions |
+| `make tests.integration` | 645 / 5521; 11 expected environment skips |
+| `make tests.multisite` | 645 / 5620 |
+| `make tests.isolation ISOLATION_SEED=20260922` | Reverse and random: unit 282 / 1036 each; integration 1290 / 11042 each, 22 expected skips each |
+| `make tests.coverage` | 786 / 6037; 11 expected skips; 3937 / 4275 lines = 92.09%; PR coverage gate passed |
+| `make lint.phpcs` | All 100 source files passed |
+
+Existing WordPress font warnings and the PHPCS configuration deprecation did
+not fail these commands. `build/coverage/clover.xml` is the coverage artifact.
+Tracked files remained unchanged; only the expected untracked `.codex/` and
+`AGENTS.md` remain. No release-candidate or clean-rebuild command was run.
+Root accepts the task's technical evidence and proceeds only with protected
+delivery and final E4 acceptance within the owner's current-batch stop boundary.
