@@ -4,7 +4,8 @@ Status: `REST-05` completed through PR #111. Exact protected head
 `b141347b632ae1eb08d4eab0370a7aff815416fa` and merge
 `2b4a1cd553bb1813a21e6615c76237a2fb38f6e8` each passed all 20 required
 contexts. The authoritative evidence is the Batch 23 checkpoint; `REST-06` is
-the active review task.
+now completed and E4 is accepted, with authoritative evidence in the
+[Batch 24 checkpoint](plans/batch24-checkpoint.md).
 
 Approved decisions: `DG-UPDATE-03/A`, `DG-UPDATE-04/A`, `DG-UPDATE-05/A`,
 `DG-SPI-03/A`, `DG-RESTERR-01/A` through `DG-RESTERR-04/A`, and

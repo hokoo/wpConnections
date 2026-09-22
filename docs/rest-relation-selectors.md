@@ -1,7 +1,12 @@
 # REST v1 relation connection selectors
 
-Status: `REST-06` implementation candidate in review. Protected delivery and
-GitHub issue #21 closure remain before acceptance.
+Status: `REST-06` completed through
+[PR #112](https://github.com/hokoo/wpConnections/pull/112). Exact protected
+head `6cdc9feddcbad49eb77c95ec2882017c19bd1169` and merge
+`93bea9b57b5dcdb3c1d82e2d03da1cb7e920531d` each passed all 20 required
+contexts, issue #21 is closed, and the fresh E4 Epic QA gate returned the
+accepted `pass_with_notes`. Full delivery evidence is in the
+[Batch 24 checkpoint](plans/batch24-checkpoint.md).
 
 The relation-list endpoint accepts three optional query selectors:
 
@@ -68,3 +73,10 @@ the actual `serve_request()` request-construction path, combination semantics,
 self/incident edges, invalid input before SQL, unfiltered wire compatibility,
 path/client/relation isolation, custom route identity, site context and owned
 subscription teardown.
+
+The defensive rollback path that removes the first subscription when acquiring
+the second subscription throws was source-audited but was not exercised by
+fault injection. Existing failed-activation and teardown tests do not claim to
+cover that exact catch. Add focused fault injection if this path changes or the
+dispatcher becomes injectable; this accepted nonblocking test-depth note does
+not waive a REST-06 or E4 criterion.

@@ -1,7 +1,8 @@
 # Batch 24 — REST-06 relation selectors
 
-Status: review; root accepted the implementation and all six serial local gates.
-Protected delivery, issue #21 closure and E4 Epic QA remain pending.
+Status: completed. REST-06 is delivered through PR #112; independent E4 Epic QA
+returned `pass_with_notes`, accepted by the delivery owner. This same-batch
+closeout records the accepted result; no next product batch has started.
 
 Execution boundary: on 2026-09-22 the owner requested completion of this batch
 and then a stop. Finish REST-06 delivery and the E4 boundary QA; do not start
@@ -92,3 +93,46 @@ Tracked files remained unchanged; only the expected untracked `.codex/` and
 `AGENTS.md` remain. No release-candidate or clean-rebuild command was run.
 Root accepts the task's technical evidence and proceeds only with protected
 delivery and final E4 acceptance within the owner's current-batch stop boundary.
+
+## Protected delivery and E4 acceptance
+
+- [PR #112](https://github.com/hokoo/wpConnections/pull/112) head
+  `6cdc9feddcbad49eb77c95ec2882017c19bd1169` passed all 20 required contexts.
+  It adds only local-evidence bookkeeping after the tested implementation.
+- Exact merge `93bea9b57b5dcdb3c1d82e2d03da1cb7e920531d`, merged on
+  2026-09-22 at 14:05:40 UTC, also passed all 20 required contexts.
+  Root independently matched required names, SHA and completed/success state
+  for both boundaries and confirmed strict checks, admin enforcement and
+  disabled force-push/deletion. Evidence directories:
+  `/tmp/wpconnections-b24-pr112-ci/` and `/tmp/wpconnections-b24-postmerge-ci/`.
+  The latter's early workflow summary is superseded by the final exact-SHA
+  `check-runs.json`; the early database workflow snapshot is not final proof.
+- [Issue #21](https://github.com/hokoo/wpConnections/issues/21) closed at
+  14:05:41 UTC. Public selector guidance is the verified input for DOC-01;
+  OpenAPI publication remains outside this batch.
+- Fresh independent `epic_qa` reviewed the frozen merge and E4's REST-00A/B
+  through REST-06 contracts, task criteria, named scenario coverage and actual
+  verification evidence. Gate: `pass_with_notes`; no blocking finding,
+  accepted exception, waiver or new product decision. Root accepts E4.
+- Nonblocking P3 test-depth note: the defensive catch that removes the first
+  subscription if acquiring the second throws is source-audited but has no
+  injected second-subscription failure test. Existing failed-activation and
+  teardown tests must not be described as exercising that exact catch. Add
+  focused fault injection if that path changes or the dispatcher becomes
+  injectable; this is not an unmet current E4 criterion or a new active batch.
+- The P3 status-bookkeeping note is addressed by this same-batch closeout.
+  Existing lifecycle formatting debt, non-failing runtime warnings and the
+  documented raw-input timing boundary remain explicit notes. DB-06R remains
+  a separate nonblocking `needs_design` follow-up.
+
+Changed artifacts are the three REST source files, selector/lifecycle tests,
+public selector and metadata guidance, hook inventory, test-quality references
+and plan/checkpoint records. Implementation and substantive documentation were
+delegated; root authored only concise delivery bookkeeping. No entity expansion,
+storage-model change, dependency/matrix change, release, deployment or package
+publication occurred.
+
+The owner's stop instruction now applies: API-03 is dependency-ready but not
+started; API-04 and DOC-01 retain their downstream dependencies. Finish protected
+publication of this acceptance record and stop. A new product batch requires a
+new continuation request.
