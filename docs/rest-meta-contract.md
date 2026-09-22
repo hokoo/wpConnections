@@ -1,9 +1,9 @@
 # REST v1 connection metadata contract
 
-Status: `REST-05` implementation candidate; the expanded focused full-dispatch
-class passes on the current WordPress runtime at 36 tests / 176 assertions.
-Compatibility-floor rerun, broader serial delivery gates, and task acceptance
-remain pending.
+Status: `REST-05` implementation candidate in review. The expanded focused
+full-dispatch class passes on the current WordPress runtime at 36 tests / 176
+assertions, and the required local serial verification is complete. Protected
+PR, merge, and post-merge gates remain before acceptance; `REST-06` is next.
 
 Approved decisions: `DG-UPDATE-03/A`, `DG-UPDATE-04/A`, `DG-UPDATE-05/A`,
 `DG-SPI-03/A`, `DG-RESTERR-01/A` through `DG-RESTERR-04/A`, and
@@ -116,6 +116,16 @@ requests identically on both lanes. The floor result of 29 tests / 120
 assertions belongs to an earlier source candidate before the lookup-failure,
 selector-conflict, and malformed custom-adapter evidence additions. After those
 additions and expansion of path-authority coverage to separate body and query
-conflicts, only the current lane has run: it passes 36 tests / 176 assertions.
-The expanded matrix has not yet run on the floor; that check is reserved for
-the delivery owner's final coverage gate.
+conflicts, the focused current lane passes 36 tests / 176 assertions. The
+expanded suite passed within the full, unfiltered floor `make tests.coverage`
+run: 733 tests / 5711 assertions with 10 expected skips, statement coverage
+3851/4184 (92.04%), and a passing pull-request coverage policy.
+
+At candidate `5d09cf6`, the current integration suite passed 592 tests / 5195
+assertions with 10 expected skips, multisite passed 592 / 5293, isolation seed
+`20260922` passed all four phases, and project PHPCS passed 100 / 100 files.
+The unit suite passed 141 / 518 at `dc66d13`; that evidence is reused because
+the only intervening executable change is a one-line integration lifecycle
+expectation. `make tests.coverage.rc` was not run. Exact command provenance and
+delivery state are recorded in the
+[Batch 23 checkpoint](plans/batch23-checkpoint.md).

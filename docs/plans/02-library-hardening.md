@@ -6614,8 +6614,17 @@ Notes/Risks:
   hydration и atomic failures. Path-authority matrix отдельно покрывает body и
   query conflicts для каждого method. Расширенный focused current lane проходит
   36 tests / 176 assertions; результат floor 29 / 120 относится к более раннему
-  source candidate. Расширенный floor matrix и broader serial gates остаются за
-  delivery owner.
+  source candidate. Расширенный suite прошёл внутри полного unfiltered floor
+  coverage run: 733 / 5711 с 10 expected skips, statement coverage
+  `3851/4184 (92.04%)`, PR policy pass.
+  Current integration `592 / 5195` (10 expected skips), multisite `592 / 5293`,
+  isolation seed `20260922` во всех четырёх фазах и project PHPCS `100 / 100`
+  прошли на candidate `5d09cf6`. Unit `141 / 518` на `dc66d13` переиспользуется:
+  единственное последующее executable изменение — однострочное lifecycle
+  integration expectation. Точная provenance записана в
+  [Batch 23 checkpoint](batch23-checkpoint.md); `make tests.coverage.rc` не
+  запускался. REST-05 остаётся в `review` до protected PR, merge и post-merge
+  gates; следующая задача — REST-06.
 - DELETE argument declaration сохраняет подтверждённые на реальных runtime
   row-list, associative-map, omitted/empty/top-level-null и legacy scalar
   handling. Canonical behavior и image provenance записаны в

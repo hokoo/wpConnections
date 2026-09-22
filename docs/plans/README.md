@@ -16,8 +16,11 @@ open P0—P3. Authoritative evidence находится в
 расширенный focused current full-dispatch class проходит 36 tests / 176
 assertions; path authority отдельно покрыта для body и query во всех четырёх
 metadata methods. Floor 29 / 120 относится к более раннему source candidate;
-расширенный final floor, broader serial gates и task-level acceptance ещё не
-завершены.
+расширенный suite прошёл внутри полного unfiltered floor coverage gate. Current
+integration, multisite, isolation seed `20260922`, coverage/PR policy и project
+PHPCS также прошли; точные команды и результаты находятся в
+[Batch 23 checkpoint](batch23-checkpoint.md). REST-05 остаётся в `review` до
+protected PR, merge и post-merge gates; следующая задача — REST-06.
 
 ## Порядок исполнения
 
