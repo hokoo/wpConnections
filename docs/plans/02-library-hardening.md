@@ -69,8 +69,9 @@ HOOK-03/DB-04-I3 завершён как Batch 19. Exact candidate
 `ecc9d45b92fb39e9a2e0c8a5106b1f4a3d457737` получил три independent PASS без
 open P0—P3 или новых decision gates и прошёл 20/20 protected checks; PR #104
 влит как `7cfe684a08e2ce1e8ba5f3dec1b6f9525f1d6e01`, exact merge прошёл 20/20
-post-merge checks. DB-04-Q и LIFE-HOOK-01 разблокированы; следующим выбран
-LIFE-HOOK-01, чтобы DB-04-Q квалифицировал уже финальный Client lifecycle.
+post-merge checks. LIFE-HOOK-01 завершён в Batch 20 / PR #106;
+DB-04-Q разложен на исполняемый Batch 21 и следует после
+документационного closeout.
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
 вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `todo`; API-03 ждёт завершения
 REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
@@ -2745,7 +2746,7 @@ LIFE-HOOK-01 are ready; Batch 19 intentionally created no tag or release.
 
 ### Batch 20. Complete the Client-owned integration lifecycle
 
-Status: in_progress
+Status: completed
 
 Goal: завершить LIFE-HOOK-01 одним reviewable lifecycle vertical — добавить
 явный terminal `Client::dispose(): void`, собрать уже поставленные REST и
@@ -2933,7 +2934,7 @@ Dependencies: B20-05.
 
 #### B20-Q. Exact-candidate verification and lifecycle closeout
 
-Status: in_progress
+Status: completed
 
 Scope: full unit/integration, reverse/random isolation, true multisite, pinned
 MySQL/MariaDB, PHPCS, fixed-floor coverage, independent exact-candidate and
@@ -2950,7 +2951,7 @@ DoD/AC:
 
 Dependencies: B20-01—B20-06.
 
-Progress evidence: public README and hook lifecycle/inventory contracts now
+Completion evidence: public README and hook lifecycle/inventory contracts now
 define explicit per-site disposal, terminal reactivation failures, retained
 direct-domain behavior, shared-infrastructure boundaries and rollback. Corrected
 production head `a022c8e` passes unit `141/518`, full single-site `488/4271`
@@ -2964,8 +2965,201 @@ MySQL 8.0.46 and MariaDB 10.11.16 each pass `488/4271` with eight expected
 skips; synthetic quality tools pass. A final lifecycle review found a repair
 re-enable catch that could recreate a revoked owner or mutate a replacement;
 commit `a022c8e` adds two red-first token/ABA regressions and owner-matched
-rollback. Final exact re-audits, protected merge and post-merge evidence remain
-pending; the correction requires no new decision gate.
+rollback. Exact candidate
+`05284155d803eb02c5c89e2052928f9d60807734` received three independent PASS
+results without open P0—P3 findings or a new decision gate. PR #106 passed
+20/20 protected checks and merged as
+`a3491c018b96b54dc03e55a850153ddc0e6db413`; all 20 post-merge jobs passed on
+that exact merge SHA. LIFE-HOOK-01 and B20-Q are completed. Batch 20 created no
+tag or release.
+
+### Batch 21. Qualify deleted-post recovery through the real WordPress flow
+
+Status: todo
+
+Goal: закрыть DB-04-Q не новым runtime contract, а end-to-end
+доказательством уже утверждённого DG-DELETE-06/A: настоящий
+`wp_delete_post()` запускает атомарный cascade, а любое неподтверждённое
+завершение остаётся долговечно видимым и безопасно повторяемым.
+
+Entry criteria:
+
+- DB-04-I1—DB-04-I3 и LIFE-HOOK-01 completed; Batch 20 merge
+  `a3491c018b96b54dc03e55a850153ddc0e6db413` прошёл 20/20 post-merge jobs.
+- DG-DELETE-06/A и DG-DELETE-06R1—R6/A утверждены; открытых
+  decision gates на входе нет.
+- Existing component tests remain evidence for ledger, executor, worker,
+  scheduler and lifecycle units; Batch 21 adds cross-layer proof and does not
+  duplicate those suites without a specific missing observation.
+
+Compatibility boundary:
+
+- No new public API, schema version, REST/admin surface, WP-CLI command,
+  automatic Client reconstruction or exactly-once callback promise.
+- WordPress deletes the post before `deleted_post`; wpConnections can recover
+  its own cascade but cannot roll the WordPress deletion back.
+- Unresolved ledger rows and their ownership option are never removed by
+  rollback or uninstall automation. Destructive purge needs separately
+  authorized operator policy and remains outside this batch.
+- WP-Cron remains a best-effort wake-up. The PHP operator service is the
+  supported deterministic inspection/retry path when cron is disabled or late.
+- A release tag remains out of scope while HOOK-04, REL-02 and REL-03 are open.
+
+Decision state: Batch 21 executes approved contracts. A new gate is required
+only if real-flow evidence demands a new public command/option, changes the
+nine-claim/retention policy, introduces destructive uninstall behavior,
+changes schema or weakens the fail-closed/consumer-responsibility boundary.
+
+Execution model: B21-01 freezes the missing observable contract before any
+production correction. B21-02—B21-05 close only gaps found across the real
+WordPress, recovery, context and operator contours. B21-06 proves the exact
+vendor/CI matrix; B21-Q performs independent review and protected delivery.
+One implementation PR is preferred because all slices qualify one recovery
+promise and share one rollback point; a newly discovered material contract
+choice pauses the affected slice at a new DG.
+
+#### B21-01. Freeze the real `wp_delete_post()` qualification contract
+
+Status: todo
+
+Scope: add a dedicated end-to-end test fixture that creates real WordPress
+posts/attachments and real wpConnections rows, invokes `wp_delete_post()` and
+observes post state, connection/meta state, hook count and repair state.
+
+DoD/AC:
+
+- the test calls `wp_delete_post()` rather than substituting
+  `do_action('deleted_post', ...)` or calling the executor directly;
+- fixture assertions distinguish permanent deletion from trash-only behavior;
+- every uncovered behavior defect first has recorded red evidence, while an
+  already-correct path is committed as characterization without artificial
+  production change;
+- test teardown preserves suite isolation without dropping another site's or
+  Client's state.
+
+Dependencies: completed Batch 20 and DB-04-I1—I3.
+
+#### B21-02. Prove the real data cascade and Client isolation
+
+Status: todo
+
+Scope: incoming, outgoing, self, multi-relation and metadata cascades through
+permanent post/attachment deletion, including multiple live Clients.
+
+DoD/AC:
+
+- every matching connection and its metadata is removed exactly once while
+  unrelated and other-Client rows remain;
+- successful first attempt leaves no durable repair record;
+- attachment permanent deletion enters the same contract; moving a post to
+  trash alone does not run the permanent-delete cascade;
+- public attempt/committed-success hooks preserve the approved count/timing.
+
+Dependencies: B21-01.
+
+#### B21-03. Qualify recovery, commit and crash windows end-to-end
+
+Status: todo
+
+Scope: cross-layer fault injection for selector/meta/connection DML,
+transaction start/commit/rollback, attempt/success observers, ledger arm and
+scheduler reconciliation; simulated process boundaries after arm and after
+cleanup commit before resolve.
+
+DoD/AC:
+
+- a pre-commit cleanup failure restores connection/meta data and leaves one
+  redacted retryable record;
+- a post-commit observer failure or commit-before-resolve ambiguity keeps a
+  durable record whose idempotent no-match retry resolves uncertainty;
+- arm/readiness failure is distinct from wake-up scheduling failure: unsafe
+  pre-DML state propagates with zero cleanup writes, while scheduler failure
+  cannot erase the ledger record;
+- duplicate delivery and expired crashed claims obey the approved one-identity,
+  lease and nine-claim rules without claiming exactly-once callbacks.
+
+Dependencies: B21-01, B21-02; completed DB-05 atomic infrastructure.
+
+#### B21-04. Qualify multisite contexts and adapter boundaries
+
+Status: todo
+
+Scope: real-flow current/inactive/restored site execution, same Client name and
+post ID on two true-multisite blogs, and custom adapter capability outcomes.
+
+DoD/AC:
+
+- deletion on one site cannot call or mutate the other site's Client/rows;
+- a fresh per-site Client restores delivery after an explicit context switch;
+- default and custom atomic adapters cover success, rollback/no-match and
+  retry; non-atomic adapters fail capability validation with zero cleanup
+  writes;
+- missing fresh Client and adapter-fingerprint mismatch remain visible and
+  make no connection/meta mutation.
+
+Dependencies: B21-02, B21-03; dedicated `WP_MULTISITE=1` lane.
+
+#### B21-05. Close operator, degraded-cron and rollback/uninstall evidence
+
+Status: todo
+
+Scope: executable operator-service scenarios plus README/runbook/upgrade
+guidance for disabled/late cron, inspection, manual retry, exhaustion,
+retention, rollback and consumer-owned uninstall.
+
+DoD/AC:
+
+- with `DISABLE_WP_CRON`, durable work remains listable and manually retryable
+  through `Client::getDeletedPostRepairService()`;
+- documentation gives per-site inventory/retry order and explains redacted
+  diagnostics, missing Client/adapter mismatch and `needs_attention`;
+- rollback rehearsal preserves unresolved rows, the repair table and
+  `wpconnections_repair_schema_owner` and retains a forward recovery path;
+- the library documents that it has no destructive automatic uninstall;
+  resolved retention may purge only validated old resolved rows, never
+  unresolved work;
+- optional WP-CLI, admin/REST UI and a destructive purge command remain
+  explicitly deferred.
+
+Dependencies: B21-03, B21-04.
+
+#### B21-06. Prove the vendor and infrastructure matrix
+
+Status: todo
+
+Scope: focused DB-04-Q suite plus full regression, isolation, coverage, PHPCS,
+true multisite and pinned MySQL/MariaDB execution on one exact candidate.
+
+DoD/AC:
+
+- MySQL 8.0.46 and MariaDB 10.11.16 run the complete ledger/claim/concurrency
+  and new real-flow qualification without vendor-only SQL;
+- current single-site, dedicated true multisite, fixed-floor coverage and
+  reverse/random repeat evidence are recorded for the same SHA;
+- WordPress test bootstrap's absent cron loopback is stated honestly: tests
+  inspect stored event reconciliation and invoke the runner directly;
+- `HOOK-CASCADE-01` is mapped to named tests and no active critical-scenario
+  exception remains.
+
+Dependencies: B21-01—B21-05.
+
+#### B21-Q. Exact-candidate review and DB-04 closeout
+
+Status: todo
+
+Scope: independent correctness, security/data-integrity and operational review,
+protected checks, exact merge and post-merge evidence.
+
+DoD/AC:
+
+- exact candidate has no unresolved P0—P3 finding or hidden decision gate;
+- protected PR head and exact merge each pass the complete required matrix;
+- DB-04-Q becomes `completed` only after merge and post-merge evidence is
+  recorded in the roadmap, repair contract, quality map and runbook;
+- HOOK-04, REL-02 and REL-03 remain explicit release dependencies; Batch 21
+  creates no tag or release.
+
+Dependencies: B21-01—B21-06.
 
 ## E1. Test foundation и regression harness
 
@@ -5100,6 +5294,10 @@ DoD/AC:
   зелёные.
 - Exact candidate, protected merge и post-merge evidence записаны.
 
+Execution: Batch 21 / B21-01—B21-Q is the canonical executable decomposition.
+It qualifies the existing contract without adding a new public surface or
+destructive uninstall behavior.
+
 ### DB-05. Сделать составные storage operations атомарными
 
 Status: completed
@@ -7029,7 +7227,7 @@ Notes/Risks:
 
 ### LIFE-HOOK-01. Ввести полный lifecycle Client-owned subscriptions
 
-Status: in_progress
+Status: completed
 
 Priority: P0 для 2.0
 
@@ -7062,6 +7260,12 @@ DoR:
   per-Client callbacks.
 - HOOK-02 completed.
 - DG-HOOK-LIFE-01 утверждён.
+
+Completion evidence: exact candidate
+`05284155d803eb02c5c89e2052928f9d60807734` received three independent PASS
+results without open P0—P3 findings. PR #106 passed 20/20 protected checks,
+merged as `a3491c018b96b54dc03e55a850153ddc0e6db413`, and that exact merge passed
+20/20 post-merge jobs.
 
 DoD:
 

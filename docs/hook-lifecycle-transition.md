@@ -1,11 +1,10 @@
 # WordPress hook lifecycle transition
 
-Status: executable staged plan; Batch 19 manager-backed deletion completed,
-Batch 20 Client disposal candidate in progress, release-wide migration remains
-downstream
+Status: executable staged plan; Batch 19 manager-backed deletion and Batch 20
+Client disposal completed, release-wide migration remains downstream
 
-Baseline: `master` merge `b0f011752e67931a90668ca8951a31d0a190afb7`
-(Batch 19 roadmap closeout, PR #105).
+Baseline: `master` merge `a3491c018b96b54dc03e55a850153ddc0e6db413`
+(Batch 20 / LIFE-HOOK-01, PR #106).
 
 Manager release: `hokoo/wp-hooks-dispatcher` `v1.0.1`, commit
 `7f449c41bd73fb40ce80ad790daeaa71fd253e36`.
@@ -225,7 +224,7 @@ not called automatically. Extra hooks or routes created by a subclass remain
 the implementer's context and lifecycle responsibility. HOOK-04 must include
 this check in the consumer upgrade scan.
 
-## Batch 20 Client lifecycle candidate
+## Delivered Batch 20 Client lifecycle
 
 LIFE-HOOK-01 adds public, idempotent `Client::dispose(): void`. The Client is
 marked terminal before teardown; then its deleted-post activation and REST
@@ -260,15 +259,15 @@ boundary.
 | 2.0 logging | LOG-HOOK-01 | Singleton origin-routed automatic debug logging | HOOK-02, DG-HOOK-LOG-01/B, DG-SPI-06/A | completed, PR #82 |
 | 2.0 deletion | HOOK-03 / DB-04-I3 | Manager-backed recovery coordinator and `deleted_post` tests | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1 | completed, PR #104 / `7cfe684` |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | completed, PR #83 / `33b659e` |
-| Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | in progress, Batch 20 candidate |
+| Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | completed, PR #106 / `a3491c0` |
 | 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
 protected-check run. HOOK-01 is delivered independently and installs no
 wpConnections dependency. LOG-HOOK-01 completed on exact candidate `234216e`
 with independent QA PASS and 17/17 protected checks; it changes logging only.
-Batch 19 supplies the manager-backed deletion registrations. Batch 20 now
-composes cross-integration disposal and rollback; release-wide consumer
+Batch 19 supplies the manager-backed deletion registrations. Batch 20 composes
+cross-integration disposal and rollback; release-wide consumer
 migration remains in HOOK-04.
 REST-HOOK-01 is the completed task in Batch 10 and first wpConnections runtime
 consumer of `hokoo/wp-hooks-dispatcher`. DG-HOOK-REST-05/A is approved; task
@@ -336,8 +335,13 @@ reverse/random repeat-2 at `282/1036` each and WordPress reverse/random at
 tools pass. A final lifecycle review found that a failing reentrant repair
 re-enable could recreate a revoked owner or mutate its replacement; commit
 `a022c8e` adds two red-first token/ABA regressions and limits catch rollback to
-the original owner. Final exact re-audits, protected merge and post-merge
-evidence remain B20-Q work.
+the original owner. Exact candidate
+`05284155d803eb02c5c89e2052928f9d60807734` received three independent PASS
+results without open P0—P3 findings or a new decision gate. PR #106 passed
+20/20 protected checks, merged as
+`a3491c018b96b54dc03e55a850153ddc0e6db413`, and that exact merge passed all
+20 post-merge jobs. B20-Q and LIFE-HOOK-01 are complete; Batch 21 / DB-04-Q is
+the next recovery qualification.
 
 DB-04-D discovered that generic repair must surround the Storage call, while
 HOOK-03 previously waited for the whole DB-04 task. The dependency map is now

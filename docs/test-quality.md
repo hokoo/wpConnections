@@ -152,7 +152,7 @@ the library never performs a destructive compensating `DROP`.
 
 | ID | Minimum observable expectation | Delivery task |
 | --- | --- | --- |
-| `HOOK-CASCADE-01` | A real `wp_delete_post`/`deleted_post` flow removes incoming, outgoing, and self-connections plus metadata for each registered client without cross-client deletion or duplicate hook execution. | DB-04 |
+| `HOOK-CASCADE-01` | A real `wp_delete_post`/`deleted_post` flow removes incoming, outgoing, and self-connections plus metadata for each registered client without cross-client deletion or duplicate hook execution. | DB-04-Q / B21-01—B21-02 |
 | `HOOK-CONTRACT-01` | Public actions and filters retain their documented names, argument order/count, timing, and once-only behavior; a rolled-back operation cannot emit a false success hook. | DB-05 / REL-02 |
 | `FACTORY-EXT-01` | Valid custom storage, REST API, and logger implementations supplied through the public factory filters are selected and invoked through their supported extension contracts. | SPI-01 / REL-02 |
 | `FACTORY-INVALID-01` | Missing or incompatible factory replacements fail with the stable exception contract and do not leave a partially registered client. | REL-02 |
