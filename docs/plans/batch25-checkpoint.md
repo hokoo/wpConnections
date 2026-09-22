@@ -1,7 +1,7 @@
 # Batch 25 — API-03 bulk entity resolution
 
 Status: review. API-03 implementation and local verification are accepted;
-scoped commit and external PR/merge delivery remain distinct stages. On
+the scoped local commit is delivered; external PR/merge remains pending. On
 2026-09-23 the owner authorized exactly the next batch after accepted
 REST-06/E4. Stop at this batch boundary; API-04 is not authorized here.
 
@@ -135,3 +135,11 @@ Git status retained only intended changes plus user-owned `.codex/` and
 API-04 and DOC-01 retain their delivery dependencies. E5 is incomplete, so this
 is task acceptance, not epic QA. External push/PR/merge, protected CI and issue
 closure are not claimed; release/publication remain out of scope.
+
+Local implementation/evidence commit:
+`556a22b89ec0dd2a4e42e5ed3562894230758647`. This subsequent checkpoint-only
+record changes no tested source or test. The working tree after that commit
+contained only the pre-existing untracked `.codex/` and `AGENTS.md`.
+The requested batch is ready for external delivery; push/PR/merge authority
+must be established separately under AGENTS.md. API-03 stays `review` and
+API-04 is not started while that delivery boundary remains pending.
