@@ -16,8 +16,9 @@ protected jobs. PR #102 merged as
 post-merge jobs. DB-04-I3 subsequently completed in Batch 19 / PR #104, and
 the terminal Client lifecycle completed in Batch 20 / PR #106. Batch 21 /
 DB-04-Q delivered its qualification in PR #108: exact head `1e8a4c9` and merge
-`a341f9b` each passed 20/20 checks. DB-04-Q remains in `review` for fresh
-synchronized-closeout QA and closeout documentation delivery.
+`a341f9b` each passed 20/20 checks. Closeout PR #109 merged as `ba0b546`, its
+20/20 post-merge contexts passed, and fresh final QA returned
+`pass_with_notes`; B21-Q, Batch 21, DB-04-I and DB-04-Q are completed.
 
 Source snapshot: `9d627598fa30cd75a8f13b119af4611ca6af346f`.
 
@@ -761,8 +762,9 @@ explicitly.
 The following slice order implements approved R1—R6. B18-01 through B18-07 and
 B18-Q are completed; B18-08 remains deferred. HOOK-03 / DB-04-I3 and
 LIFE-HOOK-01 are complete. DB-04-Q was delivered as Batch 21 / PR #108 and
-remains in closeout review. Changing an approved choice requires a new decision
-and revised plan before affected code starts.
+completed through closeout PR #109 / exact merge `ba0b546` and fresh final QA
+`pass_with_notes`. Changing an approved choice requires a new decision and
+revised plan before affected code starts.
 
 ### DB-04-I1 — shared repair ledger and schema lifecycle
 
@@ -832,11 +834,11 @@ DoD:
 
 ### DB-04-Q — real-flow, vendor, and operational closure
 
-Status: `review` as Batch 21; B21-01—B21-10 are complete. Exact local candidate
-`062b7fe`, protected PR #108 head `1e8a4c9` and merge `a341f9b` are green.
-B21-Q remains pending fresh synchronized-closeout QA and closeout documentation
-delivery. I1—I3, LIFE-HOOK-01 and all approved gates are complete; no open
-P0—P3 finding, decision gate or active critical exception remains.
+Status: `completed` as Batch 21. B21-01—B21-Q, DB-04-I and DB-04-Q are
+complete. Exact local candidate `062b7fe`, protected PR #108 head `1e8a4c9`,
+merge `a341f9b` and closeout merge `ba0b546` are green. Fresh final QA returned
+`pass_with_notes`; no open P0—P3 finding, decision gate, active critical
+exception or waiver remains.
 
 Scope: end-to-end `wp_delete_post()` behavior, failure/crash/concurrency matrix,
 true multisite lane, pinned vendors, docs, runbook, and independent QA.
@@ -905,7 +907,7 @@ evidence.
 | Adapter conformance | `DeletedPostRepairHookMigrationTest` real custom-atomic success/pre-commit/commit-uncertainty/missing-client/non-atomic scenarios plus `DeletedPostRepairLedgerTest::test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml` | B21-07 completed at `89dbbe7`; real deletion, seeded connection/meta state, no-match convergence and fail-closed adapter outcomes are exact in the active manifest |
 | Operator/degraded cron | scheduler and service component tests plus `DeletedPostRepairOperationalTest` | B21-08 completed at `65c53e8`; per-site inventory/retry/disabled-cron evidence and canonical operations runbook are in the active manifest |
 | Rollback/uninstall | `DeletedPostRepairOperationalTest::test_unresolved_work_survives_client_disposal_and_runtime_reconstruction`, retained ledger purge tests and source audit | B21-09 completed at `85dfa8d`; library persistence boundary verified, unknown consumer uninstall remains HOOK-04 responsibility |
-| Vendor/infrastructure | existing true-multisite and pinned MySQL/MariaDB workflows | B21-10 completed: local candidate `062b7fe`, protected PR head `1e8a4c9` and merge `a341f9b` are green; B21-Q closeout review remains |
+| Vendor/infrastructure | existing true-multisite and pinned MySQL/MariaDB workflows | B21-10 completed: local candidate `062b7fe`, protected PR head `1e8a4c9` and merge `a341f9b` are green; B21-Q completed through closeout merge `ba0b546`, 20/20 post-merge contexts and fresh final QA `pass_with_notes` |
 
 ## Required verification matrix
 

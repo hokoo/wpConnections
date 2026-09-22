@@ -1,10 +1,9 @@
 # Deleted-post recovery verification manifest
 
-Status: delivered DB-04-Q qualification manifest. B21-01—B21-10 are complete;
-the local candidate, protected PR head, exact merge and post-merge checks are
-green. B21-Q and DB-04-Q remain in `review` pending fresh independent closure
-QA of the synchronized closeout documentation and its committed/merged
-delivery.
+Status: completed DB-04-Q qualification manifest. B21-01—B21-Q, Batch 21,
+DB-04-I and DB-04-Q are complete. The local candidate, protected PR #108,
+closeout PR #109 and their exact merge/post-merge checks are green; fresh final
+QA accepted exact closeout merge `ba0b546` with `pass_with_notes`.
 
 The owner resumed execution on 2026-09-22. The historical pause and the exact
 resumed evidence are preserved in [the checkpoint](plans/batch21-checkpoint.md).
@@ -311,10 +310,12 @@ non-blocking P4 attribution notes; no waiver was requested or accepted.
 
 That historical gate was followed by exact-candidate QA which confirmed all
 pre-merge requirements, found no P0—P3 finding or new decision gate, and found
-the candidate technically ready. PR #108 and its exact merge now satisfy the
-external delivery criteria below. Fresh independent closure QA of this
-synchronized closeout is still pending; B21-Q and DB-04-Q therefore remain in
-`review`.
+the candidate technically ready. PR #108 and its exact merge satisfied the
+external delivery criteria below. At that historical boundary synchronized
+closure QA was still pending and B21-Q / DB-04-Q remained in `review`;
+closeout PR #109 subsequently merged as `ba0b546`, passed 20/20 post-merge
+contexts and received fresh final QA `pass_with_notes` without P0—P3,
+decision gate, exception or waiver.
 
 ## Traceability matrix
 
@@ -381,7 +382,7 @@ synchronized closeout is still pending; B21-Q and DB-04-Q therefore remain in
 | Complete real-flow and ledger/claim/concurrency suite passes MySQL 8.0.46 and MariaDB 10.11.16 | exact digest-pinned commands and logs in the checkpoint | local and protected pinned-vendor qualification | PASS locally on `062b7fe`, protected PR head `1e8a4c9` and merge `a341f9b` — B21-10 completed |
 | Dedicated `WP_MULTISITE=1` run executes without relevant skips | current `make tests.multisite` and fixed-floor `test:multisite` command above | local dedicated multisite and protected CI | PASS locally on `062b7fe`, both 516/4831 with no skip; dedicated protected context passed on PR head and merge — B21-10 completed |
 | Full regression, PHPCS, fixed-floor coverage and reverse/random isolation agree on one SHA | exact commands and logs above | local exact-candidate matrix and protected delivery | PASS locally on `062b7fe`; all 20 protected contexts passed on PR head `1e8a4c9` and merge `a341f9b` — B21-10 completed |
-| Independent correctness, security/data-integrity and operational reviews validate this completed manifest | independent QA gate record | independent review | pre-merge exact-candidate QA found no P0—P3 or decision gate and found the candidate technically ready; fresh synchronized-closeout QA pending — B21-Q review |
+| Independent correctness, security/data-integrity and operational reviews validate this completed manifest | independent QA gate record | independent review | fresh final QA accepted closeout merge `ba0b546` with `pass_with_notes`; no P0—P3, hidden decision, active exception or waiver — B21-Q completed |
 
 ## Explicit R1–R6 contract mapping
 
@@ -425,8 +426,9 @@ successfully on exact merge `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a`.
 
 Branch protection records all 20 contexts with `strict: true` and app id
 `15368`; admin enforcement is enabled, while force pushes and deletions are
-disabled. PR #108 merged at `2026-09-22T09:33:19Z`. Fresh closure QA and the
-synchronized closeout documentation delivery remain B21-Q review work.
+disabled. PR #108 merged at `2026-09-22T09:33:19Z`. Closeout PR #109 merged as
+`ba0b546`; all 20 post-merge contexts passed and fresh final QA accepted the
+synchronized status/evidence as `pass_with_notes`.
 
 ## Qualification rules
 
@@ -440,6 +442,5 @@ synchronized closeout documentation delivery remain B21-Q review work.
   the runner directly.
 - A multisite skip, a single-vendor pass or aggregate coverage cannot replace
   the named acceptance evidence.
-- This qualification closes only after fresh B21-Q review accepts this
-  synchronized closeout and its committed/merged delivery. It does not
-  authorize a 2.0 tag or release.
+- This qualification closed when fresh B21-Q review accepted closeout PR #109
+  and exact merge `ba0b546`. It does not authorize a 2.0 tag or release.

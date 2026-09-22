@@ -1,9 +1,10 @@
 # Deleted-post repair operations
 
 Status: Batch 21 operational qualification delivered through protected
-PR #108 and exact merge `a341f9b`; B21-Q / DB-04-Q closeout remains in `review`
-pending fresh synchronized-closeout QA and closeout documentation delivery.
-HOOK-04 remains responsible for unknown consumer uninstall review.
+PR #108 and exact merge `a341f9b`; closeout PR #109 merged as `ba0b546`, all
+20 post-merge contexts passed, and fresh final QA returned `pass_with_notes`.
+B21-Q, Batch 21, DB-04-I and DB-04-Q are completed. HOOK-04 remains responsible
+for unknown consumer uninstall review.
 
 This is the canonical runbook for inspecting and retrying deleted-post cleanup
 after synchronous recovery could not be confirmed. WP-Cron is only a

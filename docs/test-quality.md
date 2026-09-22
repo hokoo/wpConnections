@@ -148,6 +148,18 @@ the library never performs a destructive compensating `DROP`.
 | `REST-FILTER-01` | Relation-list filters for relation and explicit `from`/`to`/`both` directions have the approved combination semantics, permission/client isolation, empty results, and backward-compatible unfiltered output. | REST-06 |
 | `REST-V1-01` | Default response fields and nesting remain backward compatible; new representations are opt-in and deprecated `type` remains a serialized no-op. | REST-03 / REST-06 |
 
+REST-04's named `REST-PERM-01` evidence is `RestPermissionsTest`:
+`test_manage_options_is_the_default_for_every_route_variant`,
+`test_client_filtered_default_is_used_by_every_unoverridden_route_variant`,
+`test_per_callback_override_allows_and_denies_every_route_variant`,
+`test_read_only_policy_allows_gets_and_denies_valid_mutations_before_handlers`,
+`test_denial_uses_native_anonymous_and_authenticated_shapes`,
+`test_unknown_callback_falls_back_to_default_without_widening_managed_boundary`
+and `test_callback_override_is_isolated_to_its_client`. The shared provider
+dispatches all 12 registered method variants; denied requests assert both zero
+handler calls and unchanged persistent rows. The permission configuration is
+documented in [`rest-permissions-contract.md`](rest-permissions-contract.md).
+
 ### WordPress hooks and extension factories
 
 | ID | Minimum observable expectation | Delivery task |
@@ -166,8 +178,9 @@ Batch 21's exact `HOOK-CASCADE-01` named evidence is
 these tests to the passing `062b7fe` local integration, true-multisite, pinned
 vendor and isolation lanes. PR #108 head `1e8a4c9` and exact merge `a341f9b`
 each passed all 20 protected/post-merge contexts, including the dedicated
-multisite context. Fresh synchronized-closeout QA and closeout documentation
-delivery remain B21-Q / DB-04-Q review work.
+multisite context. Closeout PR #109 merged as `ba0b546`, all 20 post-merge
+contexts passed, and fresh final QA returned `pass_with_notes`; B21-Q, Batch
+21, DB-04-I and DB-04-Q are completed.
 
 ## Pull-request checklist contract
 

@@ -1,9 +1,9 @@
 # Deleted-post cleanup: 1.x to 2.0 upgrade
 
 Status: Batch 20 lifecycle boundary and Batch 21 / DB-04-Q operational
-qualification are delivered. DB-04-Q remains in closeout `review` pending
-fresh synchronized-closeout QA and documentation delivery, while the final
-release-wide consumer scan and 2.0 release notes remain HOOK-04 work.
+qualification are completed. Closeout PR #109 merged as `ba0b546`, all 20
+post-merge contexts passed, and fresh final QA returned `pass_with_notes`.
+The final release-wide consumer scan and 2.0 release notes remain HOOK-04 work.
 
 ## Breaking change
 
