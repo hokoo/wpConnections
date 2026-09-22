@@ -160,6 +160,23 @@ dispatches all 12 registered method variants; denied requests assert both zero
 handler calls and unchanged persistent rows. The permission configuration is
 documented in [`rest-permissions-contract.md`](rest-permissions-contract.md).
 
+REST-05's named `REST-META-01` evidence is `RestMetaContractTest`. Its
+full-dispatch scenarios freeze POST append, PATCH supplied-key replacement,
+PUT replacement/clear, DELETE row-list and associative-map selectors,
+row-value-null wildcard and absent/empty/top-level-null delete-all behavior.
+The same class separately asserts JSON wire data, hydrated persisted state,
+duplicate/falsy values, pre-mutation validation, authoritative path selectors,
+relation ownership, numeric-domain 404, exact generic 500 rollback and zero
+success hooks, including real SQL lookup failures before representative update
+and DELETE handlers. A factory-selected custom storage also returns a domain
+connection without an ID to prove full metadata dispatch maps code 304 to HTTP
+400 without mutation. The path-selector matrix supplies conflicting body and
+query parameters in separate cases for every metadata method, explicitly
+verifies its cross-client ID collision, and proves the exact URL target is
+mutated while the foreign relation and real second client remain unchanged.
+The public contract and pinned-runtime argument characterization is documented
+in [`rest-meta-contract.md`](rest-meta-contract.md).
+
 ### WordPress hooks and extension factories
 
 | ID | Minimum observable expectation | Delivery task |

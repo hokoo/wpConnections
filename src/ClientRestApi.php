@@ -133,9 +133,11 @@ class ClientRestApi
     {
         try {
             $queryConnection = new Query\Connection();
-            $queryConnection->id = $request->get_param('connectionID');
+            $queryConnection->id = $this->getRouteSelector($request, 'connectionID');
 
-            $found = $this->getClient()->getRelation($request->get_param('relation'))->findConnections($queryConnection);
+            $found = $this->getClient()->getRelation(
+                $this->getRouteSelector($request, 'relation')
+            )->findConnections($queryConnection);
 
             if ($found->isEmpty()) {
                 return rest_ensure_response($this->getError(new ConnectionNotFound()));
@@ -169,11 +171,18 @@ class ClientRestApi
     public function deleteConnectionMeta(WP_REST_Request $request)
     {
         $queryConnection = new Query\Connection();
-        $queryConnection->set('id', $request->get_param('connectionID'));
+        $queryConnection->set('id', $this->getRouteSelector($request, 'connectionID'));
         $queryConnection->meta->fromArray((array) $request->get_param('meta'));
 
         try {
-            $result = $this->getClient()->getRelation($request->get_param('relation'))->removeConnectionMeta($queryConnection);
+            $relation = $this->getClient()->getRelation(
+                $this->getRouteSelector($request, 'relation')
+            );
+            if ($relation->findConnections($queryConnection)->isEmpty()) {
+                throw new ConnectionNotFound();
+            }
+
+            $result = $relation->removeConnectionMeta($queryConnection);
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
         }

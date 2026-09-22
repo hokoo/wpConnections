@@ -9,10 +9,15 @@ Batch 21 qualification delivered through PR #108 on 2026-09-22. B21-01—B21-10
 [Batch 21 checkpoint](batch21-checkpoint.md). Closeout PR #109 влит как
 `ba0b546`, прошёл 20/20 post-merge contexts и получил fresh final QA
 `pass_with_notes`; B21-Q, Batch 21, DB-04-I и DB-04-Q completed. REST-04
-находится в `review`: focused `RestPermissionsTest` покрывает восемь callback
-keys / 12 dispatch variants и проходит 40 tests / 286 assertions; fixture
-PHPCS green, production source не изменён. Конфигурация зафиксирована в
-[`rest-permissions-contract.md`](../rest-permissions-contract.md).
+завершён через PR #110: exact head `c91388e` и merge `5f4c544` прошли 20/20
+protected/post-merge contexts, fresh final QA вернул `pass_with_notes` без
+open P0—P3. Authoritative evidence находится в
+[Batch 22 checkpoint](batch22-checkpoint.md). REST-05 находится в `review`:
+расширенный focused current full-dispatch class проходит 36 tests / 176
+assertions; path authority отдельно покрыта для body и query во всех четырёх
+metadata methods. Floor 29 / 120 относится к более раннему source candidate;
+расширенный final floor, broader serial gates и task-level acceptance ещё не
+завершены.
 
 ## Порядок исполнения
 
@@ -152,14 +157,13 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged functional baseline — Batch 21 / DB-04-Q PR #108, merge
-  `a341f9b89427e64c66dd4ab03d8d3f664e18fd2a`, и завершивший его closeout PR
-  #109, merge `ba0b5463654f9c5a6b0b9596e82cb6e652b019ca`. Local candidate
-  `062b7fe`, protected head `1e8a4c9`, оба merge boundary и финальные 20/20
-  contexts зелёные; fresh final QA вернул `pass_with_notes`. Terminal Client
-  lifecycle, manager-backed recovery и real-flow/vendor/operational
-  qualification завершены. REST-04 находится в `review` по существующему
-  контракту.
+- Текущий merged functional baseline — Batch 22 / REST-04 PR #110, merge
+  `5f4c54444ae9331334a74c563ac200a19d1336d0`. Exact protected head
+  `c91388ebb42b9c14c8b44757d6214b9ac775639f` и merge прошли по 20/20
+  contexts; fresh final QA вернул `pass_with_notes` без open P0—P3. Batch 21 /
+  DB-04-Q ранее завершён PR #108 и closeout PR #109. Terminal Client
+  lifecycle, manager-backed recovery, real-flow/vendor/operational
+  qualification и REST permissions завершены. REST-05 находится в `review`.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -275,8 +279,10 @@ map находятся в
   exact candidate `56d5e1c` получил independent QA PASS и 19/19 protected
   checks, merge `185bf32` — 19/19 post-merge checks. Canonical default-v1 wire
   contract находится в
-  [`rest-connection-contract.md`](../rest-connection-contract.md). REST-04 и
-  REST-05 после этого перешли в `todo`.
+  [`rest-connection-contract.md`](../rest-connection-contract.md). REST-04
+  позднее завершён Batch 22 / PR #110; REST-05 теперь находится в `review`, а
+  его metadata contract записан в
+  [`rest-meta-contract.md`](../rest-meta-contract.md).
 - DB-04-D завершена PR #97: current call graph, crash windows, pre-armed
   ledger, retry state machine, operator boundary и executable slices записаны в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).
