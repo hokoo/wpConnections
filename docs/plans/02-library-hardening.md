@@ -2952,11 +2952,18 @@ Dependencies: B20-01—B20-06.
 
 Progress evidence: public README and hook lifecycle/inventory contracts now
 define explicit per-site disposal, terminal reactivation failures, retained
-direct-domain behavior, shared-infrastructure boundaries and rollback. Current
-local verification passes unit `139/509`, full single-site `487/4261` with
-eight expected skips, full true multisite `487/4304`, focused true-multisite
-lifecycle `11/121`, and PHPCS `100/100`. Coverage, isolation, pinned external
-databases and independent reviews remain pending.
+direct-domain behavior, shared-infrastructure boundaries and rollback. Corrected
+production head `76624ad` passes unit `139/509`, full single-site `488/4271`
+with eight expected skips, full true multisite `488/4314`, focused lifecycle
+single-site `12/119` with two expected skips, focused true-multisite `12/131`,
+and PHPCS `100/100`. Fixed-floor combined coverage is `627/4778` and
+`3821/4168` statements (`91.67%`), with the RC gate ready. Isolation seed
+`20260922` passes unit reverse/random repeat-2 at `278/1018` each and
+WordPress reverse/random at `976/8542` each with 16 expected skips. Pinned
+MySQL 8.0.46 and MariaDB 10.11.16 each pass `488/4271` with eight expected
+skips; synthetic quality tools pass. Independent QA returned PASS after the
+late-rebind correction with no open P0--P3 or new decision gate. Final
+docs-only exact audit, protected merge and post-merge evidence remain pending.
 
 ## E1. Test foundation и regression harness
 
