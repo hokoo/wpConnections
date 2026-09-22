@@ -3033,9 +3033,10 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction and is complete. B21-02 is the next selected task.
-Every later task remains `waiting_dependency` until its explicit DoR is true.
-The default review groups
+production correction; B21-01/B21-02 are complete. B21-03 is the next selected
+task, while B21-06 is also dependency-ready for its later review group. Every
+later task remains `waiting_dependency` until its explicit DoR is true. The
+default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
 B21-10/Q (qualification/closeout). B21-03 and B21-06 may proceed independently
@@ -3091,7 +3092,7 @@ green under reverse/random repeat before downstream work starts.
 
 #### B21-02. Prove the real data cascade and Client isolation
 
-Status: todo
+Status: completed
 
 Goal: prove `HOOK-CASCADE-01` through permanent WordPress deletion for all
 endpoint shapes without duplicating the existing one-direction smoke tests.
@@ -3130,7 +3131,7 @@ Assertions must inspect physical metadata rows as well as hydrated results.
 
 #### B21-03. Qualify pre-commit, arm and wake-up failures end-to-end
 
-Status: waiting_dependency
+Status: todo
 
 Goal: prove every failure before a confirmed cleanup commit either performs
 zero cleanup DML, restores the complete connection/meta mutation after a
@@ -3270,7 +3271,7 @@ connection contender test remains the concurrency authority.
 
 #### B21-06. Qualify true-multisite context routing
 
-Status: waiting_dependency
+Status: todo
 
 Goal: prove the real deletion flow stays site-safe when process-global hooks
 coexist with explicit WordPress context switching.

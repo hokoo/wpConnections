@@ -829,9 +829,10 @@ DoD:
 
 ### DB-04-Q — real-flow, vendor, and operational closure
 
-Status: `in_progress` as Batch 21; B21-01 is complete and B21-02 is the next
-selected task. I1—I3, LIFE-HOOK-01 and all approved gates are complete. No
-open decision gate exists at entry.
+Status: `in_progress` as Batch 21; B21-01/B21-02 are complete and B21-03 is
+the next selected task. B21-06 is also dependency-ready for its later review
+group. I1—I3, LIFE-HOOK-01 and all approved gates are complete. No open
+decision gate exists at entry.
 
 Scope: end-to-end `wp_delete_post()` behavior, failure/crash/concurrency matrix,
 true multisite lane, pinned vendors, docs, runbook, and independent QA.

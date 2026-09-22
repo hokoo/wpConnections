@@ -1,8 +1,9 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01 is complete; B21-02 is the next
-selected task. The final exact qualification candidate and protected CI
-results remain owned by B21-10/B21-Q.
+Status: active DB-04-Q manifest. B21-01 and B21-02 are complete; B21-03 is the
+next selected task, while B21-06 is also dependency-ready for its later review
+group. The final exact qualification candidate and protected CI results remain
+owned by B21-10/B21-Q.
 
 ## Evidence identity
 
@@ -10,8 +11,10 @@ results remain owned by B21-10/B21-Q.
   (Batch 20 documentation closeout merge).
 - Real-flow fixture commit:
   `0a15b4d224358ac84dbb6aa117ba60b368001097`.
+- Real data-cascade matrix commit:
+  `ac6361fde37121eed1c4a652efdd17fa91d47c0f`.
 - Fixture: `DeletedPostRecoveryRealFlowTest`.
-- Production delta in B21-01: none. Both paths were committed as
+- Production delta in B21-01/B21-02: none. All five paths were committed as
   characterization because the approved behavior was already correct.
 - Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
 - Final merge and post-merge identity: pending B21-Q.
@@ -41,6 +44,21 @@ attempt hook, exactly one committed-success hook and no repair row. The
 trash-only fixture uses real `wp_trash_post()` and observes a trashed post,
 zero cleanup attempts, preserved connection/meta rows and no retry record.
 
+## B21-02 data-cascade evidence
+
+The following commands were run on exact commit `ac6361f` in the same runtime
+environment. The reverse/random evidence was run on the exact committed test
+content before commit and is content-identical to `ac6361f`.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Focused single-site WP | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRecoveryRealFlowTest` | PASS — 5 tests, 60 assertions |
+| Focused true multisite WP | `docker compose -p wpconnections run --rm phpunit test:multisite --filter DeletedPostRecoveryRealFlowTest` | PASS — 5 tests, 60 assertions, no skip |
+| Reverse isolation | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRecoveryRealFlowTest --order-by=reverse --repeat=2` | PASS — 10 tests, 120 assertions |
+| Seeded random isolation | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRecoveryRealFlowTest --order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 10 tests, 120 assertions; seed `20260922` |
+| Full unit and WP integration | `docker compose -p wpconnections run --rm phpunit test:all` | PASS — unit 141 tests / 518 assertions; integration 493 tests / 4331 assertions / 8 pre-existing skips |
+| Fixture coding standard | `docker compose -p wpconnections run --rm phpunit vendor/bin/phpcs tests/iTRON/wpConnections/WP/DeletedPostRecoveryRealFlowTest.php --standard=phpcs.xml` | PASS — 1 file; the pre-existing PHPCS ruleset deprecation remains non-blocking |
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -51,10 +69,10 @@ zero cleanup attempts, preserved connection/meta rows and no retry record.
 | Trash-only flow does not enter permanent-delete cleanup | `DeletedPostRecoveryRealFlowTest::test_trash_only_fixture_does_not_run_permanent_delete_cascade` | single-site WP; true multisite WP | verified in B21-01 (`0a15b4d`) |
 | Incoming/to-end cleanup and semantic disable/enable | `ClientIsolationTest::test_semantic_post_deletion_lifecycle_controls_real_cleanup_once` | single-site WP integration | existing |
 | Outgoing/from-end legacy row and metadata cleanup | `EntityValidationTest::test_deleted_post_cascade_cleans_legacy_row_without_endpoint_resolution` | single-site WP integration | existing |
-| Incoming, outgoing and self connections in one physical-row matrix | `DeletedPostRecoveryRealFlowTest` data-matrix methods | single-site WP integration | planned — B21-02 |
-| Multiple relations preserve unrelated relation rows | `DeletedPostRecoveryRealFlowTest` relation-isolation method | single-site WP integration | planned — B21-02 |
-| Multiple live Clients remove only their own rows and emit their own hooks once | `DeletedPostRecoveryRealFlowTest` Client-isolation method | single-site WP integration | planned — B21-02 |
-| Permanent attachment deletion follows the same cascade | `DeletedPostRecoveryRealFlowTest` attachment method | single-site WP integration | planned — B21-02 |
+| Incoming, outgoing and self connections in one physical-row matrix | `DeletedPostRecoveryRealFlowTest::test_permanent_delete_cascades_all_endpoint_shapes_and_preserves_unrelated_rows` | single-site WP; true multisite WP | verified in B21-02 (`ac6361f`) |
+| Multiple relations preserve unrelated relation rows | `DeletedPostRecoveryRealFlowTest::test_permanent_delete_cascades_all_endpoint_shapes_and_preserves_unrelated_rows` | single-site WP; true multisite WP | verified in B21-02 (`ac6361f`) |
+| Multiple live Clients remove only their own rows and emit their own hooks once | `DeletedPostRecoveryRealFlowTest::test_permanent_delete_isolates_multiple_clients_and_their_success_hooks` | single-site WP; true multisite WP | verified in B21-02 (`ac6361f`) |
+| Permanent attachment deletion follows the same cascade | `DeletedPostRecoveryRealFlowTest::test_permanent_attachment_delete_uses_the_same_cascade_contract` | single-site WP; true multisite WP | verified in B21-02 (`ac6361f`) |
 
 ### Failure and commit windows
 
