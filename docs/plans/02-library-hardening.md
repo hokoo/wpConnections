@@ -3033,9 +3033,9 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01—B21-03 are complete. B21-04 is the next selected
-task, while B21-06 is also dependency-ready for its later review group. Every
-later task remains `waiting_dependency` until its explicit DoR is true. The
+production correction; B21-01—B21-04 are complete. B21-05 is the next selected
+task, while B21-06 and B21-07 are also dependency-ready for their shared later
+review group. Every later task remains `waiting_dependency` until its explicit DoR is true. The
 default review groups
 are B21-01/02 (fixture/cascade), B21-03/04 (failure/crash), B21-05/06/07
 (concurrency/context/adapters), B21-08/09 (operations/rollback), then
@@ -3179,7 +3179,7 @@ shared database session unsafe under the existing DB-05 contract.
 
 #### B21-04. Qualify post-commit and simulated crash reconciliation
 
-Status: todo
+Status: completed
 
 Goal: prove durable convergence when cleanup may already have committed but the
 coordinator did not confirm or persist resolution.
@@ -3225,9 +3225,20 @@ Dependencies: B21-03.
 Notes/Risks: a custom adapter's unrelated side effects remain outside the
 guarantee and must be idempotent as already documented.
 
+Completion evidence: test-only commit
+`7587271fe87adbdf2a7a4a89fedb72f6cdff399c` adds real-hook arm-before-claim,
+post-commit-hook and commit-before-resolve/duplicate-delivery bridges plus a
+deterministic live-lease/expiry executor scenario. Focused single-site and true
+multisite runs pass `4/102` each with no relevant skip; reverse and seeded
+random repeat-2 pass `8/204` each. Full regression passes unit `141/518` and
+integration `505/4566` with eight pre-existing skips; PHPCS passes `100/100`.
+The initial duplicate-delivery discovery failure was corrected to use
+WordPress's real two-argument `deleted_post` signature and was not a production
+defect. No public seam, production change or new decision gate was required.
+
 #### B21-05. Close concurrency, backoff, exhaustion and retention evidence
 
-Status: waiting_dependency
+Status: todo
 
 Goal: connect the existing ledger/policy/worker proofs to the real-flow
 identity without rewriting already sufficient component tests.
@@ -3309,7 +3320,7 @@ not make stale-Client silence look like automatic routing or reconstruction.
 
 #### B21-07. Qualify custom-adapter recovery conformance
 
-Status: waiting_dependency
+Status: todo
 
 Goal: prove custom storage participates only when it declares the approved
 atomic capability and matches the durable adapter identity.

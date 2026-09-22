@@ -1,9 +1,9 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01—B21-03 are complete; B21-04 is the
-next selected task, while B21-06 is also dependency-ready for its later review
-group. The final exact qualification candidate and protected CI results remain
-owned by B21-10/B21-Q.
+Status: active DB-04-Q manifest. B21-01—B21-04 are complete; B21-05 is the
+next selected task, while B21-06 and B21-07 are also dependency-ready for their
+shared later review group. The final exact qualification candidate and
+protected CI results remain owned by B21-10/B21-Q.
 
 ## Evidence identity
 
@@ -15,9 +15,12 @@ owned by B21-10/B21-Q.
   `ac6361fde37121eed1c4a652efdd17fa91d47c0f`.
 - Pre-commit/arm/wake-up matrix commit:
   `01daf040cccc183b713f4f31d7dccbbdae155aea`.
+- Post-commit/crash-window matrix commit:
+  `7587271fe87adbdf2a7a4a89fedb72f6cdff399c`.
 - Primary fixtures: `DeletedPostRecoveryRealFlowTest` and
-  `AtomicMutationTest`.
-- Production delta through B21-03: none. The observed paths were committed as
+  `AtomicMutationTest`, with deterministic lease-boundary evidence in
+  `DeletedPostRepairExecutorTest`.
+- Production delta through B21-04: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
 - Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
 - Final merge and post-merge identity: pending B21-Q.
@@ -85,6 +88,29 @@ cache can retain the old `WP_Post`. The corrected test asserts the posts table
 directly and cleans the fixture cache afterward. This was an observer defect,
 not red production behavior and not a new decision gate.
 
+## B21-04 post-commit and simulated crash evidence
+
+The following commands were run on exact commit `7587271`. The tests model
+durable states at process boundaries; they do not claim OS-level kill or
+exactly-once consumer-effect coverage.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Focused single-site WP | `docker compose -p wpconnections run --rm phpunit test:integration --filter 'test_(deleted_post_real_flow_(arm_survives_claim_failure_and_is_immediately_retryable\|post_commit_hook_failure_resolves_on_no_match_retry\|commit_before_resolve_deduplicates_and_converges)\|simulated_death_during_cleanup_keeps_lease_until_expiry_then_reclaims)'` | PASS — 4 tests, 102 assertions |
+| Focused true multisite WP | same filter with `test:multisite` | PASS — 4 tests, 102 assertions, no skip |
+| Reverse isolation | focused single-site command plus `--order-by=reverse --repeat=2` | PASS — 8 tests, 204 assertions |
+| Seeded random isolation | focused single-site command plus `--order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 8 tests, 204 assertions; seed `20260922` |
+| Full unit and WP integration | `docker compose -p wpconnections run --rm phpunit test:all` | PASS — unit 141 tests / 518 assertions; integration 505 tests / 4566 assertions / 8 pre-existing skips |
+| Project coding standard | `docker compose -p wpconnections run --rm phpunit cs:phpcs` | PASS — 100 source files; the pre-existing PHPCS ruleset deprecation remains non-blocking |
+
+The first discovery run passed three scenarios and failed only the duplicate
+delivery test because the test invoked WordPress's `deleted_post` action with
+one argument. WordPress core observers require the real two-argument signature:
+post ID plus deleted `WP_Post`. The corrected test preserves that snapshot,
+passes both arguments and keeps storage-hook counters attached through retry.
+This was a test-fixture defect, not red production behavior and not a new
+decision gate.
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -110,11 +136,11 @@ not red production behavior and not a new decision gate.
 | Ledger-arm failure propagates before cleanup DML and creates no false repair row | `AtomicMutationTest::test_deleted_post_real_flow_arm_failure_propagates_before_cleanup_dml` | single-site WP; true multisite WP | verified in B21-03 (`01daf04`) |
 | Scheduler failure cannot erase cleanup failure or durable retry state | `AtomicMutationTest::test_deleted_post_real_flow_scheduler_failure_preserves_retryable_work` | single-site WP; true multisite WP | verified in B21-03 (`01daf04`) |
 | Rollback-confirmation failure retains a committed `running` identity and leaves the shared session fail-closed without asserting restoration | `AtomicMutationTest::test_deleted_post_real_flow_rollback_uncertainty_stays_durable_and_fail_closed` | single-site WP; true multisite WP; second DB observer | verified in B21-03 (`01daf04`) |
-| Post-commit success-hook failure is retryable and zero-result retry resolves uncertainty | `DeletedPostRepairExecutorTest::test_post_commit_hook_failure_retries_committed_cleanup_and_zero_resolves_uncertainty` | single-site WP integration | existing component evidence; real-hook bridge — B21-04 |
-| Death after durable arm before claim leaves immediately claimable `armed` state | `DeletedPostRecoveryRealFlowTest` simulated arm-boundary method | single-site WP integration | planned — B21-04 |
-| Death during cleanup leaves `running` until lease expiry | `DeletedPostRecoveryRealFlowTest` simulated cleanup-boundary method | single-site WP integration | planned — B21-04 |
-| Death after commit before resolve leaves `running`; no-match retry resolves it | `DeletedPostRecoveryRealFlowTest` simulated commit-boundary method | single-site WP integration | planned — B21-04 |
-| Duplicate `deleted_post` delivery deduplicates one logical identity | `DeletedPostRecoveryRealFlowTest` duplicate-delivery method | single-site WP integration | planned — B21-04/B21-05 |
+| Post-commit success-hook failure is retryable and zero-result retry resolves uncertainty | `AtomicMutationTest::test_deleted_post_real_flow_post_commit_hook_failure_resolves_on_no_match_retry` plus retained executor component test | single-site WP; true multisite WP | verified in B21-04 (`7587271`) |
+| Death after durable arm before claim leaves immediately claimable `armed` state | `AtomicMutationTest::test_deleted_post_real_flow_arm_survives_claim_failure_and_is_immediately_retryable` | single-site WP; true multisite WP | verified in B21-04 (`7587271`) |
+| Death during cleanup leaves `running` until lease expiry | `DeletedPostRepairExecutorTest::test_simulated_death_during_cleanup_keeps_lease_until_expiry_then_reclaims` | single-site WP; true multisite WP | verified in B21-04 (`7587271`) |
+| Death after commit before resolve leaves `running`; no-match retry resolves it | `AtomicMutationTest::test_deleted_post_real_flow_commit_before_resolve_deduplicates_and_converges` | single-site WP; true multisite WP | verified in B21-04 (`7587271`) |
+| Duplicate `deleted_post` delivery deduplicates one logical identity | `AtomicMutationTest::test_deleted_post_real_flow_commit_before_resolve_deduplicates_and_converges` | single-site WP; true multisite WP | verified in B21-04 (`7587271`); retained race authority — B21-05 |
 
 ### Concurrency and time
 

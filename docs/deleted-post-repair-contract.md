@@ -829,10 +829,10 @@ DoD:
 
 ### DB-04-Q — real-flow, vendor, and operational closure
 
-Status: `in_progress` as Batch 21; B21-01—B21-03 are complete and B21-04 is
-the next selected task. B21-06 is also dependency-ready for its later review
-group. I1—I3, LIFE-HOOK-01 and all approved gates are complete. No open
-decision gate exists at entry.
+Status: `in_progress` as Batch 21; B21-01—B21-04 are complete and B21-05 is
+the next selected task. B21-06 and B21-07 are also dependency-ready for their
+shared later review group. I1—I3, LIFE-HOOK-01 and all approved gates are
+complete. No open decision gate exists at entry.
 
 Scope: end-to-end `wp_delete_post()` behavior, failure/crash/concurrency matrix,
 true multisite lane, pinned vendors, docs, runbook, and independent QA.
@@ -895,7 +895,7 @@ evidence.
 | --- | --- | --- |
 | Real success cascade | `ClientIsolationTest::test_semantic_post_deletion_lifecycle_controls_real_cleanup_once`, `EntityValidationTest::test_deleted_post_cascade_cleans_legacy_row_without_endpoint_resolution` (single-site WP); the former is incoming/to-end, the latter outgoing/from-end with metadata | B21-02 completed at `ac6361f`; self, multi-relation, multi-Client, attachment/trash and isolation evidence is exact in the active manifest |
 | Pre-commit recovery | `AtomicMutationTest::test_deleted_post_callback_uses_atomic_delete_boundary` (single-site WP) plus DB-05 atomic fault tests | B21-03 completed at `01daf04`; selector/meta/connection, transaction, attempt-hook, ledger-arm, scheduler and rollback-uncertainty evidence is exact in the active manifest |
-| Commit/crash uncertainty | `DeletedPostRepairExecutorTest::test_post_commit_hook_failure_retries_committed_cleanup_and_zero_resolves_uncertainty` (WP executor) | real hook plus simulated death after durable arm before claim, during cleanup and after commit before resolve → B21-04 |
+| Commit/crash uncertainty | `DeletedPostRepairExecutorTest::test_post_commit_hook_failure_retries_committed_cleanup_and_zero_resolves_uncertainty` (WP executor) | B21-04 completed at `7587271`; real hook plus simulated durable states cover arm-before-claim, live/expired cleanup lease, commit-before-resolve, duplicate delivery and idempotent no-match convergence |
 | Concurrency and time | `DeletedPostRepairLedgerTest::test_two_database_contenders_cannot_both_acquire_one_live_lease`, `test_automatic_claim_ceiling_moves_expired_ninth_claim_to_attention_without_a_tenth`, `test_manual_due_claim_bypasses_ceiling_but_not_future_or_attention_state`; policy `test_retry_delay_table`; worker `test_retention_runs_only_beyond_strict_boundary_and_uses_same_batch_bound` | bind the same real-flow identity from initial failure through retry/resolution and record every retained lane → B21-05 |
 | Multisite context | `ClientIsolationTest::test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix` (true multisite, one active-site incoming cleanup) plus direct-hook migration tests | real active/inactive/restored same-name/same-ID matrix → B21-06 |
 | Adapter conformance | hook-migration non-atomic zero-write and persisted custom-failure tests; ledger adapter-fingerprint mismatch test | custom atomic success/failure/no-match and missing-client/fingerprint outcomes through real deletion → B21-07 |
