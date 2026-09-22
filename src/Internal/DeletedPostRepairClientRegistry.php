@@ -234,7 +234,14 @@ final class DeletedPostRepairClientRegistry
         try {
             $this->signalReconciliation($owner['context']);
         } catch (Throwable $failure) {
-            $this->owners[ $ownerKey ]['automatic'] = false;
+            $current = $this->owners[ $ownerKey ] ?? null;
+            if (
+                null !== $current &&
+                $current['client_id'] === $clientId &&
+                $current['token'] === $token
+            ) {
+                $this->owners[ $ownerKey ]['automatic'] = false;
+            }
             throw $failure;
         }
 
