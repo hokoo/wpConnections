@@ -1,6 +1,6 @@
 # Deleted-post recovery verification manifest
 
-Status: active DB-04-Q manifest. B21-01—B21-06 are complete; B21-07 is the
+Status: active DB-04-Q manifest. B21-01—B21-07 are complete; B21-08 is the
 next selected task. The final exact qualification candidate and
 protected CI results remain owned by B21-10/B21-Q.
 
@@ -21,10 +21,12 @@ protected CI results remain owned by B21-10/B21-Q.
 - True-multisite routing matrix commits:
   `6a9726b` (same-name/same-ID behavior) and
   `39189ffdb047b366ba88837bee57f86f9a77658f` (repeat-safe fixture teardown).
+- Custom-adapter real-flow matrix commit:
+  `89dbbe78075dd978d224ee0b997a706512ca8a98`.
 - Primary fixtures: `DeletedPostRecoveryRealFlowTest` and
   `AtomicMutationTest`, with deterministic lease-boundary evidence in
   `DeletedPostRepairExecutorTest`.
-- Production delta through B21-06: none. The observed paths were committed as
+- Production delta through B21-07: none. The observed paths were committed as
   characterization because the approved behavior was already correct.
 - Final exact candidate: pending B21-10 after B21-01—B21-09 are complete.
 - Final merge and post-merge identity: pending B21-Q.
@@ -169,6 +171,44 @@ while that site database still exists. That was a fixture-lifecycle defect,
 not a production routing defect. No production change or new decision gate
 was required.
 
+## B21-07 custom-adapter conformance evidence
+
+The following commands were run against exact test candidate
+`89dbbe78075dd978d224ee0b997a706512ca8a98`. The custom atomic fixture owns
+seeded connection/meta state and implements rollback around its operation. A
+separate mode deliberately models commit-confirmation uncertainty by retaining
+the mutation and throwing after the operation, so the retry exercises the
+approved idempotent no-match path.
+
+| Lane | Command | Result |
+| --- | --- | --- |
+| Focused real-flow custom adapters | `docker compose -p wpconnections run --rm phpunit test:integration --filter 'test_(real_delete_custom_atomic\|real_delete_waits_for_fresh_custom_client\|real_delete_adapter_fingerprint_mismatch\|non_atomic_storage_performs_zero_writes)'` | PASS — 6 tests, 62 assertions |
+| Reverse isolation | focused command plus `--order-by=reverse --repeat=2` | PASS — 12 tests, 124 assertions |
+| Seeded random isolation | focused command plus `--order-by=random --random-order-seed=20260922 --repeat=2` | PASS — 12 tests, 124 assertions; seed `20260922` |
+| Full hook-migration single-site | `docker compose -p wpconnections run --rm phpunit test:integration --filter DeletedPostRepairHookMigrationTest` | PASS — 27 tests, 121 assertions, 5 expected multisite-only skips |
+| Full hook-migration true multisite | same filter with `test:multisite` | PASS — 27 tests, 139 assertions, no skip |
+| Fingerprint component authority | `docker compose -p wpconnections run --rm phpunit test:integration --filter test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml` | PASS — 1 test, 21 assertions |
+| Full unit and WP integration | `docker compose -p wpconnections run --rm phpunit test:all` | PASS — unit 141 tests / 518 assertions; integration 513 tests / 4649 assertions / 10 expected skips |
+| Project coding standard | `docker compose -p wpconnections run --rm phpunit cs:phpcs` | PASS — 100 source files; the pre-existing PHPCS ruleset deprecation remains non-blocking |
+| Changed fixture syntax | `docker compose -p wpconnections run --rm phpunit php -l tests/iTRON/wpConnections/WP/DeletedPostRepairHookMigrationTest.php` | PASS — no syntax errors |
+
+Real `wp_delete_post()` now proves custom atomic success, rollback-preserved
+pre-commit failure, manual retry, committed no-match convergence, and
+non-atomic rejection before any cleanup call. After the failing Client is
+disposed, a scheduled runner with no fresh Client performs no storage call and
+leaves the due row and seeded data intact; a fresh same-class Client can then
+resolve it. Replacing the adapter class for the same Client name produces
+`adapter_mismatch`/`needs_attention` before any replacement-adapter call and
+preserves the seeded rows.
+
+The call log intentionally shows that a retry can invoke an idempotent adapter
+twice; unrelated adapter side effects remain outside the exactly-once contract.
+Direct PHPCS of this pre-existing test file reports only its three unchanged
+structural findings: its test doubles share one file and its old teardown
+exceeds the configured nesting limit. No new-line style error was introduced;
+canonical source PHPCS remains green. No production change or new decision
+gate was required.
+
 ## Traceability matrix
 
 ### Real deletion and data effect
@@ -218,10 +258,10 @@ was required.
 | Active-site cleanup does not mutate the previous site's default-storage rows | `ClientIsolationTest::test_default_storage_is_prefix_bound_and_fresh_client_uses_new_prefix` plus `DeletedPostRecoveryRealFlowTest::test_real_multisite_delete_routes_same_name_and_post_id_to_active_client` | dedicated true multisite WP | verified in B21-06 (`6a9726b`, `39189ff`) |
 | Same Client name and numeric post ID stay independent on two blogs through real deletion | `DeletedPostRecoveryRealFlowTest::test_real_multisite_delete_routes_same_name_and_post_id_to_active_client` and `test_real_multisite_failure_ledgers_are_independent_for_same_name_and_post_id` | dedicated true multisite WP | verified in B21-06 (`6a9726b`, `39189ff`) |
 | Active, inactive and restored contexts require a fresh per-site Client | `DeletedPostRecoveryRealFlowTest::test_real_multisite_delete_routes_same_name_and_post_id_to_active_client` | dedicated true multisite WP | verified in B21-06 (`6a9726b`, `39189ff`) |
-| Non-atomic custom storage performs zero writes and exposes redacted attention | `DeletedPostRepairHookMigrationTest::test_non_atomic_storage_performs_zero_writes_and_exposes_redacted_attention` | WP integration | existing component evidence; real-flow bridge — B21-07 |
-| Adapter fingerprint mismatch fails closed before claim or connection DML | `DeletedPostRepairLedgerTest::test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml` | WP integration | existing component evidence; real-flow bridge — B21-07 |
-| Custom atomic success, failure and committed no-match retry follow default durable outcomes | `DeletedPostRecoveryRealFlowTest` custom-adapter methods | WP integration | planned — B21-07 |
-| Missing fresh Client remains visible and performs no mutation | `DeletedPostRecoveryRealFlowTest` missing-client method | WP integration | planned — B21-07 |
+| Non-atomic custom storage performs zero writes and exposes redacted attention | `DeletedPostRepairHookMigrationTest::test_non_atomic_storage_performs_zero_writes_and_exposes_redacted_attention` through real `wp_delete_post()` | WP integration; true multisite WP | verified in B21-07 (`89dbbe7`) |
+| Adapter fingerprint mismatch fails closed before claim or connection DML | `DeletedPostRepairLedgerTest::test_adapter_fingerprint_mismatch_fails_closed_without_claim_or_connection_dml` plus `DeletedPostRepairHookMigrationTest::test_real_delete_adapter_fingerprint_mismatch_fails_closed` | WP integration | verified in B21-07 (`89dbbe7`) |
+| Custom atomic success, failure and committed no-match retry follow default durable outcomes | `DeletedPostRepairHookMigrationTest::test_real_delete_custom_atomic_success_cleans_seeded_rows`, `test_real_delete_custom_atomic_precommit_failure_rolls_back_and_retries`, and `test_real_delete_custom_atomic_commit_uncertainty_resolves_on_no_match` | WP integration; true multisite WP | verified in B21-07 (`89dbbe7`) |
+| Missing fresh Client remains visible and performs no mutation | `DeletedPostRepairHookMigrationTest::test_real_delete_waits_for_fresh_custom_client_before_retry` | WP integration; true multisite WP | verified in B21-07 (`89dbbe7`) |
 
 ### Operator, preservation and infrastructure
 

@@ -3033,7 +3033,7 @@ nine-claim/retention policy, introduces destructive uninstall behavior,
 changes schema or weakens the fail-closed/consumer-responsibility boundary.
 
 Execution model: B21-01 froze the missing observable contract before any
-production correction; B21-01—B21-06 are complete. B21-07 is the next selected
+production correction; B21-01—B21-07 are complete. B21-08 is the next selected
 task. Every
 later task remains `waiting_dependency` until its explicit DoR is true. The
 default review groups
@@ -3348,7 +3348,7 @@ No production change or new decision gate was required.
 
 #### B21-07. Qualify custom-adapter recovery conformance
 
-Status: todo
+Status: completed
 
 Goal: prove custom storage participates only when it declares the approved
 atomic capability and matches the durable adapter identity.
@@ -3389,9 +3389,33 @@ Notes/Risks: an anonymous or replaced adapter can change its fingerprint across
 requests; qualification must preserve rather than silently rewrite the stored
 identity.
 
+Completion evidence: test-only commit
+`89dbbe78075dd978d224ee0b997a706512ca8a98` extends the existing custom
+storage fixture with seeded connection/meta state and real `wp_delete_post()`
+coverage. Custom atomic success removes both states and leaves no repair;
+pre-commit failure restores both and resolves on manual retry; modeled
+commit-confirmation uncertainty retains the committed deletion and resolves on
+an idempotent zero-match retry. A due repair with no fresh Client receives no
+cron-driven storage call and remains visible until same-class reconstruction.
+A replacement storage class reaches fail-closed fingerprint mismatch and
+`needs_attention` before any replacement-adapter cleanup call. The non-atomic
+fixture receives zero cleanup calls and records redacted attention.
+
+Focused real-flow coverage passes `6/62`; reverse and seed-`20260922`
+repeat-2 pass `12/124`; the full hook-migration fixture passes single-site
+`27/121` with five expected multisite-only skips and true multisite `27/139`
+without skips. The retained fingerprint authority passes `1/21`. Full
+regression passes unit `141/518` and integration `513/4649` with ten expected
+skips; source PHPCS passes `100/100` and the changed fixture has valid syntax.
+Direct PHPCS of that old test file still reports only its three pre-existing
+structural findings (multiple test doubles in one file and old teardown
+nesting); no changed-line violation was added. Adapter call logs deliberately
+remain at-least-once, so unrelated side effects are not claimed exactly once.
+No production change or new decision gate was required.
+
 #### B21-08. Close degraded-cron and operator-service evidence
 
-Status: waiting_dependency
+Status: todo
 
 Goal: make every non-automatic recovery state actionable with the already
 public PHP service when WP-Cron is disabled, late or unavailable.

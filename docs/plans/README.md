@@ -98,12 +98,13 @@
 15. DB-04-Q разложен и начат как Batch 21: real `wp_delete_post()` cascade,
     recovery/crash windows, true-multisite и custom-adapter qualification,
     operator/rollback/uninstall runbook, pinned vendors и exact delivery
-    evidence. B21-01—B21-06 завершены: fixture `0a15b4d`, data matrix
+    evidence. B21-01—B21-07 завершены: fixture `0a15b4d`, data matrix
     `ac6361f`, pre-commit/arm/wake-up matrix `01daf04`, post-commit/crash
     matrix `7587271`, due-retry bridge `e039db0` и true-multisite
     same-name/same-ID matrix `6a9726b` + repeat-safe teardown `39189ff`
-    зафиксированы в verification manifest. B21-07 выбран следующим. Новых
-    decision gates нет. Batch 21 не добавляет public API и не выпускает tag.
+    зафиксированы в verification manifest. Custom-adapter real-flow matrix
+    `89dbbe7` также завершена. B21-08 выбран следующим. Новых decision gates
+    нет. Batch 21 не добавляет public API и не выпускает tag.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.
