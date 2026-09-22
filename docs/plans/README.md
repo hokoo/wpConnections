@@ -15,9 +15,15 @@ open P0—P3. Authoritative evidence находится в
 [Batch 22 checkpoint](batch22-checkpoint.md). REST-05 завершён через PR #111:
 exact head `b141347` и merge `2b4a1cd` прошли 20/20 protected/post-merge
 contexts; точные local и delivery результаты находятся в
-[Batch 23 checkpoint](batch23-checkpoint.md). REST-06 находится в `review`;
-selector contract и текущий focused evidence записаны в
-[`rest-relation-selectors.md`](../rest-relation-selectors.md).
+[Batch 23 checkpoint](batch23-checkpoint.md). REST-06 завершён через PR #112:
+exact head `6cdc9fe` и merge `93bea9b` прошли по 20/20 required contexts, issue
+#21 закрыт, а fresh E4 Epic QA вернул принятый `pass_with_notes`. Полная
+provenance находится в [Batch 24 checkpoint](batch24-checkpoint.md), selector
+contract — в [`rest-relation-selectors.md`](../rest-relation-selectors.md).
+API-03 dependency-ready (`todo`), но не начата: по указанию владельца после
+завершения текущего Batch 24 работа останавливается. API-04 и DOC-01 сохраняют
+последующие dependencies; DB-06R остаётся отдельной неблокирующей
+`needs_design` задачей.
 
 ## Порядок исполнения
 
@@ -157,14 +163,14 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged functional baseline — Batch 22 / REST-04 PR #110, merge
-  `5f4c54444ae9331334a74c563ac200a19d1336d0`. Exact protected head
-  `c91388ebb42b9c14c8b44757d6214b9ac775639f` и merge прошли по 20/20
-  contexts; fresh final QA вернул `pass_with_notes` без open P0—P3. Batch 21 /
-  DB-04-Q ранее завершён PR #108 и closeout PR #109. Terminal Client
-  lifecycle, manager-backed recovery, real-flow/vendor/operational
-  qualification и REST permissions завершены. REST-05 завершён PR #111;
-  REST-06 находится в `review`.
+- Текущий merged functional baseline — Batch 24 / REST-06 PR #112, merge
+  `93bea9b57b5dcdb3c1d82e2d03da1cb7e920531d`. Exact protected head
+  `6cdc9feddcbad49eb77c95ec2882017c19bd1169` и merge прошли по 20/20 required
+  contexts; fresh E4 Epic QA вернул принятый `pass_with_notes` без blocking
+  findings, exception или waiver. Issue #21 закрыт. API-03 dependency-ready,
+  но не начата; владелец потребовал остановиться после Batch 24. API-04 и DOC-01
+  сохраняют downstream dependencies, а DB-06R — отдельный nonblocking
+  `needs_design` follow-up.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
@@ -249,8 +255,9 @@ map находятся в
   Выявленные при декомпозиции Batch 18 DG-DELETE-06R4—DG-DELETE-06R6
   утверждены вариантом A владельцем 2026-09-21.
   DG-API20-01—DG-API20-09 также утверждены владельцем 2026-09-14 в вариантах
-  B/B/A/B/B/A/B/B/B; REST-06 теперь `review`, API-03 ждёт REST-06, а API-04 и
-  DOC-01 сохраняют последующие dependencies. Полные тексты находятся в
+  B/B/A/B/B/A/B/B/B; REST-06 завершён и E4 принят. API-03 dependency-ready, но
+  не начата из-за stop instruction после Batch 24; API-04 и DOC-01 сохраняют
+  последующие dependencies. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
   [storage SPI contract](../storage-spi-contract.md),
@@ -283,7 +290,9 @@ map находятся в
   [`rest-connection-contract.md`](../rest-connection-contract.md). REST-04
   позднее завершён Batch 22 / PR #110; REST-05 завершён PR #111, а
   его metadata contract записан в
-  [`rest-meta-contract.md`](../rest-meta-contract.md).
+  [`rest-meta-contract.md`](../rest-meta-contract.md). REST-06 завершён Batch 24 /
+  PR #112; E4 принят, а полная evidence provenance записана в
+  [Batch 24 checkpoint](batch24-checkpoint.md).
 - DB-04-D завершена PR #97: current call graph, crash windows, pre-armed
   ledger, retry state machine, operator boundary и executable slices записаны в
   [`deleted-post-repair-contract.md`](../deleted-post-repair-contract.md).

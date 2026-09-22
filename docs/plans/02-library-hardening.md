@@ -73,10 +73,14 @@ post-merge checks. LIFE-HOOK-01 завершён в Batch 20 / PR #106. Batch 21
 DB-04-I / DB-04-Q и B21-Q завершены: qualification PR #108 и closeout PR #109
 влиты, exact closeout merge `ba0b546` прошёл 20/20 post-merge checks, а fresh
 final QA вернул `pass_with_notes` без P0—P3, decision gate или exception.
-REST-04 выполняется по существующему контракту ниже.
+REST-04, REST-05 и REST-06 завершены; fresh E4 Epic QA вернул принятый
+`pass_with_notes` без blocking findings, exception или waiver. Полная provenance
+REST-06 и E4 записана в [Batch 24 checkpoint](batch24-checkpoint.md).
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
-вариантах B/B/A/B/B/A/B/B/B. REST-06 теперь `review`; API-03 ждёт завершения
-REST-06, а API-04 и DOC-01 сохраняют свои последующие dependencies.
+вариантах B/B/A/B/B/A/B/B/B. API-03 теперь dependency-ready (`todo`), но не
+начата: владелец потребовал завершить Batch 24 и остановиться. API-04 и DOC-01
+сохраняют свои последующие dependencies; DB-06R остаётся отдельной
+неблокирующей `needs_design` задачей.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
 `needs_design` только там, где их остальные DoR и dependencies действительно
@@ -1129,9 +1133,9 @@ Decision packets:
 | DP-3 Client bootstrap | DG-NAME-01—06R, DG-SPI-07 | NAME-01—06 approved A; NAME-06R approved staged A-to-D; SPI-07 approved A, 2026-09-11 | CORE-06R; naming/migration preflight and compatible 1.x callback delivery |
 | DP-4 Persistence integrity | DG-UPDATE-03/04, DG-SPI-03/04/06, DG-DB-01—04 | approved: UPDATE-03/04/A, SPI-03/04/06/A, DB-01—03/A, DB-04/A-R; SPI-04R/06R/06R2 refinements approved A | DB-02/DB-05/DB-06 completed; remaining consumers use the approved contracts |
 | DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D, DB-04-I and DB-04-Q completed |
-| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03 completed; REST-04 in review; REST-05 ready |
-| DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 ready |
-| DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 waits REST-06; API-04/DOC-01 retain downstream dependencies |
+| DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03—REST-05 completed |
+| DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 completed; issue #21 closed |
+| DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 dependency-ready but not started; API-04/DOC-01 retain downstream dependencies |
 | DP-9 Factory compatibility | DG-SPI-05 | approved A for v1, C next-major target, 2026-09-14 | REL-02/release documentation contract fixed |
 
 Entry criteria:
@@ -5769,8 +5773,9 @@ contexts and received fresh final QA `pass_with_notes`. B21-Q, Batch 21,
 DB-04-I and DB-04-Q are completed. The batch qualifies the existing contract
 without adding a new public surface or destructive uninstall behavior.
 REST-04 later completed through Batch 22 / PR #110 and exact merge `5f4c544`;
-REST-05 completed through PR #111 and exact merge `2b4a1cd`; REST-06 is in
-review. HOOK-04, REL-02 and REL-03 remain release dependencies.
+REST-05 completed through PR #111 and exact merge `2b4a1cd`; REST-06 completed
+through Batch 24 / PR #112 and exact merge `93bea9b`, with E4 accepted.
+HOOK-04, REL-02 and REL-03 remain release dependencies.
 
 ### DB-05. Сделать составные storage operations атомарными
 
@@ -6633,7 +6638,7 @@ Notes/Risks:
 
 ### REST-06. Реализовать filters relation list из issue #21
 
-Status: review
+Status: completed
 
 Priority: P1
 
@@ -6688,12 +6693,13 @@ Notes/Risks:
 - Любое будущее расширение pagination вне approved API-04 scope требует нового
   contract/task, а не неявного расширения REST-06.
 - Реализация и public handoff записаны в
-  [`rest-relation-selectors.md`](../rest-relation-selectors.md). Focused current
-  full-dispatch и lifecycle candidate проходит 50 tests / 404 assertions с
-  одним expected single-site skip; расширенный relevant selector/lifecycle/
-  storage/permission ladder проходит 159 tests / 1639 assertions с двумя
-  expected environment skips. Protected delivery и закрытие issue #21 остаются
-  до перевода REST-06 в `completed`; E4 ждёт fresh Epic QA.
+  [`rest-relation-selectors.md`](../rest-relation-selectors.md). PR #112 head
+  `6cdc9feddcbad49eb77c95ec2882017c19bd1169` и exact merge
+  `93bea9b57b5dcdb3c1d82e2d03da1cb7e920531d` прошли по 20/20 required
+  contexts; issue #21 закрыт. Fresh E4 Epic QA вернул принятый
+  `pass_with_notes` без blocking finding, exception или waiver. Точные local,
+  protected и QA evidence, включая nonblocking test-depth note, записаны в
+  [Batch 24 checkpoint](batch24-checkpoint.md).
 
 ## E5. Незавершённый API, related entities и документация
 
@@ -6814,8 +6820,9 @@ Notes/Risks:
 - Issues #20/#21 и отсутствие комментариев повторно проверены 2026-09-10;
   production-код не изменялся.
 - DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
-  вариантах B/B/A/B/B/A/B/B/B. REST-06 разблокирован; API-03 ждёт REST-06,
-  API-04 ждёт API-03/REST-06, а DOC-01 — завершённые REST tasks и API-04.
+  вариантах B/B/A/B/B/A/B/B/B. REST-06 завершён; API-03 dependency-ready, но
+  не начата по stop instruction владельца после Batch 24. API-04 ждёт API-03,
+  а DOC-01 — API-04; их зависимости от завершённых REST tasks удовлетворены.
 
 Verification:
 
@@ -6888,7 +6895,7 @@ Verification:
 
 ### API-03. Реализовать bulk resolution связанных entities
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
@@ -6942,8 +6949,9 @@ Dependencies:
 Notes/Risks:
 
 - Реализация не должна заставлять storage отвечать за entity permissions.
-- Все собственные decision gates API-03 утверждены; текущая блокировка — только
-  незавершённый REST-06.
+- Все decision gates и dependencies API-03 выполнены. Задача dependency-ready,
+  но не начата: владелец потребовал завершить текущий Batch 24 и остановиться;
+  новый product batch требует нового continuation request.
 
 ### API-04. Реализовать opt-in REST representation issue #20
 
@@ -6996,8 +7004,8 @@ Notes/Risks:
 
 - Entity filtering и pagination должны выполняться в утверждённом порядке, иначе
   страницы и totals будут вводить consumer в заблуждение.
-- Все собственные public-contract gates утверждены; задача остаётся зависимой от
-  API-03 и REST-06.
+- Все собственные public-contract gates утверждены, а REST-06 завершён; задача
+  остаётся зависимой от API-03.
 
 ### API-05. Спроектировать selection connections по stored metadata
 
@@ -8149,7 +8157,7 @@ Notes/Risks:
 | Confirmed: REST update uninitialized `title` | TEST-02D, REST-02 |
 | Confirmed: broken `both` placeholder | TEST-02E, DB-01 |
 | Closed [#31 error code tests](https://github.com/hokoo/wpConnections/issues/31) | CORE-03, REST-03 |
-| Open [#21 REST filters](https://github.com/hokoo/wpConnections/issues/21) | REST-06 |
+| Closed [#21 REST filters](https://github.com/hokoo/wpConnections/issues/21) | REST-06 |
 | Open [#20 entities/getPosts](https://github.com/hokoo/wpConnections/issues/20) | API-01, API-03, API-04, DOC-01 |
 | Open [#27 OpenAPI](https://github.com/hokoo/wpConnections/issues/27) | DOC-01 |
 | Open [#28 dashboard](https://github.com/hokoo/wpConnections/issues/28) | PROD-01 deferred initiative |
