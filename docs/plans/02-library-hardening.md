@@ -2953,17 +2953,19 @@ Dependencies: B20-01—B20-06.
 Progress evidence: public README and hook lifecycle/inventory contracts now
 define explicit per-site disposal, terminal reactivation failures, retained
 direct-domain behavior, shared-infrastructure boundaries and rollback. Corrected
-production head `76624ad` passes unit `139/509`, full single-site `488/4271`
+production head `a022c8e` passes unit `141/518`, full single-site `488/4271`
 with eight expected skips, full true multisite `488/4314`, focused lifecycle
 single-site `12/119` with two expected skips, focused true-multisite `12/131`,
-and PHPCS `100/100`. Fixed-floor combined coverage is `627/4778` and
-`3821/4168` statements (`91.67%`), with the RC gate ready. Isolation seed
-`20260922` passes unit reverse/random repeat-2 at `278/1018` each and
+and PHPCS `100/100`. Fixed-floor combined coverage is `629/4787` and
+`3825/4172` statements (`91.68%`), with the RC gate ready. Isolation seed
+`20260922` passes unit reverse/random repeat-2 at `282/1036` each and
 WordPress reverse/random at `976/8542` each with 16 expected skips. Pinned
 MySQL 8.0.46 and MariaDB 10.11.16 each pass `488/4271` with eight expected
-skips; synthetic quality tools pass. Independent QA returned PASS after the
-late-rebind correction with no open P0--P3 or new decision gate. Final
-docs-only exact audit, protected merge and post-merge evidence remain pending.
+skips; synthetic quality tools pass. A final lifecycle review found a repair
+re-enable catch that could recreate a revoked owner or mutate a replacement;
+commit `a022c8e` adds two red-first token/ABA regressions and owner-matched
+rollback. Final exact re-audits, protected merge and post-merge evidence remain
+pending; the correction requires no new decision gate.
 
 ## E1. Test foundation и regression harness
 

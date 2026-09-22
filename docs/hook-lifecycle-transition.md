@@ -324,18 +324,20 @@ Batch 20 verification adds:
   Client;
 - neighboring and same-name multisite Client isolation.
 
-The corrected Batch 20 production head `76624ad` passes unit `139/509`, full
+The corrected Batch 20 production head `a022c8e` passes unit `141/518`, full
 single-site integration `488/4271` with eight expected multisite skips, full
 true multisite `488/4314`, focused lifecycle single-site `12/119` with two
 expected multisite skips, focused true-multisite lifecycle `12/131`, and PHPCS
-`100/100`. Fixed-floor combined coverage passes the RC policy at `627/4778`
-with `3821/4168` statements (`91.67%`). Isolation seed `20260922` passes unit
-reverse/random repeat-2 at `278/1018` each and WordPress reverse/random at
+`100/100`. Fixed-floor combined coverage passes the RC policy at `629/4787`
+with `3825/4172` statements (`91.68%`). Isolation seed `20260922` passes unit
+reverse/random repeat-2 at `282/1036` each and WordPress reverse/random at
 `976/8542` each with 16 expected skips. Pinned MySQL 8.0.46 and MariaDB
 10.11.16 each pass `488/4271` with eight expected skips; the synthetic quality
-tools pass. Independent QA returned PASS with no open P0--P3 or new decision
-gate after the late-rebind reentrancy correction. Final docs-only exact audit,
-protected merge and post-merge evidence remain B20-Q work.
+tools pass. A final lifecycle review found that a failing reentrant repair
+re-enable could recreate a revoked owner or mutate its replacement; commit
+`a022c8e` adds two red-first token/ABA regressions and limits catch rollback to
+the original owner. Final exact re-audits, protected merge and post-merge
+evidence remain B20-Q work.
 
 DB-04-D discovered that generic repair must surround the Storage call, while
 HOOK-03 previously waited for the whole DB-04 task. The dependency map is now

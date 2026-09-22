@@ -90,11 +90,12 @@
     Batch 20 / LIFE-HOOK-01 начат от этого exact baseline. B20-01—B20-06
     completed локально: поставлены public terminal `Client::dispose()`,
     constructor rollback, REST/repair reentrancy guards, retention/multisite
-    regressions и migration contract. Corrected production head `76624ad`
-    прошёл full single-/true-multisite, coverage, isolation, обе pinned DB
-    lanes, PHPCS и synthetic quality tools; independent QA дал PASS без open
-    P0—P3 или новых decision gates. B20-Q ожидает docs-only exact audit,
-    protected merge и post-merge evidence.
+    regressions и migration contract. Corrected production head `a022c8e`
+    дополнительно закрывает token/ABA rollback defect, найденный финальным
+    lifecycle review, и прошёл full single-/true-multisite, coverage,
+    isolation, обе pinned DB lanes, PHPCS и synthetic quality tools. Нового
+    decision gate не требуется; B20-Q ожидает exact re-audits, protected merge
+    и post-merge evidence.
 
 Инфраструктурный task list находится в
 [отдельном плане](./01-infrastructure-ci.md); его milestone M0 закрыт.

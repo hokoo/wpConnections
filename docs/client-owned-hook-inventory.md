@@ -112,10 +112,11 @@ Committed regressions cover same-identity replacement, native no-owner REST
 dispatch, neighboring Client preservation, same-name true-multisite isolation,
 strong-reference release and disposal reentrancy during custom REST init, route
 owner publication, late-server rebind, repair readiness and cleanup re-enable.
-Independent QA passed the corrected production head without open P0--P3 or a
-new decision gate. Final docs-only exact audit, protected merge and post-merge
-evidence remain B20-Q work; HOOK-04 still owns the release-wide consumer scan
-and changelog warning.
+The repair re-enable rollback is token-checked as well: if reconciliation
+reentrantly revokes the original owner and then fails, catch neither recreates
+a ghost owner nor mutates a same-name replacement. Final exact re-audits,
+protected merge and post-merge evidence remain B20-Q work; HOOK-04 still owns
+the release-wide consumer scan and changelog warning.
 
 ## Audit method and completeness boundary
 
