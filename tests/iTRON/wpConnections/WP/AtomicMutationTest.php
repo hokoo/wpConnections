@@ -10,7 +10,9 @@ use iTRON\wpConnections\ConnectionCollection;
 use iTRON\wpConnections\Exceptions\StorageCapabilityUnavailable;
 use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Helpers\Database;
+use iTRON\wpConnections\Internal\DeletedPostRepairStatus;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
+use iTRON\wpConnections\Internal\WordPressDeletedPostRepairScheduler;
 use iTRON\wpConnections\Meta;
 use iTRON\wpConnections\MetaCollection;
 use iTRON\wpConnections\Query\Connection as ConnectionQuery;
@@ -20,6 +22,7 @@ use iTRON\wpConnections\Query\Relation as RelationQuery;
 use iTRON\wpConnections\WPStorage;
 use PHPUnit\Framework\TestCase;
 use Throwable;
+use WP_Error;
 
 class AtomicMutationIncapableStorage extends Storage
 {
@@ -125,6 +128,7 @@ class AtomicMutationTest extends TestCase
 
 		try {
 			$wpdb->query( 'ROLLBACK' );
+			$this->reset_shared_transaction_taint();
 			foreach ( array_reverse( $this->clients ) as $client ) {
 				$this->cleanup_client( $client );
 			}
@@ -418,6 +422,278 @@ class AtomicMutationTest extends TestCase
 				\iTRON\wpConnections\Internal\DeletedPostRepairStatus::RETRY_WAIT
 			)->getItems()
 		);
+	}
+
+	/**
+	 * @dataProvider deleted_post_precommit_fault_provider
+	 */
+	public function test_deleted_post_real_flow_precommit_failure_is_retryable_after_confirmed_rollback(
+		string $stage
+	): void {
+		$connection = $this->create_connection( "deleted-post-{$stage}", 'preserved' );
+		$deleted_calls = 0;
+		$deleted = static function () use ( &$deleted_calls ): void {
+			$deleted_calls++;
+		};
+		add_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+
+		$deleted_post = null;
+		try {
+			$failure = $this->capture_query_failure(
+				$this->deleted_post_fault_matcher( $stage ),
+				function () use ( &$deleted_post ): void {
+					$deleted_post = wp_delete_post( $this->post_ids['from'], true );
+				},
+				false
+			);
+		} finally {
+			remove_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+		}
+
+		self::assertNull( $failure );
+		self::assertInstanceOf( \WP_Post::class, $deleted_post );
+		self::assertNull( get_post( $this->post_ids['from'] ) );
+		self::assertSame( 1, $this->connection_count( $connection->id ) );
+		self::assertSame( 1, $this->meta_count( $connection->id ) );
+		self::assertSame( 0, $deleted_calls );
+		$this->assert_retry_wait_repair( $this->post_ids['from'], 'storage' );
+	}
+
+	public function deleted_post_precommit_fault_provider(): array
+	{
+		return [
+			'selector read' => [ 'selector' ],
+			'metadata delete' => [ 'meta' ],
+			'transaction start' => [ 'start' ],
+			'transaction commit' => [ 'commit' ],
+		];
+	}
+
+	public function test_deleted_post_real_flow_attempt_hook_throwable_is_retryable_without_writes(): void
+	{
+		$connection = $this->create_connection( 'deleted-post-attempt-hook', 'preserved' );
+		$attempt_calls = 0;
+		$deleted_calls = 0;
+		$attempt = static function () use ( &$attempt_calls ): void {
+			$attempt_calls++;
+			throw new \RuntimeException( 'sensitive attempt-hook failure' );
+		};
+		$deleted = static function () use ( &$deleted_calls ): void {
+			$deleted_calls++;
+		};
+		add_action( 'wpConnections/storage/deleteByObjectID', $attempt );
+		add_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+
+		try {
+			$deleted_post = wp_delete_post( $this->post_ids['from'], true );
+		} finally {
+			remove_action( 'wpConnections/storage/deleteByObjectID', $attempt );
+			remove_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+		}
+
+		self::assertInstanceOf( \WP_Post::class, $deleted_post );
+		self::assertSame( 1, $attempt_calls );
+		self::assertSame( 1, $this->connection_count( $connection->id ) );
+		self::assertSame( 1, $this->meta_count( $connection->id ) );
+		self::assertSame( 0, $deleted_calls );
+		$this->assert_retry_wait_repair( $this->post_ids['from'], 'cleanup' );
+	}
+
+	public function test_deleted_post_real_flow_arm_failure_propagates_before_cleanup_dml(): void
+	{
+		$connection = $this->create_connection( 'deleted-post-arm-failure', 'preserved' );
+		$attempt_calls = 0;
+		$deleted_calls = 0;
+		$attempt = static function () use ( &$attempt_calls ): void {
+			$attempt_calls++;
+		};
+		$deleted = static function () use ( &$deleted_calls ): void {
+			$deleted_calls++;
+		};
+		add_action( 'wpConnections/storage/deleteByObjectID', $attempt );
+		add_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+
+		global $wpdb;
+		$repair_table = $wpdb->prefix . self::REPAIR_TABLE_BASENAME;
+		try {
+			$failure = $this->capture_query_failure(
+				static function ( string $query ) use ( $repair_table ): bool {
+					return 0 === stripos( trim( $query ), "INSERT INTO `{$repair_table}`" );
+				},
+				function (): void {
+					wp_delete_post( $this->post_ids['from'], true );
+				},
+				false
+			);
+		} finally {
+			remove_action( 'wpConnections/storage/deleteByObjectID', $attempt );
+			remove_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+		}
+
+		$this->assert_storage_failure( 'arm deleted-post repair', $failure );
+		self::assertSame(
+			0,
+			(int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->posts} WHERE ID = %d",
+					$this->post_ids['from']
+				)
+			)
+		);
+		// The propagated deleted_post exception interrupts WordPress's later cache cleanup.
+		clean_post_cache( $this->post_ids['from'] );
+		self::assertNull( get_post( $this->post_ids['from'] ) );
+		self::assertSame( 1, $this->connection_count( $connection->id ) );
+		self::assertSame( 1, $this->meta_count( $connection->id ) );
+		self::assertSame( 0, $attempt_calls );
+		self::assertSame( 0, $deleted_calls );
+		self::assertSame(
+			[],
+			$this->client->getDeletedPostRepairService()->listRepairs()->getItems()
+		);
+	}
+
+	public function test_deleted_post_real_flow_scheduler_failure_preserves_retryable_work(): void
+	{
+		$connection = $this->create_connection( 'deleted-post-scheduler-failure', 'preserved' );
+		wp_clear_scheduled_hook( WordPressDeletedPostRepairScheduler::EVENT_HOOK );
+		$attempt_calls = 0;
+		$deleted_calls = 0;
+		$attempt = static function () use ( &$attempt_calls ): void {
+			$attempt_calls++;
+			throw new \RuntimeException( 'sensitive cleanup failure' );
+		};
+		$deleted = static function () use ( &$deleted_calls ): void {
+			$deleted_calls++;
+		};
+		$schedule_failure = static function ( $pre, $event, bool $wp_error ) {
+			unset( $pre, $event, $wp_error );
+
+			return new WP_Error( 'blocked', 'private cron option payload' );
+		};
+		add_action( 'wpConnections/storage/deleteByObjectID', $attempt );
+		add_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+		add_filter( 'pre_schedule_event', $schedule_failure, 10, 3 );
+
+		try {
+			$deleted_post = wp_delete_post( $this->post_ids['from'], true );
+		} finally {
+			remove_filter( 'pre_schedule_event', $schedule_failure, 10 );
+			remove_action( 'wpConnections/storage/deleteByObjectID', $attempt );
+			remove_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+		}
+
+		self::assertInstanceOf( \WP_Post::class, $deleted_post );
+		self::assertSame( 1, $attempt_calls );
+		self::assertSame( 1, $this->connection_count( $connection->id ) );
+		self::assertSame( 1, $this->meta_count( $connection->id ) );
+		self::assertSame( 0, $deleted_calls );
+		$repair = $this->assert_retry_wait_repair( $this->post_ids['from'], 'cleanup' );
+		self::assertSame( 'scheduler', $repair->getWakeupFailureCategory() );
+		self::assertSame( '[diagnostic details redacted]', $repair->getWakeupFailureSummary() );
+		self::assertNotNull( $repair->getWakeupFailureAt() );
+		self::assertFalse(
+			wp_next_scheduled( WordPressDeletedPostRepairScheduler::EVENT_HOOK, [] )
+		);
+	}
+
+	public function test_deleted_post_real_flow_rollback_uncertainty_stays_durable_and_fail_closed(): void
+	{
+		$this->create_connection( 'deleted-post-rollback-uncertainty', 'uncertain' );
+		$delete_failed = false;
+		$rollback_failed = false;
+		$deleted_calls = 0;
+		$deleted = static function () use ( &$deleted_calls ): void {
+			$deleted_calls++;
+		};
+		$query_filter = function ( string $query ) use (
+			&$delete_failed,
+			&$rollback_failed
+		): string {
+			$normalized = trim( $query );
+			if (
+				! $delete_failed &&
+				1 === preg_match(
+					'/^DELETE FROM ' . preg_quote( $this->connections_table(), '/' ) . ' WHERE /i',
+					$normalized
+				)
+			) {
+				$delete_failed = true;
+				return 'SELECT * FROM `wpconnections_batch21_failed_connection_delete`';
+			}
+
+			if ( $delete_failed && ! $rollback_failed && 1 === preg_match( '/^ROLLBACK$/i', $normalized ) ) {
+				$rollback_failed = true;
+				return 'SELECT * FROM `wpconnections_batch21_failed_rollback`';
+			}
+
+			return $query;
+		};
+		add_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $query_filter );
+		try {
+			$deleted_post = wp_delete_post( $this->post_ids['from'], true );
+		} finally {
+			remove_filter( 'query', $query_filter );
+			remove_action( 'wpConnections/storage/deletedByObjectID', $deleted );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		self::assertInstanceOf( \WP_Post::class, $deleted_post );
+		self::assertTrue( $delete_failed );
+		self::assertTrue( $rollback_failed );
+		self::assertSame( 0, $deleted_calls );
+
+		$secondary = $this->secondary_database_connection();
+		try {
+			$client_name = $secondary->real_escape_string( $this->client->getName() );
+			$post_id = $this->post_ids['from'];
+			$table = str_replace( '`', '``', $wpdb->prefix . self::REPAIR_TABLE_BASENAME );
+			$result = $secondary->query(
+				"SELECT `status`, `attempt_count`, `failure_count` FROM `{$table}` " .
+				"WHERE `client_name` = '{$client_name}' AND `post_id` = {$post_id}"
+			);
+			self::assertInstanceOf( \mysqli_result::class, $result );
+			$durable = $result->fetch_assoc();
+			$result->free();
+		} finally {
+			$secondary->close();
+		}
+
+		self::assertIsArray( $durable );
+		self::assertSame( DeletedPostRepairStatus::RUNNING, $durable['status'] );
+		self::assertSame( '1', $durable['attempt_count'] );
+		self::assertSame( '0', $durable['failure_count'] );
+
+		$next_callback_called = false;
+		$next_queries = [];
+		$recorder = static function ( string $query ) use ( &$next_queries ): string {
+			$next_queries[] = trim( $query );
+			return $query;
+		};
+		add_filter( 'query', $recorder );
+		$next_failure = null;
+		try {
+			$this->client->runAtomically(
+				static function () use ( &$next_callback_called ): void {
+					$next_callback_called = true;
+				}
+			);
+		} catch ( Throwable $failure ) {
+			$next_failure = $failure;
+		} finally {
+			remove_filter( 'query', $recorder );
+		}
+
+		self::assertInstanceOf( StorageFailure::class, $next_failure );
+		self::assertSame( 'transaction state is uncertain', $next_failure->getOperation() );
+		self::assertFalse( $next_callback_called );
+		self::assertSame( 0, $this->query_count( $next_queries, '/^START TRANSACTION$/i' ) );
+		self::assertNotFalse( $wpdb->query( 'ROLLBACK' ) );
+		$this->reset_shared_transaction_taint();
 	}
 
 	public function test_relation_id_delete_locks_connection_before_metadata_mutation(): void
@@ -1594,6 +1870,57 @@ class AtomicMutationTest extends TestCase
 		};
 	}
 
+	private function deleted_post_fault_matcher( string $stage ): callable
+	{
+		if ( 'start' === $stage ) {
+			return static function ( string $query ): bool {
+				return 1 === preg_match( '/^START TRANSACTION$/i', trim( $query ) );
+			};
+		}
+
+		if ( 'commit' === $stage ) {
+			return static function ( string $query ): bool {
+				return 1 === preg_match( '/^COMMIT$/i', trim( $query ) );
+			};
+		}
+
+		if ( 'meta' === $stage ) {
+			return function ( string $query ): bool {
+				return 1 === preg_match(
+					'/^DELETE FROM ' . preg_quote( $this->meta_table(), '/' ) . ' WHERE /i',
+					trim( $query )
+				);
+			};
+		}
+
+		return function ( string $query ): bool {
+			return 1 === preg_match(
+				'/^SELECT `ID` FROM ' . preg_quote( $this->connections_table(), '/' ) . ' WHERE .* FOR UPDATE$/i',
+				trim( $query )
+			);
+		};
+	}
+
+	private function assert_retry_wait_repair(
+		int $post_id,
+		string $failure_category
+	): \iTRON\wpConnections\DeletedPostRepairView {
+		$repairs = $this->client->getDeletedPostRepairService()->listRepairs(
+			DeletedPostRepairStatus::RETRY_WAIT
+		)->getItems();
+		self::assertCount( 1, $repairs );
+		$repair = $repairs[0];
+		self::assertSame( $post_id, $repair->getPostId() );
+		self::assertSame( DeletedPostRepairStatus::RETRY_WAIT, $repair->getStatus() );
+		self::assertSame( 1, $repair->getAttemptCount() );
+		self::assertSame( 1, $repair->getFailureCount() );
+		self::assertSame( $failure_category, $repair->getFailureCategory() );
+		self::assertSame( '[diagnostic details redacted]', $repair->getFailureSummary() );
+		self::assertNotNull( $repair->getNextAttemptAt() );
+
+		return $repair;
+	}
+
 	private function delete_failure_operation( string $selector, string $stage ): string
 	{
 		if ( 'selector' === $stage ) {
@@ -1782,6 +2109,27 @@ class AtomicMutationTest extends TestCase
 			array_filter(
 				$wpdb->tables,
 				static fn( string $table_key ): bool => self::REPAIR_TABLE_BASENAME !== $table_key
+			)
+		);
+	}
+
+	private function reset_shared_transaction_taint(): void
+	{
+		if ( ! property_exists( WPStorage::class, 'transactionTaints' ) ) {
+			return;
+		}
+
+		$property = new \ReflectionProperty( WPStorage::class, 'transactionTaints' );
+		$property->setAccessible( true );
+		$property->setValue( null, null );
+	}
+
+	private function query_count( array $queries, string $pattern ): int
+	{
+		return count(
+			array_filter(
+				$queries,
+				static fn( string $query ): bool => 1 === preg_match( $pattern, $query )
 			)
 		);
 	}
