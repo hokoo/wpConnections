@@ -90,6 +90,8 @@ class AtomicMutationTest extends TestCase
 	protected function setUp(): void
 	{
 		parent::setUp();
+		// The preceding WP_UnitTestCase may have rolled back cron option changes.
+		wp_cache_flush();
 
 		$this->clients = [];
 		$this->post_ids = [];

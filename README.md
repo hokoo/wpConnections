@@ -170,6 +170,16 @@ Custom non-post types require a client-scoped `EntityResolverInterface` before
 the client's first connection mutation. Direct storage calls remain a legacy
 SPI and do not receive these domain guarantees.
 
+For PHP reads, `ConnectionCollection::resolveEntities()` accepts an explicit
+`EndpointTarget` of `from()`, `to()`, `both()` or
+`opposite($selector, $anchor)`. It returns one result per connection with
+side-keyed resolved or unavailable endpoints. Non-post types
+can add a client-scoped `BatchEntityResolverInterface` without changing the
+mutation resolver. The legacy `getPosts('from'|'to')` shortcut now returns
+available `WP_Post[]` in connection order, including duplicates. See the
+[bulk entity resolution guide](docs/bulk-entity-resolution.md) for usage,
+adapter registration and the PHP permission boundary.
+
 Before upgrading an installation with existing data, run a read-only,
 client-by-client inventory for missing IDs, wrong post types and relation types
 without a registered resolver. Legacy-invalid rows remain readable and can be

@@ -20,8 +20,10 @@ exact head `6cdc9fe` и merge `93bea9b` прошли по 20/20 required context
 #21 закрыт, а fresh E4 Epic QA вернул принятый `pass_with_notes`. Полная
 provenance находится в [Batch 24 checkpoint](batch24-checkpoint.md), selector
 contract — в [`rest-relation-selectors.md`](../rest-relation-selectors.md).
-API-03 dependency-ready (`todo`), но не начата: по указанию владельца после
-завершения текущего Batch 24 работа останавливается. API-04 и DOC-01 сохраняют
+API-03 реализована и локально проверена как Batch 25 (`review`) по запросу
+владельца от 2026-09-23 выполнить ровно следующий батч;
+см. [checkpoint](batch25-checkpoint.md). PR/merge delivery учитывается отдельно.
+API-04 и DOC-01 сохраняют
 последующие dependencies; DB-06R остаётся отдельной неблокирующей
 `needs_design` задачей.
 
@@ -167,8 +169,8 @@ map находятся в
   `93bea9b57b5dcdb3c1d82e2d03da1cb7e920531d`. Exact protected head
   `6cdc9feddcbad49eb77c95ec2882017c19bd1169` и merge прошли по 20/20 required
   contexts; fresh E4 Epic QA вернул принятый `pass_with_notes` без blocking
-  findings, exception или waiver. Issue #21 закрыт. API-03 dependency-ready,
-  но не начата; владелец потребовал остановиться после Batch 24. API-04 и DOC-01
+  findings, exception или waiver. Issue #21 закрыт. API-03 локально проверена
+  как единственный разрешённый Batch 25 (`review`). API-04 и DOC-01
   сохраняют downstream dependencies, а DB-06R — отдельный nonblocking
   `needs_design` follow-up.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
@@ -255,8 +257,8 @@ map находятся в
   Выявленные при декомпозиции Batch 18 DG-DELETE-06R4—DG-DELETE-06R6
   утверждены вариантом A владельцем 2026-09-21.
   DG-API20-01—DG-API20-09 также утверждены владельцем 2026-09-14 в вариантах
-  B/B/A/B/B/A/B/B/B; REST-06 завершён и E4 принят. API-03 dependency-ready, но
-  не начата из-за stop instruction после Batch 24; API-04 и DOC-01 сохраняют
+  B/B/A/B/B/A/B/B/B; REST-06 завершён и E4 принят. API-03 реализована и
+  локально проверена в Batch 25 (`review`); API-04 и DOC-01 сохраняют
   последующие dependencies. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
