@@ -77,10 +77,10 @@ REST-04, REST-05 и REST-06 завершены; fresh E4 Epic QA вернул п
 `pass_with_notes` без blocking findings, exception или waiver. Полная provenance
 REST-06 и E4 записана в [Batch 24 checkpoint](batch24-checkpoint.md).
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
-вариантах B/B/A/B/B/A/B/B/B. API-03 реализована и локально проверена как
-Batch 25 (`review`); evidence находится в [checkpoint](batch25-checkpoint.md).
-2026-09-23 владелец разрешил ровно этот батч. API-04 и DOC-01
-сохраняют свои последующие dependencies; DB-06R остаётся отдельной
+вариантах B/B/A/B/B/A/B/B/B. API-03 завершена как Batch 25 через PR #114:
+head `537a169` и merge `4a71061` прошли по 20/20 required contexts;
+evidence находится в [checkpoint](batch25-checkpoint.md). API-04 теперь `todo`
+для отдельного execution request; DOC-01 ждёт API-04. DB-06R остаётся отдельной
 неблокирующей `needs_design` задачей.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
@@ -1136,7 +1136,7 @@ Decision packets:
 | DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D, DB-04-I and DB-04-Q completed |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03—REST-05 completed |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 completed; issue #21 closed |
-| DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 locally verified, review/delivery stage in Batch 25; API-04/DOC-01 retain downstream dependencies |
+| DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 completed in Batch 25 / PR #114; API-04 is ready for separate execution, DOC-01 waits for API-04 |
 | DP-9 Factory compatibility | DG-SPI-05 | approved A for v1, C next-major target, 2026-09-14 | REL-02/release documentation contract fixed |
 
 Entry criteria:
@@ -6821,9 +6821,8 @@ Notes/Risks:
 - Issues #20/#21 и отсутствие комментариев повторно проверены 2026-09-10;
   production-код не изменялся.
 - DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
-  вариантах B/B/A/B/B/A/B/B/B. REST-06 завершён; API-03 реализована и локально
-  проверена в Batch 25 (`review`). API-04 ждёт завершения поставки API-03,
-  а DOC-01 — API-04; их зависимости от завершённых REST tasks удовлетворены.
+  вариантах B/B/A/B/B/A/B/B/B. REST-06 и API-03 завершены; API-04 готова к
+  отдельному execution request, а DOC-01 ждёт API-04.
 
 Verification:
 
@@ -6896,7 +6895,7 @@ Verification:
 
 ### API-03. Реализовать bulk resolution связанных entities
 
-Status: review
+Status: completed
 
 Priority: P1
 
@@ -6950,15 +6949,14 @@ Dependencies:
 Notes/Risks:
 
 - Реализация не должна заставлять storage отвечать за entity permissions.
-- Все decision gates и dependencies API-03 выполнены. Новый continuation
-  request от 2026-09-23 разрешил ровно Batch 25; execution contract и evidence
-  находятся в [Batch 25 checkpoint](batch25-checkpoint.md). Реализация,
-  root review и все локальные gates приняты; PR/merge delivery отдельно от
-  local verification. API-04 не входит в текущий scope.
+- Все decision gates и dependencies API-03 выполнены. Batch 25 доставлен через
+  PR #114: exact head `537a169` и merge `4a71061` прошли по 20/20 required
+  contexts. Локальные gates, root review и delivery evidence находятся в
+  [Batch 25 checkpoint](batch25-checkpoint.md). API-04 вне этого scope.
 
 ### API-04. Реализовать opt-in REST representation issue #20
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
@@ -7007,8 +7005,8 @@ Notes/Risks:
 
 - Entity filtering и pagination должны выполняться в утверждённом порядке, иначе
   страницы и totals будут вводить consumer в заблуждение.
-- Все собственные public-contract gates утверждены, а REST-06 завершён; задача
-  остаётся зависимой от API-03.
+- Все public-contract gates и зависимости выполнены, включая API-03 / Batch 25.
+  Задача готова к отдельному execution request; Batch 25 её не авторизует.
 
 ### API-05. Спроектировать selection connections по stored metadata
 
