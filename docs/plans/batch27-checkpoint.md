@@ -1,8 +1,8 @@
 # Batch 27 — DOC-01 OpenAPI contract
 
-Status: review. The owner authorized DOC-01 after Batch 26. Local implementation
-and required gates are accepted; protected delivery, issue #27 closure and E5
-Epic QA remain pending.
+Status: completed. The owner authorized DOC-01 after Batch 26. PR #118 merged,
+issue #27 is closed, and fresh independent E5 Epic QA returned
+`pass_with_notes` without a blocking criterion or exception.
 
 Base: `f60ac745cf3a6e2be553e7d517768ecc46565d36`.
 Branch: `batch27-doc01-openapi`.
@@ -32,5 +32,28 @@ Scope: DOC-01 only; dashboard, v2 routes, release and publication are excluded.
   and empty-entity wire tests also passed. No unexpected tracked change appeared
   during verification; user-owned `.codex/` and `AGENTS.md` were untouched.
 
-Next: scoped commit and protected PR; exact head/merge CI; issue #27 closure;
-fresh E5 Epic QA; then plan closeout. No exception or release is claimed.
+## Protected delivery and E5 QA
+
+- [PR #118](https://github.com/hokoo/wpConnections/pull/118) had exact head
+  `0d3adcad31e0666b9c7fca2863115f158c66dd9c`; all 20 required contexts
+  completed successfully, including the new OpenAPI validation step in
+  `php-cs`. No context was missing, skipped, cancelled, stale or failed.
+- PR #118 merged as `8a0be6dacf1c22b65071181a9ffbc499392f964d` on
+  2026-09-27. The exact merge SHA passed 20/20 required post-merge contexts;
+  root independently matched names, SHA and success states. GitHub closed
+  [issue #27](https://github.com/hokoo/wpConnections/issues/27) at merge.
+- Fresh independent E5 Epic QA checked all E5 success criteria and task
+  AC/DoD against the merged baseline, prior task evidence and issue states. It
+  returned `pass_with_notes`: no blocking criterion, decision or exception.
+  Issue #20 is closed; dashboard issue #28 remains open and PROD-01 is
+  explicitly deferred. DOC-01 and E5 are completed.
+- Residual limits: route drift automation checks path/method inventory rather
+  than every parameter and schema field. Expanded REST pagination still holds
+  selected rows in memory and WordPress post preparation adds per-post queries,
+  as recorded in [Batch 26 checkpoint](batch26-checkpoint.md).
+
+The repository owner confirmed live strict `master` protection for all 20
+contexts, administrator enforcement, and disabled force-push/deletion on
+2026-09-27. The connected GitHub app cannot read the admin endpoint (403), so
+this is owner attestation rather than independent API proof. No release or
+publication is claimed.

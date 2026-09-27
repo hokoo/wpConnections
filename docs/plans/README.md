@@ -23,9 +23,12 @@ contract — в [`rest-relation-selectors.md`](../rest-relation-selectors.md).
 API-03 завершена как Batch 25 через PR #114. API-04 завершена как Batch 26
 через PR #116: exact head `6b81ab1` и merge `0ce93fc` прошли по 20/20
 required contexts, issue #20 закрыта. Подробности — в
-[Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 готова к отдельному
-execution request; DB-06R остаётся отдельной неблокирующей
-`needs_design` задачей.
+[Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 завершена как Batch 27
+через PR #118: exact head
+`0d3adca` и merge `8a0be6d` прошли по 20/20 required contexts, issue #27
+закрыта. Fresh E5 Epic QA вернул `pass_with_notes` без blocking findings или
+exception; evidence — в [Batch 27 checkpoint](batch27-checkpoint.md).
+DB-06R остаётся отдельной неблокирующей `needs_design` задачей.
 
 ## Порядок исполнения
 
@@ -165,11 +168,11 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged functional baseline — Batch 26 / API-04 PR #116, merge
-  `0ce93fcb5dbc95081711c88ce87a0236898bcd66`. Exact head `6b81ab1` и
-  merge прошли по 20/20 required contexts; issue #20 закрыта. DOC-01 теперь
-  `todo` для отдельного execution request, DB-06R остаётся отдельным
-  `needs_design` follow-up. E5 ещё не достигла Epic QA boundary.
+- Текущий merged baseline — Batch 27 / DOC-01 PR #118, merge
+  `8a0be6dacf1c22b65071181a9ffbc499392f964d`. Exact head `0d3adca` и
+  merge прошли по 20/20 required contexts; issue #27 закрыта. Fresh E5 Epic QA
+  вернул `pass_with_notes` без blocking findings или exception; DB-06R остаётся
+  отдельным `needs_design` follow-up.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
   fixed-floor WordPress 6.7.7 дают unit `12 / 58`, integration `106 / 741`;
