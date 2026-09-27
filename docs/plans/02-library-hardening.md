@@ -7074,7 +7074,7 @@ Notes/Risks:
 
 ### DOC-01. Создать OpenAPI contract из проверенных REST routes
 
-Status: todo
+Status: review
 
 Priority: P1
 
@@ -7124,7 +7124,9 @@ Notes/Risks:
 - Спецификацию нельзя писать раньше стабилизации response contract: иначе она
   закрепит случайные текущие shapes.
 - API-04 / Batch 26 завершена; оставшиеся DoR и зависимости удовлетворены.
-  DOC-01 готова к отдельному execution request, не авторизованному Batch 26.
+  Владелец разрешил Batch 27 / DOC-01. Реализация и локальные AC/DoD gate
+  приняты; protected PR, issue #27 closure и E5 Epic QA ещё ожидаются.
+  Evidence: [Batch 27 checkpoint](batch27-checkpoint.md).
 
 ### PROD-01. Выделить dashboard application в отдельную инициативу
 

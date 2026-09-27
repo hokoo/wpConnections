@@ -3,7 +3,7 @@ COVERAGE_PHP_VERSION := 8.1.34
 COVERAGE_WP_VERSION := 6.7.7
 ISOLATION_SEED ?=
 
-.PHONY: tests.init tests.run tests.phpunit tests.integration tests.multisite tests.coverage tests.coverage.rc tests.isolation tests.quality-tools tests.build tests.rebuild tests.clean dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix
+.PHONY: tests.init tests.run tests.phpunit tests.integration tests.multisite tests.coverage tests.coverage.rc tests.isolation tests.quality-tools tests.build tests.rebuild tests.clean dev.install docker.up docker.down docker.build.php php.connect php.log lint.phpcs lint.phpcs.fix lint.openapi
 
 tests.init:
 	cd ./local-dev/ && bash ./tests-init.sh
@@ -92,6 +92,9 @@ php.log:
 lint.phpcs:
 	cd ./local-dev/ && \
 	docker compose -p wpconnections run --rm phpunit cs:phpcs
+
+lint.openapi:
+	npx --yes --package=@apidevtools/swagger-cli@4.0.4 swagger-cli validate docs/openapi.json
 
 lint.phpcs.fix:
 	cd ./local-dev/ && \

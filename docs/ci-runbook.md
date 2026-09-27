@@ -20,6 +20,7 @@ bash ./local-dev/init.sh
 make tests.clean
 make tests.coverage
 make lint.phpcs
+make lint.openapi
 ```
 
 `local-dev/.env` is local-only configuration. Never commit it or put real
@@ -43,6 +44,7 @@ access is required.
 | `make tests.isolation` | Run both suites in reverse/repeat and seeded-random/repeat order | Before review after test, fixture, hook, or global-state changes |
 | `make tests.quality-tools` | Run synthetic coverage, exception-policy, and order-dependent-runner probes | After changing quality-policy tooling |
 | `make lint.phpcs` | Run the PHP CodeSniffer rules from `phpcs.xml` | Before requesting review and after PHP changes |
+| `make lint.openapi` | Validate `docs/openapi.json` with pinned `@apidevtools/swagger-cli@4.0.4` | After changing the REST contract or specification; requires Node/npm and registry access on first run |
 | `make tests.build` | Rebuild the Compose test image with normal Docker cache | Dockerfile or image-input changes |
 | `make tests.rebuild` | Rebuild the Compose test image without Docker cache | Diagnose image or Docker cache problems |
 | `make tests.clean` | Perform `tests.rebuild`, then run both suites | Clean-checkout and final local verification |
@@ -107,8 +109,14 @@ security guidance.
 ### Coverage and code style
 
 The `Coverage` job uses PHP `8.1.34` and WordPress `6.7.7`. The `PHP Code
-Styles` job builds the same pinned environment and runs `composer run phpcs`.
-Both are part of the expected pull-request checks.
+Styles` job validates OpenAPI with Node `22.16.0` and
+`@apidevtools/swagger-cli@4.0.4`, then builds the same pinned PHP environment
+and runs `composer run phpcs`. The WordPress integration suite compares the
+OpenAPI path/method inventory with routes registered by the library at runtime;
+that check excludes the WordPress-generated namespace discovery root. It does
+not infer response-schema drift, which remains covered by the focused
+full-dispatch REST contract tests. The `Coverage` and `PHP Code Styles` jobs
+are both expected pull-request checks.
 
 To reproduce a particular matrix lane, use the same build arguments and
 runtime Ramsey pin as its workflow. For example, the minimum integration lane
