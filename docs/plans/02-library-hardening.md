@@ -77,10 +77,11 @@ REST-04, REST-05 и REST-06 завершены; fresh E4 Epic QA вернул п
 `pass_with_notes` без blocking findings, exception или waiver. Полная provenance
 REST-06 и E4 записана в [Batch 24 checkpoint](batch24-checkpoint.md).
 DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
-вариантах B/B/A/B/B/A/B/B/B. API-03 завершена как Batch 25 через PR #114:
-head `537a169` и merge `4a71061` прошли по 20/20 required contexts;
-evidence находится в [checkpoint](batch25-checkpoint.md). API-04 теперь `todo`
-для отдельного execution request; DOC-01 ждёт API-04. DB-06R остаётся отдельной
+вариантах B/B/A/B/B/A/B/B/B. API-03 завершена как Batch 25 через PR #114;
+API-04 завершена как Batch 26 через PR #116: head `6b81ab1` и merge `0ce93fc`
+прошли по 20/20 required contexts, issue #20 закрыта. Evidence находится в
+[Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 теперь `todo` для
+отдельного execution request. DB-06R остаётся отдельной
 неблокирующей `needs_design` задачей.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
@@ -1136,7 +1137,7 @@ Decision packets:
 | DP-5 Delete | DG-DELETE-01—04/06 | approved: DELETE-01/A-R, DELETE-02/A, DELETE-03/A, DELETE-04/A-R on 2026-09-12; DELETE-06/A and DELETE-06R1/R2/R3/A on 2026-09-14; R4/R5/R6/A on 2026-09-21 | DB-03B-A/B, DB-04-D, DB-04-I and DB-04-Q completed |
 | DP-6 REST wire | DG-RESTERR-01—04, DG-UPDATE-05, DG-DELETE-05 | approved all A: RESTERR-03 on 2026-09-11; remaining gates on 2026-09-14 | REST-03—REST-05 completed |
 | DP-7 Issue #21 selector | DG-API20-01 | approved B, 2026-09-14 | REST-06 completed; issue #21 closed |
-| DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 completed in Batch 25 / PR #114; API-04 is ready for separate execution, DOC-01 waits for API-04 |
+| DP-8 Issue #20 expansion | DG-API20-02—09 | approved B/A/B/B/A/B/B/B, 2026-09-14 | API-03 / Batch 25 and API-04 / Batch 26 completed; issue #20 closed; DOC-01 ready for separate execution |
 | DP-9 Factory compatibility | DG-SPI-05 | approved A for v1, C next-major target, 2026-09-14 | REL-02/release documentation contract fixed |
 
 Entry criteria:
@@ -6821,8 +6822,8 @@ Notes/Risks:
 - Issues #20/#21 и отсутствие комментариев повторно проверены 2026-09-10;
   production-код не изменялся.
 - DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 в рекомендованных
-  вариантах B/B/A/B/B/A/B/B/B. REST-06 и API-03 завершены; API-04 готова к
-  отдельному execution request, а DOC-01 ждёт API-04.
+  вариантах B/B/A/B/B/A/B/B/B. REST-06, API-03 и API-04 завершены; issue #20
+  закрыта, DOC-01 готова к отдельному execution request.
 
 Verification:
 
@@ -6956,7 +6957,7 @@ Notes/Risks:
 
 ### API-04. Реализовать opt-in REST representation issue #20
 
-Status: review
+Status: completed
 
 Priority: P1
 
@@ -7005,10 +7006,11 @@ Notes/Risks:
 
 - Entity filtering и pagination должны выполняться в утверждённом порядке, иначе
   страницы и totals будут вводить consumer в заблуждение.
-- Все public-contract gates и зависимости выполнены, включая API-03 / Batch 25.
-  Отдельный execution request от 2026-09-27 разрешил Batch 26. Реализация и
-  точечный ремонт готовы к широким проверкам; evidence и delivery boundary — в
-  [Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 не входит в этот батч.
+- Все public-contract gates и зависимости выполнены. Batch 26 доставлен через
+  PR #116: exact head `6b81ab1` и merge `0ce93fc` прошли по 20/20 required
+  contexts; issue #20 закрыта. Локальные AC/DoD, root review, repair и delivery
+  evidence находятся в [Batch 26 checkpoint](batch26-checkpoint.md). DOC-01
+  не входила в этот scope.
 
 ### API-05. Спроектировать selection connections по stored metadata
 
@@ -7072,7 +7074,7 @@ Notes/Risks:
 
 ### DOC-01. Создать OpenAPI contract из проверенных REST routes
 
-Status: waiting_dependency
+Status: todo
 
 Priority: P1
 
@@ -7121,6 +7123,8 @@ Notes/Risks:
 
 - Спецификацию нельзя писать раньше стабилизации response contract: иначе она
   закрепит случайные текущие shapes.
+- API-04 / Batch 26 завершена; оставшиеся DoR и зависимости удовлетворены.
+  DOC-01 готова к отдельному execution request, не авторизованному Batch 26.
 
 ### PROD-01. Выделить dashboard application в отдельную инициативу
 
@@ -8161,7 +8165,7 @@ Notes/Risks:
 | Confirmed: broken `both` placeholder | TEST-02E, DB-01 |
 | Closed [#31 error code tests](https://github.com/hokoo/wpConnections/issues/31) | CORE-03, REST-03 |
 | Closed [#21 REST filters](https://github.com/hokoo/wpConnections/issues/21) | REST-06 |
-| Open [#20 entities/getPosts](https://github.com/hokoo/wpConnections/issues/20) | API-01, API-03, API-04, DOC-01 |
+| Closed [#20 entities/getPosts](https://github.com/hokoo/wpConnections/issues/20) | API-01, API-03, API-04; DOC-01 documents the delivered contract |
 | Open [#27 OpenAPI](https://github.com/hokoo/wpConnections/issues/27) | DOC-01 |
 | Open [#28 dashboard](https://github.com/hokoo/wpConnections/issues/28) | PROD-01 deferred initiative |
 | Closed [#13 order zero](https://github.com/hokoo/wpConnections/issues/13) | DB-02 |
@@ -8183,6 +8187,6 @@ Notes/Risks:
 | Process-global REST hook plus reused route registry | HOOK-02, REST-HOOK-01, DG-HOOK-REST-01—DG-HOOK-REST-05, DG-RESTERR-03, REL-02 |
 | `Settings` debug callbacks fan out to every Client logger | HOOK-02, LOG-HOOK-01, DG-HOOK-LOG-01, DG-SPI-06, REL-02 |
 | Failed Client construction leaves owned callbacks registered | HOOK-02, LIFE-HOOK-01, DG-HOOK-LIFE-01 |
-| Open issue #20 related entities | API-01, API-03, API-04, DOC-01 |
+| Closed issue #20 related entities | API-01, API-03, API-04; DOC-01 remains for OpenAPI |
 | Missing route-level REST tests | REST-01—REST-05 |
 | Missing coverage/quality policy in CI | INFRA-04, TEST-03A, TEST-03B, TEST-03C |

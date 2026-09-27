@@ -20,10 +20,11 @@ exact head `6cdc9fe` и merge `93bea9b` прошли по 20/20 required context
 #21 закрыт, а fresh E4 Epic QA вернул принятый `pass_with_notes`. Полная
 provenance находится в [Batch 24 checkpoint](batch24-checkpoint.md), selector
 contract — в [`rest-relation-selectors.md`](../rest-relation-selectors.md).
-API-03 завершена как Batch 25 через PR #114; exact head `537a169` и merge
-`4a71061` прошли по 20/20 required contexts. Подробности — в
-[checkpoint](batch25-checkpoint.md). API-04 готова к отдельному execution
-request, DOC-01 ждёт API-04; DB-06R остаётся отдельной неблокирующей
+API-03 завершена как Batch 25 через PR #114. API-04 завершена как Batch 26
+через PR #116: exact head `6b81ab1` и merge `0ce93fc` прошли по 20/20
+required contexts, issue #20 закрыта. Подробности — в
+[Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 готова к отдельному
+execution request; DB-06R остаётся отдельной неблокирующей
 `needs_design` задачей.
 
 ## Порядок исполнения
@@ -164,10 +165,10 @@ map находятся в
 
 ## Текущий baseline
 
-- Текущий merged functional baseline — Batch 25 / API-03 PR #114, merge
-  `4a71061c3dbd7f2402bb31174240fec9fa5a2dfb`. Exact head `537a169` и
-  merge прошли по 20/20 required contexts. API-04 теперь `todo` для отдельного
-  execution request; DOC-01 ждёт API-04, а DB-06R остаётся отдельным
+- Текущий merged functional baseline — Batch 26 / API-04 PR #116, merge
+  `0ce93fcb5dbc95081711c88ce87a0236898bcd66`. Exact head `6b81ab1` и
+  merge прошли по 20/20 required contexts; issue #20 закрыта. DOC-01 теперь
+  `todo` для отдельного execution request, DB-06R остаётся отдельным
   `needs_design` follow-up. E5 ещё не достигла Epic QA boundary.
 - Historical CORE-06R baseline PR #76 (`2371ed2`) на PHP 8.1.34 /
   Ramsey 1.3.0: WordPress 7.1.0 и
@@ -254,8 +255,8 @@ map находятся в
   утверждены вариантом A владельцем 2026-09-21.
   DG-API20-01—DG-API20-09 также утверждены владельцем 2026-09-14 в вариантах
   B/B/A/B/B/A/B/B/B; REST-06 завершён и E4 принят. API-03 завершена в
-  Batch 25 / PR #114; API-04 готова к отдельному выполнению, DOC-01 ждёт
-  API-04. Полные тексты находятся в
+  Batch 25 / PR #114; API-04 завершена в Batch 26 / PR #116, issue #20 закрыта.
+  DOC-01 готова к отдельному выполнению. Полные тексты находятся в
   [related-entities/API issue #20 contract](../api-01-related-entities-contract.md),
   [partial update contract](../rest-partial-update-contract.md),
   [storage SPI contract](../storage-spi-contract.md),

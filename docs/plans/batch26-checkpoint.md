@@ -1,8 +1,8 @@
 # Batch 26 — API-04 opt-in REST related entities
 
-Status: review. Implementation and all required local gates are accepted;
-protected PR/merge delivery remains pending. The owner authorized the next
-batch on 2026-09-27. Stop after API-04; DOC-01 requires separate execution.
+Status: completed. API-04 was delivered through PR #116, verified on its exact
+head and merge SHA, and issue #20 is closed. The owner authorized this batch on
+2026-09-27. Stop after API-04; DOC-01 requires separate execution.
 
 Base: `ec020a9a46d0d6dd21a51b5a9992fd6a89548a01`.
 Branch: `batch26-api04-rest-entities`.
@@ -86,6 +86,27 @@ configuration deprecation did not fail their gates. Coverage artifacts are in
 test or documentation file changed during verification, and no unexpected
 generated file appeared; user-owned `.codex/` and `AGENTS.md` remain untouched.
 
-Next: scoped commit, protected PR/head and exact-merge checks, then issue #20
-closure. DOC-01 and E5 Epic QA remain outside this batch; release/publication
-are not claimed.
+At this local acceptance boundary, protected PR/head and exact-merge checks,
+then issue #20 closure, were still pending. DOC-01 and E5 Epic QA were outside
+the batch; release/publication were not claimed.
+
+## Protected delivery and batch closeout
+
+- [PR #116](https://github.com/hokoo/wpConnections/pull/116) had exact head
+  `6b81ab14062e5c5d5b3af0a6eb90fe060f703ff0`. All 20 required contexts
+  completed successfully: 10 unit, 5 integration, 1 multisite, 2 database
+  compatibility, 1 coverage and 1 PHPCS. No required context was missing,
+  skipped, cancelled, stale or failed.
+- The repository owner confirmed live `master` protection on 2026-09-27:
+  strict checks for all 20 contexts, administrator enforcement, and force-push
+  and deletion disabled. The connected GitHub app could not read the admin
+  endpoint (403); this records owner attestation, not an independent API read.
+- PR #116 merged as `0ce93fcb5dbc95081711c88ce87a0236898bcd66` on
+  2026-09-27. The exact merge SHA passed all 20 required post-merge contexts;
+  root independently matched the names, SHA and success states. GitHub closed
+  [issue #20](https://github.com/hokoo/wpConnections/issues/20) at merge.
+- API-04 and Batch 26 are completed. DOC-01 now has satisfied DoR and moves to
+  `todo`, but execution was not authorized in this batch. E5 is incomplete, so
+  no E5 Epic QA is claimed. No release or publication occurred. The documented
+  all-rows pagination memory cost and WordPress controller query component
+  remain residual performance limits, not waived AC or failed gates.
