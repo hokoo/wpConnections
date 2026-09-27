@@ -46,7 +46,10 @@ class RestRelationSelectorsTest extends WPConnectionsTestCase
         }
 
         self::assertIsArray($get_handler);
-        self::assertSame([ 'relation', 'from', 'to', 'both' ], array_keys($get_handler['args']));
+        self::assertSame(
+            [ 'relation', 'from', 'to', 'both', 'target', 'representation', 'entity', 'context', 'page', 'per_page' ],
+            array_keys($get_handler['args'])
+        );
         foreach ([ 'from', 'to', 'both' ] as $selector) {
             self::assertSame('integer', $get_handler['args'][ $selector ]['type']);
             self::assertSame(1, $get_handler['args'][ $selector ]['minimum']);

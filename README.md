@@ -377,6 +377,21 @@ the existing v1 response shape and unbounded result behavior are unchanged.
 See the [REST relation selector contract](docs/rest-relation-selectors.md) for
 validation, ownership, and current limitations.
 
+### REST related entities
+
+Use `target` and `representation=expanded` to include permission-safe REST
+entities while keeping the connection array and numeric endpoint IDs:
+
+```text
+GET /wp-json/wp-connections/v1/client/my-app-wpc-client/relation/post-to-page?from=4&target=to&representation=expanded&context=view
+```
+
+Optional `entity[status|type|slug|search]` filters and `page`/`per_page`
+pagination apply before totals. Pagination is opt-in; an unadapted or forbidden
+endpoint is shown as a generic unavailable slot. See the
+[REST related-entities guide](docs/rest-related-entities.md) for target rules,
+context, filtering, totals, and non-post adapter extension.
+
 ## Local Development
 
 ### Prerequisites

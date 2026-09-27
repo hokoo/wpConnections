@@ -6,8 +6,10 @@ use iTRON\wpConnections\Abstracts\IArrayConvertable;
 use iTRON\wpConnections\Exceptions\ConnectionNotFound;
 use iTRON\wpConnections\Exceptions\Exception;
 use iTRON\wpConnections\Internal\RestErrorResponder;
+use iTRON\wpConnections\Internal\RestEntityRepresentation;
 use iTRON\wpConnections\Internal\RestRouteRegistry;
 use iTRON\wpConnections\RestResponse\CollectionItem;
+use iTRON\wpConnections\RestResponse\ExpandedCollectionItem;
 use Ramsey\Collection\Exception\NoSuchElementException;
 use Ramsey\Collection\Exception\OutOfBoundsException;
 use WP_Error;
@@ -63,8 +65,31 @@ class ClientRestApi
 
     public function getRelation(WP_REST_Request $request)
     {
+        $bodyParameters = $request->get_body_params();
+        $jsonParameters = $request->get_json_params();
+        foreach ([ 'target', 'representation', 'entity', 'context', 'page', 'per_page' ] as $parameter) {
+            if (
+                array_key_exists($parameter, $bodyParameters)
+                || (is_array($jsonParameters) && array_key_exists($parameter, $jsonParameters))
+            ) {
+                return $this->invalidRelationParameter($parameter);
+            }
+        }
+
         $query = new Query\Connection();
         $queryParameters = $request->get_query_params();
+        $unknown = array_diff(
+            array_keys($queryParameters),
+            [
+                'client', 'relation', 'from', 'to', 'both', 'target', 'representation',
+                'entity', 'context', 'page', 'per_page', '_fields', '_embed',
+                '_links', '_envelope', '_jsonp', '_locale', 'rest_route',
+            ]
+        );
+        if ([] !== $unknown) {
+            return $this->invalidRelationParameter((string) reset($unknown));
+        }
+
         foreach ([ 'from', 'to', 'both' ] as $selector) {
             if (array_key_exists($selector, $queryParameters)) {
                 $query->set($selector, (int) $queryParameters[ $selector ]);
@@ -72,16 +97,182 @@ class ClientRestApi
         }
 
         try {
+            $relation = $this->getClient()->getRelation($this->getRouteSelector($request, 'relation'));
+            $filters = $this->relationEntityFilters($queryParameters);
+            $target = $this->relationEndpointTarget($queryParameters);
+            if ([] !== $filters && null === $target) {
+                return $this->invalidRelationParameter('entity');
+            }
+            if ([] !== $filters && ! $this->supportsRelationEntityFilters($relation, $filters, $queryParameters)) {
+                return $this->invalidRelationParameter('entity');
+            }
+
+            $expanded = 'expanded' === ($queryParameters['representation'] ?? null);
+            $paginated = isset($queryParameters['page']) || isset($queryParameters['per_page']);
+            $context = $queryParameters['context'] ?? 'view';
+            $connections = $relation->findConnections($query);
+            if (! $expanded && ! $paginated && [] === $filters) {
+                $response = [];
+                foreach ($connections->getIterator() as $connectionItem) {
+                    $response[] = $this->getRestConnectionItem($connectionItem);
+                }
+                return rest_ensure_response($response);
+            }
+
+            $items = iterator_to_array($connections->getIterator(), false);
+            usort($items, static function (Connection $left, Connection $right): int {
+                return [ $left->order, $left->id ] <=> [ $right->order, $right->id ];
+            });
+            $page = (int) ($queryParameters['page'] ?? 1);
+            $perPage = (int) ($queryParameters['per_page'] ?? 20);
+            $total = count($items);
+            if ([] === $filters) {
+                if ($paginated) {
+                    $items = array_slice($items, ($page - 1) * $perPage, $perPage);
+                }
+                if (! $expanded || null === $target) {
+                    return $this->relationResponse(
+                        $this->renderConnectionItems($items, $expanded),
+                        $paginated,
+                        $total,
+                        $perPage
+                    );
+                }
+            }
+            $results = (new ConnectionCollection($items))->resolveEntities(
+                $target
+            );
+            $projection = new RestEntityRepresentation($this->getClient(), $context, $filters);
+            if ([] !== $filters) {
+                $projection->authorize($results);
+                $results = $projection->matchingRows($results);
+            }
+            if ([] !== $filters) {
+                $total = count($results);
+            }
+            if ($paginated && [] !== $filters) {
+                $results = array_slice($results, ($page - 1) * $perPage, $perPage);
+            }
+            if ($expanded) {
+                $projection->authorize($results);
+            }
             $response = [];
-            foreach ($this->getClient()->getRelation($this->getRouteSelector($request, 'relation'))->findConnections($query)->getIterator() as $connectionItem) {
-                /** @var Connection $connectionItem */
-                $response [] = $this->getRestConnectionItem($connectionItem);
+            foreach ($results as $row) {
+                $connectionItem = $row->getConnection();
+                if ($expanded) {
+                    $item = new ExpandedCollectionItem($connectionItem);
+                    $item->add_link('self', $this->getRestConnectionUrl($connectionItem->relation, $connectionItem->id));
+                    $item->entities = null === $target ? [] : $projection->entitiesFor($row);
+                    $response[] = $item;
+                } else {
+                    $response[] = $this->getRestConnectionItem($connectionItem);
+                }
             }
         } catch (Exception $e) {
             return rest_ensure_response($this->getError($e));
         }
 
-        return rest_ensure_response($response);
+        return $this->relationResponse($response, $paginated, $total, $perPage);
+    }
+
+    private function relationResponse(array $response, bool $paginated, int $total, int $perPage): WP_REST_Response
+    {
+        $restResponse = rest_ensure_response($response);
+        if ($paginated) {
+            $restResponse->header('X-WP-Total', (string) $total);
+            $restResponse->header('X-WP-TotalPages', (string) (int) ceil($total / $perPage));
+        }
+        return $restResponse;
+    }
+
+    /** @param Connection[] $connections */
+    private function renderConnectionItems(array $connections, bool $expanded): array
+    {
+        $response = [];
+        foreach ($connections as $connection) {
+            if ($expanded) {
+                $item = new ExpandedCollectionItem($connection);
+                $item->add_link('self', $this->getRestConnectionUrl($connection->relation, $connection->id));
+                $response[] = $item;
+            } else {
+                $response[] = $this->getRestConnectionItem($connection);
+            }
+        }
+        return $response;
+    }
+
+    /** @return array<string, string[]> */
+    private function relationEntityFilters(array $query): array
+    {
+        $filters = [];
+        foreach ($query['entity'] ?? [] as $field => $values) {
+            $filters[$field] = array_map('trim', is_array($values) ? $values : [ $values ]);
+        }
+        return $filters;
+    }
+
+    private function relationEndpointTarget(array $query): ?EndpointTarget
+    {
+        $requested = $query['target'] ?? null;
+        if ('from' === $requested) {
+            return EndpointTarget::from();
+        }
+        if ('to' === $requested) {
+            return EndpointTarget::to();
+        }
+        if ('both' === $requested) {
+            return EndpointTarget::both();
+        }
+        if ('opposite' === $requested) {
+            $selector = isset($query['from']) ? 'from' : (isset($query['to']) ? 'to' : 'both');
+            return EndpointTarget::opposite($selector, (int) $query[$selector]);
+        }
+        return null;
+    }
+
+    private function supportsRelationEntityFilters(
+        Relation $relation,
+        array $filters,
+        array $query
+    ): bool {
+        $requested = $query['target'];
+        $roles = [ 'from', 'to' ];
+        if ('from' === $requested || 'to' === $requested) {
+            $roles = [ $requested ];
+        } elseif ('opposite' === $requested && isset($query['from'])) {
+            $roles = [ 'to' ];
+        } elseif ('opposite' === $requested && isset($query['to'])) {
+            $roles = [ 'from' ];
+        }
+
+        foreach ($roles as $role) {
+            $type = $relation->{$role};
+            if (post_type_exists($type)) {
+                continue;
+            }
+            $adapter = $this->getClient()->getEntityBatchResolver($type);
+            if (! $adapter instanceof RestEntityAdapterInterface) {
+                return false;
+            }
+            try {
+                $supported = $adapter->getSupportedRestFilters();
+            } catch (\Throwable $exception) {
+                return false;
+            }
+            if ([] !== array_diff(array_keys($filters), $supported)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private function invalidRelationParameter(string $parameter): WP_Error
+    {
+        return new WP_Error(
+            'rest_invalid_param',
+            sprintf(__('Invalid parameter(s): %s'), $parameter),
+            [ 'status' => 400, 'params' => [ $parameter => __('Invalid parameter.') ] ]
+        );
     }
 
     public function getConnection(WP_REST_Request $request)

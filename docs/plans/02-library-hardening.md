@@ -6956,7 +6956,7 @@ Notes/Risks:
 
 ### API-04. Реализовать opt-in REST representation issue #20
 
-Status: todo
+Status: review
 
 Priority: P1
 
@@ -7006,7 +7006,9 @@ Notes/Risks:
 - Entity filtering и pagination должны выполняться в утверждённом порядке, иначе
   страницы и totals будут вводить consumer в заблуждение.
 - Все public-contract gates и зависимости выполнены, включая API-03 / Batch 25.
-  Задача готова к отдельному execution request; Batch 25 её не авторизует.
+  Отдельный execution request от 2026-09-27 разрешил Batch 26. Реализация и
+  точечный ремонт готовы к широким проверкам; evidence и delivery boundary — в
+  [Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 не входит в этот батч.
 
 ### API-05. Спроектировать selection connections по stored metadata
 
