@@ -157,6 +157,7 @@ class RestRelatedEntitiesTest extends WPConnectionsTestCase
         ], 'rest-api04-self');
         self::assertSame(200, $opposite->get_status());
         self::assertSame([], $opposite->get_data()[0]->entities);
+        self::assertSame([], json_decode(wp_json_encode($opposite->get_data()[0]), true)['entities']);
         self::assertSame([ 'to' ], array_keys($opposite->get_data()[1]->entities));
 
         global $wpdb;

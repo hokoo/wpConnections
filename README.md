@@ -359,7 +359,15 @@ line. See the [deprecation and migration guide](docs/deprecations.md).
 
 Since you have initialized new client, its REST API endpoints are available.
 
-`http://cf7tgdev.loc/wp-json/wp-connections/v1/client/my-app-wpc-client/`
+`https://example.test/wp-json/wp-connections/v1/client/my-app-wpc-client/`
+
+The [OpenAPI 3.0 contract](docs/openapi.json) documents the built-in v1 routes,
+request and response schemas, permissions, errors, and examples. Replace its
+example server URL with your site's REST API root. The checked-in Postman
+collection was removed because it duplicated and lagged behind these routes;
+Postman can import the OpenAPI file directly. Validate the file with
+`make lint.openapi`. The WordPress integration test also compares its path and
+method inventory with the registered custom routes.
 
 ### REST relation selectors
 
@@ -434,6 +442,7 @@ make tests.phpunit
 make tests.integration
 make tests.coverage
 make lint.phpcs
+make lint.openapi
 ```
 
 See [`docs/ci-runbook.md`](docs/ci-runbook.md) for the canonical CI matrix,

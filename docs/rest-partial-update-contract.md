@@ -7,6 +7,10 @@ Date: 2026-09-10
 
 Owner task: `REST-00B`
 
+Historical `postman.json` references below describe the 2026-09-10 discovery
+baseline. DOC-01 removed that stale duplicate; [OpenAPI](openapi.json) is now
+the maintained route contract.
+
 ## Purpose
 
 This document separates the update behaviors that are currently conflated by

@@ -1,0 +1,1861 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "wpConnections REST API",
+    "version": "1.0.0",
+    "description": "Default wp-connections/v1 transport for a registered Client. A Client can customize its route namespace/base and per-callback capabilities; this document covers the built-in default routes. Relation.type is a deprecated no-op, never a traversal control. WordPress adds a namespace discovery root that is not a library custom route."
+  },
+  "servers": [
+    {
+      "url": "https://example.test/wp-json",
+      "description": "Replace with the WordPress REST API root; installations may use a different REST prefix."
+    }
+  ],
+  "security": [
+    {
+      "wordpressCookie": [],
+      "wpNonce": []
+    },
+    {
+      "applicationPassword": []
+    }
+  ],
+  "paths": {
+    "/wp-connections/v1/client/{client}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Client"
+        }
+      ],
+      "get": {
+        "operationId": "listClientRelations",
+        "summary": "List the Client relations",
+        "description": "Requires the configured getTheClient capability (manage_options by default).",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Legacy v1 top-level array of relation items.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RelationItem"
+                  }
+                },
+                "example": [
+                  {
+                    "data": {
+                      "name": "related-posts",
+                      "from": "post",
+                      "to": "post",
+                      "type": "both",
+                      "cardinality": "m-m",
+                      "duplicatable": false,
+                      "closurable": true
+                    },
+                    "links": {
+                      "self": [
+                        {
+                          "href": "https://example.test/wp-json/wp-connections/v1/client/example/relation/related-posts",
+                          "attributes": []
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/wp-connections/v1/client/{client}/relation/{relation}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Client"
+        },
+        {
+          "$ref": "#/components/parameters/Relation"
+        }
+      ],
+      "get": {
+        "operationId": "listRelationConnections",
+        "summary": "List or project relation connections",
+        "description": "No selectors or opt-in flags preserves the unbounded legacy v1 item shape and unspecified order. Expanded or paginated requests sort by order ASC, ID ASC. Entity filters run after entity permission checks and before totals/page slicing. Query-only API-04 parameters are rejected in JSON/form bodies; unknown query keys are rejected. Valid empty result is []. Requires getRelation capability.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/From"
+          },
+          {
+            "$ref": "#/components/parameters/To"
+          },
+          {
+            "$ref": "#/components/parameters/Both"
+          },
+          {
+            "$ref": "#/components/parameters/Target"
+          },
+          {
+            "$ref": "#/components/parameters/Representation"
+          },
+          {
+            "$ref": "#/components/parameters/Entity"
+          },
+          {
+            "$ref": "#/components/parameters/Context"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Top-level array. Expanded items appear only with representation=expanded. Pagination headers appear only when page or per_page is supplied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/ConnectionItem"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ExpandedConnectionItem"
+                      }
+                    ]
+                  }
+                },
+                "examples": {
+                  "legacy": {
+                    "summary": "Default v1 item",
+                    "value": [
+                      {
+                        "data": {
+                          "id": 123,
+                          "title": null,
+                          "relation": "related-posts",
+                          "from": 10,
+                          "to": 20,
+                          "order": 0,
+                          "meta": []
+                        },
+                        "links": {
+                          "self": [
+                            {
+                              "href": "https://example.test/wp-json/wp-connections/v1/client/example/relation/related-posts/123",
+                              "attributes": []
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "expanded": {
+                    "summary": "from=10, target=to, representation=expanded",
+                    "value": [
+                      {
+                        "data": {
+                          "id": 123,
+                          "title": null,
+                          "relation": "related-posts",
+                          "from": 10,
+                          "to": 20,
+                          "order": 0,
+                          "meta": []
+                        },
+                        "links": {
+                          "self": [
+                            {
+                              "href": "https://example.test/wp-json/wp-connections/v1/client/example/relation/related-posts/123",
+                              "attributes": []
+                            }
+                          ]
+                        },
+                        "entities": {
+                          "to": {
+                            "status": "resolved",
+                            "data": {
+                              "id": 20,
+                              "type": "post",
+                              "status": "publish"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "unavailable": {
+                    "summary": "An endpoint not visible to this user",
+                    "value": [
+                      {
+                        "data": {
+                          "id": 123,
+                          "title": null,
+                          "relation": "related-posts",
+                          "from": 10,
+                          "to": 20,
+                          "order": 0,
+                          "meta": []
+                        },
+                        "links": {
+                          "self": [
+                            {
+                              "href": "https://example.test/wp-json/wp-connections/v1/client/example/relation/related-posts/123",
+                              "attributes": []
+                            }
+                          ]
+                        },
+                        "entities": {
+                          "to": {
+                            "status": "unavailable"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-WP-Total": {
+                "description": "Present only when page or per_page is supplied; count after permission-aware filters.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "X-WP-TotalPages": {
+                "description": "Present only when pagination is enabled.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createConnection",
+        "summary": "Create a connection",
+        "description": "Create is a POST on the relation collection. Route requires from and to; title is accepted by the handler as a legacy optional field. Requires createConnection capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Flat connection object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Connection"
+                },
+                "example": {
+                  "id": 123,
+                  "title": null,
+                  "relation": "related-posts",
+                  "from": 10,
+                  "to": 20,
+                  "order": 0,
+                  "meta": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConnectionRequest"
+              },
+              "example": {
+                "from": 10,
+                "to": 20,
+                "order": 0,
+                "meta": [
+                  {
+                    "key": "source",
+                    "value": "REST"
+                  }
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConnectionRequest"
+              }
+            }
+          },
+          "description": "Connection fields. Path client/relation override same-named body or query values."
+        }
+      }
+    },
+    "/wp-connections/v1/client/{client}/relation/{relation}/{connectionID}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Client"
+        },
+        {
+          "$ref": "#/components/parameters/Relation"
+        },
+        {
+          "$ref": "#/components/parameters/ConnectionID"
+        }
+      ],
+      "get": {
+        "operationId": "getConnection",
+        "summary": "Get one connection",
+        "description": "Requires getConnection capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Flat connection object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Connection"
+                },
+                "example": {
+                  "id": 123,
+                  "title": null,
+                  "relation": "related-posts",
+                  "from": 10,
+                  "to": 20,
+                  "order": 0,
+                  "meta": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "replaceConnectionPost",
+        "summary": "Replace connection scalar fields (legacy POST)",
+        "description": "Legacy replacement alias for PUT; requires from and to. Omitted title resets to null and order to 0. Metadata is unchanged. Requires updateConnection capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Whether an existing target changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedBoolean"
+                },
+                "example": {
+                  "updated": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceConnectionRequest"
+              },
+              "example": {
+                "from": 10,
+                "to": 21,
+                "title": "Updated",
+                "order": 2
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceConnectionRequest"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "replaceConnectionPut",
+        "summary": "Replace connection scalar fields",
+        "description": "Requires from and to. Omitted title resets to null and order to 0. Metadata is unchanged. Requires updateConnection capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Whether an existing target changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedBoolean"
+                },
+                "example": {
+                  "updated": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceConnectionRequest"
+              },
+              "example": {
+                "from": 10,
+                "to": 21,
+                "title": "Updated",
+                "order": 2
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceConnectionRequest"
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchConnection",
+        "summary": "Patch supplied connection scalar fields",
+        "description": "Omitted scalar fields retain their values. Explicit null title clears it. Metadata is unchanged. Requires updateConnection capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Whether an existing target changed. Empty PATCH is a valid no-op.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedBoolean"
+                },
+                "example": {
+                  "updated": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchConnectionRequest"
+              },
+              "example": {
+                "order": 2
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchConnectionRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteConnection",
+        "summary": "Delete one connection",
+        "description": "Missing target returns 404. Requires deleteConnection capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Exact success wrapper.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedBoolean"
+                },
+                "example": {
+                  "deleted": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/wp-connections/v1/client/{client}/relation/{relation}/{connectionID}/meta": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Client"
+        },
+        {
+          "$ref": "#/components/parameters/Relation"
+        },
+        {
+          "$ref": "#/components/parameters/ConnectionID"
+        }
+      ],
+      "post": {
+        "operationId": "appendConnectionMeta",
+        "summary": "Append connection metadata",
+        "description": "Omitted or [] preserves existing rows; supplied rows append, including duplicates. Requires updateConnectionMeta capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Legacy connection object wrapper.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedMeta"
+                },
+                "example": {
+                  "updated": {
+                    "id": 123,
+                    "title": null,
+                    "relation": "related-posts",
+                    "from": 10,
+                    "to": 20,
+                    "order": 0,
+                    "meta": {
+                      "collectionType": "iTRON\\wpConnections\\Meta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaMutationRequest"
+              },
+              "example": {
+                "meta": [
+                  {
+                    "key": "source",
+                    "value": "REST"
+                  }
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaMutationRequest"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "replaceConnectionMeta",
+        "summary": "Replace all connection metadata",
+        "description": "Omitted or [] clears all metadata; supplied rows replace the complete collection. Requires updateConnectionMeta capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Legacy connection object wrapper.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedMeta"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaMutationRequest"
+              },
+              "example": {
+                "meta": [
+                  {
+                    "key": "source",
+                    "value": "REST"
+                  }
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaMutationRequest"
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchConnectionMeta",
+        "summary": "Replace metadata for supplied keys",
+        "description": "Omitted or [] preserves existing rows; non-empty input replaces all values for each supplied key, retaining other keys. Requires updateConnectionMeta capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Legacy connection object wrapper.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedMeta"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaMutationRequest"
+              },
+              "example": {
+                "meta": [
+                  {
+                    "key": "source",
+                    "value": "REST"
+                  }
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaMutationRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteConnectionMeta",
+        "summary": "Delete selected or all metadata",
+        "description": "Omitted, [], or top-level null meta deletes all. Row-list and associative key/value map selectors are accepted; null row value matches every value for that key. Requires deleteConnectionMeta capability.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Number of deleted metadata rows.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedCount"
+                },
+                "example": {
+                  "deleted": 2
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaDeleteRequest"
+              },
+              "example": {
+                "meta": [
+                  {
+                    "key": "source",
+                    "value": "REST"
+                  },
+                  {
+                    "key": "flag",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaDeleteRequest"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "wordpressCookie": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Cookie",
+        "description": "Authenticated WordPress login cookie."
+      },
+      "wpNonce": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-WP-Nonce",
+        "description": "REST nonce paired with cookie authentication."
+      },
+      "applicationPassword": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "WordPress Application Password credentials over HTTPS."
+      }
+    },
+    "parameters": {
+      "Client": {
+        "name": "client",
+        "in": "path",
+        "required": true,
+        "description": "Registered Client name; matched URL value is authoritative.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "Relation": {
+        "name": "relation",
+        "in": "path",
+        "required": true,
+        "description": "Registered relation name; matched URL value is authoritative.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[\\w-]+$"
+        }
+      },
+      "ConnectionID": {
+        "name": "connectionID",
+        "in": "path",
+        "required": true,
+        "description": "Connection ID; matched URL value is authoritative.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "From": {
+        "name": "from",
+        "in": "query",
+        "required": false,
+        "description": "Select physical FROM endpoint. Selectors combine with AND; one positive decimal ID only.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "To": {
+        "name": "to",
+        "in": "query",
+        "required": false,
+        "description": "Select physical TO endpoint. Selectors combine with AND; one positive decimal ID only.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "Both": {
+        "name": "both",
+        "in": "query",
+        "required": false,
+        "description": "Select a connection with this ID on either physical endpoint. Selectors combine with AND.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "Target": {
+        "name": "target",
+        "in": "query",
+        "required": false,
+        "description": "Project absolute endpoint roles. opposite requires exactly one from, to, or both selector.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "from",
+            "to",
+            "both",
+            "opposite"
+          ]
+        }
+      },
+      "Representation": {
+        "name": "representation",
+        "in": "query",
+        "required": false,
+        "description": "Opt in to side-keyed entities. Default v1 list items have no entities.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "expanded"
+          ]
+        }
+      },
+      "Entity": {
+        "name": "entity",
+        "in": "query",
+        "required": false,
+        "description": "Requires target. Encode as entity[status]=publish or entity[status][]=publish&entity[status][]=draft. Values within a field are OR; fields are AND. status/type/slug exact, search case-insensitive substring.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                }
+              ]
+            },
+            "type": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                }
+              ]
+            },
+            "slug": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                }
+              ]
+            },
+            "search": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                }
+              ]
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        },
+        "style": "deepObject",
+        "explode": true
+      },
+      "Context": {
+        "name": "context",
+        "in": "query",
+        "required": false,
+        "description": "REST field context; entity item permission is checked separately.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "view",
+            "embed",
+            "edit"
+          ],
+          "default": "view"
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "Enables pagination; default page 1.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "PerPage": {
+        "name": "per_page",
+        "in": "query",
+        "required": false,
+        "description": "Enables pagination; default 20, maximum 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "schemas": {
+      "Relation": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Legacy v1 no-op. This field does not control traversal."
+          },
+          "cardinality": {
+            "type": "string",
+            "enum": [
+              "1-1",
+              "1-m",
+              "m-m",
+              "m-1"
+            ]
+          },
+          "duplicatable": {
+            "type": "boolean"
+          },
+          "closurable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "from",
+          "to",
+          "type",
+          "cardinality",
+          "duplicatable",
+          "closurable"
+        ]
+      },
+      "Metadata": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+              "type": "array",
+              "items": {}
+            },
+            "description": "Keys map to arrays of stored values."
+          },
+          {
+            "type": "array",
+            "items": {},
+            "maxItems": 0,
+            "description": "Empty metadata serializes as [] in v1."
+          }
+        ]
+      },
+      "Connection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "relation": {
+            "type": "string"
+          },
+          "from": {
+            "type": "integer"
+          },
+          "to": {
+            "type": "integer"
+          },
+          "order": {
+            "type": "integer",
+            "nullable": true
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Metadata"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "relation",
+          "from",
+          "to",
+          "order",
+          "meta"
+        ]
+      },
+      "SelfLink": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string",
+            "format": "uri"
+          },
+          "attributes": {
+            "type": "array",
+            "items": {},
+            "description": "Legacy v1 link attributes."
+          }
+        },
+        "required": [
+          "href",
+          "attributes"
+        ]
+      },
+      "Links": {
+        "type": "object",
+        "properties": {
+          "self": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SelfLink"
+            }
+          }
+        },
+        "required": [
+          "self"
+        ]
+      },
+      "RelationItem": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Relation"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "ConnectionItem": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Connection"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "ResolvedEntity": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "resolved"
+            ]
+          },
+          "data": {
+            "description": "Fields selected by the entity REST controller or client adapter for the user and context; adapter output can be any JSON value."
+          }
+        },
+        "required": [
+          "status",
+          "data"
+        ]
+      },
+      "UnavailableEntity": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "unavailable"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status"
+        ]
+      },
+      "EntitySlot": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ResolvedEntity"
+          },
+          {
+            "$ref": "#/components/schemas/UnavailableEntity"
+          }
+        ]
+      },
+      "ExpandedConnectionItem": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Connection"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          },
+          "entities": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "$ref": "#/components/schemas/EntitySlot"
+                  },
+                  "to": {
+                    "$ref": "#/components/schemas/EntitySlot"
+                  }
+                },
+                "minProperties": 1,
+                "additionalProperties": false
+              },
+              {
+                "type": "array",
+                "items": {},
+                "maxItems": 0
+              }
+            ],
+            "description": "Only projected sides appear. With no projected sides, the PHP empty array serializes as [] in v1."
+          }
+        },
+        "required": [
+          "data",
+          "links",
+          "entities"
+        ]
+      },
+      "MetaRow": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {}
+        },
+        "required": [
+          "key",
+          "value"
+        ]
+      },
+      "MetaRows": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/MetaRow"
+        }
+      },
+      "MetaInput": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/MetaRows"
+          },
+          {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {},
+            "description": "Associative key/value map accepted by the legacy metadata parser."
+          }
+        ],
+        "description": "Rows or an associative map; persisted null values and empty keys are invalid."
+      },
+      "MetaDeleteInput": {
+        "description": "Omitted, [] or null deletes all. A row value of null selects every value for its key.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/MetaRows"
+          },
+          {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {},
+            "description": "Map of key to one or more values, or null wildcard."
+          }
+        ],
+        "nullable": true
+      },
+      "CreateConnectionRequest": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "order": {
+            "type": "integer",
+            "default": 0
+          },
+          "meta": {
+            "$ref": "#/components/schemas/MetaInput"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true,
+            "description": "Accepted by the handler, although not declared in the route argument schema."
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "ReplaceConnectionRequest": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        },
+        "description": "POST and PUT replace scalar fields. Omitted title becomes null and order becomes 0. Metadata is changed only via /meta.",
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "PatchConnectionRequest": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "description": "PATCH changes only supplied scalar fields. An empty request is a valid no-op. Metadata is changed only via /meta."
+      },
+      "MetaMutationRequest": {
+        "type": "object",
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/MetaInput"
+          }
+        },
+        "description": "POST appends, PATCH replaces supplied keys, PUT replaces the whole metadata collection. Omitted/empty input has method-specific semantics."
+      },
+      "MetaDeleteRequest": {
+        "type": "object",
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/MetaDeleteInput"
+          }
+        },
+        "description": "Omitted, [] or null meta deletes all rows; a selector list or key/value map deletes selected rows."
+      },
+      "UpdatedBoolean": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "updated"
+        ]
+      },
+      "DeletedBoolean": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      },
+      "LegacyMetaConnection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "relation": {
+            "type": "string"
+          },
+          "from": {
+            "type": "integer"
+          },
+          "to": {
+            "type": "integer"
+          },
+          "order": {
+            "type": "integer",
+            "nullable": true
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "collectionType": {
+                "type": "string",
+                "enum": [
+                  "iTRON\\wpConnections\\Meta"
+                ]
+              }
+            },
+            "required": [
+              "collectionType"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "relation",
+          "from",
+          "to",
+          "order",
+          "meta"
+        ]
+      },
+      "UpdatedMeta": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "$ref": "#/components/schemas/LegacyMetaConnection"
+          }
+        },
+        "required": [
+          "updated"
+        ]
+      },
+      "DeletedCount": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      },
+      "DomainError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              4,
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307,
+              308,
+              309,
+              310
+            ],
+            "description": "Stable library domain code, independent of HTTP status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "integer",
+                "enum": [
+                  400,
+                  404,
+                  409
+                ]
+              },
+              "domain_code": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "status",
+              "domain_code"
+            ]
+          }
+        },
+        "description": "Classified library error. data.domain_code equals top-level code.",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ]
+      },
+      "WordPressError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "WordPress-owned code such as rest_invalid_param, rest_missing_callback_param, rest_forbidden, or rest_no_route."
+          },
+          "message": {
+            "type": "string",
+            "description": "Localized by WordPress."
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "status"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ]
+      },
+      "InternalError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "wp_connections_internal_error"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "An internal error occurred."
+            ]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "integer",
+                "enum": [
+                  500
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ]
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid parameters or classified domain validation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/WordPressError"
+                },
+                {
+                  "$ref": "#/components/schemas/DomainError"
+                }
+              ]
+            },
+            "examples": {
+              "native": {
+                "value": {
+                  "code": "rest_invalid_param",
+                  "message": "Invalid parameter(s): from",
+                  "data": {
+                    "status": 400
+                  }
+                }
+              },
+              "domain": {
+                "value": {
+                  "code": 305,
+                  "message": "Invalid endpoint identifier.",
+                  "data": {
+                    "status": 400,
+                    "domain_code": 305
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "WordPress capability denial for an anonymous user.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/WordPressError"
+            },
+            "example": {
+              "code": "rest_forbidden",
+              "message": "Sorry, you are not allowed to do that.",
+              "data": {
+                "status": 401
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "WordPress capability denial for an authenticated user.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/WordPressError"
+            },
+            "example": {
+              "code": "rest_forbidden",
+              "message": "Sorry, you are not allowed to do that.",
+              "data": {
+                "status": 403
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Unknown relation/connection or native unmatched route.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/WordPressError"
+                },
+                {
+                  "$ref": "#/components/schemas/DomainError"
+                }
+              ]
+            },
+            "example": {
+              "code": 2,
+              "message": "Connection not found.",
+              "data": {
+                "status": 404,
+                "domain_code": 2
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Classified closure, cardinality, or duplicate invariant.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/DomainError"
+            },
+            "example": {
+              "code": 303,
+              "message": "Duplicate connection.",
+              "data": {
+                "status": 409,
+                "domain_code": 303
+              }
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Sanitized storage or unknown failure; details go to server logs.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/InternalError"
+            },
+            "example": {
+              "code": "wp_connections_internal_error",
+              "message": "An internal error occurred.",
+              "data": {
+                "status": 500
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

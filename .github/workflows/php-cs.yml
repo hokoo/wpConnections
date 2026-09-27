@@ -19,6 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Node for OpenAPI validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+
+      - name: Validate OpenAPI contract
+        run: make lint.openapi
+
       - name: Build CI image
         run: |
           docker build \

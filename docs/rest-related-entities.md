@@ -17,8 +17,10 @@ Each selector requires one positive ID. See the
 `target=from|to|both` projects absolute endpoint roles. `target=opposite`
 requires exactly one selector: `from=4` projects `to`, `to=4` projects `from`,
 and `both=4` projects the non-4 side of each selected row. A self-connection
-has no distinct opposite, so its `entities` object is empty. An omitted target
-projects no entities; even an expanded item then has an empty `entities` object.
+has no distinct opposite, so its `entities` value is empty. An omitted target
+projects no entities. In the current v1 JSON wire shape, empty PHP arrays
+serialize as `"entities": []`; projected roles serialize as an object keyed by
+`from` and/or `to`.
 
 `representation=expanded` adds side-keyed `entities` to each v1 connection
 item. Each permitted side has `{ "status": "resolved", "data": ... }`; `data`
@@ -107,7 +109,8 @@ parameters to its existing `from`, `to`, and `both` parameters:
 
 Describe a 200 response as `array<ConnectionItem | ExpandedConnectionItem>`;
 `ExpandedConnectionItem` adds `entities`, a map of `from` and/or `to` to a
-`oneOf` resolved `{status: resolved, data: object}` or unavailable
-`{status: unavailable}` slot. Keep the existing connection fields and links.
+`oneOf` resolved `{status: resolved, data: ...}` or unavailable
+`{status: unavailable}` slot, or `[]` when no role is projected. Keep the
+existing connection fields and links.
 Document `X-WP-Total` and `X-WP-TotalPages` only when paging is enabled, and
 the native `rest_invalid_param` 400 response for invalid parameters.
