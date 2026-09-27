@@ -1,9 +1,8 @@
 # Batch 25 — API-03 bulk entity resolution
 
-Status: review. API-03 implementation and local verification are accepted;
-the scoped local commit is delivered; external PR/merge remains pending. On
-2026-09-23 the owner authorized exactly the next batch after accepted
-REST-06/E4. Stop at this batch boundary; API-04 is not authorized here.
+Status: completed. API-03 was delivered through PR #114 and verified on its
+exact head and merge commit. The owner authorized completion of this batch on
+2026-09-27. Stop at this batch boundary; API-04 is not authorized here.
 
 Base: `2469eae85ee5010e1aa5688c6851c63fd393a35d`.
 Branch: `batch25-api03-bulk-resolution`.
@@ -38,7 +37,8 @@ Contract: API-03 in [the hardening plan](02-library-hardening.md), approved
   PHP entity access is not a REST authorization boundary; no cross-client or
   cross-site result cache; untracked `.codex/` and `AGENTS.md` are user-owned.
 
-API-04 and DOC-01 remain dependent; E5 is not at its epic QA boundary.
+API-04 is now ready for a separate execution request; DOC-01 still depends on
+API-04. E5 is not at its epic QA boundary.
 
 ## Review boundary
 
@@ -132,14 +132,32 @@ No new material design decision, waiver or accepted exception remains.
 Git status retained only intended changes plus user-owned `.codex/` and
 `AGENTS.md`; no unexpected generated files appeared.
 
-API-04 and DOC-01 retain their delivery dependencies. E5 is incomplete, so this
-is task acceptance, not epic QA. External push/PR/merge, protected CI and issue
-closure are not claimed; release/publication remain out of scope.
+At this local acceptance boundary, external push/PR/merge and protected CI were
+still pending. E5 was incomplete, so this was task acceptance, not epic QA.
+Issue #20 closure and release/publication remain outside API-03.
 
 Local implementation/evidence commit:
 `556a22b89ec0dd2a4e42e5ed3562894230758647`. This subsequent checkpoint-only
 record changes no tested source or test. The working tree after that commit
 contained only the pre-existing untracked `.codex/` and `AGENTS.md`.
-The requested batch is ready for external delivery; push/PR/merge authority
-must be established separately under AGENTS.md. API-03 stays `review` and
-API-04 is not started while that delivery boundary remains pending.
+At that point API-03 remained `review` until external delivery; API-04 had not
+started.
+
+## Protected delivery and batch closeout
+
+- [PR #114](https://github.com/hokoo/wpConnections/pull/114) had exact head
+  `537a169d3ff10b1e7e3845a79527689ac1b96c83`. All 20 required contexts
+  completed successfully: 10 unit, 5 integration, 1 multisite, 2 database
+  compatibility, 1 coverage and 1 PHPCS. No required context was missing,
+  skipped, cancelled, stale or failed.
+- The repository owner confirmed the live `master` protection on 2026-09-27:
+  strict checks for all 20 contexts, administrator enforcement, and force-push
+  and deletion disabled. The GitHub app could not read the administrative
+  endpoint (403); this is owner attestation, not an independent API read.
+- PR #114 merged as `4a71061c3dbd7f2402bb31174240fec9fa5a2dfb` on
+  2026-09-27. The exact merge SHA passed all 20 required post-merge contexts;
+  the delivery owner independently matched the names, SHA and success states.
+- API-03 and Batch 25 are completed. API-04 has satisfied DoR and dependencies
+  and moves to `todo`, but remains outside this authorized batch. DOC-01 still
+  waits for API-04. Issue #20 remains open for API-04; E5 is incomplete, so no
+  E5 Epic QA or issue closure is claimed. No release or publication occurred.
