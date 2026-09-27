@@ -1247,7 +1247,7 @@ class ClientRestApiLifecycleTest extends \WP_UnitTestCase
 	{
 		return [
 			'getTheClient' => [],
-            'getRelation' => ['relation', 'from', 'to', 'both'],
+			'getRelation' => [ 'relation', 'from', 'to', 'both', 'target', 'representation', 'entity', 'context', 'page', 'per_page' ],
 			'createConnection' => [ 'from', 'to', 'order', 'meta' ],
 			'getConnection' => [ 'relation', 'connectionID' ],
 			'updateConnection' => [ 'relation', 'connectionID', 'from', 'to', 'title', 'order' ],

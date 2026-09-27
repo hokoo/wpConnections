@@ -61,6 +61,56 @@ final class RestRouteRegistrar
                         'both' => self::positiveSelectorArgument(
                             __('Positive endpoint ID matching either side.')
                         ),
+                        'target' => [
+                            'description' => __('Endpoint roles to project.'),
+                            'type' => 'string',
+                            'enum' => [ 'from', 'to', 'both', 'opposite' ],
+                            'validate_callback' => static function ($value, \WP_REST_Request $request): bool {
+                                if (! self::queryOnlyArgument($request, 'target')) {
+                                    return false;
+                                }
+                                $query = $request->get_query_params();
+                                $candidate = $query['target'] ?? $value;
+                                if (! is_string($candidate) || ! in_array($candidate, [ 'from', 'to', 'both', 'opposite' ], true)) {
+                                    return false;
+                                }
+                                if ('opposite' !== $candidate) {
+                                    return true;
+                                }
+                                return 1 === count(array_intersect([ 'from', 'to', 'both' ], array_keys($query)));
+                            },
+                        ],
+                        'representation' => [
+                            'description' => __('Opt-in relation representation.'),
+                            'type' => 'string',
+                            'enum' => [ 'expanded' ],
+                            'validate_callback' => static function ($value, \WP_REST_Request $request): bool {
+                                if (! self::queryOnlyArgument($request, 'representation')) {
+                                    return false;
+                                }
+                                $query = $request->get_query_params();
+                                return 'expanded' === ($query['representation'] ?? $value);
+                            },
+                        ],
+                        'entity' => [
+                            'description' => __('Filters for projected entities.'),
+                            'type' => 'object',
+                            'validate_callback' => [ self::class, 'validateEntityFilters' ],
+                        ],
+                        'context' => [
+                            'description' => __('REST field context for projected entities.'),
+                            'type' => 'string',
+                            'enum' => [ 'view', 'embed', 'edit' ],
+                            'validate_callback' => static function ($value, \WP_REST_Request $request): bool {
+                                if (! self::queryOnlyArgument($request, 'context')) {
+                                    return false;
+                                }
+                                $query = $request->get_query_params();
+                                return in_array($query['context'] ?? $value, [ 'view', 'embed', 'edit' ], true);
+                            },
+                        ],
+                        'page' => self::positivePaginationArgument(__('Page number.')),
+                        'per_page' => self::positivePaginationArgument(__('Items per page, up to 100.'), 100),
                     ],
                 ],
                 [
@@ -250,6 +300,65 @@ final class RestRouteRegistrar
                 return true;
             },
         ];
+    }
+
+    /** @internal WordPress route argument callback. */
+    public static function validateEntityFilters($value, \WP_REST_Request $request): bool
+    {
+        if (! self::queryOnlyArgument($request, 'entity')) {
+            return false;
+        }
+        $query = $request->get_query_params();
+        $candidate = $query['entity'] ?? $value;
+        if (! is_array($candidate) || [] === $candidate || ! isset($query['target'])) {
+            return false;
+        }
+        foreach ($candidate as $field => $values) {
+            if (! in_array($field, [ 'status', 'type', 'slug', 'search' ], true)) {
+                return false;
+            }
+            $values = is_array($values) ? $values : [ $values ];
+            if ([] === $values || array_keys($values) !== range(0, count($values) - 1)) {
+                return false;
+            }
+            foreach ($values as $filterValue) {
+                if (! is_string($filterValue) || '' === trim($filterValue)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static function positivePaginationArgument(string $description, ?int $maximum = null): array
+    {
+        return [
+            'description' => $description,
+            'type' => 'integer',
+            'minimum' => 1,
+            'maximum' => $maximum,
+            'validate_callback' => static function ($value, \WP_REST_Request $request, string $parameter) use ($maximum): bool {
+                if (! self::queryOnlyArgument($request, $parameter)) {
+                    return false;
+                }
+                $query = $request->get_query_params();
+                $candidate = $query[$parameter] ?? $value;
+                try {
+                    $number = ConnectionIdNormalizer::one($candidate);
+                    return null === $maximum || $number <= $maximum;
+                } catch (ConnectionWrongData $exception) {
+                    return false;
+                }
+            },
+        ];
+    }
+
+    private static function queryOnlyArgument(\WP_REST_Request $request, string $parameter): bool
+    {
+        $json = $request->get_json_params();
+        return array_key_exists($parameter, $request->get_query_params())
+            && ! array_key_exists($parameter, $request->get_body_params())
+            && (! is_array($json) || ! array_key_exists($parameter, $json));
     }
 
     private static function connectionUpdateHandler(
