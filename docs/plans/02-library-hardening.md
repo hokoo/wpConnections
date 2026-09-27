@@ -80,8 +80,11 @@ DG-API20-01—DG-API20-09 утверждены владельцем 2026-09-14 �
 вариантах B/B/A/B/B/A/B/B/B. API-03 завершена как Batch 25 через PR #114;
 API-04 завершена как Batch 26 через PR #116: head `6b81ab1` и merge `0ce93fc`
 прошли по 20/20 required contexts, issue #20 закрыта. Evidence находится в
-[Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 теперь `todo` для
-отдельного execution request. DB-06R остаётся отдельной
+[Batch 26 checkpoint](batch26-checkpoint.md). DOC-01 завершена как Batch 27
+через PR #118: head `0d3adca` и merge `8a0be6d` прошли по 20/20 required
+contexts, issue #27 закрыта. Fresh E5 Epic QA вернул `pass_with_notes` без
+blocking findings или exception; evidence — в
+[Batch 27 checkpoint](batch27-checkpoint.md). DB-06R остаётся отдельной
 неблокирующей `needs_design` задачей.
 
 DG-M1—DG-M9 утверждены владельцем 2026-09-10. Зависимые задачи переведены из
@@ -6705,6 +6708,9 @@ Notes/Risks:
 
 ## E5. Незавершённый API, related entities и документация
 
+Status: completed. Fresh independent Epic QA: `pass_with_notes`, no blocking
+criterion or exception; [Batch 27 checkpoint](batch27-checkpoint.md).
+
 Outcome: пустой `load()` имеет формальный deprecation path, а REST issue #20
 получает исследованный и реализованный related-entity contract, не
 предопределённый старой пустой сигнатурой `getPosts()`.
@@ -7074,7 +7080,7 @@ Notes/Risks:
 
 ### DOC-01. Создать OpenAPI contract из проверенных REST routes
 
-Status: review
+Status: completed
 
 Priority: P1
 
@@ -7124,9 +7130,10 @@ Notes/Risks:
 - Спецификацию нельзя писать раньше стабилизации response contract: иначе она
   закрепит случайные текущие shapes.
 - API-04 / Batch 26 завершена; оставшиеся DoR и зависимости удовлетворены.
-  Владелец разрешил Batch 27 / DOC-01. Реализация и локальные AC/DoD gate
-  приняты; protected PR, issue #27 closure и E5 Epic QA ещё ожидаются.
-  Evidence: [Batch 27 checkpoint](batch27-checkpoint.md).
+  Владелец разрешил Batch 27 / DOC-01. PR #118 доставлен: head `0d3adca` и
+  merge `8a0be6d` прошли 20/20 required contexts; issue #27 закрыта, E5 QA
+  вернул `pass_with_notes` без blocking criterion. Evidence:
+  [Batch 27 checkpoint](batch27-checkpoint.md).
 
 ### PROD-01. Выделить dashboard application в отдельную инициативу
 
@@ -8168,7 +8175,7 @@ Notes/Risks:
 | Closed [#31 error code tests](https://github.com/hokoo/wpConnections/issues/31) | CORE-03, REST-03 |
 | Closed [#21 REST filters](https://github.com/hokoo/wpConnections/issues/21) | REST-06 |
 | Closed [#20 entities/getPosts](https://github.com/hokoo/wpConnections/issues/20) | API-01, API-03, API-04; DOC-01 documents the delivered contract |
-| Open [#27 OpenAPI](https://github.com/hokoo/wpConnections/issues/27) | DOC-01 |
+| Closed [#27 OpenAPI](https://github.com/hokoo/wpConnections/issues/27) | DOC-01 |
 | Open [#28 dashboard](https://github.com/hokoo/wpConnections/issues/28) | PROD-01 deferred initiative |
 | Closed [#13 order zero](https://github.com/hokoo/wpConnections/issues/13) | DB-02 |
 | Closed [#29 duplicate precedence](https://github.com/hokoo/wpConnections/issues/29) | CORE-03 |
