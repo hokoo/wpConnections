@@ -29,6 +29,9 @@ required contexts, issue #20 закрыта. Подробности — в
 закрыта. Fresh E5 Epic QA вернул `pass_with_notes` без blocking findings или
 exception; evidence — в [Batch 27 checkpoint](batch27-checkpoint.md).
 DB-06R остаётся отдельной неблокирующей `needs_design` задачей.
+Следующий этап — E6, подготовка первого официального релиза после использования
+библиотеки через коммиты. [Известные ограничения и DB-02R release gate](02-library-hardening.md#известные-ограничения-первого-официального-релиза)
+зафиксированы в основном плане.
 
 ## Порядок исполнения
 
