@@ -49,3 +49,11 @@ Implementation commit: `60081f0` (`Protect factory replacements and extension ho
 Final hashes: Factory `9c86a2a44d30d9937a2af72561a01dee3e253c54cf83d0e820396cc9d839c7e7`; ExtensionCompatibilityTest `7f895da4730ccc942085d72026a30385d096559e6a32275c0d2662826bebe653`; ClientIsolationTest `e36520054fc313455240779512c5ce1228d2417e960defed25a7387b00b19d14`; StorageFailureTest `c91ef32e1f147657584b683939d9dc7f9c0b32557d386eb81e1c65b0861509de`; WPStorageFindConnectionsTest `30b7026a56ff7362b95eed685ba6635c35af32dfc798b419b70ff4611f82549c`; guide `06005d4cab341eba65cb17806e7dfd606fe2a9882adaa7f2785972d689821d65`.
 
 No remaining Batch 29 blocker. Default adapter parent-row race remains DB-02R; private adapters/consumers remain unknown. DB-02R DoR now has its capable-adapter fixture; HOOK-04 DoR now has hook/factory evidence and its other dependencies were already complete. Next proposed authorized batch is Batch 30 / DB-02R (`gpt-6.1-sol`/high), then Batch 31 / HOOK-04 (`gpt-6.1-sol`/medium), each through a fresh root-selected owner. E7 QA follows HOOK-04; E6 remains open pending REL-03. This owner stops at Batch 29 handoff and does not start a successor.
+
+## Native lifecycle recovery
+
+New AGENTS lifecycle policy applied after accepted handoff and recorded owner/descendant command-stop evidence. CLI/daemon 0.160.0; serving socket `/home/itron/.codex/app-server-control/app-server-control.sock`. Root archived the completed owner once with `codex archive --remote unix:///home/itron/.codex/app-server-control/app-server-control.sock 01a0fd40-c0f1-73c2-a7b7-bbeabeacafbd`; exit 0. Owner disappeared from current agent tree; read-only exact-path runtime metadata confirms owner and both children archived, retained history. UUIDs obtained from `state_5.sqlite` exact agent_path plus parent source, without history scanning. Optional proxy introspection timed out; archive metadata/tree supplied decisive evidence.
+
+- `/root/batch29_owner`: native UUID `01a0fd40-c0f1-73c2-a7b7-bbeabeacafbd`, archived metadata = true.
+- `/root/batch29_owner/rel02_worker`: native UUID `01a0fd42-8b13-7aa1-bd1c-c6a47ea137c6`, archived metadata = true.
+- `/root/batch29_owner/rel02_monitor`: native UUID `01a0fd4e-cda6-7e13-88df-c121dc64b180`, archived metadata = true.

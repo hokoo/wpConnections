@@ -7232,8 +7232,9 @@ DB-02R не является принятым ограничением: Batch 30
 update/delete parent-row race проверенным локальным исправлением `26e87c7`.
 Обе pinned database lanes и обязательные regression gates прошли; prerequisite
 REL-03 о проверенном исправлении выполнен без сужения invariant или принятия
-риска. Evidence: [Batch 30 checkpoint](batch30-checkpoint.md). HOOK-04,
-выбор/проверка release candidate и отдельные полномочия на публикацию остаются.
+риска. Evidence: [Batch 30 checkpoint](batch30-checkpoint.md). HOOK-04 completed
+locally and E7 accepted with notes; version/candidate verification and separate
+publication authority remain REL-03 obligations.
 
 Tasking Guidance:
 
@@ -7507,6 +7508,8 @@ Notes/Risks:
   требующие полномочий после проверки кандидата.
 
 ## E7. Context-aware WordPress hook lifecycle
+
+Status: completed locally; fresh independent E7 QA repeat `pass_with_notes` at `3e1a5be`, no unmet criterion or exception. Evidence: [Batch 31 checkpoint](batch31-checkpoint.md#final-e7-acceptance).
 
 Recommended root AI model: `gpt-6.1-sol` (`high` reasoning effort for remaining HOOK-04 work).
 
@@ -8098,9 +8101,9 @@ Verification evidence (2026-09-12):
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
-Status: review; E7-QA-R1 technical repair verified at local commit `03a50b5`; independent E7 QA repeat pending.
+Status: completed locally; E7-QA-R1 bridge removal verified at `03a50b5`; fresh independent E7 QA repeat `pass_with_notes` at `3e1a5be`.
 
-Repair evidence: [Batch 31R checkpoint](batch31-checkpoint.md#verified-batch-31r-local-delivery); removed obsolete current_filter bridge, red/green direct-stale regression and required serial gates passed. No E7 acceptance is claimed.
+Repair evidence: [Batch 31R checkpoint](batch31-checkpoint.md#verified-batch-31r-local-delivery); removed obsolete current_filter bridge, red/green direct-stale regression and required serial gates passed. Fresh independent E7 QA repeat acceptance is recorded in the final checkpoint.
 
 Priority: P0 для 2.0
 
@@ -8224,7 +8227,7 @@ Notes/Risks:
 - Это обязательный gate первого официального релиза, но не миграция между
   ранее опубликованными major-версиями. Его результат потребляет REL-03.
 
-Delivery evidence: [Batch 31 checkpoint](batch31-checkpoint.md); scoped verified local documentation commit `2b1b0b3`. Current four-source refresh found no incompatible lifecycle pattern; no artificial fixture. E7 independent QA remains pending; no release or publication.
+Delivery evidence: [Batch 31 checkpoint](batch31-checkpoint.md); scoped verified local documentation commit `2b1b0b3`. Current four-source refresh found no incompatible lifecycle pattern; no artificial fixture. E7 independent QA repeat passed with notes at `3e1a5be`; no release or publication.
 
 ## Traceability: замечания и GitHub issues
 

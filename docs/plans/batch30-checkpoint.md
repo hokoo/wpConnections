@@ -72,3 +72,11 @@ docker run --rm --network wpconnections-db02r-mariadb-net -v "$PWD:/srv/web" -e 
 ```
 
 Final owner status/diff/whitespace review passed after implementation commit; remaining working-tree changes are known ORCH files, local README status blocks and this delivery bookkeeping. No product/test/doc mutation after the verified frozen boundary.
+
+## Native lifecycle recovery
+
+New AGENTS lifecycle policy applied after accepted handoff and recorded owner/descendant command-stop evidence. CLI/daemon 0.160.0; serving socket `/home/itron/.codex/app-server-control/app-server-control.sock`. Root archived the completed owner once with `codex archive --remote unix:///home/itron/.codex/app-server-control/app-server-control.sock 01a0fd74-f2b9-7320-8e8d-5339050a2781`; exit 0. Owner disappeared from current agent tree; read-only exact-path runtime metadata confirms owner and both children archived, retained history. UUIDs obtained from `state_5.sqlite` exact agent_path plus parent source, without history scanning. Optional proxy introspection timed out; archive metadata/tree supplied decisive evidence.
+
+- `/root/batch30_owner`: native UUID `01a0fd74-f2b9-7320-8e8d-5339050a2781`, archived metadata = true.
+- `/root/batch30_owner/db02r_worker`: native UUID `01a0fd75-c95d-7223-a64a-9b1aac584261`, archived metadata = true.
+- `/root/batch30_owner/db02r_monitor_retry`: native UUID `01a0fd7b-ed93-7fb1-9601-d4922bc2639f`, archived metadata = true.
