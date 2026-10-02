@@ -76,11 +76,11 @@ change, not routine dependency drift.
 The Batch 28 candidate keeps Ramsey `1.3.0` lanes on `composer.lock` and moves
 Ramsey `2.1.1` lanes to `composer-ramsey-2.1.1.json` (an alias of the root
 manifest) and `composer-ramsey-2.1.1.lock`. The entrypoint and dedicated lock
-are still uncommitted and unverified; see the
-[Batch 28 checkpoint](plans/batch28-checkpoint.md). Once delivered, Composer
-installs both lanes without resolving new dependency versions or rewriting
-`composer.lock`. When changing the root manifest or a matrix dependency pin,
-update and verify both lock files together.
+are locally verified; remote required checks remain pending. See the
+[Batch 28 checkpoint](plans/batch28-checkpoint.md) for the local evidence.
+Composer installs both lanes without resolving new dependency versions or
+rewriting `composer.lock`. When changing the root manifest or a matrix
+dependency pin, update and verify both lock files together.
 
 ### Unit tests
 

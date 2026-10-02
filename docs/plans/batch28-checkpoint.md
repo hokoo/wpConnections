@@ -1,13 +1,14 @@
 # Batch 28 — REL-01 compatibility matrix
 
-Status: in progress. Documentary and static inventory complete; the Ramsey
-matrix install change is in the working tree, and exact-head verification is
-pending. No release, merge or publication is claimed.
+Status: review. Local verification of the REL-01 candidate is complete; its
+required GitHub checks remain pending. No release, merge
+or publication is claimed.
 
-Base: `979db63` (`batch28-rel01-compatibility`). This checkpoint is a
-work-in-progress record, not a verified candidate. REL-01 is the only
-implementation scope. Product source and CI workflows are unchanged; the
-test entrypoint and dedicated Ramsey manifest/lock are pending verification.
+Implementation base: `979db63` (`batch28-rel01-compatibility`). The checkout
+also includes delivery-documentation commits `cf7d449` and `b5baf84`; the
+verified REL-01 candidate contains the harness and alternate-lock changes
+recorded here. REL-01 is the only implementation scope. Product source, tests and CI
+workflows are unchanged.
 
 ## Declared blocking matrix
 
@@ -25,13 +26,16 @@ The executable jobs in `.github/workflows/` match `README.md` and
 The database images are digest pinned, and their actual server versions are
 checked before tests. Stable PHP, WordPress and Ramsey lanes use exact version
 inputs; only the separate, nonblocking scheduled/manual WordPress canary uses
-`trunk`. `composer.lock` fixes the other resolved Composer packages at exact
-references. The working-tree entrypoint is being changed from
-`composer update ramsey/collection --with` to installs from the two lock files;
-the installed Ramsey version still needs confirmation from each runtime log.
-WordPress 6.7.7 is explicitly a test floor,
-not a promise of upstream maintenance. The public documentation makes no
-support claim for untested EOL combinations.
+`trunk`. The entrypoint now installs from `composer.lock` for Ramsey 1.3.0 or
+the alternate manifest and lock for Ramsey 2.1.1, then asserts the installed
+Ramsey version. This replaces the mutable `composer update` in stable lanes.
+The alternate manifest is a symlink to `composer.json`; both locks fix the
+resolved packages. Their SHA-256 hashes remained unchanged through the final
+local gates: main `321283585dd86f7e273c8d26aacaabc0ef3553603fa9f0f9cccf8aac319045a7`,
+alternate `9fbb7d8bc4b2dc3520d471a2c2b140dcd47b5ac12c35a26cc587ad9dc8a4b208`.
+WordPress 6.7.7 is explicitly a test floor, not a promise of upstream
+maintenance. The public documentation makes no support claim for untested EOL
+combinations.
 
 ## Evidence and completion boundary
 
@@ -41,24 +45,41 @@ support claim for untested EOL combinations.
   92.24%), PHPCS (108 source files), and OpenAPI validation. It also records
   20/20 protected checks on PR #118's exact head and its merged SHA. Those are
   historical evidence, not a pass for this Batch 28 checkout.
-- For REL-01, run the 20 blocking jobs against one frozen exact head, including
-  clean install/image build, both database lanes, coverage, style and OpenAPI.
-  Capture each context name, conclusion, head SHA and runtime versions. Check
-  that no context is missing, stale, skipped or cancelled; then reconcile any
-  nonblocking incompatibility with a named owner and follow-up. Local serial
-  checks can support diagnosis but cannot establish the GitHub required-check
-  state.
-- At this checkpoint, no Batch 28 matrix, clean-install, PHPUnit, coverage or
-  PHPCS result has been recorded. The current GitHub authentication is
-  unavailable to inspect exact-head remote results. Thus the REL-01 AC and
-  green-blocking DoD remain unverified; do not mark REL-01 complete on static
-  inventory alone.
+- Before the lock repair, the 16 local PHP/WordPress/Ramsey lanes passed, but
+  `composer update` changed a resolved polyfill from v1.27 to v1.38. That run
+  did not establish immutable stable dependencies. The repaired entrypoint
+  uses locked installs and asserts the runtime Ramsey version.
+- After repair, the workflow-equivalent local runtime matrix passed 16/16
+  lanes in 14m05s: ten unit lanes each 143 tests/533 assertions, five
+  integration lanes each 681/5739 with 12 expected skips, and true multisite
+  681/5839. The logs record the declared PHP, WordPress and Ramsey pins.
+  Runner: `/tmp/rel01-runtime-matrix.sh`; logs:
+  `/tmp/rel01-runtime-matrix-20261001/`.
+- Both external database lanes passed with the actual pinned server versions:
+  MySQL 8.0.46 (681/5739, 12 skips, 152s) and MariaDB
+  10.11.16-MariaDB-ubu2204 (681/5739, 12 skips, 100s). Logs:
+  `/tmp/wpconnections-b28-mysql.log` and
+  `/tmp/wpconnections-b28-mariadb.log`.
+- The final serial local ladder passed: `make tests.clean` rebuilt without
+  cache and ran unit 143/533 plus integration 681/5739 with 12 skips;
+  `make tests.coverage` ran combined 824/6270 with 12 skips and covered
+  4329/4693 statements (92.24%, passing the PR threshold and supplying an
+  RC-threshold signal); `make lint.phpcs` passed 108 files;
+  `make lint.openapi` passed; and
+  `make tests.isolation ISOLATION_SEED=20261001` passed reverse and randomized
+  repeat-2 runs (unit 286/1066 and integration 1362/11478 with 24 skips per
+  order). `make tests.coverage.rc` was not run. The working-tree status and
+  both lock hashes were unchanged after these gates.
+- These local results support the REL-01 combinations and clean-install AC.
+  The final committed candidate still needs all 20 blocking GitHub contexts
+  checked on one exact head, including context name, conclusion, head SHA and
+  runtime version; no missing, stale, skipped or cancelled required context
+  can be accepted. Remote required-check state has not been established, so
+  the green-blocking DoD and task completion remain pending.
 
-The prior plan and [Batch 22 checkpoint](batch22-checkpoint.md) record
-non-failing WordPress/dependency warnings on newer PHP and a PHPCS ruleset
-deprecation. Owner: repository maintainer. Follow-up: inspect their current
-occurrence in the REL-01 logs and carry any surviving warning into REL-03
-release review; open a focused dependency/tooling task if it becomes a failure.
-No new incompatibility was identified by this static inventory. Any new lane
-failure needs its own owner and follow-up after execution. The exact-head
-evidence and disposition of warnings or failures are the next gate.
+Nonblocking warnings remain in the passing logs: PHP 8.4/8.5 deprecations,
+WordPress `fonts.php` with a null `post_type`, PHPCS `functionWhitelist`
+deprecation, and a deprecated Swagger CLI. Owner: repository maintainer.
+Follow-up: review these in REL-03 and open a focused dependency/tooling task if
+any becomes a failure. No blocking incompatibility was observed locally.
+The next gate is the committed candidate and its exact-head remote evidence.

@@ -27,8 +27,8 @@ The project is in E6 / Batch 28 / REL-01, after completion of E5 / Batch 27.
 | Level | Previous | Current | Next |
 | --- | --- | --- | --- |
 | Epic | E5 completed; independent QA `pass_with_notes`. | E6 compatibility and release readiness. E7 still has the HOOK-04 release gate. | No epic after E6 has been selected. |
-| Batch | Batch 27 / DOC-01 completed. | Batch 28 / REL-01 compatibility matrix in progress. | No later batch selected. |
-| Task | DOC-01 completed. | REL-01 in progress. | No next task selected. |
+| Batch | Batch 27 / DOC-01 completed. | Batch 28 / REL-01 in review; local gates passed, remote CI pending. | No later batch selected. |
+| Task | DOC-01 completed. | REL-01 in review. | No next task selected. |
 
 The remaining first-release gates include REL-02 compatibility evidence, the
 DB-02R integrity decision, HOOK-04 consumer guidance, and REL-03 candidate

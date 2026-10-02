@@ -7302,7 +7302,7 @@ Notes/Risks:
 
 ### REL-01. Проверить полную compatibility matrix
 
-Status: in_progress
+Status: review
 
 Priority: P1
 
