@@ -3,6 +3,8 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Exceptions\ConnectionNotFound;
+use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Helpers\Database;
@@ -825,20 +827,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
     }
 
     /**
-     * Keeps the 1.x direct callback identity while ignoring inactive-site
-     * cascade delivery. A context-aware subscription replaces this bridge in
-     * the next major version.
-     */
-    private function isStaleDeletedPostContext(): bool
-    {
-        global $wpdb;
-
-        return 'deleted_post' === current_filter() &&
-            $this->site_prefix !== (string) $wpdb->prefix;
-    }
-
-
-    /**
      * Deletes connections by set of connection IDs
      *
      * @throws ConnectionWrongData
@@ -972,10 +960,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
      */
     public function deleteByObjectID($objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false): int
     {
-        if ($this->isStaleDeletedPostContext()) {
-            return 0;
-        }
-
         $this->assertSitePrefix();
 
         do_action('wpConnections/storage/deleteByObjectID', $this->getClient(), $objectIDs, $relation, $onlyFrom, $onlyTo);
@@ -1365,6 +1349,23 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
         global $wpdb;
 
         $this->assertSitePrefix();
+
+        if ($this->getClient()->hasActiveAtomicScope()) {
+            $db = $this->fullTableName($this->connections_table);
+            $rows = $this->selectRowsOrFail(
+                $wpdb->prepare(
+                    "SELECT `relation` FROM {$db} WHERE `ID` = %d FOR UPDATE",
+                    $connection->id
+                ),
+                'lock connection for update'
+            );
+            if ([] === $rows) {
+                throw new ConnectionNotFound();
+            }
+            if ($rows[0]->relation !== $connection->relation) {
+                throw new ConnectionRelationMismatch($rows[0]->relation, $connection->relation);
+            }
+        }
 
         $where = ['ID' => $connection->id];
         $update = [

@@ -11,6 +11,7 @@
 * [Atomic mutations](#atomic-compound-mutations)
 * [Deleted-post cleanup and recovery](#deleted-post-cleanup-and-recovery)
 * [Deprecations](#deprecations)
+* [Extension compatibility](docs/extension-compatibility.md)
 * [WIKI](https://github.com/hokoo/wpConnections/wiki)
 <!-- TOC -->
 
@@ -65,6 +66,11 @@ The relation has properties:
 
 It can be used as multiple installed library being parts of different plugins in a WordPress installation.
 All you need is creating a client instance for your application. Every client has its own tables and REST API identity and does not influence other clients.
+
+Custom storage, logger and REST delegates use class-string factory filters.
+The [extension compatibility guide](docs/extension-compatibility.md) documents
+their failure contract, lifecycle hook arguments, default-storage telemetry
+and migration from direct storage access.
 
 ## Ok, what should I do to start using?
 
@@ -277,7 +283,7 @@ rollback/uninstall preservation, follow the
 
 Do not drop the repair ledger or its ownership option during a rollback while
 unresolved records exist. See the
-[deleted-post 2.0 upgrade guide](docs/deleted-post-cleanup-upgrade.md) and the
+[first-release hook consumer compatibility note](docs/deleted-post-cleanup-upgrade.md) and the
 [hook lifecycle transition contract](docs/hook-lifecycle-transition.md).
 
 Existing complete tables without a matching ownership record, unowned partial

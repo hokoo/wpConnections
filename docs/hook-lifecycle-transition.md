@@ -1,10 +1,12 @@
 # WordPress hook lifecycle transition
 
 Status: executable staged plan; Batch 19 manager-backed deletion and Batch 20
-Client disposal completed, first-release compatibility note remains downstream.
+Client disposal completed. The first-release compatibility note is documented;
+independent E7 acceptance remains pending.
 wpConnections has not had an official tagged release; the 1.x/2.0 labels below
-name historical compatibility stages, not two published release lines. HOOK-04
-now checks known commit-pinned consumers before the first official release.
+name historical compatibility stages, not two published release lines. The
+[HOOK-04 known-public-consumer refresh](compatibility-inventory.md#hook-04-public-refresh)
+was recorded on 2026-10-02 before the first official release.
 
 Baseline: `master` merge `a3491c018b96b54dc03e55a850153ddc0e6db413`
 (Batch 20 / LIFE-HOOK-01, PR #106).
@@ -215,17 +217,17 @@ remove_action(
 That is a deliberate next-major break. The upgrade path is to use
 `Client::disablePostDeletionCleanup()` before upgrading and keep using the
 semantic method after upgrading. The focused
-[deleted-post upgrade guide](deleted-post-cleanup-upgrade.md) records the
-current fixture and rollback boundary. HOOK-04 must still place this warning in
-the release changelog and perform the known-consumer scan.
+[first-release hook compatibility note](deleted-post-cleanup-upgrade.md) records
+the migration checklist, current fixture and rollback boundary; its linked
+HOOK-04 inventory records the dated known-consumer scan.
 
 Custom REST subclasses have a separate deliberate 2.0 boundary. An overridden
 `init()` must call `parent::init()`; `$namespace`, `$base`, permission methods
 and built-in handlers remain delegate extension points. The library owns the
 four built-in route registrations, so an overridden `registerRestRoutes()` is
 not called automatically. Extra hooks or routes created by a subclass remain
-the implementer's context and lifecycle responsibility. HOOK-04 must include
-this check in the consumer upgrade scan.
+the implementer's context and lifecycle responsibility. The first-release
+hook compatibility note includes this check for deployed consumers.
 
 ## Delivered Batch 20 Client lifecycle
 
@@ -263,15 +265,15 @@ boundary.
 | 2.0 deletion | HOOK-03 / DB-04-I3 | Manager-backed recovery coordinator and `deleted_post` tests | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1 | completed, PR #104 / `7cfe684` |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | completed, PR #83 / `33b659e` |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | completed, PR #106 / `a3491c0` |
-| First official release | HOOK-04 | Known commit-consumer scan and hook compatibility note | DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02 | waiting dependency |
+| First official release | HOOK-04 | Known commit-consumer scan and hook compatibility note | DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02 | Batch 31 completed locally; E7 acceptance pending |
 
 Each implementation task has its own branch, independent QA, rollback point and
 protected-check run. HOOK-01 is delivered independently and installs no
 wpConnections dependency. LOG-HOOK-01 completed on exact candidate `234216e`
 with independent QA PASS and 17/17 protected checks; it changes logging only.
 Batch 19 supplies the manager-backed deletion registrations. Batch 20 composes
-cross-integration disposal and rollback; the known commit-consumer check and
-first-release compatibility note remain in HOOK-04.
+cross-integration disposal and rollback; the dated known commit-consumer check
+and first-release compatibility note are delivered locally for HOOK-04.
 REST-HOOK-01 is the completed task in Batch 10 and first wpConnections runtime
 consumer of `hokoo/wp-hooks-dispatcher`. DG-HOOK-REST-05/A is approved; task
 scope remains limited to the REST integration boundary. Implementation commit
@@ -416,6 +418,7 @@ the site-local repair ledger and ownership option; it does not silently return
 unresolved work to the 1.x callback bridge. Before release, Batch 20 can be
 rolled back by removing public disposal and its terminal guards together while
 retaining constructor-failure cleanup. See the
-[deleted-post upgrade guide](deleted-post-cleanup-upgrade.md). The first
-official release still requires HOOK-04's known-consumer scan and compatibility
-note; a representative fixture is needed when the scan finds an affected use.
+[first-release hook compatibility note](deleted-post-cleanup-upgrade.md). The
+known-public-consumer scan found no affected lifecycle pattern in its dated
+source boundary, so no new representative fixture was added. Independent E7
+acceptance and REL-03 candidate verification remain pending.

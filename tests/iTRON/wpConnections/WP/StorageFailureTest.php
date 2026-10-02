@@ -48,6 +48,44 @@ class StorageFailureTest extends WPConnectionsTestCase
 		self::assertFalse( $this->client->getRelation( RELATION_0_NAME )->updateConnection( $noop ) );
 	}
 
+	public function test_default_metadata_hooks_preserve_full_payload_once_on_success(): void
+	{
+		$connection = $this->create_connection();
+		$meta = new MetaCollection();
+		$meta->add( new Meta( 'contract', 'value' ) );
+		$selector = new QueryMetaCollection();
+		$seen = [ 'add-before' => [], 'add-after' => [], 'remove-before' => [], 'remove-after' => [] ];
+		$hooks = [
+			'add-before' => 'wpConnections/storage/addConnectionMeta/before',
+			'add-after' => 'wpConnections/storage/addConnectionMeta/after',
+			'remove-before' => 'wpConnections/storage/removeConnectionMeta/before',
+			'remove-after' => 'wpConnections/storage/removeConnectionMeta/after',
+		];
+		foreach ( $hooks as $key => $hook ) {
+			$listener = static function ( ...$arguments ) use ( &$seen, $key ): void {
+				$seen[ $key ][] = $arguments;
+			};
+			add_action( $hook, $listener, 10, 5 );
+			$listeners[] = [ $hook, $listener ];
+		}
+		try {
+			$this->client->getStorage()->addConnectionMeta( $connection->id, $meta );
+			self::assertSame( 1, $this->client->getStorage()->removeConnectionMeta( $connection->id, $selector ) );
+		} finally {
+			foreach ( $listeners as [ $hook, $listener ] ) {
+				remove_action( $hook, $listener, 10 );
+			}
+		}
+		self::assertSame( [ [ $this->client, $connection->id, $meta ] ], $seen['add-before'] );
+		self::assertSame( [ [ $this->client, $connection->id, $meta, [] ] ], $seen['add-after'] );
+		self::assertCount( 1, $seen['remove-before'] );
+		self::assertCount( 1, $seen['remove-after'] );
+		$sql = $seen['remove-before'][0][3];
+		self::assertStringStartsWith( 'DELETE FROM ', $sql );
+		self::assertSame( [ [ $this->client, $connection->id, $selector, $sql ] ], $seen['remove-before'] );
+		self::assertSame( [ [ $this->client, $connection->id, $selector, $sql, 1 ] ], $seen['remove-after'] );
+	}
+
 	public function test_add_meta_database_failure_does_not_emit_after_hook(): void
 	{
 		$connection = $this->create_connection();

@@ -5,7 +5,8 @@ namespace iTRON\wpConnections;
 use iTRON\wpConnections\Abstracts\Storage;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use Psr\Log\LoggerInterface;
-use TypeError;
+use ReflectionClass;
+use Throwable;
 
 class Factory
 {
@@ -14,16 +15,13 @@ class Factory
      */
     public static function getStorage(Client $client): Storage
     {
-        $storageClass = apply_filters('wpConnections/factory/getStorage/class', WPStorage::class, $client);
-        if (! class_exists($storageClass)) {
-            throw new ClientRegisterFail('A storage class does not exist. See filter hooks [wpConnections/factory/getStorage/class]');
-        }
-
-        try {
-            return new $storageClass($client);
-        } catch (TypeError $e) {
-            throw new ClientRegisterFail('A storage class does not inherit iTRON\wpConnections\Abstract\Storage. See filter hooks [wpConnections/factory/getStorage/class]');
-        }
+        return self::create(
+            'wpConnections/factory/getStorage/class',
+            WPStorage::class,
+            Storage::class,
+            'storage',
+            $client
+        );
     }
 
     /**
@@ -31,16 +29,13 @@ class Factory
      */
     public static function getRestApi(Client $client): ClientRestApi
     {
-        $restApiClass = apply_filters('wpConnections/factory/getRestApi/class', ClientRestApi::class, $client);
-        if (! class_exists($restApiClass)) {
-            throw new ClientRegisterFail('A REST API class does not exist. See filter hooks [wpConnections/factory/getRestApi/class]');
-        }
-
-        try {
-            return new $restApiClass($client);
-        } catch (TypeError $e) {
-            throw new ClientRegisterFail('A REST API class does not inherit iTRON\wpConnections\ClientRestApi. See filter hooks [wpConnections/factory/getStorage/class]');
-        }
+        return self::create(
+            'wpConnections/factory/getRestApi/class',
+            ClientRestApi::class,
+            ClientRestApi::class,
+            'REST API',
+            $client
+        );
     }
 
     /**
@@ -48,15 +43,45 @@ class Factory
      */
     public static function getLogger(Client $client): LoggerInterface
     {
-        $loggerClass = apply_filters('wpConnections/factory/getLogger/class', Logger::class, $client);
-        if (! class_exists($loggerClass)) {
-            throw new ClientRegisterFail('A Logger class does not exist. See filter hooks [wpConnections/factory/getLogger/class]');
+        return self::create(
+            'wpConnections/factory/getLogger/class',
+            Logger::class,
+            LoggerInterface::class,
+            'Logger',
+            $client
+        );
+    }
+
+    private static function create(
+        string $hook,
+        string $default,
+        string $contract,
+        string $label,
+        Client $client
+    ): object {
+        try {
+            $class = apply_filters($hook, $default, $client);
+            $exists = is_string($class) && class_exists($class);
+        } catch (Throwable $failure) {
+            throw new ClientRegisterFail("A {$label} class could not be selected. See filter hooks [{$hook}]", 4, $failure);
+        }
+        if (! $exists) {
+            throw new ClientRegisterFail("A {$label} class does not exist. See filter hooks [{$hook}]");
+        }
+        if (! is_a($class, $contract, true)) {
+            throw new ClientRegisterFail("A {$label} class does not satisfy {$contract}. See filter hooks [{$hook}]");
+        }
+        if (! (new ReflectionClass($class))->isInstantiable()) {
+            throw new ClientRegisterFail("A {$label} class is not constructible. See filter hooks [{$hook}]");
         }
 
         try {
-            return new $loggerClass($client);
-        } catch (TypeError $e) {
-            throw new ClientRegisterFail('A Logger class does not implement Psr\Log\LoggerInterface. See filter hooks [wpConnections/factory/getLogger/class]');
+            return new $class($client);
+        } catch (Throwable $failure) {
+            if (WPStorage::class === $class && $failure instanceof ClientRegisterFail) {
+                throw $failure;
+            }
+            throw new ClientRegisterFail("A {$label} class could not be constructed. See filter hooks [{$hook}]", 4, $failure);
         }
     }
 }

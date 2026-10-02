@@ -5305,7 +5305,9 @@ Notes/Risks:
 
 ### DB-02R. Закрыть concurrent delete/update parent-row race
 
-Status: waiting_dependency
+Status: completed
+
+Batch owner AI model: `gpt-6.1-sol`; reasoning effort: `high`. Rationale: atomic update/delete serialization and deterministic two-session vendor proofs. Evidence: [Batch 30 checkpoint](batch30-checkpoint.md). Verified local implementation commit `26e87c7`; deterministic two-session regressions and both pinned full database lanes passed. No release or publication.
 
 Priority: P1
 
@@ -7226,11 +7228,13 @@ Risks/Open Questions:
 | Штатного read/delete selector по stored connection metadata нет. | Использовать существующие selectors; metadata-driven bulk delete не обещан. | Подтверждён use case и утверждены semantics, isolation и стоимость запроса. | API-05 |
 | Dashboard application не входит в библиотеку. | Использовать PHP и REST API. | Выделены product owner и design capacity для issue #28. | PROD-01 |
 
-DB-02R не входит в этот список как принятое ограничение: конкурентный
-update/delete может нарушить обещание E3 об отсутствии orphan metadata. До
-кандидата релиза нужно либо закрыть DB-02R, либо отдельно утвердить более узкий
-инвариант и принять остаточный риск. Простое перечисление риска не считается
-успешной проверкой целостности.
+DB-02R не является принятым ограничением: Batch 30 закрыл concurrent
+update/delete parent-row race проверенным локальным исправлением `26e87c7`.
+Обе pinned database lanes и обязательные regression gates прошли; prerequisite
+REL-03 о проверенном исправлении выполнен без сужения invariant или принятия
+риска. Evidence: [Batch 30 checkpoint](batch30-checkpoint.md). HOOK-04 completed
+locally and E7 accepted with notes; version/candidate verification and separate
+publication authority remain REL-03 obligations.
 
 Tasking Guidance:
 
@@ -7358,7 +7362,9 @@ Notes/Risks:
 
 ### REL-02. Проверить hooks, factories и extension compatibility
 
-Status: waiting_dependency
+Status: completed
+
+Batch owner AI model: `gpt-6.1-sol` (`high`); cross-cutting extension contracts and custom-adapter conformance require careful review without new public API.
 
 Priority: P1
 
@@ -7428,6 +7434,8 @@ Dependencies:
 Notes/Risks:
 
 - Изменение hook name/arguments является breaking даже при неизменном PHP API.
+
+Delivery evidence: [Batch 29 checkpoint](batch29-checkpoint.md); verified local implementation commit `60081f0`. DB-02R and HOOK-04 dependencies are unblocked; default adapter race repair remains DB-02R. No release or publication.
 
 ### REL-03. Подготовить первый официальный релиз и RC
 
@@ -7500,6 +7508,8 @@ Notes/Risks:
   требующие полномочий после проверки кандидата.
 
 ## E7. Context-aware WordPress hook lifecycle
+
+Status: completed locally; fresh independent E7 QA repeat `pass_with_notes` at `3e1a5be`, no unmet criterion or exception. Evidence: [Batch 31 checkpoint](batch31-checkpoint.md#final-e7-acceptance).
 
 Recommended root AI model: `gpt-6.1-sol` (`high` reasoning effort for remaining HOOK-04 work).
 
@@ -8091,7 +8101,9 @@ Verification evidence (2026-09-12):
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
-Status: completed
+Status: completed locally; E7-QA-R1 bridge removal verified at `03a50b5`; fresh independent E7 QA repeat `pass_with_notes` at `3e1a5be`.
+
+Repair evidence: [Batch 31R checkpoint](batch31-checkpoint.md#verified-batch-31r-local-delivery); removed obsolete current_filter bridge, red/green direct-stale regression and required serial gates passed. Fresh independent E7 QA repeat acceptance is recorded in the final checkpoint.
 
 Priority: P0 для 2.0
 
@@ -8155,7 +8167,9 @@ Notes/Risks:
 
 ### HOOK-04. Проверить commit consumers и подготовить hook compatibility note
 
-Status: waiting_dependency
+Status: completed
+
+Batch owner AI model: `gpt-6.1-sol`; reasoning effort: `medium`; rationale: bounded public-consumer refresh and migration guidance grounded in established contracts, without production API changes.
 
 Priority: P0 для первого официального релиза
 
@@ -8192,6 +8206,10 @@ DoD:
   а неизвестные private consumers обозначены как предел поиска.
 - Реально найденный несовместимый pattern покрыт одним representative
   consumer check; при отсутствии такого pattern искусственный fixture не нужен.
+- Dated immutable public-source evidence, source/link/example checks and scoped
+  verified local commit(s) delivered; no push, merge, release or publication.
+  Tests/fixtures, if required, use proportionate integration and isolation
+  checks with seed `20261002` after the writer stops.
 
 AC:
 
@@ -8208,6 +8226,8 @@ Notes/Risks:
 
 - Это обязательный gate первого официального релиза, но не миграция между
   ранее опубликованными major-версиями. Его результат потребляет REL-03.
+
+Delivery evidence: [Batch 31 checkpoint](batch31-checkpoint.md); scoped verified local documentation commit `2b1b0b3`. Current four-source refresh found no incompatible lifecycle pattern; no artificial fixture. E7 independent QA repeat passed with notes at `3e1a5be`; no release or publication.
 
 ## Traceability: замечания и GitHub issues
 

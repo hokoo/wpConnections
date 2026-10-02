@@ -250,6 +250,8 @@ class ConnectionUpdateTest extends WPConnectionsTestCase
 			[ 'replacement' => [ 'first', 'second' ] ],
 			$this->find_connection( $connection->id )->meta->toArray()
 		);
+		self::assertSame( 'Original title', $this->find_connection( $connection->id )->title );
+		self::assertSame( 10, $this->find_connection( $connection->id )->order );
 
 		$connection->meta->clear();
 		$connection->update();

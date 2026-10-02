@@ -206,8 +206,14 @@ class WPStorageFindConnectionsTest extends WPConnectionsTestCase
 
 	public function test_query_hook_appends_origin_and_keeps_logger_compatibility_payload(): void
 	{
+		$connection = $this->create_connection(
+			RELATION_0_NAME,
+			$this->page_ids[0],
+			$this->post_ids[0]
+		);
 		$legacy_arguments = null;
 		$origin_arguments = null;
+		$data_arguments = null;
 		$logger_arguments = null;
 		$legacy_listener = static function ( $sql, $rows ) use ( &$legacy_arguments ): void {
 			$legacy_arguments = [ $sql, $rows ];
@@ -215,19 +221,24 @@ class WPStorageFindConnectionsTest extends WPConnectionsTestCase
 		$origin_listener = static function ( $sql, $rows, $client ) use ( &$origin_arguments ): void {
 			$origin_arguments = [ $sql, $rows, $client ];
 		};
+		$data_listener = static function ( ...$arguments ) use ( &$data_arguments ): void {
+			$data_arguments = $arguments;
+		};
 		$logger_listener = static function ( $message_and_context, $level ) use ( &$logger_arguments ): void {
 			$logger_arguments = [ $message_and_context, $level ];
 		};
 
 		add_action( 'wpConnections/storage/findConnections/dbQuery', $legacy_listener, 20, 2 );
 		add_action( 'wpConnections/storage/findConnections/dbQuery', $origin_listener, 20, 3 );
+		add_action( 'wpConnections/storage/findConnections/dbQuery/data', $data_listener, 20, 4 );
 		add_action( 'logger', $logger_listener, 10, 2 );
 		try {
 			$query = new ConnectionQuery();
 			$query->set( 'relation', RELATION_0_NAME );
-			$this->client->getStorage()->findConnections( $query );
+			$found = $this->client->getStorage()->findConnections( $query );
 		} finally {
 			remove_action( 'logger', $logger_listener, 10 );
+			remove_action( 'wpConnections/storage/findConnections/dbQuery/data', $data_listener, 20 );
 			remove_action( 'wpConnections/storage/findConnections/dbQuery', $origin_listener, 20 );
 			remove_action( 'wpConnections/storage/findConnections/dbQuery', $legacy_listener, 20 );
 		}
@@ -236,6 +247,10 @@ class WPStorageFindConnectionsTest extends WPConnectionsTestCase
 		self::assertIsArray( $legacy_arguments[1] );
 		self::assertSame( $legacy_arguments, array_slice( $origin_arguments, 0, 2 ) );
 		self::assertSame( $this->client, $origin_arguments[2] );
+		self::assertCount( 4, $data_arguments );
+		self::assertSame( $legacy_arguments, array_slice( $data_arguments, 0, 2 ) );
+		self::assertSame( $connection->id, (int) $data_arguments[2][ $connection->id ]['ID'] );
+		self::assertSame( $found->toArray(), $data_arguments[3] );
 		self::assertSame(
 			[
 				[
