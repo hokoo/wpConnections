@@ -8098,7 +8098,9 @@ Verification evidence (2026-09-12):
 
 ### HOOK-03. Перевести 2.0 registrations на context-aware manager
 
-Status: completed
+Status: review; E7-QA-R1 technical repair verified at local commit `03a50b5`; independent E7 QA repeat pending.
+
+Repair evidence: [Batch 31R checkpoint](batch31-checkpoint.md#verified-batch-31r-local-delivery); removed obsolete current_filter bridge, red/green direct-stale regression and required serial gates passed. No E7 acceptance is claimed.
 
 Priority: P0 для 2.0
 
