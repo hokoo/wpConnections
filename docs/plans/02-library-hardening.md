@@ -8162,7 +8162,9 @@ Notes/Risks:
 
 ### HOOK-04. Проверить commit consumers и подготовить hook compatibility note
 
-Status: waiting_dependency
+Status: completed
+
+Batch owner AI model: `gpt-6.1-sol`; reasoning effort: `medium`; rationale: bounded public-consumer refresh and migration guidance grounded in established contracts, without production API changes.
 
 Priority: P0 для первого официального релиза
 
@@ -8199,6 +8201,10 @@ DoD:
   а неизвестные private consumers обозначены как предел поиска.
 - Реально найденный несовместимый pattern покрыт одним representative
   consumer check; при отсутствии такого pattern искусственный fixture не нужен.
+- Dated immutable public-source evidence, source/link/example checks and scoped
+  verified local commit(s) delivered; no push, merge, release or publication.
+  Tests/fixtures, if required, use proportionate integration and isolation
+  checks with seed `20261002` after the writer stops.
 
 AC:
 
@@ -8215,6 +8221,8 @@ Notes/Risks:
 
 - Это обязательный gate первого официального релиза, но не миграция между
   ранее опубликованными major-версиями. Его результат потребляет REL-03.
+
+Delivery evidence: [Batch 31 checkpoint](batch31-checkpoint.md); scoped verified local documentation commit `2b1b0b3`. Current four-source refresh found no incompatible lifecycle pattern; no artificial fixture. E7 independent QA remains pending; no release or publication.
 
 ## Traceability: замечания и GitHub issues
 
