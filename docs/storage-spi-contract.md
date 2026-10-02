@@ -626,7 +626,7 @@ behavior.
 | Delete results | ID, directed and object-side variants cover invalid input, no match, duplicates and affected-connection counts according to DB-03A/DG-SPI-03. No direct adapter error becomes a misleading `0`. | DB-03A / DB-03B-A / DB-03B-B |
 | WP adapter safety | Relation, IDs and metadata selectors are parameterized in `WPStorage`; malformed direct-SPI input cannot broaden a delete, and database failure retains attributable error context without leaking it through REST by default. | DB-03B-A / DB-03B-B / REST-00A |
 | Atomic create | Failure on any meta write rolls back connection and prior meta writes; unsupported capability fails before the first call; committed result and hooks occur once. | DB-05 |
-| Atomic update | Scalar update plus metadata clear/add is one boundary. Failure restores all previous scalar/meta values and emits no committed-success hook. | DB-05 |
+| Atomic update | Scalar update plus metadata clear/add is one boundary. The capable adapter authoritatively checks exact parent ID and relation ownership inside that boundary before scalar or metadata writes, and keeps the parent protected against a competing delete until commit. Missing targets fail as `ConnectionNotFound`; an existing scalar no-op still permits metadata replacement. Failure restores all previous scalar/meta values and emits no committed-success hook. | DB-05 / DB-02R |
 | Atomic delete | Failure between meta and connection deletion rolls back every selected ID for each delete variant; row-count semantics remain those approved by DB-03A. | DB-03B-B / DB-05 |
 | Metadata | Duplicate keys and allowed falsy values survive add/read; selective and delete-all behavior is covered after CORE-07; partial add/remove failures follow DG-SPI-03/04. | DB-02 / DB-05 |
 | Hooks | Global/client variants preserve accepted names, argument order/count and once-only behavior. Attempt, commit and rollback observations match DG-SPI-06. Raw SQL hooks are tested only for `WPStorage` unless REL-02 promotes them. | REL-02 / DB-05 |
@@ -680,9 +680,11 @@ default adapter's SQL mechanism:
    valid `false` update result while metadata replacement still completes.
 
 These schedules are deterministic in-memory conformance for a capable custom
-adapter. They require no new public capability method. They do not claim that
-`WPStorage` has a fixed two-session race or prove its SQL row locking; DB-02R
-owns that repair and database-backed verification. The public hook inventory,
+adapter. They require no new public capability method or SQL-specific lock:
+the adapter may use its own equivalent serialization guarantee. `WPStorage`
+locks and checks the exact parent row with `SELECT ... FOR UPDATE` inside the
+aggregate update transaction. Two-session database tests separately prove its
+delete-first and update-first schedules. The public hook inventory,
 factory failure contract, concrete telemetry classifications and consumer
 migration guidance are in the [extension compatibility guide](extension-compatibility.md).
 

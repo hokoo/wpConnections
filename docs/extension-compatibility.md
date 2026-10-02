@@ -127,6 +127,14 @@ run through the domain boundary. For a known orphan relation, query the
 relation by ID and delete it through that relation instead of directly calling
 `deleteSpecificConnections()`; a no-match relation delete returns zero.
 
+For aggregate `Connection::update()`, a capable custom adapter must confirm the
+exact parent ID and relation ownership inside its atomic boundary and keep that
+parent protected from competing deletion through metadata replacement and
+commit. A deleted target raises `ConnectionNotFound` before metadata insertion;
+unchanged scalar fields remain a valid no-op while metadata changes. The
+default `WPStorage` uses a row lock for this guarantee. Other adapters may use
+equivalent serialization without SQL or a new public capability method.
+
 `WPStorage` table-name getters and the established normalized table mapping
 remain legacy concrete introspection for maintenance code. Non-table adapters
 have no such getters. Consumers using the physical table names, especially
@@ -139,6 +147,5 @@ unknown, so this guide does not imply they can be migrated automatically.
 The [conformance table](storage-spi-contract.md#conformance-test-contract) and
 [consumer inventory](compatibility-inventory.md) give the verification and
 known usage boundaries. The deterministic memory-adapter schedules there
-exercise custom capability semantics; they do not prove a real two-session
-database race. The default `WPStorage` race repair is tracked separately as
-DB-02R.
+exercise custom capability semantics; the default adapter's two-session tests
+provide separate database evidence for its locking behavior.

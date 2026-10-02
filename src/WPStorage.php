@@ -3,6 +3,8 @@
 namespace iTRON\wpConnections;
 
 use iTRON\wpConnections\Exceptions\ConnectionWrongData;
+use iTRON\wpConnections\Exceptions\ConnectionNotFound;
+use iTRON\wpConnections\Exceptions\ConnectionRelationMismatch;
 use iTRON\wpConnections\Exceptions\ClientRegisterFail;
 use iTRON\wpConnections\Exceptions\StorageFailure;
 use iTRON\wpConnections\Helpers\Database;
@@ -1365,6 +1367,23 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
         global $wpdb;
 
         $this->assertSitePrefix();
+
+        if ($this->getClient()->hasActiveAtomicScope()) {
+            $db = $this->fullTableName($this->connections_table);
+            $rows = $this->selectRowsOrFail(
+                $wpdb->prepare(
+                    "SELECT `relation` FROM {$db} WHERE `ID` = %d FOR UPDATE",
+                    $connection->id
+                ),
+                'lock connection for update'
+            );
+            if ([] === $rows) {
+                throw new ConnectionNotFound();
+            }
+            if ($rows[0]->relation !== $connection->relation) {
+                throw new ConnectionRelationMismatch($rows[0]->relation, $connection->relation);
+            }
+        }
 
         $where = ['ID' => $connection->id];
         $update = [
