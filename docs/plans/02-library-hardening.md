@@ -5305,7 +5305,9 @@ Notes/Risks:
 
 ### DB-02R. Закрыть concurrent delete/update parent-row race
 
-Status: waiting_dependency
+Status: completed
+
+Batch owner AI model: `gpt-6.1-sol`; reasoning effort: `high`. Rationale: atomic update/delete serialization and deterministic two-session vendor proofs. Evidence: [Batch 30 checkpoint](batch30-checkpoint.md). Verified local implementation commit `26e87c7`; deterministic two-session regressions and both pinned full database lanes passed. No release or publication.
 
 Priority: P1
 
@@ -7226,11 +7228,12 @@ Risks/Open Questions:
 | Штатного read/delete selector по stored connection metadata нет. | Использовать существующие selectors; metadata-driven bulk delete не обещан. | Подтверждён use case и утверждены semantics, isolation и стоимость запроса. | API-05 |
 | Dashboard application не входит в библиотеку. | Использовать PHP и REST API. | Выделены product owner и design capacity для issue #28. | PROD-01 |
 
-DB-02R не входит в этот список как принятое ограничение: конкурентный
-update/delete может нарушить обещание E3 об отсутствии orphan metadata. До
-кандидата релиза нужно либо закрыть DB-02R, либо отдельно утвердить более узкий
-инвариант и принять остаточный риск. Простое перечисление риска не считается
-успешной проверкой целостности.
+DB-02R не является принятым ограничением: Batch 30 закрыл concurrent
+update/delete parent-row race проверенным локальным исправлением `26e87c7`.
+Обе pinned database lanes и обязательные regression gates прошли; prerequisite
+REL-03 о проверенном исправлении выполнен без сужения invariant или принятия
+риска. Evidence: [Batch 30 checkpoint](batch30-checkpoint.md). HOOK-04,
+выбор/проверка release candidate и отдельные полномочия на публикацию остаются.
 
 Tasking Guidance:
 
