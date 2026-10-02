@@ -636,14 +636,20 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		$post                = get_post( $post_id );
 		$bound               = $this->new_default_client( 'site-bound' );
 		$stale_storage_calls = 0;
-		$nested_result       = null;
+		$nested_rejected     = false;
 		$storage_hook        = static function ( Client $client ) use ( $bound, &$stale_storage_calls ): void {
 			if ( $client === $bound ) {
 				$stale_storage_calls++;
 			}
 		};
-		$nested_call         = static function ( int $deleted_post_id ) use ( $bound, &$nested_result ): void {
-			$nested_result = $bound->getStorage()->deleteByObjectID( $deleted_post_id );
+		$nested_call         = function ( int $deleted_post_id ) use ( $bound, &$nested_rejected ): void {
+			$this->assert_client_registration_error(
+				'Client storage is bound to a different WordPress site prefix.',
+				static function () use ( $bound, $deleted_post_id ): void {
+					$bound->getStorage()->deleteByObjectID( $deleted_post_id );
+				}
+			);
+			$nested_rejected = true;
 		};
 		$this->use_synthetic_prefix( 'alternate_' );
 
@@ -662,7 +668,7 @@ class ClientIsolationTest extends \WP_UnitTestCase
 			remove_action( 'deleted_post', $nested_call, 9 );
 			remove_action( 'wpConnections/storage/deleteByObjectID', $storage_hook );
 		}
-		self::assertSame( 0, $nested_result );
+		self::assertTrue( $nested_rejected );
 		self::assertSame( 0, $stale_storage_calls );
 		self::assertSame( $queries_before, $wpdb->num_queries );
 

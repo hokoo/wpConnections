@@ -827,20 +827,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
     }
 
     /**
-     * Keeps the 1.x direct callback identity while ignoring inactive-site
-     * cascade delivery. A context-aware subscription replaces this bridge in
-     * the next major version.
-     */
-    private function isStaleDeletedPostContext(): bool
-    {
-        global $wpdb;
-
-        return 'deleted_post' === current_filter() &&
-            $this->site_prefix !== (string) $wpdb->prefix;
-    }
-
-
-    /**
      * Deletes connections by set of connection IDs
      *
      * @throws ConnectionWrongData
@@ -974,10 +960,6 @@ class WPStorage extends Abstracts\Storage implements AtomicStorageInterface, Rel
      */
     public function deleteByObjectID($objectIDs, string $relation = '', bool $onlyFrom = false, bool $onlyTo = false): int
     {
-        if ($this->isStaleDeletedPostContext()) {
-            return 0;
-        }
-
         $this->assertSitePrefix();
 
         do_action('wpConnections/storage/deleteByObjectID', $this->getClient(), $objectIDs, $relation, $onlyFrom, $onlyTo);
