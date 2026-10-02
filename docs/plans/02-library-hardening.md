@@ -7181,6 +7181,8 @@ Notes/Risks:
 
 ## E6. Compatibility и release readiness
 
+Recommended root AI model: `gpt-6.1-sol` (`medium` reasoning effort).
+
 Outcome: поддерживаемые платформы, hooks и public API проверены; документация и
 кандидат первого официального релиза соответствуют фактическому поведению.
 Ранее библиотека использовалась через версии-коммиты, а не через официальный
@@ -7300,7 +7302,7 @@ Notes/Risks:
 
 ### REL-01. Проверить полную compatibility matrix
 
-Status: waiting_dependency
+Status: in_progress
 
 Priority: P1
 
@@ -7494,6 +7496,8 @@ Notes/Risks:
   требующие полномочий после проверки кандидата.
 
 ## E7. Context-aware WordPress hook lifecycle
+
+Recommended root AI model: `gpt-6.1-sol` (`high` reasoning effort for remaining HOOK-04 work).
 
 Outcome: потребители ранее закреплённых коммитов получают проверяемый переход
 к context-aware subscription boundary и явное предупреждение о direct

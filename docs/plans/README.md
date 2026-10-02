@@ -8,17 +8,24 @@ here alongside the delivery history and evidence links.
 
 ## Development status
 
-As of 2026-10-01, wpConnections is preparing its first official release.
+As of 2026-10-02, wpConnections is preparing its first official release.
 Earlier consumers installed commit-pinned versions; no official wpConnections
 release has been published.
+
+### Roadmap position
+
+The project is in E6 / Batch 28 / REL-01, after completion of E5 / Batch 27.
 
 | Level | Previous | Current | Next |
 | --- | --- | --- | --- |
 | Epic | E5 completed; independent QA `pass_with_notes`. | E6 compatibility and release readiness. E7 still has the HOOK-04 release gate. | No epic after E6 has been selected. |
-| Batch | Batch 27 / DOC-01 completed. | No batch is active. | Proposed Batch 28 / REL-01 compatibility matrix; confirm its DoR before starting. |
+| Batch | Batch 27 / DOC-01 completed. | Batch 28 / REL-01 compatibility matrix in progress. | No later batch selected. |
+| Task | DOC-01 completed. | REL-01 in progress. | No next task selected. |
 
 Update this block and the [root README status](../../README.md#development-status)
-together whenever a batch starts or changes state, or an epic changes state.
+together whenever a task starts or changes state, or a batch or epic changes
+state.
+The active evidence is in the [Batch 28 checkpoint](batch28-checkpoint.md).
 
 Batch 21 qualification was delivered through PR #108 on 2026-09-22. B21-01—B21-10
 are complete: local candidate `062b7fe`, protected head `1e8a4c9`, and exact
@@ -182,6 +189,10 @@ manager selection gate, and delivery map are in
 
 ## Plan maintenance rules
 
+- Every epic must have a populated `Recommended root AI model` field (model ID
+  and reasoning effort) before it is marked ready for execution. Recheck the
+  recommendation if the epic scope materially changes; completed epics retain
+  their historical records.
 - Task statuses are `needs_design`, `waiting_dependency`, `todo`,
   `in_progress`, `blocked`, `review`, `completed`, and `deferred`.
 - Record every decision gate outcome in the relevant document's decision table

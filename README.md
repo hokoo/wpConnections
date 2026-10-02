@@ -5,6 +5,7 @@
 
 <!-- TOC -->
 * [Development status](#development-status)
+* [Roadmap position](#roadmap-position)
 * [Why wpConnection?](#why-wpconnection)
 * [Quick Start](#ok-what-should-i-do-to-start-using)
 * [Atomic mutations](#atomic-compound-mutations)
@@ -15,21 +16,27 @@
 
 ## Development status
 
-As of 2026-10-01, wpConnections is preparing its first official release. Earlier
+As of 2026-10-02, wpConnections is preparing its first official release. Earlier
 consumers installed commit-pinned versions; no official wpConnections release has
 been published.
+
+### Roadmap position
+
+The project is in E6 / Batch 28 / REL-01, after completion of E5 / Batch 27.
 
 | Level | Previous | Current | Next |
 | --- | --- | --- | --- |
 | Epic | E5 completed; independent QA `pass_with_notes`. | E6 compatibility and release readiness. E7 still has the HOOK-04 release gate. | No epic after E6 has been selected. |
-| Batch | Batch 27 / DOC-01 completed. | No batch is active. | Proposed Batch 28 / REL-01 compatibility matrix; confirm its DoR before starting. |
+| Batch | Batch 27 / DOC-01 completed. | Batch 28 / REL-01 compatibility matrix in progress. | No later batch selected. |
+| Task | DOC-01 completed. | REL-01 in progress. | No next task selected. |
 
 The remaining first-release gates include REL-02 compatibility evidence, the
 DB-02R integrity decision, HOOK-04 consumer guidance, and REL-03 candidate
 verification. See the [plan index](docs/plans/README.md),
 [task contracts](docs/plans/02-library-hardening.md), and
-[Batch 27 evidence](docs/plans/batch27-checkpoint.md) for details. This summary
-is updated when a batch starts or changes state, or an epic changes state.
+[Batch 28 checkpoint](docs/plans/batch28-checkpoint.md) for details. This summary
+must be updated whenever a task starts or changes state, or a batch or epic
+changes state, and kept consistent with the plan index.
 
 wpConnections allows to link posts in WordPress by graph-like connections.
 The library provides such connection properties as: 

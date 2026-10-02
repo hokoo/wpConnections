@@ -11,10 +11,11 @@
 ## Delivery workflow
 
 - Use `$delivery-owner` when the user authorizes execution of an epic, backlog, or other multi-task scope. Use `$decompose-work` for task contracts, readiness, dependencies, acceptance criteria, and definitions of done.
+- Before marking an epic ready for execution, fill its `Recommended root AI model` field with a model ID and reasoning effort appropriate to its scope. An empty field fails epic readiness; the recommendation does not change pinned subagent models or authorize execution.
 - Planning or backlog approval alone does not authorize implementation. Once execution is authorized, continue through consecutive runnable batches without asking for approval at every batch boundary.
 - Pull only ready tasks with satisfied dependencies. If one task is blocked, continue independent authorized work and report the blocked task separately.
 - At each batch boundary, record the task status, changed artifacts, checks actually run, evidence, newly unblocked work, residual risks, and the next batch. Keep the transition concise and continue.
-- When a batch starts, completes, pauses, or changes, or an epic changes state, update the Development status blocks in both `README.md` and `docs/plans/README.md` with the previous, current, and next batch and epic. Keep them consistent, link the latest checkpoint, mark unstarted work as proposed, and say when no batch or next epic is selected.
+- When a task starts, completes, pauses, or changes status, or a batch or epic changes state, update the Development status and Roadmap position blocks in both `README.md` and `docs/plans/README.md` with the previous, current, and next task, batch, and epic. Keep them consistent, link the latest checkpoint, mark unstarted work as proposed, and say when no next task, batch, or epic is selected.
 - Stop only when the authorized scope is complete, no useful authorized work remains, a material decision or failed QA gate requires the user, an unsafe condition arises, or the user asks to pause.
 - Do not silently broaden product scope, change a public API or data model, waive acceptance criteria, deploy, publish, push, merge, or perform destructive external actions without the required authority.
 
