@@ -342,17 +342,34 @@ prepare_wp_tests() {
 }
 
 run_composer_install() {
+  local composer_manifest="composer.json"
+  local installed_ramsey_version=""
+
   log_section "Composer dependencies"
   if [ -f composer.json ]; then
+    case "${RAMSEY_VERSION}" in
+      ""|1.3.0) ;;
+      2.1.1) composer_manifest="composer-ramsey-2.1.1.json" ;;
+      *) echo "Unsupported RAMSEY_VERSION: ${RAMSEY_VERSION}" >&2; return 64 ;;
+    esac
+
+    if [ -n "${RAMSEY_VERSION}" ] && [ ! -f "${composer_manifest%.json}.lock" ]; then
+      echo "Missing committed lock for Ramsey Collection ${RAMSEY_VERSION}." >&2
+      return 78
+    fi
+
+    # Each manifest has a committed lock; install never resolves new versions.
+    COMPOSER="${composer_manifest}" composer install --no-interaction --prefer-dist
+
     if [ -n "${RAMSEY_VERSION}" ]; then
-      composer update ramsey/collection \
-        --with "ramsey/collection:${RAMSEY_VERSION}" \
-        --prefer-dist \
-        --no-interaction
-    else
-      # Composer install is idempotent: it synchronizes a bind-mounted vendor/
-      # with composer.lock without changing the resolved dependency versions.
-      composer install --no-interaction --prefer-dist
+      installed_ramsey_version="$(
+        php -r '$installed = require $argv[1]; echo $installed["versions"]["ramsey/collection"]["pretty_version"] ?? "unknown";' \
+          vendor/composer/installed.php
+      )"
+      if [ "${installed_ramsey_version}" != "${RAMSEY_VERSION}" ]; then
+        echo "Expected Ramsey Collection ${RAMSEY_VERSION}, installed ${installed_ramsey_version}." >&2
+        return 78
+      fi
     fi
   else
     echo "composer.json not found in ${WORKDIR}, skipping composer install"

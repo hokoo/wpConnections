@@ -7181,14 +7181,19 @@ Notes/Risks:
 
 ## E6. Compatibility и release readiness
 
+Recommended root AI model: `gpt-6.1-sol` (`medium` reasoning effort).
+
 Outcome: поддерживаемые платформы, hooks и public API проверены; документация и
-release candidate соответствуют фактическому поведению.
+кандидат первого официального релиза соответствуют фактическому поведению.
+Ранее библиотека использовалась через версии-коммиты, а не через официальный
+релиз; их потребители остаются compatibility input из REL-00.
 
 Scope:
 
 - PHP/WordPress/Ramsey/DB matrix.
 - Hooks and extension points.
 - README/API migration notes и release checklist.
+- Краткая памятка об изменениях для потребителей, закрепивших конкретный commit.
 
 Out of Scope:
 
@@ -7200,6 +7205,7 @@ Success Criteria:
 - Blocking matrix зелёная.
 - Global/critical quality gates выполнены.
 - Нет незадокументированных подтверждённых breaking changes.
+- Известные ограничения первого релиза отделены от обязательных release gates.
 
 Dependencies:
 
@@ -7209,6 +7215,22 @@ Risks/Open Questions:
 
 - Исправленная cardinality/entity validation может требовать migration guide и
   data audit tool.
+
+### Известные ограничения первого официального релиза
+
+| Ограничение и влияние | Временный путь | Вернуться, когда | Задача |
+| --- | --- | --- | --- |
+| OpenAPI автоматически сверяется с REST registration по paths/methods, но не по каждому полю схемы; изменение wire shape может потребовать ручной сверки. | При изменении REST сопоставлять спецификацию с full-dispatch тестами. | Повторяется дрейф схем или расширяется REST contract. | DOC-01 |
+| Opt-in expanded REST при широком выборе materializes все выбранные connections до pagination; подготовка постов WordPress добавляет запросы на post. | Ограничивать выбор точными `from`/`to`/`both` selectors; не считать `per_page` пределом памяти до фильтрации. | Измеренная нагрузка превышает согласованный memory/query budget. | API-04 |
+| Дополнительные custom constraints на таблицах библиотеки не имеют утверждённой compatibility policy. | Использовать документированную схему библиотеки; существующие custom constraints инвентаризировать вручную, без автоматического ALTER/DROP. | Появится воспроизводимый consumer case и владелец утвердит политику. | DB-06R |
+| Штатного read/delete selector по stored connection metadata нет. | Использовать существующие selectors; metadata-driven bulk delete не обещан. | Подтверждён use case и утверждены semantics, isolation и стоимость запроса. | API-05 |
+| Dashboard application не входит в библиотеку. | Использовать PHP и REST API. | Выделены product owner и design capacity для issue #28. | PROD-01 |
+
+DB-02R не входит в этот список как принятое ограничение: конкурентный
+update/delete может нарушить обещание E3 об отсутствии orphan metadata. До
+кандидата релиза нужно либо закрыть DB-02R, либо отдельно утвердить более узкий
+инвариант и принять остаточный риск. Простое перечисление риска не считается
+успешной проверкой целостности.
 
 Tasking Guidance:
 
@@ -7280,7 +7302,7 @@ Notes/Risks:
 
 ### REL-01. Проверить полную compatibility matrix
 
-Status: waiting_dependency
+Status: review
 
 Priority: P1
 
@@ -7403,21 +7425,26 @@ Notes/Risks:
 
 - Изменение hook name/arguments является breaking даже при неизменном PHP API.
 
-### REL-03. Подготовить migration notes, release documentation и RC
+### REL-03. Подготовить первый официальный релиз и RC
 
 Status: waiting_dependency
 
 Priority: P0
 
-Goal: выпустить проверяемый release candidate с понятным upgrade path.
+Goal: подготовить проверяемый кандидат первого официального релиза и понятную
+памятку для потребителей, закрепивших библиотеку на коммитах.
 
 Scope:
 
 - README quick start и фактический namespace/API.
 - Relation/cardinality/entity/error/REST contracts.
 - Compatibility table, OpenAPI link и CI commands.
-- Migration/data audit для ужесточённых invariants.
-- Changelog, versioning и release checklist.
+- Read-only data audit и инструкции для ужесточённых invariants.
+- Changelog, выбор первой официальной версии и release checklist; без
+  вымышленной миграции между ранее опубликованными 1.x и 2.0 версиями.
+- После выбора версии согласовать исторические 1.x/2.0 формулировки в README,
+  `docs/deprecations.md` и hook lifecycle guide с фактическим релизом.
+- Известные ограничения выше и подтверждённые изменения для commit consumers.
 
 Out of Scope:
 
@@ -7427,13 +7454,19 @@ DoR:
 
 - Все blocking tasks E1—E5 завершены.
 - REL-01 и REL-02 завершены.
+- HOOK-04 подготовил compatibility note для известных commit consumers.
+- Для DB-02R есть проверенное исправление либо явное решение владельца о
+  сужении release invariant и принятии риска.
 - DG-M8 quality target достигнут.
 - DG-NAME-01—DG-NAME-06R утверждены.
 
 DoD:
 
-- RC tag/version выбран и проверен из clean consumer install.
-- Upgrade/migration instructions протестированы на representative data.
+- Версия и exact кандидат выбраны; clean consumer install проверяет кандидат.
+- Инструкции для существующих данных и известных commit consumers проверены на
+  representative cases.
+- Известные ограничения, release gates и поводы к пересмотру опубликованы в
+  документации кандидата; DB-02R не скрыт среди принятых ограничений.
 - Open issues из scope закрыты или имеют явный deferred rationale.
 - M5 отмечен в index plan.
 
@@ -7443,25 +7476,33 @@ AC:
   зарегистрировать relation и выполнить CRUD.
 - Given existing data с cardinality violations, then migration guide позволяет
   обнаружить и исправить их до включения strict behavior.
+- Given consumer закрепил старый commit и использовал изменённый hook/REST
+  contract, then release notes объясняют несовместимость и доступный переход.
 - Given release commit, then blocking matrix, critical scenarios и утверждённый
   coverage threshold зелёные.
 
 Dependencies:
 
-- REL-01, REL-02, DOC-01.
+- REL-01, REL-02, DOC-01, HOOK-04.
 - Все blocking задачи E1—E5.
+- Решение release gate по DB-02R.
 - DG-M8.
 - DG-NAME-01—DG-NAME-06R.
 
 Notes/Risks:
 
 - Не выпускать strict cardinality/entity validation без data-audit guidance.
+- Создание tag, merge release branch и публикация — отдельные действия,
+  требующие полномочий после проверки кандидата.
 
 ## E7. Context-aware WordPress hook lifecycle
 
-Outcome: 1.x consumers получают semantic lifecycle API без compatibility break,
-а 2.0 переходит на проверяемую context-aware subscription boundary с явным
-upgrade path для direct `remove_action()` consumers.
+Recommended root AI model: `gpt-6.1-sol` (`high` reasoning effort for remaining HOOK-04 work).
+
+Outcome: потребители ранее закреплённых коммитов получают проверяемый переход
+к context-aware subscription boundary и явное предупреждение о direct
+`remove_action()`. Названия 1.x/2.0 в исторических этапах ниже описывают
+планировавшуюся границу поведения, а не две уже опубликованные версии.
 
 Canonical contract и staged delivery map:
 [`docs/hook-lifecycle-transition.md`](../hook-lifecycle-transition.md).
@@ -8108,27 +8149,25 @@ Notes/Risks:
 - Это intentional major-version break для direct `remove_action()` consumers.
 - Consumer остаётся ответственным за отдельный Client в каждом site context.
 
-### HOOK-04. Проверить migration и выпустить 2.0 hook upgrade guide
+### HOOK-04. Проверить commit consumers и подготовить hook compatibility note
 
 Status: waiting_dependency
 
-Priority: P0 для 2.0 release
+Priority: P0 для первого официального релиза
 
-Goal: сделать callback-identity break видимым, обнаружимым и проверяемым до
-обновления consumer applications.
+Goal: сделать callback-identity break видимым для известных потребителей
+коммит-версий до первого официального релиза.
 
 Scope:
 
-- Changelog/upgrade-guide red flag для direct `remove_action()`.
-- Known-consumer repository search и migration checklist.
+- Release-note red flag для direct `remove_action()` и custom REST subclass
+  overrides.
+- Точечный refresh известных public consumers из REL-00 и migration checklist.
 - Before/after examples через semantic Client lifecycle API.
-- Clean 1.x-to-2.0 consumer fixture и rollback rehearsal.
-- REST/logging/lifecycle migration notes, где применимо.
-- 2.0 red flag для custom `ClientRestApi::init()`/`registerRestRoutes()`
-  overrides: parent managed activation required; `$namespace`/`$base` and
-  handler/permission overrides retained; arbitrary side effects and private
-  routes stay implementer-owned.
-- REL-02/REL-03 compatibility evidence update.
+- Focused consumer fixture для найденного несовместимого pattern; если такой
+  pattern не найден, зафиксировать границы поиска вместо искусственной
+  1.x-to-2.0 migration/rollback rehearsal.
+- REL-02 compatibility evidence и входной материал для REL-03.
 
 Out of Scope:
 
@@ -8139,30 +8178,32 @@ DoR:
 
 - DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01 и LIFE-HOOK-01 completed.
 - REL-02 hook/factory compatibility evidence доступен.
-- REL-03 release process активен.
 
 DoD:
 
-- Upgrade guide явно говорит, что storage-method `remove_action()` больше не
-  управляет cleanup в 2.0.
-- Known consumers проверены; найденные usages имеют owner/outcome.
-- Representative consumer мигрирует на semantic API и проходит rollback test.
+- Compatibility note явно говорит, что storage-method `remove_action()` больше
+  не управляет cleanup в текущем manager-backed runtime, и объясняет semantic
+  замену; custom REST override boundary также указан.
+- Известные public consumers проверены; найденные usages имеют owner/outcome,
+  а неизвестные private consumers обозначены как предел поиска.
+- Реально найденный несовместимый pattern покрыт одним representative
+  consumer check; при отсутствии такого pattern искусственный fixture не нужен.
 
 AC:
 
-- Given 1.x consumer с direct callback removal, when он следует guide, then до
-  2.0 upgrade переходит на semantic disable и сохраняет поведение после upgrade.
+- Given commit consumer с direct callback removal, when он следует note, then
+  переходит на semantic disable и сохраняет намерение отключить cleanup.
 - Given release candidate, then no known direct-remove usage remains without an
   explicit migration owner or accepted external risk.
 
 Dependencies:
 
-- DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02,
-  REL-03.
+- DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02.
 
 Notes/Risks:
 
-- Это обязательный release gate, а не обычная deprecation note.
+- Это обязательный gate первого официального релиза, но не миграция между
+  ранее опубликованными major-версиями. Его результат потребляет REL-03.
 
 ## Traceability: замечания и GitHub issues
 

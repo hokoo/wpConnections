@@ -73,6 +73,15 @@ Pull requests are expected to pass the following pinned jobs. Exact pins keep
 reruns reproducible; updating them is an intentional compatibility-policy
 change, not routine dependency drift.
 
+The Batch 28 candidate keeps Ramsey `1.3.0` lanes on `composer.lock` and moves
+Ramsey `2.1.1` lanes to `composer-ramsey-2.1.1.json` (an alias of the root
+manifest) and `composer-ramsey-2.1.1.lock`. The entrypoint and dedicated lock
+are locally verified; remote required checks remain pending. See the
+[Batch 28 checkpoint](plans/batch28-checkpoint.md) for the local evidence.
+Composer installs both lanes without resolving new dependency versions or
+rewriting `composer.lock`. When changing the root manifest or a matrix
+dependency pin, update and verify both lock files together.
+
 ### Unit tests
 
 The `Unit Tests` workflow runs the Cartesian product below: ten jobs in total.
@@ -280,11 +289,12 @@ the complete visible check set take precedence over CI duration.
 
 - Read the `Composer dependencies` and `Runtime versions` sections in the job
   output; confirm that the installed Ramsey version matches the matrix lane.
-- Run the failing suite again. Normal Make targets always execute the
-  idempotent `composer install` against `composer.lock`.
+- Run the failing suite again. In the Batch 28 candidate, normal Make targets
+  execute idempotent `composer install` against the selected lane's lock file.
 - If a lock or manifest change is intentional, verify both Ramsey `1.3.0` and
-  `2.1.1` lanes before review. Do not commit an incidental `composer.lock`
-  rewrite produced while experimenting with a matrix lane.
+  `2.1.1` lanes before review. Regenerate the relevant lock explicitly and
+  commit it with the entrypoint change; a normal matrix run must leave both
+  locks unchanged.
 - Use `make tests.clean` when a dependency error may come from an outdated test
   image rather than the bind-mounted project files.
 

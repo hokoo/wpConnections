@@ -1,7 +1,10 @@
 # WordPress hook lifecycle transition
 
 Status: executable staged plan; Batch 19 manager-backed deletion and Batch 20
-Client disposal completed, release-wide migration remains downstream
+Client disposal completed, first-release compatibility note remains downstream.
+wpConnections has not had an official tagged release; the 1.x/2.0 labels below
+name historical compatibility stages, not two published release lines. HOOK-04
+now checks known commit-pinned consumers before the first official release.
 
 Baseline: `master` merge `a3491c018b96b54dc03e55a850153ddc0e6db413`
 (Batch 20 / LIFE-HOOK-01, PR #106).
@@ -260,15 +263,15 @@ boundary.
 | 2.0 deletion | HOOK-03 / DB-04-I3 | Manager-backed recovery coordinator and `deleted_post` tests | HOOK-01, HOOK-02, DB-04-I1/I2, DG-DELETE-06R1 | completed, PR #104 / `7cfe684` |
 | 2.0 REST | REST-HOOK-01 | Context-safe hook plus REST route lifecycle | HOOK-01, REST-01, DG-HOOK-REST-01—05, DG-RESTERR-03 | completed, PR #83 / `33b659e` |
 | Client lifetime | LIFE-HOOK-01 | Final disposal and failed-init rollback across migrated integrations | HOOK-03, REST-HOOK-01, LOG-HOOK-01, DG-HOOK-LIFE-01 | completed, PR #106 / `a3491c0` |
-| 2.0 release | HOOK-04 | Consumer scan, upgrade guide and compatibility verification | DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02, REL-03 | waiting dependency |
+| First official release | HOOK-04 | Known commit-consumer scan and hook compatibility note | DB-04-Q, HOOK-03, REST-HOOK-01, LOG-HOOK-01, LIFE-HOOK-01, REL-02 | waiting dependency |
 
 Each implementation task has its own branch, independent QA, rollback point and
 protected-check run. HOOK-01 is delivered independently and installs no
 wpConnections dependency. LOG-HOOK-01 completed on exact candidate `234216e`
 with independent QA PASS and 17/17 protected checks; it changes logging only.
 Batch 19 supplies the manager-backed deletion registrations. Batch 20 composes
-cross-integration disposal and rollback; release-wide consumer
-migration remains in HOOK-04.
+cross-integration disposal and rollback; the known commit-consumer check and
+first-release compatibility note remain in HOOK-04.
 REST-HOOK-01 is the completed task in Batch 10 and first wpConnections runtime
 consumer of `hokoo/wp-hooks-dispatcher`. DG-HOOK-REST-05/A is approved; task
 scope remains limited to the REST integration boundary. Implementation commit
@@ -413,5 +416,6 @@ the site-local repair ledger and ownership option; it does not silently return
 unresolved work to the 1.x callback bridge. Before release, Batch 20 can be
 rolled back by removing public disposal and its terminal guards together while
 retaining constructor-failure cleanup. See the
-[deleted-post upgrade guide](deleted-post-cleanup-upgrade.md). A public 2.0
-release still requires HOOK-04's consumer scan and rollback rehearsal.
+[deleted-post upgrade guide](deleted-post-cleanup-upgrade.md). The first
+official release still requires HOOK-04's known-consumer scan and compatibility
+note; a representative fixture is needed when the scan finds an affected use.
