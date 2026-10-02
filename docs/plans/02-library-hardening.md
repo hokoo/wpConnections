@@ -7302,7 +7302,11 @@ Notes/Risks:
 
 ### REL-01. Проверить полную compatibility matrix
 
-Status: review
+Status: completed
+
+Evidence: [Batch 28 checkpoint](batch28-checkpoint.md). PR #120 head `992bdae`
+and merge `f9f20d5` each passed all 20 required contexts; local runtime/database
+matrix, clean rebuild, coverage, style and isolation passed with unchanged locks.
 
 Priority: P1
 

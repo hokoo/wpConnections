@@ -14,18 +14,18 @@ release has been published.
 
 ### Roadmap position
 
-The project is in E6 / Batch 28 / REL-01, after completion of E5 / Batch 27.
+The project is in E6; Batch 28 / REL-01 is complete. No batch is active.
 
 | Level | Previous | Current | Next |
 | --- | --- | --- | --- |
 | Epic | E5 completed; independent QA `pass_with_notes`. | E6 compatibility and release readiness. E7 still has the HOOK-04 release gate. | No epic after E6 has been selected. |
-| Batch | Batch 27 / DOC-01 completed. | Batch 28 / REL-01 in review; local gates passed, remote CI pending. | No later batch selected. |
-| Task | DOC-01 completed. | REL-01 in review. | No next task selected. |
+| Batch | Batch 28 / REL-01 completed; PR #120 head and merge passed 20/20 checks. | No batch is active. | No next batch selected. |
+| Task | REL-01 completed. | No task is active. | No next task selected. |
 
 Update this block and the [root README status](../../README.md#development-status)
 together whenever a task starts or changes state, or a batch or epic changes
 state.
-The active evidence is in the [Batch 28 checkpoint](batch28-checkpoint.md).
+The latest evidence is in the [Batch 28 checkpoint](batch28-checkpoint.md).
 
 Batch 21 qualification was delivered through PR #108 on 2026-09-22. B21-01—B21-10
 are complete: local candidate `062b7fe`, protected head `1e8a4c9`, and exact
