@@ -1,8 +1,7 @@
 # Batch 28 — REL-01 compatibility matrix
 
-Status: review. Local verification of the REL-01 candidate is complete; its
-required GitHub checks remain pending. No release, merge
-or publication is claimed.
+Status: completed. PR #120 merged, and the exact head and merge each passed
+all 20 required GitHub checks. No release or publication is claimed.
 
 Implementation base: `979db63` (`batch28-rel01-compatibility`). The checkout
 also includes delivery-documentation commits `cf7d449` and `b5baf84`; the
@@ -70,16 +69,30 @@ combinations.
   repeat-2 runs (unit 286/1066 and integration 1362/11478 with 24 skips per
   order). `make tests.coverage.rc` was not run. The working-tree status and
   both lock hashes were unchanged after these gates.
-- These local results support the REL-01 combinations and clean-install AC.
-  The final committed candidate still needs all 20 blocking GitHub contexts
-  checked on one exact head, including context name, conclusion, head SHA and
-  runtime version; no missing, stale, skipped or cancelled required context
-  can be accepted. Remote required-check state has not been established, so
-  the green-blocking DoD and task completion remain pending.
+- [PR #120](https://github.com/hokoo/wpConnections/pull/120) exact head
+  `992bdae49aa3d2daaa6f6a5ce75eba9bbdfe0246` passed all 20 required contexts.
+  PR runs: `37016703544`, `37016703681`, `37016703711`, `37016704015`,
+  `37016703520`; all succeeded on attempt 1. The owner authorized push, PR
+  and merge after those checks passed, including preceding roadmap and agent
+  configuration commits.
+- PR #120 merged on 2026-10-02 as
+  `f9f20d5e99489b0dafd2e1b4dc9f5d09f60dd7cf`. All 20 post-merge contexts
+  passed on this exact SHA: push runs `37017355563`, `37017355560`,
+  `37017355561`, `37017355293`, `37017355799`, each attempt 1. Root independently
+  matched names, SHA and success states for both head and merge; no required
+  context was missing, skipped, cancelled, stale or failed.
+- Live branch metadata confirmed `master` protection with all 20 contexts and
+  enforcement for everyone. The full administration endpoint remains unavailable
+  to the connected app (403); strict checks, disabled force-push/deletion and
+  administrator enforcement retain the owner's 2026-09-27 attestation.
+- REL-01 AC and DoD are satisfied. Root authored only concise delivery
+  bookkeeping during closeout. E6 is still open; no next batch or task is
+  selected, and no acceptance criterion was waived.
 
 Nonblocking warnings remain in the passing logs: PHP 8.4/8.5 deprecations,
 WordPress `fonts.php` with a null `post_type`, PHPCS `functionWhitelist`
 deprecation, and a deprecated Swagger CLI. Owner: repository maintainer.
 Follow-up: review these in REL-03 and open a focused dependency/tooling task if
 any becomes a failure. No blocking incompatibility was observed locally.
-The next gate is the committed candidate and its exact-head remote evidence.
+REL-02, HOOK-04, the DB-02R release decision and REL-03 remain outside this
+completed batch and retain their existing readiness and release gates.
