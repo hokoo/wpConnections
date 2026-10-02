@@ -664,6 +664,28 @@ behavior.
 - Cover known direct `getStorage()` and table-introspection compatibility while
   still documenting domain operations as the supported mutation path.
 
+The executable capable-adapter fixture is
+[`ExtensionCompatibilityStorage`](../tests/iTRON/wpConnections/WP/ExtensionCompatibilityTest.php).
+Its `Connection::update()` schedules separate the portable invariant from the
+default adapter's SQL mechanism:
+
+1. **Delete wins:** the domain reads the connection, then the fixture deletes
+   the parent immediately before entering the atomic callback. The adapter's
+   `updateConnection()` rechecks both parent existence and relation ownership
+   inside that scope, raises `ConnectionNotFound`, and no metadata remove/add
+   call occurs. The prior delete remains visible, with no orphan metadata.
+2. **Update wins:** the adapter commits scalar and metadata changes in its
+   scope; a subsequent delete removes the parent and metadata together.
+3. **Scalar no-op:** an existing parent with unchanged scalar fields yields a
+   valid `false` update result while metadata replacement still completes.
+
+These schedules are deterministic in-memory conformance for a capable custom
+adapter. They require no new public capability method. They do not claim that
+`WPStorage` has a fixed two-session race or prove its SQL row locking; DB-02R
+owns that repair and database-backed verification. The public hook inventory,
+factory failure contract, concrete telemetry classifications and consumer
+migration guidance are in the [extension compatibility guide](extension-compatibility.md).
+
 ## Residual risks
 
 - No public custom storage implementation was found, but private adapters are

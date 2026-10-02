@@ -720,6 +720,22 @@ class ClientIsolationTest extends \WP_UnitTestCase
 		self::assertCount( 1, $site_one_relation->findConnections() );
 	}
 
+	public function test_default_storage_install_filter_receives_false_and_exact_client_once(): void
+	{
+		$seen = [];
+		$record = static function ( $default, $client ) use ( &$seen ) {
+			$seen[] = [ $default, $client ];
+			return $default;
+		};
+		add_filter( 'wpConnections/storage/installOnInit', $record, 900, 2 );
+		try {
+			$client = $this->new_default_client( 'install-filter-contract' );
+		} finally {
+			remove_filter( 'wpConnections/storage/installOnInit', $record, 900 );
+		}
+		self::assertSame( [ [ false, $client ] ], $seen );
+	}
+
 	public function test_prefix_change_inside_storage_callbacks_stops_before_registration_or_dml(): void
 	{
 		global $wpdb;
