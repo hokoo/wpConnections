@@ -283,7 +283,7 @@ rollback/uninstall preservation, follow the
 
 Do not drop the repair ledger or its ownership option during a rollback while
 unresolved records exist. See the
-[deleted-post 2.0 upgrade guide](docs/deleted-post-cleanup-upgrade.md) and the
+[first-release hook consumer compatibility note](docs/deleted-post-cleanup-upgrade.md) and the
 [hook lifecycle transition contract](docs/hook-lifecycle-transition.md).
 
 Existing complete tables without a matching ownership record, unowned partial

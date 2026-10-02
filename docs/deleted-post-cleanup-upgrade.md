@@ -1,9 +1,23 @@
-# Deleted-post cleanup: 1.x to 2.0 upgrade
+# First-release hook consumer compatibility
 
 Status: Batch 20 lifecycle boundary and Batch 21 / DB-04-Q operational
 qualification are completed. Closeout PR #109 merged as `ba0b546`, all 20
 post-merge contexts passed, and fresh final QA returned `pass_with_notes`.
-The final release-wide consumer scan and 2.0 release notes remain HOOK-04 work.
+The [HOOK-04 known-public-consumer refresh](compatibility-inventory.md#hook-04-public-refresh)
+was performed on 2026-10-02. Private and deployed consumers remain outside
+that source snapshot. wpConnections has not had an official tagged release;
+the 1.x/2.0 labels below describe historical compatibility stages.
+
+## Release red flags
+
+- Direct `remove_action( 'deleted_post', [ $client->getStorage(),
+  'deleteByObjectID' ], 10 )` no longer disables cleanup in the current
+  manager-backed runtime. Replace it with
+  `$client->disablePostDeletionCleanup()`.
+- A custom `ClientRestApi` subclass must call `parent::init()` from an
+  overridden `init()`. The library registers its four built-in routes, so an
+  overridden `registerRestRoutes()` is not called automatically. The subclass
+  owner must register and retire extra hooks/routes for each site context.
 
 ## Breaking change
 
@@ -29,7 +43,7 @@ implementation detail, while cleanup lifecycle is the public Client contract.
 Replace direct hook manipulation before upgrading:
 
 ```php
-// Works in the 1.x transition release and in 2.0.
+// Works in the historical transition stage and current manager-backed stage.
 $client->disablePostDeletionCleanup();
 
 // Re-enable when the consumer is ready for automatic cleanup and repair.
@@ -48,13 +62,37 @@ add_action(
 );
 ```
 
-Search private consumers, plugins and mu-plugins for all of the following, not
-only an exact pasted expression:
+<a id="consumer-checklist"></a>
+
+## Consumer checklist
+
+Search each deployed consumer, plugin and mu-plugin, including private code,
+for all of the following, not only an exact pasted expression:
 
 - `remove_action()` calls using `deleteByObjectID`;
 - stored callback arrays built from `$client->getStorage()`;
 - wrappers that assume the Storage method is present at priority 10;
 - code that re-enables cleanup with a direct `add_action()`.
+- a `ClientRestApi` factory replacement or subclass that overrides `init()` or
+  `registerRestRoutes()`; make `init()` call `parent::init()` and explicitly own
+  any extra routes/hooks across disposal and site switches.
+
+For a direct-removal match, the consumer's maintainer owns replacing it with
+`disablePostDeletionCleanup()` and verifying that a matching post deletion
+leaves its connection intact. Re-enable through
+`enablePostDeletionCleanup()` only when automatic cleanup is desired. For a
+custom REST override, the subclass maintainer owns the review and any needed
+route registration change. Record the deployed revision and migration outcome
+before adopting the first official release; a public default-branch scan
+cannot certify private or modified installations.
+
+The 2026-10-02 [public-source refresh](compatibility-inventory.md#hook-04-public-refresh)
+found no incompatible lifecycle pattern in the four known snapshots. Thus no
+new representative consumer fixture is warranted. Existing
+[`DeletedPostRepairHookMigrationTest`](../tests/iTRON/wpConnections/WP/DeletedPostRepairHookMigrationTest.php)
+cases verify that direct Storage callback
+removal returns false while cleanup runs, and that semantic disable/enable
+controls delivery.
 
 Do not register the Storage callback alongside the semantic API. That bypasses
 the durable arm/claim boundary and can duplicate cleanup outside the managed
@@ -104,7 +142,7 @@ to exist and does not reconstruct the old direct callback identity.
    operator-reviewed retries before retiring the 2.0 runtime.
 
 The [operations runbook](deleted-post-repair-operations.md) provides the
-per-site inventory/retry procedure and Batch 21 preservation rehearsal.
-The final 2.0 release
-procedure and known-consumer repository scan remain gated by HOOK-04 after
-that qualification.
+per-site inventory/retry procedure and Batch 21 preservation rehearsal. The
+[dated known-public-consumer refresh](compatibility-inventory.md#hook-04-public-refresh)
+is documented; REL-03 candidate verification and independent E7 acceptance
+remain pending before the first official release.

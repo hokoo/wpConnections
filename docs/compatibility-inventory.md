@@ -182,3 +182,36 @@ These results have important limits:
 
 No credentials, private repository names, private source paths or token-derived
 content are included in this artifact.
+
+<a id="hook-04-public-refresh"></a>
+
+## HOOK-04 public hook-consumer refresh — 2026-10-02
+
+The four known public sources still resolve to the immutable REL-00 commits
+above. On 2026-10-02, `gh api repos/<owner>/<repo>/commits/HEAD` returned each
+SHA, and a shallow clone of each default branch returned the same SHA with
+`git rev-parse HEAD`. Consumer-owned PHP, including checked-in tests, was
+searched with:
+
+```sh
+rg -n -g '*.php' -g '!**/vendor/**' 'remove_action|remove_all_actions|has_action|deleted_post|deleteByObjectID|disablePostDeletionCleanup|enablePostDeletionCleanup|registerRestRoutes|ClientRestApi|factory/getRestApi/class|rest_api_init' .
+```
+
+| Current public snapshot | Hook/REST lifecycle outcome | Migration responsibility |
+| --- | --- | --- |
+| [`hokoo/cf7-telegram` at `10b285ce`](https://github.com/hokoo/cf7-telegram/tree/10b285ce120983767181cc09ad506638a4dda25e) | No consumer-owned direct `deleted_post` callback removal or custom `ClientRestApi` override. Its own `RestApi::registerFields()` is registered on `rest_api_init`, separate from wpConnections' managed routes. | No observed HOOK-04 code migration; integration maintainer must check deployed/private variants against the [hook upgrade checklist](deleted-post-cleanup-upgrade.md#consumer-checklist) and owns its separate table-coupling SPI migration. |
+| [`hokoo/cf7-vk` at `42e774d`](https://github.com/hokoo/cf7-vk/tree/42e774d7e1630200c2d4443dbd2a413151f68353) | No consumer-owned direct removal or custom `ClientRestApi` override. Its own `RestApi::registerFields()` is separate from managed routes. | No observed HOOK-04 code migration; integration maintainer must check deployed/private variants and owns the separate `getStorage()->deleteSpecificConnections()` and table-coupling SPI migrations. |
+| [`hokoo/neuralseo` at `6272b6e`](https://github.com/hokoo/neuralseo/tree/6272b6ea2cd0868e6ed1fc253647afda80ecdef8) | No consumer-owned direct removal or custom `ClientRestApi` override. `WebhookManager::registerRestRoutes()` is its own REST hook, not a subclass override. | No observed HOOK-04 code migration; integration owner must check deployed/private variants. |
+| [`WordPressBugBounty/plugins-cf7-telegram` at `c21d7fa`](https://github.com/WordPressBugBounty/plugins-cf7-telegram/tree/c21d7fadb3642257743c81c307ba6e76d639bf34) | The bundled CF7 Telegram integration has no consumer-owned direct removal or custom `ClientRestApi` override. The vendor tree contains wpConnections' historical implementation and unrelated dependency hooks; neither is a separate consumer usage. | Mirror/distribution owner must check any deployed modifications; no independent HOOK-04 code migration observed. |
+
+No **known public direct-remove usage** remains without an outcome: none was
+found in these four snapshots, so there is no observed incompatible consumer
+pattern to turn into a new representative fixture. The library already checks
+the callback-identity break and semantic disable/enable in
+[`DeletedPostRepairHookMigrationTest`](../tests/iTRON/wpConnections/WP/DeletedPostRepairHookMigrationTest.php).
+This refresh is a public source lower
+bound, not an attestation about private plugins, mu-plugins, modified ZIPs,
+other forks, or which commit a deployment actually runs. Their owners must
+perform the checklist before adopting the first official release. REL-03 should
+use this dated inventory together with the [REL-02 extension evidence](plans/batch29-checkpoint.md)
+and repeat the targeted search at its actual release candidate.

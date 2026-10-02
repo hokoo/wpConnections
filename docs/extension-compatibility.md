@@ -45,6 +45,8 @@ patterns, resolving the live Client at request time. An override of
 `registerRestRoutes()` is no longer called automatically for those routes;
 custom extra routes remain the delegate author's responsibility. See the
 [REST lifecycle transition](client-owned-hook-inventory.md#rest-hook-01-implementation-update).
+The [first-release hook consumer checklist](deleted-post-cleanup-upgrade.md#consumer-checklist)
+covers direct cleanup callback removal and custom REST overrides.
 
 ## Lifecycle actions
 
