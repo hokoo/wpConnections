@@ -7358,7 +7358,9 @@ Notes/Risks:
 
 ### REL-02. Проверить hooks, factories и extension compatibility
 
-Status: waiting_dependency
+Status: completed
+
+Batch owner AI model: `gpt-6.1-sol` (`high`); cross-cutting extension contracts and custom-adapter conformance require careful review without new public API.
 
 Priority: P1
 
@@ -7428,6 +7430,8 @@ Dependencies:
 Notes/Risks:
 
 - Изменение hook name/arguments является breaking даже при неизменном PHP API.
+
+Delivery evidence: [Batch 29 checkpoint](batch29-checkpoint.md); verified local implementation commit `60081f0`. DB-02R and HOOK-04 dependencies are unblocked; default adapter race repair remains DB-02R. No release or publication.
 
 ### REL-03. Подготовить первый официальный релиз и RC
 
